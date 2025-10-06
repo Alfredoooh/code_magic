@@ -31,7 +31,7 @@ dependencies:
   palette_generator: ^0.3.2
   share_plus: ^7.2.0
   #webfeed: ^0.7.0
-   xml: ^6.3.0
+  xml: ^6.3.0
 
 dev_dependencies:
   flutter_test:
