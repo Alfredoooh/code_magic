@@ -1,15 +1,14 @@
 import org.gradle.api.tasks.Delete
 
 // Versão Kotlin compatível com o settings.gradle.kts anterior
-val kotlinVersion = "1.9.10"
-
+// (colocada diretamente no classpath para evitar erro de escopo)
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10")
     }
 }
 
