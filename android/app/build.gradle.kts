@@ -51,18 +51,15 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     
-    // Import the Firebase BoM (gerencia versões automaticamente)
+    
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     
-    // Firebase dependencies (sem especificar versão, usa o BoM)
+    
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     
-    // Google Sign-In
-    implementation("com.google.android.gms:play-services-auth:21.0.0")
     
-    // Dependências existentes
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
     implementation("androidx.multidex:multidex:2.0.1")
