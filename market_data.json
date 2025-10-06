@@ -1,0 +1,292 @@
+{
+  "updatedAt": "2025-10-03T10:00:00Z",
+  "source": "user-provided",
+  "items": [
+    {
+      "id": "btc",
+      "symbol": "BTCUSDT",
+      "symbolShort": "BTC",
+      "name": "Bitcoin",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/btc.png",
+      "price": 27613.52,
+      "link": "https://www.binance.com/en/trade/BTC_USDT",
+      "meta": { "source": "binance", "category": "largecap" }
+    },
+    {
+      "id": "eth",
+      "symbol": "ETHUSDT",
+      "symbolShort": "ETH",
+      "name": "Ethereum",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/eth.png",
+      "price": 1819.34,
+      "link": "https://www.binance.com/en/trade/ETH_USDT",
+      "meta": { "source": "binance", "category": "largecap" }
+    },
+    {
+      "id": "sol",
+      "symbol": "SOLUSDT",
+      "symbolShort": "SOL",
+      "name": "Solana",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/sol.png",
+      "price": 38.17,
+      "link": "https://www.binance.com/en/trade/SOL_USDT",
+      "meta": { "source": "binance", "category": "smart-contracts" }
+    },
+    {
+      "id": "bnb",
+      "symbol": "BNBUSDT",
+      "symbolShort": "BNB",
+      "name": "BNB",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/bnb.png",
+      "price": 335.10,
+      "link": "https://www.binance.com/en/trade/BNB_USDT",
+      "meta": { "source": "binance", "category": "exchange-token" }
+    },
+    {
+      "id": "ada",
+      "symbol": "ADAUSDT",
+      "symbolShort": "ADA",
+      "name": "Cardano",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/ada.png",
+      "price": 0.42,
+      "link": "https://www.binance.com/en/trade/ADA_USDT",
+      "meta": { "source": "binance", "category": "smart-contracts" }
+    },
+    {
+      "id": "xrp",
+      "symbol": "XRPUSDT",
+      "symbolShort": "XRP",
+      "name": "XRP",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/xrp.png",
+      "price": 0.57,
+      "link": "https://www.binance.com/en/trade/XRP_USDT",
+      "meta": { "source": "binance", "category": "payments" }
+    },
+    {
+      "id": "dot",
+      "symbol": "DOTUSDT",
+      "symbolShort": "DOT",
+      "name": "Polkadot",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/dot.png",
+      "price": 6.42,
+      "link": "https://www.binance.com/en/trade/DOT_USDT",
+      "meta": { "source": "binance", "category": "interoperability" }
+    },
+    {
+      "id": "ltc",
+      "symbol": "LTCUSDT",
+      "symbolShort": "LTC",
+      "name": "Litecoin",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/ltc.png",
+      "price": 86.30,
+      "link": "https://www.binance.com/en/trade/LTC_USDT",
+      "meta": { "source": "binance", "category": "payments" }
+    },
+    {
+      "id": "link",
+      "symbol": "LINKUSDT",
+      "symbolShort": "LINK",
+      "name": "Chainlink",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/link.png",
+      "price": 11.25,
+      "link": "https://www.binance.com/en/trade/LINK_USDT",
+      "meta": { "source": "binance", "category": "oracles" }
+    },
+    {
+      "id": "doge",
+      "symbol": "DOGEUSDT",
+      "symbolShort": "DOGE",
+      "name": "Dogecoin",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/doge.png",
+      "price": 0.08,
+      "link": "https://www.binance.com/en/trade/DOGE_USDT",
+      "meta": { "source": "binance", "category": "meme" }
+    },
+    {
+      "id": "matic",
+      "symbol": "MATICUSDT",
+      "symbolShort": "MATIC",
+      "name": "Polygon",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/matic.png",
+      "price": 0.78,
+      "link": "https://www.binance.com/en/trade/MATIC_USDT",
+      "meta": { "source": "binance", "category": "scaling" }
+    },
+    {
+      "id": "avax",
+      "symbol": "AVAXUSDT",
+      "symbolShort": "AVAX",
+      "name": "Avalanche",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/avax.png",
+      "price": 18.90,
+      "link": "https://www.binance.com/en/trade/AVAX_USDT",
+      "meta": { "source": "binance", "category": "smart-contracts" }
+    },
+    {
+      "id": "trx",
+      "symbol": "TRXUSDT",
+      "symbolShort": "TRX",
+      "name": "TRON",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/trx.png",
+      "price": 0.12,
+      "link": "https://www.binance.com/en/trade/TRX_USDT",
+      "meta": { "source": "binance", "category": "payments" }
+    },
+    {
+      "id": "uni",
+      "symbol": "UNIUSDT",
+      "symbolShort": "UNI",
+      "name": "Uniswap",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/uni.png",
+      "price": 5.82,
+      "link": "https://www.binance.com/en/trade/UNI_USDT",
+      "meta": { "source": "binance", "category": "dex" }
+    },
+    {
+      "id": "aave",
+      "symbol": "AAVEUSDT",
+      "symbolShort": "AAVE",
+      "name": "Aave",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/aave.png",
+      "price": 73.50,
+      "link": "https://www.binance.com/en/trade/AAVE_USDT",
+      "meta": { "source": "binance", "category": "lending" }
+    },
+    {
+      "id": "sushi",
+      "symbol": "SUSHIUSDT",
+      "symbolShort": "SUSHI",
+      "name": "SushiSwap",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/sushi.png",
+      "price": 1.15,
+      "link": "https://www.binance.com/en/trade/SUSHI_USDT",
+      "meta": { "source": "binance", "category": "dex" }
+    },
+    {
+      "id": "bch",
+      "symbol": "BCHUSDT",
+      "symbolShort": "BCH",
+      "name": "Bitcoin Cash",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/bch.png",
+      "price": 240.50,
+      "link": "https://www.binance.com/en/trade/BCH_USDT",
+      "meta": { "source": "binance", "category": "payments" }
+    },
+    {
+      "id": "etc",
+      "symbol": "ETCUSDT",
+      "symbolShort": "ETC",
+      "name": "Ethereum Classic",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/etc.png",
+      "price": 24.70,
+      "link": "https://www.binance.com/en/trade/ETC_USDT",
+      "meta": { "source": "binance", "category": "legacy" }
+    },
+    {
+      "id": "xlm",
+      "symbol": "XLMUSDT",
+      "symbolShort": "XLM",
+      "name": "Stellar",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/xlm.png",
+      "price": 0.12,
+      "link": "https://www.binance.com/en/trade/XLM_USDT",
+      "meta": { "source": "binance", "category": "payments" }
+    },
+    {
+      "id": "shib",
+      "symbol": "SHIBUSDT",
+      "symbolShort": "SHIB",
+      "name": "Shiba Inu",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/shib.png",
+      "price": 0.0000072,
+      "link": "https://www.binance.com/en/trade/SHIB_USDT",
+      "meta": { "source": "binance", "category": "meme" }
+    },
+    {
+      "id": "ftt",
+      "symbol": "FTTUSDT",
+      "symbolShort": "FTT",
+      "name": "FTX Token",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/ftt.png",
+      "price": 2.65,
+      "link": "https://www.binance.com/en/trade/FTT_USDT",
+      "meta": { "source": "binance", "category": "exchange-token" }
+    },
+    {
+      "id": "neo",
+      "symbol": "NEOUSDT",
+      "symbolShort": "NEO",
+      "name": "Neo",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/neo.png",
+      "price": 7.20,
+      "link": "https://www.binance.com/en/trade/NEO_USDT",
+      "meta": { "source": "binance", "category": "smart-contracts" }
+    },
+    {
+      "id": "zec",
+      "symbol": "ZECUSDT",
+      "symbolShort": "ZEC",
+      "name": "Zcash",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/zec.png",
+      "price": 46.10,
+      "link": "https://www.binance.com/en/trade/ZEC_USDT",
+      "meta": { "source": "binance", "category": "privacy" }
+    },
+    {
+      "id": "ust",
+      "symbol": "USDTUSDT",
+      "symbolShort": "USDT",
+      "name": "Tether",
+      "type": "stablecoin",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdt.png",
+      "price": 1.00,
+      "link": "https://www.binance.com/en/trade/USDT_USDT",
+      "meta": { "source": "binance", "category": "stablecoin" }
+    },
+    {
+      "id": "waves",
+      "symbol": "WAVESUSDT",
+      "symbolShort": "WAVES",
+      "name": "Waves",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/waves.png",
+      "price": 3.21,
+      "link": "https://www.binance.com/en/trade/WAVES_USDT",
+      "meta": { "source": "binance", "category": "platform" }
+    },
+    {
+      "id": "chz",
+      "symbol": "CHZUSDT",
+      "symbolShort": "CHZ",
+      "name": "Chiliz",
+      "type": "crypto",
+      "icon": "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/chz.png",
+      "price": 0.09,
+      "link": "https://www.binance.com/en/trade/CHZ_USDT",
+      "meta": { "source": "binance", "category": "fan-token" }
+    }
+  ]
+}
