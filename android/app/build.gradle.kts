@@ -2,6 +2,8 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    // Aplica o plug-in do Google Services
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -14,9 +16,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
-
-        // Necessário se você usar notificações exatas (SCHEDULE_EXACT_ALARM)
-        // Evita crashes em Android 12+
         multiDexEnabled = true
     }
 
@@ -32,7 +31,6 @@ android {
 
     buildTypes {
         getByName("release") {
-            // Desativa shrink/obfuscation para evitar problemas com plugins Flutter
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("debug")
@@ -52,13 +50,22 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
-    // Dependência essencial para compatibilidade com Android 13+ permissões
+    
+    // Import the Firebase BoM (gerencia versões automaticamente)
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+    
+    // Firebase dependencies (sem especificar versão, usa o BoM)
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    
+    // Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+    
+    // Dependências existentes
     implementation("androidx.core:core-ktx:1.12.0")
-
-    // Kotlin
-  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
-  
-    // Suporte multidex (caso use muitos plugins, evita erro de limite de métodos)
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
     implementation("androidx.multidex:multidex:2.0.1")
 }
+
+
