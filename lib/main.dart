@@ -1,263 +1,293 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
-import 'dart:ui';
-import 'screens/login_screen.dart';
-import 'screens/main_screen.dart';
-import 'services/auth_service.dart';
-import 'services/storage_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Configurar orientação 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  // Configurar barra de status e segurança
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      statusBarBrightness: Brightness.dark,
-    ),
-  );
-
-  // Segurança: Ocultar conteúdo na tela de apps recentes
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-  );
-
-  runApp(const AuthSystemApp());
+  await Firebase.initializeApp();
+  runApp(ChatApp());
 }
 
-class AuthSystemApp extends StatefulWidget {
-  const AuthSystemApp({Key? key}) : super(key: key);
-
-  @override
-  State<AuthSystemApp> createState() => _AuthSystemAppState();
-}
-
-class _AuthSystemAppState extends State<AuthSystemApp> with WidgetsBindingObserver {
-  bool _isAppInBackground = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    setState(() {
-      _isAppInBackground = state != AppLifecycleState.resumed;
-    });
-  }
-
+class ChatApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Aguarde! Por favor.',
-      debugShowCheckedModeBanner: false,
+      title: 'Chat Firebase',
       theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        fontFamily: 'SF Pro',
-        scaffoldBackgroundColor: const Color(0xFF000000),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF007AFF),
-          secondary: Color(0xFF34C759),
-          surface: Color(0xFF1C1C1E),
-          background: Color(0xFF000000),
-          error: Color(0xFFFF3B30),
-        ),
+        primarySwatch: Colors.blue,
+        brightness: Brightness.light,
       ),
-      builder: (context, child) {
-        // Overlay de segurança com blur quando app está em background
-        return Stack(
-          children: [
-            child ?? const SizedBox.shrink(),
-            if (_isAppInBackground)
-              BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: 20.0,
-                  sigmaY: 20.0,
-                  tileMode: TileMode.clamp,
-                ),
-                child: Container(
-                  // Mantém a cobertura total com um dim, sem nenhum ícone ou conteúdo.
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: Colors.black.withOpacity(0.3),
-                ),
-              ),
-          ],
-        );
-      },
-      home: const SplashScreen(),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/main': (context) => const MainScreen(),
+      home: AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return ChatScreen();
+        }
+        return LoginScreen();
       },
     );
   }
 }
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+class LoginScreen extends StatelessWidget {
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  bool _hasError = false;
-  String _errorMessage = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthStatus();
-  }
-
-  Future<void> _checkAuthStatus() async {
+  Future<void> signInWithGoogle(BuildContext context) async {
     try {
-      // Pequeno delay para transição suave
-      await Future.delayed(const Duration(milliseconds: 800));
-      
-      final user = await StorageService.getCurrentUser();
-      
-      if (!mounted) return;
-      
-      if (user != null) {
-        // Verificar se a sessão ainda é válida
-        final isValid = await AuthService.validateSession(user);
-        
-        if (!mounted) return;
-        
-        if (isValid) {
-          Navigator.pushReplacementNamed(context, '/main');
-          return;
-        }
-      }
-      
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
-      
-    } catch (e) {
-      if (!mounted) return;
-      
-      setState(() {
-        _hasError = true;
-        _errorMessage = 'Erro de conexão. Verifique sua internet.';
-      });
-    }
-  }
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
 
-  void _retry() {
-    setState(() {
-      _hasError = false;
-      _errorMessage = '';
-    });
-    _checkAuthStatus();
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao fazer login: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      body: Center(
-        child: _hasError ? _buildErrorState() : _buildLoadingState(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.blue.shade400, Colors.purple.shade400],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.chat_bubble_outline, size: 100, color: Colors.white),
+              SizedBox(height: 20),
+              Text(
+                'Chat Firebase',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 50),
+              ElevatedButton.icon(
+                onPressed: () => signInWithGoogle(context),
+                icon: Icon(Icons.login),
+                label: Text('Entrar com Google'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  textStyle: TextStyle(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildLoadingState() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const CupertinoActivityIndicator(
-          color: Color(0xFF007AFF),
-          radius: 20,
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Carregando...',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.6),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
+class ChatScreen extends StatefulWidget {
+  @override
+  _ChatScreenState createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  void _sendMessage() async {
+    if (_controller.text.trim().isEmpty) return;
+
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore.collection('messages').add({
+      'text': _controller.text.trim(),
+      'userId': user.uid,
+      'userEmail': user.email,
+      'userName': user.displayName ?? 'Usuário',
+      'userPhoto': user.photoURL,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    _controller.clear();
   }
 
-  Widget _buildErrorState() {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  void _signOut() async {
+    await GoogleSignIn().signOut();
+    await _auth.signOut();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = _auth.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chat Firebase'),
+        actions: [
+          if (user?.photoURL != null)
+            Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircleAvatar(
+                backgroundImage: NetworkImage(user!.photoURL!),
+              ),
+            ),
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: _signOut,
+          ),
+        ],
+      ),
+      body: Column(
         children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Erro ao carregar mensagens'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                final messages = snapshot.data?.docs ?? [];
+
+                if (messages.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Nenhuma mensagem ainda.\nSeja o primeiro a enviar!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index].data() as Map<String, dynamic>;
+                    final isMe = message['userId'] == user?.uid;
+
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        mainAxisAlignment:
+                            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        children: [
+                          if (!isMe && message['userPhoto'] != null)
+                            CircleAvatar(
+                              backgroundImage: NetworkImage(message['userPhoto']),
+                              radius: 16,
+                            ),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.blue : Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (!isMe)
+                                    Text(
+                                      message['userName'] ?? 'Usuário',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  Text(
+                                    message['text'] ?? '',
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          if (isMe && message['userPhoto'] != null)
+                            CircleAvatar(
+                              backgroundImage: NetworkImage(message['userPhoto']),
+                              radius: 16,
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
           Container(
-            width: 80,
-            height: 80,
+            padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF3B30).withOpacity(0.15),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFFF3B30).withOpacity(0.3),
-                width: 2,
-              ),
-            ),
-            child: const Icon(
-              CupertinoIcons.wifi_slash,
-              size: 40,
-              color: Color(0xFFFF3B30),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Sem Conexão',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
               color: Colors.white,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _errorMessage,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.white.withOpacity(0.6),
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            child: CupertinoButton(
-              color: const Color(0xFF007AFF),
-              borderRadius: BorderRadius.circular(12),
-              onPressed: _retry,
-              child: const Text(
-                'Tentar Novamente',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade300,
+                  blurRadius: 5,
+                  offset: Offset(0, -2),
                 ),
-              ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: 'Digite sua mensagem...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.blue,
+                  child: IconButton(
+                    icon: Icon(Icons.send, color: Colors.white),
+                    onPressed: _sendMessage,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
