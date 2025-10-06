@@ -18,11 +18,12 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    // Atualizado para suportar Flutter >= 3.22
-    id("com.android.application") version "8.1.1" apply false
-    id("com.android.library") version "8.1.1" apply false
-    // Kotlin compatível
-    id("org.jetbrains.kotlin.android") version "1.9.10" apply false
+    // Atualizado AGP para uma versão compatível com Kotlin 2.1
+    // Nota: AGP 8.6.x é compatível com Kotlin 2.1 (ver notas de compatibilidade).
+    id("com.android.application") version "8.6.0" apply false
+    id("com.android.library") version "8.6.0" apply false
+    // Kotlin atualizado para 2.1.0
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
 }
 
 include(":app")
