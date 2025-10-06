@@ -30,7 +30,7 @@ class _MainScreenState extends State<MainScreen>
 
   final List<TabInfo> _tabs = [
     TabInfo('Início', Icons.home_rounded),
-    TabInfo('Hub', Icons.stacks_rounded),
+    TabInfo('Hub', Icons.layers_rounded),
     TabInfo('Stories', Icons.photo_library_rounded),
     TabInfo('Produtividade', Icons.check_circle_rounded),
     TabInfo('Dashboard', Icons.analytics_rounded),
