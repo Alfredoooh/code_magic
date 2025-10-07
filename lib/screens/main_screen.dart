@@ -3,11 +3,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/theme_service.dart';
-import 'home_tab.dart';
-import 'hub_tab.dart';
-import 'converter_tab.dart';
-import 'news_tab.dart';
-import 'chat_tab.dart';
+import 'tabs/home_tab.dart';
+import 'tabs/hub_tab.dart';
+import 'tabs/converter_tab.dart';
+import 'tabs/news_tab.dart';
+import 'tabs/chat_tab.dart';
 
 class MainScreen extends StatefulWidget {
   @override
