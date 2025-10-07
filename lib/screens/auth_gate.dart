@@ -4,7 +4,7 @@ import 'login_screen.dart';
 import 'main_screen.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({Key? key}) : super(key: key); // ADICIONADO construtor const
+  const AuthGate({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -12,9 +12,9 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return MainScreen();
+          return const MainScreen();
         }
-        return LoginScreen();
+        return const LoginScreen();
       },
     );
   }
