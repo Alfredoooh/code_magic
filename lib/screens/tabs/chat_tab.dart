@@ -617,3 +617,4 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     super.dispose();
   }
+}
