@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService {
   static String _currentTheme = 'light';
+  // tipagem explícita para listeners
   static final List<VoidCallback> _listeners = [];
 
   static String get currentTheme => _currentTheme;
@@ -79,12 +80,12 @@ class ThemeService {
     }
   }
 
-  static Future<void> init() async {
+  static Future init() async {
     final prefs = await SharedPreferences.getInstance();
     _currentTheme = prefs.getString('theme') ?? 'light';
   }
 
-  static Future<void> setTheme(String theme) async {
+  static Future setTheme(String theme) async {
     _currentTheme = theme;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme', theme);
@@ -100,8 +101,10 @@ class ThemeService {
   }
 
   static void _notifyListeners() {
-    for (var listener in _listeners) {
-      listener();
+    for (var listener in List<VoidCallback>.from(_listeners)) {
+      try {
+        listener();
+      } catch (_) {}
     }
   }
 }
