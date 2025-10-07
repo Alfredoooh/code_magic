@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../services/theme_service.dart';
+import '../../services/theme_service.dart';
 import 'profile_screen.dart';
 
 class ChatTab extends StatefulWidget {
