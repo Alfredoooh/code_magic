@@ -227,7 +227,7 @@ class _HomeTabState extends State<HomeTab> {
           // header wallet
           Row(
             children: [
-              const CircleAvatar(radius: 20, backgroundColor: Colors.white24, child: Icon(CupertinoIcons.wallet, color: Colors.white)),
+              const CircleAvatar(radius: 20, backgroundColor: Colors.white24, child: Icon(CupertinoIcons.creditcard, color: Colors.white)),
               const SizedBox(width: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Carteira Principal', style: TextStyle(color: textColorOnCard.withOpacity(0.95), fontSize: 16, fontWeight: FontWeight.w700)),
