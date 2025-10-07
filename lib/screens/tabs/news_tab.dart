@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import '../services/theme_service.dart';
+import '../../services/theme_service.dart';
 
 // news_tab.dart
 class NewsTab extends StatelessWidget {
