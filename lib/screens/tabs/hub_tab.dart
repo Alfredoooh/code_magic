@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../../services/theme_service.dart';
+
 // hub_tab.dart
 class HubTab extends StatelessWidget {
   @override
