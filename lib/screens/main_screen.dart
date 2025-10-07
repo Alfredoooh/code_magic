@@ -58,49 +58,57 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() => _currentIndex = index);
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: ThemeService.backgroundColor,
-          selectedItemColor: const Color(0xFF1877F2),
-          unselectedItemColor: ThemeService.isDarkMode
-              ? Colors.white.withOpacity(0.5)
-              : Colors.grey,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.home),
-              activeIcon: Icon(CupertinoIcons.home),
-              label: 'Início',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.square_grid_2x2),
-              activeIcon: Icon(CupertinoIcons.square_grid_2x2_fill),
-              label: 'Hub',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.arrow_2_squarepath),
-              activeIcon: Icon(CupertinoIcons.arrow_2_squarepath),
-              label: 'Conversor',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.news),
-              activeIcon: Icon(CupertinoIcons.news_solid),
-              label: 'Atualidade',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.chat_bubble_2),
-              activeIcon: Icon(CupertinoIcons.chat_bubble_2_fill),
-              label: 'Chats',
-            ),
-          ],
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() => _currentIndex = index);
+            },
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: ThemeService.backgroundColor,
+            selectedItemColor: const Color(0xFF1877F2),
+            unselectedItemColor: ThemeService.isDarkMode
+                ? Colors.white.withOpacity(0.5)
+                : Colors.grey,
+            selectedFontSize: 12,
+            unselectedFontSize: 12,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            elevation: 0,
+            enableFeedback: false,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.home),
+                activeIcon: Icon(CupertinoIcons.home),
+                label: 'Início',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.square_grid_2x2),
+                activeIcon: Icon(CupertinoIcons.square_grid_2x2_fill),
+                label: 'Hub',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.arrow_2_squarepath),
+                activeIcon: Icon(CupertinoIcons.arrow_2_squarepath),
+                label: 'Conversor',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.news),
+                activeIcon: Icon(CupertinoIcons.news_solid),
+                label: 'Atualidade',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.chat_bubble_2),
+                activeIcon: Icon(CupertinoIcons.chat_bubble_2_fill),
+                label: 'Chats',
+              ),
+            ],
+          ),
         ),
       ),
     );
