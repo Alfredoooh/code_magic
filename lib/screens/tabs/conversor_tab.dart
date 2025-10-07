@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../services/theme_service.dart';
+
 // converter_tab.dart
 class ConverterTab extends StatefulWidget {
   @override
