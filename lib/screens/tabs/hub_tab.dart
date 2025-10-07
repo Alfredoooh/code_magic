@@ -1049,3 +1049,4 @@ class HubWidget extends StatelessWidget {
       ),
     );
   }
+}
