@@ -1,29 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:ui';
 import '../../services/theme_service.dart';
 
 class AppItem {
   final String name;
   final String description;
   final String category;
-  final IconData icon;
+  final String iconUrl;
   final Color color;
   final String url;
   final double rating;
-  final String earnings;
+  final String monthlyUsers;
   final String developer;
+  final List<String> features;
 
   AppItem({
     required this.name,
     required this.description,
     required this.category,
-    required this.icon,
+    required this.iconUrl,
     required this.color,
     required this.url,
     this.rating = 4.5,
-    required this.earnings,
+    required this.monthlyUsers,
     this.developer = 'Easify',
+    required this.features,
   });
 }
 
@@ -33,8 +38,6 @@ class HubTab extends StatefulWidget {
 }
 
 class _HubTabState extends State<HubTab> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
   String _selectedCategory = 'Todos';
 
   final List<String> _categories = [
@@ -49,204 +52,161 @@ class _HubTabState extends State<HubTab> {
   final List<AppItem> _apps = [
     AppItem(
       name: 'Binance',
-      description: 'Maior exchange de criptomoedas do mundo para trading',
+      description: 'Maior exchange de criptomoedas do mundo para trading avançado',
       category: 'Trading',
-      icon: CupertinoIcons.bitcoin_circle_fill,
+      iconUrl: 'https://cryptologos.cc/logos/bnb-bnb-logo.svg',
       color: const Color(0xFFF3BA2F),
       url: 'https://www.binance.com',
       rating: 4.7,
-      earnings: 'Até 30% APY',
-      developer: 'Binance',
+      monthlyUsers: '120M',
+      developer: 'Binance Holdings Ltd',
+      features: [
+        'Trading de mais de 350 criptomoedas',
+        'Staking com até 30% APY',
+        'Futures e margin trading',
+        'NFT marketplace integrado',
+        'Cartão de débito crypto',
+        'Academia Binance para aprendizagem',
+      ],
     ),
     AppItem(
       name: 'eToro',
-      description: 'Plataforma de trading social e investimentos',
+      description: 'Plataforma de trading social e investimentos globais',
       category: 'Trading',
-      icon: CupertinoIcons.chart_bar_square_fill,
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Etoro-logo.svg',
       color: const Color(0xFF56BE8E),
       url: 'https://www.etoro.com',
       rating: 4.5,
-      earnings: 'Copy Trading',
-      developer: 'eToro',
+      monthlyUsers: '30M',
+      developer: 'eToro Group Ltd',
+      features: [
+        'Copy trading de investidores profissionais',
+        'Ações e ETFs sem comissões',
+        'Trading de crypto e forex',
+        'Portfólio diversificado automaticamente',
+        'Comunidade social de traders',
+        'Conta demo gratuita para prática',
+      ],
     ),
     AppItem(
       name: 'Coinbase',
-      description: 'Compre, venda e ganhe crypto com segurança',
+      description: 'Compre, venda e ganhe criptomoedas com máxima segurança',
       category: 'Crypto',
-      icon: CupertinoIcons.money_dollar_circle_fill,
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Coinbase.svg',
       color: const Color(0xFF0052FF),
       url: 'https://www.coinbase.com',
       rating: 4.6,
-      earnings: 'Earn Crypto',
-      developer: 'Coinbase',
+      monthlyUsers: '108M',
+      developer: 'Coinbase Inc',
+      features: [
+        'Interface intuitiva para iniciantes',
+        'Earn crypto assistindo vídeos educativos',
+        'Staking automático',
+        'Carteira segura com seguro FDIC',
+        'Cartão de débito com 4% cashback',
+        'NFT marketplace',
+      ],
     ),
     AppItem(
       name: 'Swagbucks',
-      description: 'Ganhe dinheiro assistindo vídeos e fazendo pesquisas',
+      description: 'Ganhe dinheiro real assistindo vídeos e fazendo pesquisas online',
       category: 'Remuneração',
-      icon: CupertinoIcons.play_rectangle_fill,
+      iconUrl: 'https://www.swagbucks.com/images/swagbucks-logo.svg',
       color: const Color(0xFFFF6600),
       url: 'https://www.swagbucks.com',
       rating: 4.4,
-      earnings: '\$5-50/dia',
-      developer: 'Swagbucks',
-    ),
-    AppItem(
-      name: 'Honeygain',
-      description: 'Ganhe dinheiro passivo compartilhando internet',
-      category: 'Remuneração',
-      icon: CupertinoIcons.money_dollar,
-      color: const Color(0xFF4B4B4B),
-      url: 'https://www.honeygain.com',
-      rating: 4.3,
-      earnings: '\$20-45/mês',
-      developer: 'Honeygain',
-    ),
-    AppItem(
-      name: 'Bet365',
-      description: 'Apostas desportivas online e jogos de casino',
-      category: 'Apostas',
-      icon: CupertinoIcons.sportscourt_fill,
-      color: const Color(0xFF00843D),
-      url: 'https://www.bet365.com',
-      rating: 4.5,
-      earnings: 'Bônus 100%',
-      developer: 'Bet365',
-    ),
-    AppItem(
-      name: 'Kraken',
-      description: 'Exchange de crypto com staking e trading avançado',
-      category: 'Crypto',
-      icon: CupertinoIcons.arrow_2_squarepath,
-      color: const Color(0xFF5741D9),
-      url: 'https://www.kraken.com',
-      rating: 4.7,
-      earnings: 'Até 23% APY',
-      developer: 'Kraken',
+      monthlyUsers: '20M',
+      developer: 'Prodege LLC',
+      features: [
+        'Pesquisas pagas diariamente',
+        'Cashback em compras online',
+        'Assista vídeos e ganhe pontos',
+        'Jogue jogos para recompensas',
+        'Bônus de boas-vindas',
+        'Pagamentos via PayPal ou cartões presente',
+      ],
     ),
     AppItem(
       name: 'Revolut',
-      description: 'Banco digital com trading de ações e crypto',
+      description: 'Super app financeiro com trading, crypto e cashback',
       category: 'Investimento',
-      icon: CupertinoIcons.creditcard_fill,
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Revolut_logo.svg',
       color: const Color(0xFF0075EB),
       url: 'https://www.revolut.com',
       rating: 4.6,
-      earnings: 'Cashback 1%',
-      developer: 'Revolut',
+      monthlyUsers: '35M',
+      developer: 'Revolut Ltd',
+      features: [
+        'Conta bancária sem taxas',
+        'Trading de ações e crypto',
+        'Cashback de até 1% em compras',
+        'Câmbio de moedas ao vivo',
+        'Cofres para poupança',
+        'Seguros de viagem e saúde',
+      ],
     ),
     AppItem(
-      name: 'InboxDollars',
-      description: 'Receba pagamento por ler emails e assistir vídeos',
-      category: 'Remuneração',
-      icon: CupertinoIcons.mail_solid,
-      color: const Color(0xFFE84C3D),
-      url: 'https://www.inboxdollars.com',
-      rating: 4.2,
-      earnings: '\$5-30/dia',
-      developer: 'InboxDollars',
+      name: 'Kraken',
+      description: 'Exchange profissional com staking e trading avançado de crypto',
+      category: 'Crypto',
+      iconUrl: 'https://cryptologos.cc/logos/versions/kraken-kraken-logo-full.svg',
+      color: const Color(0xFF5741D9),
+      url: 'https://www.kraken.com',
+      rating: 4.7,
+      monthlyUsers: '9M',
+      developer: 'Payward Inc',
+      features: [
+        'Mais de 200 criptomoedas disponíveis',
+        'Staking com até 23% APY',
+        'Futures e margin trading',
+        'Segurança de nível bancário',
+        'Trading OTC para grandes volumes',
+        'API para trading automatizado',
+      ],
+    ),
+    AppItem(
+      name: 'Bet365',
+      description: 'Líder mundial em apostas desportivas online e casino ao vivo',
+      category: 'Apostas',
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Bet365_logo.svg',
+      color: const Color(0xFF00843D),
+      url: 'https://www.bet365.com',
+      rating: 4.5,
+      monthlyUsers: '80M',
+      developer: 'Hillside Technology Ltd',
+      features: [
+        'Transmissão ao vivo de eventos',
+        'Apostas em mais de 30 desportos',
+        'Casino com dealers ao vivo',
+        'Cash out durante eventos',
+        'Bónus de boas-vindas 100%',
+        'App móvel premiado',
+      ],
     ),
     AppItem(
       name: 'Mistplay',
-      description: 'Ganhe dinheiro jogando jogos no celular',
+      description: 'Transforme tempo de jogo em dinheiro real e cartões presente',
       category: 'Remuneração',
-      icon: CupertinoIcons.game_controller_solid,
+      iconUrl: 'https://www.mistplay.com/assets/images/logo.svg',
       color: const Color(0xFF6C5CE7),
       url: 'https://www.mistplay.com',
       rating: 4.5,
-      earnings: '\$10-40/mês',
-      developer: 'Mistplay',
-    ),
-    AppItem(
-      name: 'Robinhood',
-      description: 'Trading de ações e crypto sem comissões',
-      category: 'Trading',
-      icon: CupertinoIcons.arrow_up_right_diamond_fill,
-      color: const Color(0xFF00C805),
-      url: 'https://robinhood.com',
-      rating: 4.4,
-      earnings: 'Ações Grátis',
-      developer: 'Robinhood',
-    ),
-    AppItem(
-      name: 'Honeyminer',
-      description: 'Mine criptomoedas automaticamente com seu PC',
-      category: 'Crypto',
-      icon: CupertinoIcons.antenna_radiowaves_left_right,
-      color: const Color(0xFFFFB800),
-      url: 'https://honeyminer.com',
-      rating: 4.3,
-      earnings: '\$15-60/mês',
-      developer: 'Honeyminer',
-    ),
-    AppItem(
-      name: 'Crypto.com',
-      description: 'Cartão de crédito crypto com cashback até 8%',
-      category: 'Crypto',
-      icon: CupertinoIcons.creditcard,
-      color: const Color(0xFF103D7C),
-      url: 'https://crypto.com',
-      rating: 4.6,
-      earnings: 'Até 8% Cashback',
-      developer: 'Crypto.com',
-    ),
-    AppItem(
-      name: 'Stake',
-      description: 'Casino online e apostas desportivas com crypto',
-      category: 'Apostas',
-      icon: CupertinoIcons.suit_diamond_fill,
-      color: const Color(0xFF00E701),
-      url: 'https://stake.com',
-      rating: 4.7,
-      earnings: 'Bônus 200%',
-      developer: 'Stake',
-    ),
-    AppItem(
-      name: 'Nielsen',
-      description: 'Ganhe recompensas apenas por usar a internet',
-      category: 'Remuneração',
-      icon: CupertinoIcons.wifi,
-      color: const Color(0xFF0033A0),
-      url: 'https://computermobile.nielsen.com',
-      rating: 4.4,
-      earnings: '\$60/ano',
-      developer: 'Nielsen',
-    ),
-    AppItem(
-      name: 'Uphold',
-      description: 'Invista em 200+ ativos incluindo crypto e metais',
-      category: 'Investimento',
-      icon: CupertinoIcons.layers_alt_fill,
-      color: const Color(0xFF00DCBE),
-      url: 'https://uphold.com',
-      rating: 4.5,
-      earnings: 'Até 10% APY',
-      developer: 'Uphold',
+      monthlyUsers: '15M',
+      developer: 'Mistplay Inc',
+      features: [
+        'Jogue jogos gratuitos e ganhe',
+        'Resgatar por cartões Google Play e Amazon',
+        'Missões diárias com bónus',
+        'Programa de níveis com benefícios',
+        'Novos jogos adicionados semanalmente',
+        'Comunidade de gamers',
+      ],
     ),
   ];
 
   List<AppItem> get _filteredApps {
-    return _apps.where((app) {
-      final matchesSearch = app.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          app.description.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesCategory = _selectedCategory == 'Todos' || app.category == _selectedCategory;
-      return matchesSearch && matchesCategory;
-    }).toList();
-  }
-
-  void _openGoogleSearch(String query) {
-    if (query.trim().isEmpty) return;
-    
-    final searchUrl = 'https://www.google.com/search?q=${Uri.encodeComponent(query)}';
-    Navigator.push(
-      context,
-      CupertinoPageRoute(
-        builder: (context) => WebViewScreen(
-          url: searchUrl,
-          title: 'Busca: $query',
-        ),
-      ),
-    );
+    if (_selectedCategory == 'Todos') return _apps;
+    return _apps.where((app) => app.category == _selectedCategory).toList();
   }
 
   @override
@@ -256,19 +216,40 @@ class _HubTabState extends State<HubTab> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            backgroundColor: ThemeService.backgroundColor,
+            backgroundColor: Colors.transparent,
             elevation: 0,
-            floating: true,
+            floating: false,
             pinned: true,
-            expandedHeight: 110,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-              title: Text(
-                'Hub',
-                style: TextStyle(
-                  color: ThemeService.textColor,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
+            expandedHeight: 120,
+            flexibleSpace: ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: ThemeService.isDarkMode
+                        ? Colors.black.withOpacity(0.7)
+                        : Colors.white.withOpacity(0.7),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: ThemeService.isDarkMode
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.grey.withOpacity(0.2),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: FlexibleSpaceBar(
+                    titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+                    title: Text(
+                      'Hub',
+                      style: TextStyle(
+                        color: ThemeService.textColor,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -277,49 +258,51 @@ class _HubTabState extends State<HubTab> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: ThemeService.isDarkMode
-                          ? Colors.white.withOpacity(0.1)
-                          : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      style: TextStyle(color: ThemeService.textColor),
-                      decoration: InputDecoration(
-                        hintText: 'Pesquisar no Google',
-                        hintStyle: TextStyle(
-                          color: ThemeService.textColor.withOpacity(0.5),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          fullscreenDialog: true,
+                          builder: (context) => SearchScreen(),
                         ),
-                        prefixIcon: Icon(
-                          CupertinoIcons.search,
-                          color: ThemeService.textColor.withOpacity(0.5),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            CupertinoIcons.arrow_right_circle_fill,
-                            color: const Color(0xFF1877F2),
-                          ),
-                          onPressed: () {
-                            _openGoogleSearch(_searchController.text);
-                          },
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: ThemeService.isDarkMode
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onSubmitted: _openGoogleSearch,
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          Icon(
+                            CupertinoIcons.search,
+                            color: ThemeService.textColor.withOpacity(0.5),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Pesquisar no Google',
+                            style: TextStyle(
+                              color: ThemeService.textColor.withOpacity(0.5),
+                              fontSize: 17,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                _buildWidgetSection(),
+                HubWidgetsSection(),
                 const SizedBox(height: 20),
                 SizedBox(
-                  height: 50,
+                  height: 44,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -331,9 +314,11 @@ class _HubTabState extends State<HubTab> {
                         padding: const EdgeInsets.only(right: 8),
                         child: GestureDetector(
                           onTap: () {
+                            HapticFeedback.selectionClick();
                             setState(() => _selectedCategory = category);
                           },
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 10,
@@ -344,7 +329,7 @@ class _HubTabState extends State<HubTab> {
                                   : ThemeService.isDarkMode
                                       ? Colors.white.withOpacity(0.1)
                                       : Colors.grey[200],
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(22),
                             ),
                             child: Center(
                               child: Text(
@@ -364,22 +349,348 @@ class _HubTabState extends State<HubTab> {
                     },
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final app = _filteredApps[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildAppCard(app),
+                    child: AppCard(app: app),
                   );
                 },
                 childCount: _filteredApps.length,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+    );
+  }
+}
+
+class AppCard extends StatelessWidget {
+  final AppItem app;
+
+  const AppCard({Key? key, required this.app}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => AppDetailScreen(app: app),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: ThemeService.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: ThemeService.isDarkMode
+                ? Colors.white.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 64,
+                height: 64,
+                color: app.color.withOpacity(0.1),
+                child: Center(
+                  child: SvgPicture.network(
+                    app.iconUrl,
+                    width: 40,
+                    height: 40,
+                    placeholderBuilder: (context) => Icon(
+                      CupertinoIcons.app_fill,
+                      size: 40,
+                      color: app.color,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    app.name,
+                    style: TextStyle(
+                      color: ThemeService.textColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    app.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: ThemeService.textColor.withOpacity(0.6),
+                      fontSize: 14,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        CupertinoIcons.star_fill,
+                        color: Color(0xFFFFCC00),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        app.rating.toString(),
+                        style: TextStyle(
+                          color: ThemeService.textColor.withOpacity(0.7),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        CupertinoIcons.person_2_fill,
+                        color: ThemeService.textColor.withOpacity(0.5),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${app.monthlyUsers}/mês',
+                        style: TextStyle(
+                          color: ThemeService.textColor.withOpacity(0.6),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              color: ThemeService.textColor.withOpacity(0.3),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AppDetailScreen extends StatelessWidget {
+  final AppItem app;
+
+  const AppDetailScreen({Key? key, required this.app}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: ThemeService.backgroundColor,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            pinned: true,
+            expandedHeight: 0,
+            flexibleSpace: ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  color: ThemeService.isDarkMode
+                      ? Colors.black.withOpacity(0.7)
+                      : Colors.white.withOpacity(0.7),
+                ),
+              ),
+            ),
+            leading: IconButton(
+              icon: Icon(CupertinoIcons.back, color: ThemeService.textColor),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.pop(context);
+              },
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(60),
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      color: app.color.withOpacity(0.1),
+                      child: Center(
+                        child: SvgPicture.network(
+                          app.iconUrl,
+                          width: 70,
+                          height: 70,
+                          placeholderBuilder: (context) => Icon(
+                            CupertinoIcons.app_fill,
+                            size: 70,
+                            color: app.color,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    app.name,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: ThemeService.textColor,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    app.developer,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: ThemeService.textColor.withOpacity(0.6),
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildStat(
+                        context,
+                        app.rating.toString(),
+                        'Avaliação',
+                        CupertinoIcons.star_fill,
+                      ),
+                      const SizedBox(width: 32),
+                      _buildStat(
+                        context,
+                        app.monthlyUsers,
+                        'Usuários/mês',
+                        CupertinoIcons.person_2_fill,
+                      ),
+                      const SizedBox(width: 32),
+                      _buildStat(
+                        context,
+                        app.category,
+                        'Categoria',
+                        CupertinoIcons.square_grid_2x2,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    app.description,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: ThemeService.textColor.withOpacity(0.8),
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Funcionalidades',
+                      style: TextStyle(
+                        color: ThemeService.textColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ...app.features.map((feature) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: app.color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                feature,
+                                style: TextStyle(
+                                  color: ThemeService.textColor.withOpacity(0.8),
+                                  fontSize: 16,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            fullscreenDialog: true,
+                            builder: (context) => WebViewScreen(
+                              url: app.url,
+                              title: app.name,
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1877F2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Abrir App',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ),
@@ -388,7 +699,243 @@ class _HubTabState extends State<HubTab> {
     );
   }
 
-  Widget _buildWidgetSection() {
+  Widget _buildStat(BuildContext context, String value, String label, IconData icon) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: app.color,
+          size: 24,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: TextStyle(
+            color: ThemeService.textColor,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            color: ThemeService.textColor.withOpacity(0.6),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class SearchScreen extends StatefulWidget {
+  @override
+  State<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _search() {
+    if (_controller.text.trim().isEmpty) return;
+    
+    final searchUrl = 'https://www.google.com/search?q=${Uri.encodeComponent(_controller.text)}';
+    Navigator.pushReplacement(
+      context,
+      CupertinoPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => WebViewScreen(
+          url: searchUrl,
+          title: 'Busca: ${_controller.text}',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: ThemeService.backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      'Cancelar',
+                      style: TextStyle(
+                        color: const Color(0xFF1877F2),
+                        fontSize: 17,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      autofocus: true,
+                      style: TextStyle(color: ThemeService.textColor),
+                      decoration: InputDecoration(
+                        hintText: 'Pesquisar no Google',
+                        hintStyle: TextStyle(
+                          color: ThemeService.textColor.withOpacity(0.5),
+                        ),
+                        filled: true,
+                        fillColor: ThemeService.isDarkMode
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.grey[200],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      onSubmitted: (_) => _search(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _search();
+                    },
+                    child: Text(
+                      'Buscar',
+                      style: TextStyle(
+                        color: const Color(0xFF1877F2),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WebViewScreen extends StatefulWidget {
+  final String url;
+  final String title;
+
+  const WebViewScreen({Key? key, required this.url, required this.title}) : super(key: key);
+
+  @override
+  State<WebViewScreen> createState() => _WebViewScreenState();
+}
+
+class _WebViewScreenState extends State<WebViewScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+  double _progress = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            setState(() {
+              _progress = progress / 100;
+              _isLoading = progress < 100;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() => _isLoading = false);
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: ThemeService.backgroundColor,
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AppBar(
+              backgroundColor: ThemeService.isDarkMode
+                  ? Colors.black.withOpacity(0.7)
+                  : Colors.white.withOpacity(0.7),
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(CupertinoIcons.xmark, color: ThemeService.textColor),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context);
+                },
+              ),
+              title: Text(
+                widget.title,
+                style: TextStyle(
+                  color: ThemeService.textColor,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(CupertinoIcons.arrow_clockwise, color: ThemeService.textColor),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _controller.reload();
+                  },
+                ),
+              ],
+              bottom: _isLoading
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(2),
+                      child: LinearProgressIndicator(
+                        value: _progress,
+                        backgroundColor: Colors.transparent,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.only(top: 56),
+        child: WebViewWidget(controller: _controller),
+      ),
+    );
+  }
+}
+
+// hub_widgets.dart - Widgets do Hub
+class HubWidgetsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
       height: 160,
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -396,40 +943,58 @@ class _HubTabState extends State<HubTab> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildWidget(
-            'Ganhos Hoje',
-            '\$24.50',
-            CupertinoIcons.money_dollar_circle_fill,
-            const Color(0xFF34C759),
-            '+12%',
+          HubWidget(
+            title: 'Ganhos Hoje',
+            value: '\$24.50',
+            icon: CupertinoIcons.money_dollar_circle_fill,
+            color: const Color(0xFF34C759),
+            subtitle: '+12%',
           ),
-          _buildWidget(
-            'Trading Ativo',
-            '5 posições',
-            CupertinoIcons.chart_bar_alt_fill,
-            const Color(0xFF1877F2),
-            'BTC, ETH...',
+          HubWidget(
+            title: 'Trading Ativo',
+            value: '5 posições',
+            icon: CupertinoIcons.chart_bar_alt_fill,
+            color: const Color(0xFF1877F2),
+            subtitle: 'BTC, ETH...',
           ),
-          _buildWidget(
-            'Cashback',
-            '€45.20',
-            CupertinoIcons.creditcard_fill,
-            const Color(0xFFFF9500),
-            'Este mês',
+          HubWidget(
+            title: 'Cashback',
+            value: '€45.20',
+            icon: CupertinoIcons.creditcard_fill,
+            color: const Color(0xFFFF9500),
+            subtitle: 'Este mês',
           ),
-          _buildWidget(
-            'Recompensas',
-            '850 pontos',
-            CupertinoIcons.star_fill,
-            const Color(0xFFAF52DE),
-            'Disponível',
+          HubWidget(
+            title: 'Recompensas',
+            value: '850 pontos',
+            icon: CupertinoIcons.star_fill,
+            color: const Color(0xFFAF52DE),
+            subtitle: 'Disponível',
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildWidget(String title, String value, IconData icon, Color color, String subtitle) {
+class HubWidget extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String subtitle;
+
+  const HubWidget({
+    Key? key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.subtitle,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 12),
@@ -484,386 +1049,3 @@ class _HubTabState extends State<HubTab> {
       ),
     );
   }
-
-  Widget _buildAppCard(AppItem app) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            builder: (context) => AppDetailScreen(app: app),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: ThemeService.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: ThemeService.isDarkMode
-                ? Colors.white.withOpacity(0.1)
-                : Colors.grey.withOpacity(0.2),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: app.color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(app.icon, color: app.color, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    app.name,
-                    style: TextStyle(
-                      color: ThemeService.textColor,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    app.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: ThemeService.textColor.withOpacity(0.6),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF34C759).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          app.earnings,
-                          style: const TextStyle(
-                            color: Color(0xFF34C759),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        CupertinoIcons.star_fill,
-                        color: Color(0xFFFFCC00),
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        app.rating.toString(),
-                        style: TextStyle(
-                          color: ThemeService.textColor.withOpacity(0.6),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: ThemeService.textColor.withOpacity(0.3),
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-}
-
-class AppDetailScreen extends StatelessWidget {
-  final AppItem app;
-
-  const AppDetailScreen({Key? key, required this.app}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ThemeService.backgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: ThemeService.backgroundColor,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(CupertinoIcons.back, color: ThemeService.textColor),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: app.color.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Icon(app.icon, color: app.color, size: 50),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              app.name,
-                              style: TextStyle(
-                                color: ThemeService.textColor,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              app.developer,
-                              style: TextStyle(
-                                color: ThemeService.textColor.withOpacity(0.6),
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(
-                                  CupertinoIcons.star_fill,
-                                  color: Color(0xFFFFCC00),
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${app.rating} ',
-                                  style: TextStyle(
-                                    color: ThemeService.textColor,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  '• ${app.category}',
-                                  style: TextStyle(
-                                    color: ThemeService.textColor.withOpacity(0.6),
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF34C759).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF34C759).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          CupertinoIcons.money_dollar_circle_fill,
-                          color: Color(0xFF34C759),
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Potencial de Ganhos',
-                              style: TextStyle(
-                                color: ThemeService.textColor.withOpacity(0.7),
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              app.earnings,
-                              style: const TextStyle(
-                                color: Color(0xFF34C759),
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Sobre',
-                    style: TextStyle(
-                      color: ThemeService.textColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    app.description,
-                    style: TextStyle(
-                      color: ThemeService.textColor.withOpacity(0.8),
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (context) => WebViewScreen(
-                              url: app.url,
-                              title: app.name,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1877F2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Abrir App',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class WebViewScreen extends StatefulWidget {
-  final String url;
-  final String title;
-
-  const WebViewScreen({Key? key, required this.url, required this.title}) : super(key: key);
-
-  @override
-  State<WebViewScreen> createState() => _WebViewScreenState();
-}
-
-class _WebViewScreenState extends State<WebViewScreen> {
-  late final WebViewController _controller;
-  bool _isLoading = true;
-  double _progress = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (int progress) {
-            setState(() {
-              _progress = progress / 100;
-              _isLoading = progress < 100;
-            });
-          },
-          onPageFinished: (String url) {
-            setState(() => _isLoading = false);
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(widget.url));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ThemeService.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: ThemeService.backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(CupertinoIcons.xmark, color: ThemeService.textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.title,
-          style: TextStyle(
-            color: ThemeService.textColor,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(CupertinoIcons.arrow_clockwise, color: ThemeService.textColor),
-            onPressed: () => _controller.reload(),
-          ),
-        ],
-        bottom: _isLoading
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(2),
-                child: LinearProgressIndicator(
-                  value: _progress,
-                  backgroundColor: Colors.transparent,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                ),
-              )
-            : null,
-      ),
-      body: WebViewWidget(controller: _controller),
-    );
-  }
-}
