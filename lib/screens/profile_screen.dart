@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/theme_service.dart';
@@ -15,8 +16,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final _database = FirebaseDatabase.instance.ref();
+  final _storage = FirebaseStorage.instance;
   String? _photoURL;
   bool _isLoading = false;
+  bool _uploadingImage = false;
 
   @override
   void initState() {
@@ -28,15 +32,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    if (doc.exists) {
-      final data = doc.data()!;
+    try {
+      final snapshot = await _database.child('users').child(user.uid).once();
+      if (snapshot.snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+        if (mounted) {
+          setState(() {
+            _nameController.text = data['name'] ?? '';
+            _bioController.text = data['bio'] ?? '';
+            _photoURL = data['photoURL'];
+          });
+        }
+      }
+    } catch (e) {
       if (mounted) {
-        setState(() {
-          _nameController.text = data['name'] ?? '';
-          _bioController.text = data['bio'] ?? '';
-          _photoURL = data['photoURL'];
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar dados: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -48,19 +60,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      await _database.child('users').child(user.uid).update({
         'name': _nameController.text.trim(),
         'bio': _bioController.text.trim(),
         'photoURL': _photoURL ?? '',
       });
 
       await user.updateDisplayName(_nameController.text.trim());
+      if (_photoURL != null && _photoURL!.isNotEmpty) {
+        await user.updatePhotoURL(_photoURL);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Perfil atualizado com sucesso'),
-            backgroundColor: const Color(0xFF1877F2),
+          const SnackBar(
+            content: Text('Perfil atualizado com sucesso'),
+            backgroundColor: Color(0xFF1877F2),
           ),
         );
       }
@@ -81,11 +96,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+      
+      if (image == null) return;
+
+      setState(() => _uploadingImage = true);
+
+      // Upload para Firebase Storage
+      final fileName = '${user.uid}_profile.jpg';
+      final storageRef = _storage.ref().child('profile_images').child(fileName);
+      
+      await storageRef.putFile(File(image.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+
       setState(() {
-        _photoURL = image.path;
+        _photoURL = downloadUrl;
+        _uploadingImage = false;
       });
+
+      // Atualiza automaticamente no banco
+      await _database.child('users').child(user.uid).update({
+        'photoURL': downloadUrl,
+      });
+      await user.updatePhotoURL(downloadUrl);
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao fazer upload da imagem: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() => _uploadingImage = false);
     }
   }
 
@@ -132,7 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await ThemeService.setTheme(theme);
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          await _database.child('users').child(user.uid).update({
             'theme': theme,
           });
         }
@@ -196,48 +249,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const SizedBox(height: 20),
             GestureDetector(
-              onTap: _pickImage,
+              onTap: _uploadingImage ? null : _pickImage,
               child: Stack(
                 children: [
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: const Color(0xFF1877F2),
                     backgroundImage: _photoURL != null && _photoURL!.isNotEmpty
-                        ? (_photoURL!.startsWith('http')
-                            ? NetworkImage(_photoURL!)
-                            : FileImage(File(_photoURL!)) as ImageProvider)
+                        ? NetworkImage(_photoURL!)
                         : null,
-                    child: _photoURL == null || _photoURL!.isEmpty
-                        ? Text(
-                            (user?.displayName ?? 'U')[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 40,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : null,
+                    child: _uploadingImage
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : (_photoURL == null || _photoURL!.isEmpty
+                            ? Text(
+                                (user?.displayName ?? 'U')[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                            : null),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1877F2),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: ThemeService.backgroundColor,
-                          width: 3,
+                  if (!_uploadingImage)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1877F2),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: ThemeService.backgroundColor,
+                            width: 3,
+                          ),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.camera,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                      child: const Icon(
-                        CupertinoIcons.camera,
-                        color: Colors.white,
-                        size: 20,
-                      ),
                     ),
-                  ),
                 ],
               ),
             ),
