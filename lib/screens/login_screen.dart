@@ -66,7 +66,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
               child: Column(
                 children: [
-                  const Icon(Icons.close, color: Color(0xFFFF3B30), size: 52),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF3B30),
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        'assets/icon/icon.png',
+                        width: 28,
+                        height: 28,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     title,
@@ -231,10 +246,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             color: const Color(0xFF1877F2),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(
-            Icons.chat_bubble_rounded,
-            size: 40,
-            color: Colors.white,
+          child: Center(
+            child: Image.asset(
+              'assets/icon/icon.png',
+              width: 48,
+              height: 48,
+              color: Colors.white,
+            ),
           ),
         ),
         const SizedBox(height: 20),
