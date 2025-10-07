@@ -12,20 +12,8 @@ class ChatTab extends StatefulWidget {
   State<ChatTab> createState() => _ChatTabState();
 }
 
-class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _ChatTabState extends State<ChatTab> {
+  int _selectedTab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -59,22 +47,78 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
             onPressed: () => _showNewChatDialog(),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF1877F2),
-          labelColor: const Color(0xFF1877F2),
-          unselectedLabelColor: ThemeService.textColor.withOpacity(0.6),
-          tabs: const [
-            Tab(text: 'Diretas'),
-            Tab(text: 'Canais'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildDirectMessages(user),
-          _buildChannels(user),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedTab = 0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 0
+                            ? const Color(0xFF1877F2)
+                            : ThemeService.isDarkMode
+                                ? const Color(0xFF2C2C2E)
+                                : const Color(0xFFE5E5EA),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Diretas',
+                          style: TextStyle(
+                            color: _selectedTab == 0
+                                ? Colors.white
+                                : ThemeService.textColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedTab = 1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 1
+                            ? const Color(0xFF1877F2)
+                            : ThemeService.isDarkMode
+                                ? const Color(0xFF2C2C2E)
+                                : const Color(0xFFE5E5EA),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Canais',
+                          style: TextStyle(
+                            color: _selectedTab == 1
+                                ? Colors.white
+                                : ThemeService.textColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _selectedTab == 0
+                ? _buildDirectMessages(user)
+                : _buildChannels(user),
+          ),
         ],
       ),
     );
@@ -89,13 +133,11 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
           .orderBy('lastMessageTime', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final chats = snapshot.data!.docs;
-
-        if (chats.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -113,10 +155,24 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
                     fontSize: 16,
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => _showNewChatDialog(),
+                  child: const Text(
+                    'Iniciar conversa',
+                    style: TextStyle(
+                      color: Color(0xFF1877F2),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
           );
         }
+
+        final chats = snapshot.data!.docs;
 
         return ListView.builder(
           itemCount: chats.length,
@@ -191,13 +247,11 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
           .orderBy('lastMessageTime', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final channels = snapshot.data!.docs;
-
-        if (channels.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -215,10 +269,24 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
                     fontSize: 16,
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => _showCreateChannel(),
+                  child: const Text(
+                    'Criar canal',
+                    style: TextStyle(
+                      color: Color(0xFF1877F2),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
           );
         }
+
+        final channels = snapshot.data!.docs;
 
         return ListView.builder(
           itemCount: channels.length,
@@ -295,7 +363,7 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _showUserSelection(false);
+                _showUserSelection();
               },
             ),
             ListTile(
@@ -315,12 +383,223 @@ class _ChatTabState extends State<ChatTab> with SingleTickerProviderStateMixin {
     );
   }
 
-  void _showUserSelection(bool isChannel) {
-    // Implementar seleção de usuários
+  void _showUserSelection() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ThemeService.backgroundColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Selecionar usuário',
+                style: TextStyle(
+                  color: ThemeService.textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final users = snapshot.data!.docs
+                      .where((doc) => doc.id != currentUser?.uid)
+                      .toList();
+
+                  return ListView.builder(
+                    controller: controller,
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final userData = users[index].data() as Map<String, dynamic>;
+                      final userId = users[index].id;
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF1877F2),
+                          backgroundImage: userData['photoURL'] != null && userData['photoURL'] != ''
+                              ? NetworkImage(userData['photoURL'])
+                              : null,
+                          child: userData['photoURL'] == null || userData['photoURL'] == ''
+                              ? Text(
+                                  (userData['name'] ?? 'U')[0].toUpperCase(),
+                                  style: const TextStyle(color: Colors.white),
+                                )
+                              : null,
+                        ),
+                        title: Text(
+                          userData['name'] ?? 'Usuário',
+                          style: TextStyle(color: ThemeService.textColor),
+                        ),
+                        subtitle: Text(
+                          userData['email'] ?? '',
+                          style: TextStyle(
+                            color: ThemeService.textColor.withOpacity(0.6),
+                          ),
+                        ),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await _createDirectChat(userId);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createDirectChat(String otherUserId) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final existingChat = await FirebaseFirestore.instance
+        .collection('chats')
+        .where('type', isEqualTo: 'direct')
+        .where('participants', arrayContains: currentUser.uid)
+        .get();
+
+    for (var doc in existingChat.docs) {
+      final participants = List<String>.from(doc.data()['participants']);
+      if (participants.contains(otherUserId)) {
+        final otherUser = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(otherUserId)
+            .get();
+        
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                chatId: doc.id,
+                chatName: otherUser.data()?['name'] ?? 'Usuário',
+                isChannel: false,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    final chatRef = await FirebaseFirestore.instance.collection('chats').add({
+      'type': 'direct',
+      'participants': [currentUser.uid, otherUserId],
+      'lastMessage': '',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    });
+
+    final otherUser = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(otherUserId)
+        .get();
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            chatId: chatRef.id,
+            chatName: otherUser.data()?['name'] ?? 'Usuário',
+            isChannel: false,
+          ),
+        ),
+      );
+    }
   }
 
   void _showCreateChannel() {
-    // Implementar criação de canal
+    final nameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ThemeService.backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Criar Canal',
+          style: TextStyle(color: ThemeService.textColor),
+        ),
+        content: TextField(
+          controller: nameController,
+          style: TextStyle(color: ThemeService.textColor),
+          decoration: InputDecoration(
+            hintText: 'Nome do canal',
+            hintStyle: TextStyle(
+              color: ThemeService.textColor.withOpacity(0.5),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: ThemeService.textColor.withOpacity(0.6)),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty) return;
+              
+              final currentUser = FirebaseAuth.instance.currentUser;
+              if (currentUser == null) return;
+
+              final channelRef = await FirebaseFirestore.instance.collection('chats').add({
+                'type': 'channel',
+                'name': nameController.text.trim(),
+                'participants': [currentUser.uid],
+                'lastMessage': '',
+                'lastMessageTime': FieldValue.serverTimestamp(),
+              });
+
+              Navigator.pop(context);
+              
+              if (mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      chatId: channelRef.id,
+                      chatName: nameController.text.trim(),
+                      isChannel: true,
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text(
+              'Criar',
+              style: TextStyle(color: Color(0xFF1877F2)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -375,8 +654,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      // Aqui você implementaria o upload para Firebase Storage
-      // Por enquanto, enviamos com URL local
       _sendMessage(imageUrl: image.path);
     }
   }
@@ -443,6 +720,14 @@ class _ChatScreenState extends State<ChatScreen> {
                           style: TextStyle(
                             color: ThemeService.textColor.withOpacity(0.6),
                             fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Envie a primeira mensagem!',
+                          style: TextStyle(
+                            color: ThemeService.textColor.withOpacity(0.4),
+                            fontSize: 14,
                           ),
                         ),
                       ],
