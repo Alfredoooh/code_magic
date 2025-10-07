@@ -31,11 +31,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     if (doc.exists) {
       final data = doc.data()!;
-      setState(() {
-        _nameController.text = data['name'] ?? '';
-        _bioController.text = data['bio'] ?? '';
-        _photoURL = data['photoURL'];
-      });
+      if (mounted) {
+        setState(() {
+          _nameController.text = data['name'] ?? '';
+          _bioController.text = data['bio'] ?? '';
+          _photoURL = data['photoURL'];
+        });
+      }
     }
   }
 
@@ -54,21 +56,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await user.updateDisplayName(_nameController.text.trim());
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Perfil atualizado com sucesso'),
-          backgroundColor: const Color(0xFF1877F2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Perfil atualizado com sucesso'),
+            backgroundColor: const Color(0xFF1877F2),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao atualizar: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao atualizar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -83,7 +91,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    }
   }
 
   void _showThemeDialog() {
@@ -126,7 +136,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'theme': theme,
           });
         }
-        Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+          setState(() {});
+        }
       },
     );
   }
