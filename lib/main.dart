@@ -11,7 +11,11 @@ void main() async {
   await Firebase.initializeApp();
   await ThemeService.init();
   // força statusbar style compatível com tema
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(statusBarBrightness: ThemeService.isDarkMode ? Brightness.dark : Brightness.light));
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarBrightness: ThemeService.isDarkMode ? Brightness.dark : Brightness.light
+    )
+  );
   runApp(const ChatApp());
 }
 
@@ -23,6 +27,7 @@ class BouncingScrollBehavior extends MaterialScrollBehavior {
 
 class ChatApp extends StatefulWidget {
   const ChatApp({Key? key}) : super(key: key);
+  
   @override
   State<ChatApp> createState() => _ChatAppState();
 }
@@ -51,7 +56,7 @@ class _ChatAppState extends State<ChatApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeService.getThemeData(),
       scrollBehavior: BouncingScrollBehavior(), // iOS-like scrolling
-      home: const AuthGate(),
+      home: AuthGate(), // REMOVIDO O 'const' AQUI
       routes: {
         '/main': (context) => MainScreen(),
       },
