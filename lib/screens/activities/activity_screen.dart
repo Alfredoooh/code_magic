@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,9 +6,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../widgets/design_system.dart';
 import '../../localization/app_localizations.dart';
-import 'package:charts_flutter/flutter.dart' as charts;
 
 class ActivitiesScreen extends StatefulWidget {
   @override
@@ -27,7 +28,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
               Tab(text: AppLocalizations.of(context)!.translate('orders')!),
               Tab(text: AppLocalizations.of(context)!.translate('alerts')!),
               Tab(text: AppLocalizations.of(context)!.translate('reports')!),
-            ),
+            ],
           ),
           title: Text(AppLocalizations.of(context)!.translate('activities')!),
         ),
@@ -116,9 +117,7 @@ class OrdersList extends StatelessWidget {
               title: Text(order['type']),
               subtitle: Text('${order['amount']} at ${order['price']} - ${order['timestamp'].toDate().toLocal().toString()}'),
               trailing: Text(order['status']),
-              onTap: () {
-                // Cancel or repeat order logic
-              },
+              onTap: () {},
             );
           },
         );
@@ -175,10 +174,8 @@ class ReportsScreen extends StatelessWidget {
           return pw.Column(
             children: [
               pw.Text('Performance Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              // Add tables, charts (use pw.Chart for simple ones)
-              pw.Text('P&L: $1234.56'),
+              pw.Text('P&L: \$1234.56'),
               pw.Text('Win Rate: 65%'),
-              // More data
             ],
           );
         },
@@ -207,20 +204,30 @@ class ReportsScreen extends StatelessWidget {
           Text(AppLocalizations.of(context)!.translate('performance_chart')!, style: Theme.of(context).textTheme.headlineSmall),
           SizedBox(
             height: 200,
-            child: charts.LineChart(
-              [
-                charts.Series<double, int>(
-                  id: 'P&L',
-                  colorFn: (_, __) => charts.Color.fromHex(code: '#10B981'),
-                  domainFn: (_, index) => index!,
-                  measureFn: (datum, _) => datum,
-                  data: [100, 120, 110, 130, 125, 140], // Placeholder
-                ),
-              ],
-              animate: true,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: true),
+                titlesData: FlTitlesData(show: true),
+                borderData: FlBorderData(show: true),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: [
+                      FlSpot(0, 100),
+                      FlSpot(1, 120),
+                      FlSpot(2, 110),
+                      FlSpot(3, 130),
+                      FlSpot(4, 125),
+                      FlSpot(5, 140),
+                    ],
+                    isCurved: true,
+                    color: success,
+                    barWidth: 3,
+                    dotData: FlDotData(show: true),
+                  ),
+                ],
+              ),
             ),
           ),
-          // Add more charts for win rate, etc.
         ],
       ),
     );
