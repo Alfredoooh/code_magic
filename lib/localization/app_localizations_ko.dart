@@ -201,7 +201,6 @@ const Map<String, String> ko = {
   'terms': '약관',
   'privacy': '개인정보',
   'contact': '연락처',
-  'support': '지원',
   'feedback': '피드백',
   'rate_app': '앱 평가',
   'update': '업데이트',
