@@ -201,7 +201,6 @@ const Map<String, String> ja = {
   'terms': '利用規約',
   'privacy': 'プライバシー',
   'contact': '連絡先',
-  'support': 'サポート',
   'feedback': 'フィードバック',
   'rate_app': 'アプリを評価',
   'update': '更新',
