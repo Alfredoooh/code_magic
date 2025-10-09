@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../providers/app_provider.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/home/home_screen.dart';
-import '../widgets/design_system.dart';
-import '../localization/app_localizations.dart';
+import 'providers/app_provider.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/home/home_screen.dart';
+import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/converter/converter_screen.dart';
+import 'widgets/design_system.dart';
+import 'localization/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
@@ -54,7 +56,6 @@ class KPagaApp extends StatelessWidget {
             '/deposit': (context) => DepositScreen(),
             '/converter': (context) => ConverterScreen(),
             '/notifications': (context) => NotificationsScreen(),
-            // Add routes for all screens if needed
           },
         );
       },
