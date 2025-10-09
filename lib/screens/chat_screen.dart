@@ -1,303 +1,246 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/theme_service.dart';
+import 'tabs/inicio_tab.dart';
+import 'tabs/hub_tab.dart';
+import 'tabs/conversor_tab.dart';
+import 'tabs/atualidade_tab.dart';
+import 'tabs/chats_tab.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 
-class ChatScreen extends StatefulWidget {
-  final String channelId;
-  final String channelName;
-
-  const ChatScreen({
-    Key? key,
-    required this.channelId,
-    required this.channelName,
-  }) : super(key: key);
-
+class HomeScreen extends StatefulWidget {
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _controller = TextEditingController();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final List<Widget> _tabs = [
+    InicioTab(),
+    HubTab(),
+    ConversorTab(),
+    AtualidadeTab(),
+    ChatsTab(),
+  ];
 
-  void _sendMessage() async {
-    if (_controller.text.trim().isEmpty) return;
-
+  void _showUserMenu() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore
-        .collection('channels')
-        .doc(widget.channelId)
-        .collection('messages')
-        .add({
-      'text': _controller.text.trim(),
-      'userId': user.uid,
-      'userEmail': user.email,
-      'userName': user.displayName ?? user.email?.split('@')[0] ?? 'Usuário',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    // Buscar dados do usuário
+    final userData = await _firestore.collection('users').doc(user.uid).get();
+    final data = userData.data() ?? {};
 
-    _controller.clear();
+    // Criar JSON com todos os dados
+    final jsonData = {
+      'userId': user.uid,
+      'email': user.email,
+      'name': data['name'] ?? user.displayName,
+      'age': data['age'],
+      'gender': data['gender'],
+      'phone': data['phone'],
+      'city': data['city'],
+      'createdAt': data['createdAt']?.toString(),
+      'lastActive': data['lastActive']?.toString(),
+      'exportedAt': DateTime.now().toIso8601String(),
+    };
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 24),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: Color(0xFFFF8C42),
+              child: Text(
+                (data['name'] ?? user.email ?? 'U')[0].toUpperCase(),
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              data['name'] ?? user.displayName ?? 'Usuário',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              user.email ?? '',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            SizedBox(height: 24),
+            
+            // Botão Exportar Dados
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _exportUserData(jsonData),
+                icon: Icon(Icons.upload_rounded),
+                label: Text('Exportar Dados'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFFF8C42),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            
+            // Botão Sair
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _auth.signOut();
+                },
+                icon: Icon(Icons.logout_rounded),
+                label: Text('Sair'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: BorderSide(color: Colors.red),
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportUserData(Map<String, dynamic> jsonData) async {
+    try {
+      // Salvar no Firestore para o admin
+      await _firestore.collection('user_exports').add({
+        'adminEmail': 'alfredopjonas@gmail.com',
+        'userData': jsonData,
+        'exportedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Fechar modal
+      Navigator.pop(context);
+
+      // Mostrar sucesso
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Dados exportados com sucesso!'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+
+      // Atualizar última atividade
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore.collection('users').doc(user.uid).update({
+          'lastActive': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao exportar dados'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
-    final textColor = ThemeService.currentTheme == AppTheme.light
-        ? const Color(0xFF000000)
-        : const Color(0xFFFFFFFF);
-
-    final bgColor = ThemeService.currentTheme == AppTheme.deepDark
-        ? const Color(0xFF000000)
-        : ThemeService.currentTheme == AppTheme.dark
-            ? const Color(0xFF1C1C1E)
-            : const Color(0xFFF2F2F7);
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(CupertinoIcons.back, color: textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1877F2).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                CupertinoIcons.number,
-                color: Color(0xFF1877F2),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.channelName,
-                style: TextStyle(color: textColor),
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('channels')
-                  .doc(widget.channelId)
-                  .collection('messages')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Erro ao carregar mensagens',
-                      style: TextStyle(color: textColor),
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final messages = snapshot.data?.docs ?? [];
-
-                if (messages.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.chat_bubble_2,
-                          size: 80,
-                          color: textColor.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Nenhuma mensagem ainda.\nSeja o primeiro a enviar!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: textColor.withOpacity(0.6),
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index].data() as Map<String, dynamic>;
-                    final isMe = message['userId'] == user?.uid;
-
-                    return _buildMessageBubble(
-                      message: message,
-                      isMe: isMe,
-                      textColor: textColor,
-                    );
-                  },
-                );
-              },
-            ),
+      body: _tabs[_currentIndex],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
+          setState(() => _currentIndex = index);
+          
+          // Atualizar última atividade
+          if (user != null) {
+            _firestore.collection('users').doc(user.uid).update({
+              'lastActive': FieldValue.serverTimestamp(),
+            });
+          }
+        },
+        backgroundColor: Colors.white,
+        indicatorColor: Color(0xFFFF8C42).withOpacity(0.2),
+        elevation: 3,
+        height: 80,
+        destinations: [
+          NavigationDestination(
+            icon: Icon(Icons.home_rounded),
+            selectedIcon: Icon(Icons.home_rounded, color: Color(0xFFFF8C42)),
+            label: 'Início',
           ),
-          _buildMessageInput(textColor),
+          NavigationDestination(
+            icon: Icon(Icons.hub_rounded),
+            selectedIcon: Icon(Icons.hub_rounded, color: Color(0xFFFF8C42)),
+            label: 'Hub',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.currency_exchange_rounded),
+            selectedIcon: Icon(Icons.currency_exchange_rounded, color: Color(0xFFFF8C42)),
+            label: 'Conversor',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.newspaper_rounded),
+            selectedIcon: Icon(Icons.newspaper_rounded, color: Color(0xFFFF8C42)),
+            label: 'Atualidade',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_rounded),
+            selectedIcon: Icon(Icons.chat_rounded, color: Color(0xFFFF8C42)),
+            label: 'Chats',
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble({
-    required Map<String, dynamic> message,
-    required bool isMe,
-    required Color textColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFF1877F2),
-              child: Text(
-                (message['userName'] ?? 'U')[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe
-                    ? const Color(0xFF1877F2)
-                    : textColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!isMe)
-                    Text(
-                      message['userName'] ?? 'Usuário',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: isMe ? Colors.white70 : textColor.withOpacity(0.7),
-                      ),
-                    ),
-                  if (!isMe) const SizedBox(height: 4),
-                  Text(
-                    message['text'] ?? '',
-                    style: TextStyle(
-                      color: isMe ? Colors.white : textColor,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (isMe) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFF1877F2),
-              child: Text(
-                (message['userName'] ?? 'U')[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageInput(Color textColor) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: ThemeService.currentTheme == AppTheme.light
-            ? Colors.white
-            : textColor.withOpacity(0.05),
-        border: Border(
-          top: BorderSide(
-            color: textColor.withOpacity(0.1),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: textColor.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: TextField(
-                  controller: _controller,
-                  style: TextStyle(color: textColor),
-                  decoration: InputDecoration(
-                    hintText: 'Digite sua mensagem...',
-                    hintStyle: TextStyle(color: textColor.withOpacity(0.4)),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                  ),
-                  onSubmitted: (_) => _sendMessage(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _sendMessage,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1877F2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  CupertinoIcons.paperplane_fill,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
