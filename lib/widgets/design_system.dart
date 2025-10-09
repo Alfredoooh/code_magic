@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/services.dart';
-import 'package:animate_do/animate_do.dart'; // Add animate_do: ^3.3.4 to pubspec.yaml for animations
+import 'package:animate_do/animate_do.dart';
 
 const Color primaryBg = Color(0xFF0A0B0D);
 const Color secondaryBg = Color(0xFF16171B);
@@ -72,7 +72,6 @@ final darkTheme = ThemeData(
   floatingActionButtonTheme: const FloatingActionButtonThemeData(
     backgroundColor: accentPrimary,
   ),
-  // Add more theme enhancements
 );
 
 final lightTheme = ThemeData(
@@ -94,7 +93,6 @@ final lightTheme = ThemeData(
     bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
     labelSmall: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
   ),
-  // Similar to dark, adjusted for light
 );
 
 final oledTheme = darkTheme.copyWith(
@@ -250,26 +248,63 @@ class SparklineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ZoomIn(
-      child: charts.LineChart(
-        [
-          charts.Series<double, int>(
-            id: 'Sparkline',
-            colorFn: (_, __) => charts.Color.fromHex(code: '#10B981'),
-            domainFn: (_, index) => index!,
-            measureFn: (datum, _) => datum,
-            data: data,
-          ),
-        ],
-        animate: true,
-        domainAxis: const charts.NumericAxisSpec(
-          showAxisLine: false,
-          renderSpec: charts.NoneRenderSpec(),
-        ),
-        primaryMeasureAxis: const charts.NumericAxisSpec(
-          showAxisLine: false,
-          renderSpec: charts.NoneRenderSpec(),
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(show: false),
+          titlesData: FlTitlesData(show: false),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              isCurved: true,
+              color: success,
+              barWidth: 2,
+              dotData: FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                color: success.withOpacity(0.1),
+              ),
+            ),
+          ],
+          minY: data.reduce((a, b) => a < b ? a : b) * 0.95,
+          maxY: data.reduce((a, b) => a > b ? a : b) * 1.05,
         ),
       ),
+    );
+  }
+}
+
+class QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const QuickActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onPressed,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: secondaryBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tertiaryBg),
+            ),
+            child: Icon(icon, color: accentPrimary, size: 28),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(color: textSecondary, fontSize: 12)),
+      ],
     );
   }
 }
@@ -297,8 +332,6 @@ class CustomProgressIndicator extends StatelessWidget {
     return const CircularProgressIndicator(color: accentPrimary);
   }
 }
-
-// Add more components: CustomListTile, CustomDivider, AnimatedIconButton, etc.
 
 class CustomListTile extends StatelessWidget {
   final IconData leadingIcon;
