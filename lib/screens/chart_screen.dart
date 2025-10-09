@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:charts_flutter/flutter.dart' as charts;
-import '../services/market_service.dart';
-import '../widgets/design_system.dart';
-import '../localization/app_localizations.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../services/market_service.dart';
+import '../../widgets/design_system.dart';
+import '../../localization/app_localizations.dart';
 
 class ChartScreen extends StatefulWidget {
   @override
@@ -12,20 +12,20 @@ class ChartScreen extends StatefulWidget {
 class _ChartScreenState extends State<ChartScreen> {
   final MarketService _marketService = MarketService();
   String _selectedTimeframe = '1d';
-  List<charts.Series<OHLCData, DateTime>> _seriesList = [];
   List<String> _indicators = [];
+  List<OHLCData> _ohlcData = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchChartData('IBM'); // Placeholder asset
+    _fetchChartData('IBM');
   }
 
   Future<void> _fetchChartData(String symbol) async {
     // Use Alpha Vantage for OHLC
     final response = await _marketService.getStockQuote(symbol);
-    // Parse response to OHLCData class (define below)
-    // _seriesList = createSeries(from response);
+    // Parse response to OHLCData
+    // _ohlcData = parseResponse(response);
     setState(() {});
   }
 
@@ -37,18 +37,18 @@ class _ChartScreenState extends State<ChartScreen> {
         actions: [
           DropdownButton<String>(
             value: _selectedTimeframe,
-            items: ['1m', '5m', '15m', '1h', '1d', '1w', '1m'].map((tf) => DropdownMenuItem(value: tf, child: Text(tf))).toList(),
+            items: ['1m', '5m', '15m', '1h', '1d', '1w', '1M']
+                .map((tf) => DropdownMenuItem(value: tf, child: Text(tf)))
+                .toList(),
             onChanged: (value) {
               setState(() {
                 _selectedTimeframe = value!;
-                // Refetch data
               });
             },
           ),
           IconButton(
             icon: const Icon(Icons.add_chart_rounded),
             onPressed: () {
-              // Open indicator selector
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -58,7 +58,8 @@ class _ChartScreenState extends State<ChartScreen> {
                     children: [
                       ListTile(title: Text('SMA'), onTap: () => _addIndicator('SMA')),
                       ListTile(title: Text('RSI'), onTap: () => _addIndicator('RSI')),
-                      // More indicators
+                      ListTile(title: Text('MACD'), onTap: () => _addIndicator('MACD')),
+                      ListTile(title: Text('Bollinger Bands'), onTap: () => _addIndicator('BB')),
                     ],
                   ),
                 ),
@@ -68,7 +69,7 @@ class _ChartScreenState extends State<ChartScreen> {
           IconButton(
             icon: const Icon(Icons.draw_rounded),
             onPressed: () {
-              // Enable drawing mode (placeholder)
+              // Enable drawing mode
             },
           ),
         ],
@@ -76,45 +77,53 @@ class _ChartScreenState extends State<ChartScreen> {
       body: Column(
         children: [
           Expanded(
-            child: charts.TimeSeriesChart(
-              _seriesList,
-              animate: true,
-              behaviors: [
-                charts.PanAndZoomBehavior(),
-                charts.LinePointHighlighter(),
-              ],
-              dateTimeFactory: const charts.LocalDateTimeFactory(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: CandlestickChart(data: _ohlcData),
             ),
           ),
-          // Order ticket panel
           Card(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
                 children: [
-                  Expanded(child: TextField(decoration: InputDecoration(labelText: AppLocalizations.of(context)!.translate('quantity')!))),
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.translate('quantity')!,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  CustomButton(text: AppLocalizations.of(context)!.translate('buy')!, color: success, onPressed: () {}),
+                  CustomButton(
+                    text: AppLocalizations.of(context)!.translate('buy')!,
+                    color: success,
+                    onPressed: () {},
+                  ),
                   const SizedBox(width: 8),
-                  CustomButton(text: AppLocalizations.of(context)!.translate('sell')!, color: danger, onPressed: () {}),
+                  CustomButton(
+                    text: AppLocalizations.of(context)!.translate('sell')!,
+                    color: danger,
+                    onPressed: () {},
+                  ),
                 ],
               ),
             ),
           ),
-          // Book of offers and time & sales
           ExpansionTile(
             title: Text(AppLocalizations.of(context)!.translate('order_book')!),
             children: [
-              // List for bids and asks
-              ListView.builder(
-                shrinkWrap: true,
-                itemCount: 10,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text('Price: $index.00'),
-                    trailing: Text('Volume: 100'),
-                  );
-                },
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  itemCount: 10,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text('Price: ${100 + index}.00'),
+                      trailing: Text('Volume: ${100 * (index + 1)}'),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -126,7 +135,6 @@ class _ChartScreenState extends State<ChartScreen> {
   void _addIndicator(String indicator) {
     setState(() {
       _indicators.add(indicator);
-      // Update series with new overlay
     });
     Navigator.pop(context);
   }
@@ -140,4 +148,44 @@ class OHLCData {
   final double close;
 
   OHLCData(this.time, this.open, this.high, this.low, this.close);
+}
+
+class CandlestickChart extends StatelessWidget {
+  final List<OHLCData> data;
+
+  const CandlestickChart({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    if (data.isEmpty) {
+      return Center(child: Text('No data available'));
+    }
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(show: true),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true),
+          ),
+        ),
+        borderData: FlBorderData(show: true),
+        lineBarsData: [
+          LineChartBarData(
+            spots: data.asMap().entries.map((e) {
+              return FlSpot(e.key.toDouble(), e.value.close);
+            }).toList(),
+            isCurved: false,
+            color: success,
+            barWidth: 2,
+            dotData: FlDotData(show: false),
+          ),
+        ],
+      ),
+    );
+  }
 }
