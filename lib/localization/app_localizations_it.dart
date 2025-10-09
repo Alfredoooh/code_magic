@@ -196,7 +196,6 @@ const Map<String, String> it = {
   'terms': 'Termini',
   'privacy': 'Privacy',
   'contact': 'Contatto',
-  'support': 'Supporto',
   'feedback': 'Feedback',
   'rate_app': 'Valuta app',
   'update': 'Aggiorna',
