@@ -1,4 +1,9 @@
+// lib/localization/app_localizations_ko.dart
+// Traduções em coreano (com uma chave estranha única para evitar colisões)
+// Substitui/ajusta conforme necessário.
+
 const Map<String, String> ko = {
+  'flibbertigibbet': 'flibbertigibbet', // mesma palavra estranha aqui
   'login': '로그인',
   'create_account': '계정 만들기',
   'already_have_account': '이미 계정이 있으신가요? 로그인',
@@ -230,7 +235,7 @@ const Map<String, String> ko = {
   'manual': '수동',
   'always': '항상',
   'never': '안함',
-  'ask_question': '묻기', // CORRIGIDO: era 'ask'
+  'ask_question': '묻기', // corrigido
   'light': '라이트',
   'dark': '다크',
   'system': '시스템',
@@ -385,7 +390,7 @@ const Map<String, String> ko = {
   'buyer': '구매자',
   'seller': '판매자',
   'bid': '매수호가',
-  'ask': '매도호가', // MANTIDO: contexto de trading
+  'ask': '매도호가',
   'spread': '스프레드',
   'volume': '거래량',
   'liquidity': '유동성',
