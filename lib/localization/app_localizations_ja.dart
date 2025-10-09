@@ -230,7 +230,7 @@ const Map<String, String> ja = {
   'manual': '手動',
   'always': '常に',
   'never': 'しない',
-  'ask': '確認する',
+  'ask_question': '確認する', // CORRIGIDO: era 'ask'
   'light': 'ライト',
   'dark': 'ダーク',
   'system': 'システム',
@@ -385,7 +385,7 @@ const Map<String, String> ja = {
   'buyer': '買い手',
   'seller': '売り手',
   'bid': 'ビッド',
-  'ask': 'アスク',
+  'ask': 'アスク', // MANTIDO: contexto de trading
   'spread': 'スプレッド',
   'volume': '出来高',
   'liquidity': '流動性',
