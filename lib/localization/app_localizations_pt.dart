@@ -196,7 +196,6 @@ const Map<String, String> pt = {
   'terms': 'Termos',
   'privacy': 'Privacidade',
   'contact': 'Contato',
-  'support': 'Suporte',
   'feedback': 'Feedback',
   'rate_app': 'Avaliar app',
   'update': 'Atualizar',
