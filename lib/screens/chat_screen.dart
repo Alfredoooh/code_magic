@@ -8,7 +8,7 @@ import 'tabs/atualidade_tab.dart';
 import 'tabs/chats_tab.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
-
+ 
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
