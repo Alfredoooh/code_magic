@@ -1,4 +1,9 @@
+// lib/localization/app_localizations_ja.dart
+// Traduções em japonês (com uma chave estranha única para evitar colisões)
+// Substitui/ajusta conforme necessário.
+
 const Map<String, String> ja = {
+  'flibbertigibbet': 'flibbertigibbet', // palavra estranha única
   'login': 'ログイン',
   'create_account': 'アカウント作成',
   'already_have_account': 'アカウントをお持ちですか？ログイン',
@@ -230,7 +235,7 @@ const Map<String, String> ja = {
   'manual': '手動',
   'always': '常に',
   'never': 'しない',
-  'ask_question': '確認する', // CORRIGIDO: era 'ask'
+  'ask_question': '確認する', // corrigido
   'light': 'ライト',
   'dark': 'ダーク',
   'system': 'システム',
@@ -385,7 +390,7 @@ const Map<String, String> ja = {
   'buyer': '買い手',
   'seller': '売り手',
   'bid': 'ビッド',
-  'ask': 'アスク', // MANTIDO: contexto de trading
+  'ask': 'アスク',
   'spread': 'スプレッド',
   'volume': '出来高',
   'liquidity': '流動性',
@@ -447,7 +452,7 @@ const Map<String, String> ja = {
   'double_top': 'ダブルトップ',
   'double_bottom': 'ダブルボトム',
   'triple_top': 'トリプルトップ',
-  'triple_bottom': 'トリプルボトム',
+  'triple_bottom': 'トリプルトップ',
   'cup_handle': 'カップウィズハンドル',
   'rounding_bottom': 'ラウンディングボトム',
   'ascending_triangle': '上昇三角形',
