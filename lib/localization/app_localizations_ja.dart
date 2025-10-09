@@ -375,7 +375,6 @@ const Map<String, String> ja = {
   'option': 'オプション',
   'future': '先物',
   'derivative': 'デリバティブ',
-  'security': '証券',
   'instrument': '金融商品',
   'market': '市場',
   'exchange_market': '取引所',
