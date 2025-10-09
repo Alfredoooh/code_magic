@@ -375,7 +375,6 @@ const Map<String, String> ko = {
   'option': '옵션',
   'future': '선물',
   'derivative': '파생상품',
-  'security': '증권',
   'instrument': '금융상품',
   'market': '시장',
   'exchange_market': '거래소',
