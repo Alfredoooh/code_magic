@@ -196,7 +196,6 @@ const Map<String, String> ru = {
   'terms': 'Условия',
   'privacy': 'Конфиденциальность',
   'contact': 'Контакты',
-  'support': 'Поддержка',
   'feedback': 'Обратная связь',
   'rate_app': 'Оценить приложение',
   'update': 'Обновить',
