@@ -196,7 +196,6 @@ const Map<String, String> fr = {
   'terms': 'Conditions',
   'privacy': 'Confidentialité',
   'contact': 'Contact',
-  'support': 'Support',
   'feedback': 'Commentaires',
   'rate_app': 'Évaluer l\'application',
   'update': 'Mettre à jour',
