@@ -196,7 +196,6 @@ const Map<String, String> zh = {
   'terms': '条款',
   'privacy': '隐私',
   'contact': '联系',
-  'support': '支持',
   'feedback': '反馈',
   'rate_app': '评价应用',
   'update': '更新',
