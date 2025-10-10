@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'firebase_options.dart';
 import 'auth_logic.dart';
 import 'styles.dart';
 import 'screens/login_screen.dart';
@@ -8,7 +9,15 @@ import 'screens/chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Erro ao inicializar Firebase: $e');
+  }
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => AuthLogic(),
@@ -18,7 +27,7 @@ void main() async {
 }
 
 class ChatApp extends StatelessWidget {
-  const ChatApp({Key? key}) : super(key: key);
+  const ChatApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +47,7 @@ class ChatApp extends StatelessWidget {
 }
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({Key? key}) : super(key: key);
+  const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
