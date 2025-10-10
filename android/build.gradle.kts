@@ -1,17 +1,15 @@
+// android/build.gradle.kts (root project)
 import org.gradle.api.tasks.Delete
-import org.gradle.api.file.Directory
 
-// 🔥 Adiciona o buildscript para o Firebase funcionar
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
+    // Mantive vazio o classpath aqui porque usamos pluginManagement no settings.gradle.kts
     dependencies {
-        // Plugin Google Services (essencial para Firebase)
-        classpath("com.google.gms:google-services:4.4.2")
-        // Kotlin
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22")
+        // Se preferir usar classpath ao invés de pluginManagement, adicione aqui:
+        // classpath("com.google.gms:google-services:4.4.2")
     }
 }
 
@@ -22,20 +20,7 @@ allprojects {
     }
 }
 
-// 🔧 Reorganiza diretórios de build (seu código original)
-val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
-rootProject.layout.buildDirectory.value(newBuildDir)
-
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-// 🧹 Tarefa de limpeza
+// Tarefa de limpeza compartilhada
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
