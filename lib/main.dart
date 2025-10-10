@@ -5,10 +5,11 @@ import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
-import 'screens/dashboard/dashboard_screen.dart';
-import 'screens/converter/converter_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/converter_screen.dart';
 import 'widgets/design_system.dart';
 import 'localization/app_localizations.dart';
+import 'screens/notifications_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
