@@ -1,3 +1,4 @@
+// android/settings.gradle.kts
 rootProject.name = "madeeasy"
 include(":app")
 
@@ -9,10 +10,11 @@ pluginManagement {
     }
 
     plugins {
-        // Ajuste as versões conforme usar no módulo app
-        id("org.jetbrains.kotlin.android") version "1.9.22"
+        // Versões centralizadas de plugins usados no projeto
         id("com.android.application") version "8.1.1"
+        id("org.jetbrains.kotlin.android") version "1.9.22"
         id("com.google.gms.google-services") version "4.4.2"
+        // plugin flutter: a versão é fornecida pelo Flutter tooling, sem declarar versão aqui
         id("dev.flutter.flutter-gradle-plugin") version "0.0.0" apply false
     }
 }
