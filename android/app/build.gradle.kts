@@ -1,8 +1,7 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
+    id("org.jetbrains.kotlin.android")            // kotlin plugin id correto para Kotlin DSL
+    id("com.google.gms.google-services")          // google services plugin (Firebase)
 }
 
 android {
@@ -16,6 +15,7 @@ android {
         versionCode = 3
         versionName = "3.0.0"
         multiDexEnabled = true
+        vectorDrawables.useSupportLibrary = true
     }
 
     compileOptions {
@@ -23,21 +23,27 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Kotlin options
     kotlinOptions {
         jvmTarget = "17"
     }
 
     buildTypes {
-        release {
+        getByName("release") {
+            // Em produção deves usar um signingConfig apropriado (keystore)
+            // Aqui mantive o debug signing para evitar falhas se não tiveres keystore configurado no CI.
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false
         }
+        getByName("debug") {
+            // debug defaults
+        }
     }
 
-    packaging {
+    packagingOptions {
         resources {
-            excludes += setOf(
+            excludes.addAll(listOf(
                 "META-INF/DEPENDENCIES",
                 "META-INF/LICENSE",
                 "META-INF/LICENSE.txt",
@@ -47,28 +53,21 @@ android {
                 "META-INF/notice.txt",
                 "META-INF/ASL2.0",
                 "META-INF/*.kotlin_module"
-            )
+            ))
         }
     }
 }
 
-flutter {
-    source = "../.."
-}
-
 dependencies {
-    // BOM para gerir versões firebase
+    // BOM para coordenar versões Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
 
-    // Firebase que realmente vais usar (Auth + Realtime Database)
-    implementation("com.google.firebase:firebase-analytics-ktx") // opcional — remove se não quiseres
+    // Firebase (Auth + Realtime DB). Analytics é opcional — remove se não quiseres.
+    implementation("com.google.firebase:firebase-analytics-ktx") // opcional
     implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-database-ktx") // Realtime Database
+    implementation("com.google.firebase:firebase-database-ktx")
 
-    // Se for preciso no futuro para FCM:
-    // implementation("com.google.firebase:firebase-messaging-ktx")
-
-    // AndroidX e multidex
+    // AndroidX + multidex
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.multidex:multidex:2.0.1")
 }
