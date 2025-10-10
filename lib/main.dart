@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -145,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           labelText: 'Nome',
                           labelStyle: TextStyle(color: Colors.grey),
-                          prefixIcon: Icon(Icons.person, color: Colors.grey),
+                          prefixIcon: Icon(CupertinoIcons.person, color: Colors.grey),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) return 'Digite seu nome';
@@ -159,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Email',
                         labelStyle: TextStyle(color: Colors.grey),
-                        prefixIcon: Icon(Icons.email, color: Colors.grey),
+                        prefixIcon: Icon(CupertinoIcons.mail, color: Colors.grey),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
@@ -175,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Senha',
                         labelStyle: TextStyle(color: Colors.grey),
-                        prefixIcon: Icon(Icons.lock, color: Colors.grey),
+                        prefixIcon: Icon(CupertinoIcons.lock, color: Colors.grey),
                       ),
                       obscureText: true,
                       validator: (value) {
@@ -252,23 +253,23 @@ class _MainScreenState extends State<MainScreen> {
         indicatorColor: Colors.orange.withOpacity(0.2),
         destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: Colors.orange),
+            icon: Icon(CupertinoIcons.home),
+            selectedIcon: Icon(CupertinoIcons.house_fill, color: Colors.orange),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.store_outlined),
-            selectedIcon: Icon(Icons.store, color: Colors.orange),
+            icon: Icon(CupertinoIcons.bag),
+            selectedIcon: Icon(CupertinoIcons.bag_fill, color: Colors.orange),
             label: 'Marketplace',
           ),
           NavigationDestination(
-            icon: Icon(Icons.newspaper_outlined),
-            selectedIcon: Icon(Icons.newspaper, color: Colors.orange),
+            icon: Icon(CupertinoIcons.news),
+            selectedIcon: Icon(CupertinoIcons.news_solid, color: Colors.orange),
             label: 'Novidades',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble, color: Colors.orange),
+            icon: Icon(CupertinoIcons.chat_bubble),
+            selectedIcon: Icon(CupertinoIcons.chat_bubble_fill, color: Colors.orange),
             label: 'Chat',
           ),
         ],
@@ -286,7 +287,7 @@ class HomeScreen extends StatelessWidget {
         title: Text('K Paga', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: Icon(CupertinoIcons.square_arrow_right),
             onPressed: () => FirebaseAuth.instance.signOut(),
           ),
         ],
@@ -295,7 +296,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.home, size: 100, color: Colors.orange),
+            Icon(CupertinoIcons.house_fill, size: 100, color: Colors.orange),
             SizedBox(height: 20),
             Text(
               'Bem-vindo, ${user?.displayName ?? "Usuário"}!',
@@ -324,7 +325,7 @@ class MarketplaceScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.store, size: 100, color: Colors.orange),
+            Icon(CupertinoIcons.bag_fill, size: 100, color: Colors.orange),
             SizedBox(height: 20),
             Text(
               'Marketplace',
@@ -353,7 +354,7 @@ class NewsScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.newspaper, size: 100, color: Colors.orange),
+            Icon(CupertinoIcons.news_solid, size: 100, color: Colors.orange),
             SizedBox(height: 20),
             Text(
               'Novidades',
@@ -512,7 +513,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey),
+                            Icon(CupertinoIcons.chat_bubble, size: 80, color: Colors.grey),
                             SizedBox(height: 16),
                             Text(
                               'Nenhuma mensagem ainda.\nSeja o primeiro a enviar!',
@@ -642,7 +643,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: Icon(Icons.arrow_upward, color: Colors.white),
+                        icon: Icon(CupertinoIcons.arrow_up, color: Colors.white),
                         onPressed: _sendMessage,
                       ),
                     ),
