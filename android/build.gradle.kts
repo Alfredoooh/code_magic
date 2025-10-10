@@ -1,3 +1,4 @@
+import java.io.File
 import org.gradle.api.tasks.Delete
 
 buildscript {
@@ -18,7 +19,8 @@ allprojects {
     }
 }
 
-val newBuildDir = file("../build")
+// Move root build output to ../build
+val newBuildDir: File = file("../build")
 rootProject.layout.buildDirectory.set(newBuildDir)
 
 subprojects {
