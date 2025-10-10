@@ -26,22 +26,15 @@ class StrategyModel {
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       code: json['code'] ?? '',
-      price: _toDouble(json['price']),
-      rating: _toDouble(json['rating']),
-      reviews: json['reviews'] is int ? json['reviews'] : 0,
+      price: (json['price'] ?? 0).toDouble(),
+      rating: (json['rating'] ?? 0).toDouble(),
+      reviews: json['reviews'] ?? 0,
     );
-  }
-
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'userId': userId,
       'name': name,
       'description': description,
@@ -50,27 +43,5 @@ class StrategyModel {
       'rating': rating,
       'reviews': reviews,
     };
-  }
-
-  StrategyModel copyWith({
-    String? id,
-    String? userId,
-    String? name,
-    String? description,
-    String? code,
-    double? price,
-    double? rating,
-    int? reviews,
-  }) {
-    return StrategyModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      code: code ?? this.code,
-      price: price ?? this.price,
-      rating: rating ?? this.rating,
-      reviews: reviews ?? this.reviews,
-    );
   }
 }
