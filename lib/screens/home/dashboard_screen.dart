@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -15,7 +15,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final MarketService _marketService = MarketService();
   double portfolioValue = 0.0;
-  List<double> portfolioSparkline = [100, 105, 103, 110, 108, 115]; // Placeholder
+  List<double> portfolioSparkline = [100, 105, 103, 110, 108, 115];
 
   @override
   void initState() {
@@ -31,7 +31,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         portfolioValue = (doc.data()!['portfolio_value'] as num?)?.toDouble() ?? 0.0;
       });
     }
-    // Fetch real data from market service if needed
   }
 
   @override
@@ -64,7 +63,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 100,
-                      child: SparklineChart(data: portfolioSparkline),
+                      child: LineChart(
+                        LineChartData(
+                          gridData: FlGridData(show: false),
+                          titlesData: FlTitlesData(show: false),
+                          borderData: FlBorderData(show: false),
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: portfolioSparkline.asMap().entries.map((e) {
+                                return FlSpot(e.key.toDouble(), e.value);
+                              }).toList(),
+                              isCurved: true,
+                              color: success,
+                              barWidth: 2,
+                              dotData: FlDotData(show: false),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -109,7 +125,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         trailing: SizedBox(
                           width: 80,
                           height: 40,
-                          child: SparklineChart(data: [10, 12, 11, 13, 15]), // Placeholder
+                          child: LineChart(
+                            LineChartData(
+                              gridData: FlGridData(show: false),
+                              titlesData: FlTitlesData(show: false),
+                              borderData: FlBorderData(show: false),
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: [10, 12, 11, 13, 15].asMap().entries.map((e) {
+                                    return FlSpot(e.key.toDouble(), e.value.toDouble());
+                                  }).toList(),
+                                  isCurved: true,
+                                  color: success,
+                                  barWidth: 1.5,
+                                  dotData: FlDotData(show: false),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     );
@@ -145,7 +178,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               },
             ),
-            // Add more widgets as per spec: top movers, calendar events, signals
           ],
         ),
       ),
@@ -159,7 +191,6 @@ class SendReceiveScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.translate('send_receive')!)),
       body: Center(child: Text('Send/Receive Interface')),
-      // Implement form for send/receive
     );
   }
 }
@@ -170,18 +201,6 @@ class DepositScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.translate('deposit')!)),
       body: Center(child: Text('Deposit Interface')),
-      // Implement payment methods
-    );
-  }
-}
-
-class NotificationsScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.translate('notifications')!)),
-      body: Center(child: Text('Notifications Center')),
-      // Implement list of notifications
     );
   }
 }
