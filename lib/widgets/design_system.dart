@@ -1,103 +1,149 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 
-const Color primaryBg = Color(0xFF0A0B0D);
-const Color secondaryBg = Color(0xFF16171B);
-const Color tertiaryBg = Color(0xFF1E1F25);
-const Color accentPrimary = Color(0xFFAB9FF2);
-const Color accentSecondary = Color(0xFF4F46E5);
-const Color success = Color(0xFF10B981);
-const Color danger = Color(0xFFEF4444);
-const Color warning = Color(0xFFF59E0B);
-const Color info = Color(0xFF3B82F6);
-const Color textPrimary = Color(0xFFF9FAFB);
-const Color textSecondary = Color(0xFF9CA3AF);
-const Color textMuted = Color(0xFF6B7280);
+// Cores Material Design
+const Color primaryColor = Color(0xFF6200EE);
+const Color primaryVariant = Color(0xFF3700B3);
+const Color secondaryColor = Color(0xFF03DAC6);
+const Color backgroundColor = Color(0xFFF5F5F5);
+const Color surfaceColor = Color(0xFFFFFFFF);
+const Color errorColor = Color(0xFFB00020);
+const Color onPrimary = Color(0xFFFFFFFF);
+const Color onSecondary = Color(0xFF000000);
+const Color onBackground = Color(0xFF000000);
+const Color onSurface = Color(0xFF000000);
+const Color onError = Color(0xFFFFFFFF);
 
-final LinearGradient accentGradient = LinearGradient(
-  colors: [accentSecondary, accentPrimary],
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-);
+// Cores escuras
+const Color darkBackground = Color(0xFF121212);
+const Color darkSurface = Color(0xFF1E1E1E);
+const Color darkPrimary = Color(0xFFBB86FC);
+const Color darkSecondary = Color(0xFF03DAC6);
 
-final darkTheme = ThemeData(
-  brightness: Brightness.dark,
-  primaryColor: accentPrimary,
-  scaffoldBackgroundColor: primaryBg,
-  cardColor: secondaryBg,
-  canvasColor: tertiaryBg,
-  colorScheme: ColorScheme.dark(
-    primary: accentPrimary,
-    secondary: accentSecondary,
-    error: danger,
+final lightTheme = ThemeData(
+  useMaterial3: true,
+  brightness: Brightness.light,
+  primaryColor: primaryColor,
+  scaffoldBackgroundColor: backgroundColor,
+  colorScheme: const ColorScheme.light(
+    primary: primaryColor,
+    primaryContainer: primaryVariant,
+    secondary: secondaryColor,
+    surface: surfaceColor,
+    error: errorColor,
+    onPrimary: onPrimary,
+    onSecondary: onSecondary,
+    onSurface: onSurface,
+    onError: onError,
   ),
-  textTheme: const TextTheme(
-    headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
-    headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textPrimary),
-    headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary),
-    bodyLarge: TextStyle(fontSize: 16, color: textPrimary),
-    bodyMedium: TextStyle(fontSize: 14, color: textSecondary),
-    labelSmall: TextStyle(fontSize: 12, color: textMuted),
+  cardTheme: CardThemeData(
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    color: surfaceColor,
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      backgroundColor: accentPrimary,
-      foregroundColor: textPrimary,
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
     ),
   ),
-  cardTheme: CardThemeData(
-    color: secondaryBg,
-    elevation: 4,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  ),
   appBarTheme: const AppBarTheme(
-    backgroundColor: primaryBg,
     elevation: 0,
-    systemOverlayStyle: SystemUiOverlayStyle.light,
+    centerTitle: false,
+    backgroundColor: surfaceColor,
+    foregroundColor: onSurface,
+    systemOverlayStyle: SystemUiOverlayStyle.dark,
   ),
-  bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-    backgroundColor: secondaryBg,
-    selectedItemColor: accentPrimary,
-    unselectedItemColor: textMuted,
-  ),
-  dialogTheme: DialogThemeData(
-    backgroundColor: secondaryBg,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: surfaceColor,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: primaryColor, width: 2),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: errorColor, width: 2),
+    ),
   ),
   floatingActionButtonTheme: const FloatingActionButtonThemeData(
-    backgroundColor: accentPrimary,
+    elevation: 4,
   ),
 );
 
-final lightTheme = ThemeData(
-  brightness: Brightness.light,
-  primaryColor: accentPrimary,
-  scaffoldBackgroundColor: Colors.white,
-  cardColor: Color(0xFFF3F4F6),
-  canvasColor: Color(0xFFE5E7EB),
-  colorScheme: ColorScheme.light(
-    primary: accentPrimary,
-    secondary: accentSecondary,
-    error: danger,
+final darkTheme = ThemeData(
+  useMaterial3: true,
+  brightness: Brightness.dark,
+  primaryColor: darkPrimary,
+  scaffoldBackgroundColor: darkBackground,
+  colorScheme: const ColorScheme.dark(
+    primary: darkPrimary,
+    primaryContainer: primaryVariant,
+    secondary: darkSecondary,
+    surface: darkSurface,
+    error: errorColor,
+    onPrimary: Color(0xFF000000),
+    onSecondary: Color(0xFF000000),
+    onSurface: Color(0xFFFFFFFF),
+    onError: onError,
   ),
-  textTheme: const TextTheme(
-    headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
-    headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
-    headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
-    bodyLarge: TextStyle(fontSize: 16, color: Color(0xFF111827)),
-    bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
-    labelSmall: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+  cardTheme: CardThemeData(
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    color: darkSurface,
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    ),
+  ),
+  appBarTheme: const AppBarTheme(
+    elevation: 0,
+    centerTitle: false,
+    backgroundColor: darkSurface,
+    systemOverlayStyle: SystemUiOverlayStyle.light,
+  ),
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: darkSurface,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey.shade700),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey.shade700),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: darkPrimary, width: 2),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: errorColor, width: 2),
+    ),
+  ),
+  floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    elevation: 4,
   ),
 );
 
 final oledTheme = darkTheme.copyWith(
   scaffoldBackgroundColor: Colors.black,
-  cardColor: Color(0xFF0A0A0A),
+  cardColor: const Color(0xFF0A0A0A),
 );
 
 class GlassCard extends StatelessWidget {
@@ -116,26 +162,9 @@ class GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return FadeIn(
       duration: const Duration(milliseconds: 300),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(opacity),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: child,
-          ),
-        ),
+      child: Card(
+        elevation: 2,
+        child: child,
       ),
     );
   }
@@ -163,15 +192,17 @@ class CustomButton extends StatelessWidget {
         child: ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: color ?? accentPrimary,
-            foregroundColor: textPrimary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shadowColor: accentPrimary.withOpacity(0.5),
-            elevation: 4,
+            backgroundColor: color,
           ),
           child: isLoading
-              ? const CircularProgressIndicator(color: Colors.white)
+              ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                )
               : Text(text, style: const TextStyle(fontSize: 16)),
         ),
       ),
@@ -208,28 +239,8 @@ class CustomTextField extends StatelessWidget {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: textSecondary),
-          prefixIcon: Icon(icon, color: accentPrimary),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: tertiaryBg),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: tertiaryBg),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: accentPrimary, width: 2),
-          ),
-          filled: true,
-          fillColor: secondaryBg,
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: danger, width: 2),
-          ),
+          prefixIcon: Icon(icon),
         ),
-        style: const TextStyle(color: textPrimary),
         keyboardType: keyboardType,
         obscureText: obscureText,
         validator: validator,
@@ -247,6 +258,7 @@ class SparklineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ZoomIn(
       child: LineChart(
         LineChartData(
@@ -257,12 +269,12 @@ class SparklineChart extends StatelessWidget {
             LineChartBarData(
               spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
               isCurved: true,
-              color: success,
+              color: colorScheme.primary,
               barWidth: 2,
               dotData: FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: success.withOpacity(0.1),
+                color: colorScheme.primary.withOpacity(0.1),
               ),
             ),
           ],
@@ -288,22 +300,28 @@ class QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        InkWell(
-          onTap: onPressed,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: secondaryBg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: tertiaryBg),
+        Material(
+          color: colorScheme.surface,
+          elevation: 1,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Icon(icon, color: colorScheme.primary, size: 28),
             ),
-            child: Icon(icon, color: accentPrimary, size: 28),
           ),
         ),
         const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: textSecondary, fontSize: 12)),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall,
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
@@ -318,8 +336,6 @@ class CustomModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return FadeInUp(
       child: AlertDialog(
-        backgroundColor: secondaryBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: child,
       ),
     );
@@ -327,9 +343,13 @@ class CustomModal extends StatelessWidget {
 }
 
 class CustomProgressIndicator extends StatelessWidget {
+  const CustomProgressIndicator({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return const CircularProgressIndicator(color: accentPrimary);
+    return CircularProgressIndicator(
+      color: Theme.of(context).colorScheme.primary,
+    );
   }
 }
 
@@ -349,8 +369,8 @@ class CustomListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return SlideInLeft(
       child: ListTile(
-        leading: Icon(leadingIcon, color: accentPrimary),
-        title: Text(title, style: const TextStyle(color: textPrimary)),
+        leading: Icon(leadingIcon),
+        title: Text(title),
         onTap: onTap,
       ),
     );
@@ -358,8 +378,10 @@ class CustomListTile extends StatelessWidget {
 }
 
 class CustomDivider extends StatelessWidget {
+  const CustomDivider({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Divider(color: textMuted, thickness: 1);
+    return const Divider();
   }
 }
