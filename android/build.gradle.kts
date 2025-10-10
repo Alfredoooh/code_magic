@@ -1,11 +1,13 @@
+import org.gradle.api.tasks.Delete
+
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
-        classpath("com.google.gms:google-services:4.4.3")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22")
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 
@@ -16,16 +18,16 @@ allprojects {
     }
 }
 
-def newBuildDir = file("../build")
+val newBuildDir = file("../build")
 rootProject.layout.buildDirectory.set(newBuildDir)
 
 subprojects {
     afterEvaluate {
-        def newSubprojectBuildDir = new File(newBuildDir, project.name)
+        val newSubprojectBuildDir = File(newBuildDir, project.name)
         project.layout.buildDirectory.set(newSubprojectBuildDir)
     }
 }
 
-tasks.register("clean", Delete) {
-    delete rootProject.layout.buildDirectory
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
 }
