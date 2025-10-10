@@ -1,26 +1,39 @@
 pluginManagement {
-    val flutterSdkPath = run {
-        val properties = java.util.Properties()
-        file("local.properties").inputStream().use { properties.load(it) }
-        val flutterSdkPath = properties.getProperty("flutter.sdk")
-        require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-        flutterSdkPath
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
     }
+    // Opcional: resolução de versões de plugins se precisares forçar versões concretas
+    resolutionStrategy {
+        eachPlugin {
+            // Exemplo (descomentar se precisares forçar um plugin):
+            // if (requested.id.id == "com.android.application") {
+            //     useModule("com.android.tools.build:gradle:8.4.0")
+            // }
+        }
+    }
+}
 
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+dependencyResolutionManagement {
+    // Preferir repositórios definidos aqui em vez dos repos de subprojectos
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
 
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 
-plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.3.2" apply false
-    id("com.android.library") version "8.3.2" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
-}
+// Nome do projecto (altera se quiseres outro nome)
+rootProject.name = "madeeasy"
 
+// Ativa tiposafe project accessors (opcional, útil em builds Kotlin DSL)
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
+// Inclui o módulo app (padrão Flutter)
 include(":app")
+
+// Se tiveres módulos adicionais (ex.: plugins/custom), inclui-os aqui:
+// include(":plugin_a")
+// include(":module_shared")
