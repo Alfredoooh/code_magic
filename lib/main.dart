@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/home/dashboard_screen.dart';
 import 'screens/converter_screen.dart';
 import 'widgets/design_system.dart';
 import 'localization/app_localizations.dart';
