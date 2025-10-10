@@ -1,19 +1,3 @@
-import org.gradle.api.tasks.Delete
-import java.io.File
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        // AGP deve ser compatível com a tua versão do Gradle wrapper (ver gradle-wrapper.properties)
-        classpath("com.android.tools.build:gradle:8.1.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22")
-        classpath("com.google.gms:google-services:4.4.2")
-    }
-}
-
 allprojects {
     repositories {
         google()
@@ -21,15 +5,15 @@ allprojects {
     }
 }
 
-// Move root build output para ../build (mantive o teu comportamento)
-val newBuildDir: File = file("../build")
-rootProject.layout.buildDirectory.set(newBuildDir)
+val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
-    afterEvaluate {
-        val newSubprojectBuildDir = File(newBuildDir, project.name)
-        project.layout.buildDirectory.set(newSubprojectBuildDir)
-    }
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+subprojects {
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {
