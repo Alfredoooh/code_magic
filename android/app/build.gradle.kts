@@ -1,15 +1,15 @@
-import org.gradle.api.tasks.Delete
-
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android") version "1.9.22"
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") // 👈 Necessário para o Firebase
+    // o plugin google-services normalmente é aplicado no módulo app,
+    // mas o classpath precisa estar no buildscript/top-level before applying it.
+    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.nexa.madeeasy"
-    compileSdk = 34 // 35+ pode causar incompatibilidade em alguns plugins
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.nexa.madeeasy"
@@ -54,10 +54,10 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
     implementation("androidx.multidex:multidex:2.0.1")
 
-    // 👇 Dependências Firebase necessárias para login por e-mail e dados em tempo real
+    // Firebase (mantive as versões que você tinha, apenas alinhei Kotlin)
     implementation("com.google.firebase:firebase-auth-ktx:23.0.0")        // Autenticação
     implementation("com.google.firebase:firebase-database-ktx:21.0.0")   // Realtime Database
     implementation("com.google.firebase:firebase-firestore-ktx:25.0.0")  // Firestore (opcional)
