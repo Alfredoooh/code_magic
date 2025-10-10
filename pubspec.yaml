@@ -25,8 +25,6 @@ dependencies:
   # URL Launcher para abrir links
   url_launcher: ^6.3.1
 
-  cupertino_icons: ^1.0.8
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -34,7 +32,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
-  # Assets
-  assets:
-    - assets/chat_background.png
