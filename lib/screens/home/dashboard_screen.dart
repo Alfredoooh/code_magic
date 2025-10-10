@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:charts_flutter/flutter.dart' as charts;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../widgets/design_system.dart';
-import '../../localization/app_localizations.dart';
-import '../../services/market_service.dart';
+
+import 'package:madeeasy/widgets/design_system.dart';
+import 'package:madeeasy/localization/app_localizations.dart';
+import 'package:madeeasy/services/market_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   @override
