@@ -1,7 +1,7 @@
 name: madeeasy
-description: Sistema de autenticação com design iOS e verificação 2FA
+description: Sistema de autenticação com design Material Design 3 e verificação 2FA
 
-version: 1.0.0+2
+version: 3.0.0+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
