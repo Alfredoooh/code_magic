@@ -1,5 +1,3 @@
-import org.gradle.api.tasks.Delete
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -59,5 +57,7 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.multidex:multidex:2.0.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
+
+    // Alinhado com plugin Kotlin 2.1.0
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
 }
