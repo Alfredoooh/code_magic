@@ -17,7 +17,7 @@ import 'package:madeeasy/screens/paper_trading_screen.dart';
 import 'package:madeeasy/screens/reminders_screen.dart';
 import 'package:madeeasy/screens/researcher_screen.dart';
 import 'package:madeeasy/screens/dictionary_screen.dart';
-import 'package:madeeasy/screens/converter/converter_screen.dart';
+import 'package:madeeasy/screens/converter_screen.dart';
 import 'package:madeeasy/screens/heatmap_screen.dart';
 import 'package:madeeasy/screens/correlation_screen.dart';
 import 'package:madeeasy/screens/football_screen.dart';
