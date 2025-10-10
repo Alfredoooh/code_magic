@@ -24,9 +24,7 @@ class PostModel {
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
       content: json['content'] ?? '',
-      images: json['images'] != null 
-          ? List<String>.from(json['images']) 
-          : [],
+      images: List<String>.from(json['images'] ?? []),
       timestamp: json['timestamp'] as Timestamp?,
       likes: json['likes'] ?? 0,
       comments: json['comments'] ?? 0,
@@ -35,32 +33,13 @@ class PostModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'userId': userId,
       'content': content,
       'images': images,
-      'timestamp': timestamp ?? FieldValue.serverTimestamp(),
+      'timestamp': timestamp,
       'likes': likes,
       'comments': comments,
     };
-  }
-
-  PostModel copyWith({
-    String? id,
-    String? userId,
-    String? content,
-    List<String>? images,
-    Timestamp? timestamp,
-    int? likes,
-    int? comments,
-  }) {
-    return PostModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      content: content ?? this.content,
-      images: images ?? this.images,
-      timestamp: timestamp ?? this.timestamp,
-      likes: likes ?? this.likes,
-      comments: comments ?? this.comments,
-    );
   }
 }
