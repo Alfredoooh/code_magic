@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dashboard_screen.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../activities/activities_screen.dart';
 import '../community/community_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../widgets/design_system.dart';
 import '../../localization/app_localizations.dart';
-import '../charts/chart_screen.dart';
+import '../chart_screen.dart';
 import '../screener_screen.dart';
 import '../calculators_screen.dart';
 import '../journal_screen.dart';
@@ -16,7 +16,7 @@ import '../paper_trading_screen.dart';
 import '../reminders_screen.dart';
 import '../researcher_screen.dart';
 import '../dictionary_screen.dart';
-import '../converter_screen.dart';
+import '../converter/converter_screen.dart';
 import '../heatmap_screen.dart';
 import '../correlation_screen.dart';
 import '../football_screen.dart';
@@ -32,7 +32,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  int _currentIndex = 0;
 
   final List<Widget> _screens = [
     DashboardScreen(),
@@ -41,17 +41,11 @@ class _HomeScreenState extends State<HomeScreen> {
     ProfileScreen(),
   ];
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('K_paga', style: Theme.of(context).textTheme.headlineMedium),
+        title: Text('K_paga'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_rounded),
@@ -59,28 +53,35 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsScreen()));
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.show_chart_rounded),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ChartScreen()));
+            },
+          ),
         ],
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: accentGradient),
-        ),
       ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(gradient: accentGradient),
-              child: Text(
-                AppLocalizations.of(context)!.translate('menu')!,
-                style: Theme.of(context).textTheme.headlineMedium!.copyWith(color: Colors.white),
+              decoration: BoxDecoration(color: accentPrimary),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person_rounded, size: 40, color: accentPrimary),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    FirebaseAuth.instance.currentUser?.email ?? '',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart_rounded),
-              title: Text(AppLocalizations.of(context)!.translate('charts')!),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => ChartScreen()));
-              },
             ),
             ListTile(
               leading: const Icon(Icons.search_rounded),
@@ -104,21 +105,21 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.code_rounded),
+              leading: const Icon(Icons.strategy_rounded),
               title: Text(AppLocalizations.of(context)!.translate('strategies')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => StrategiesScreen()));
               },
             ),
             ListTile(
-              leading: const Icon(Icons.timeline_rounded),
+              leading: const Icon(Icons.history_rounded),
               title: Text(AppLocalizations.of(context)!.translate('backtesting')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => BacktestingScreen()));
               },
             ),
             ListTile(
-              leading: const Icon(Icons.sim_card_rounded),
+              leading: const Icon(Icons.description_rounded),
               title: Text(AppLocalizations.of(context)!.translate('paper_trading')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => PaperTradingScreen()));
@@ -132,14 +133,14 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.search_rounded),
+              leading: const Icon(Icons.science_rounded),
               title: Text(AppLocalizations.of(context)!.translate('researcher')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => ResearcherScreen()));
               },
             ),
             ListTile(
-              leading: const Icon(Icons.book_online_rounded),
+              leading: const Icon(Icons.menu_book_rounded),
               title: Text(AppLocalizations.of(context)!.translate('dictionary')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => DictionaryScreen()));
@@ -149,18 +150,18 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.swap_horiz_rounded),
               title: Text(AppLocalizations.of(context)!.translate('converter')!),
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => ConverterScreen()));
+                Navigator.pushNamed(context, '/converter');
               },
             ),
             ListTile(
               leading: const Icon(Icons.grid_on_rounded),
-              title: Text(AppLocalizations.of(context)!.translate('heatmaps')!),
+              title: Text(AppLocalizations.of(context)!.translate('heatmap')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => HeatmapScreen()));
               },
             ),
             ListTile(
-              leading: const Icon(Icons.show_chart_rounded),
+              leading: const Icon(Icons.scatter_plot_rounded),
               title: Text(AppLocalizations.of(context)!.translate('correlation')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => CorrelationScreen()));
@@ -174,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.games_rounded),
+              leading: const Icon(Icons.movie_rounded),
               title: Text(AppLocalizations.of(context)!.translate('entertainment')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => EntertainmentHubScreen()));
@@ -188,48 +189,51 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.videocam_rounded),
+              leading: const Icon(Icons.video_call_rounded),
               title: Text(AppLocalizations.of(context)!.translate('webinars')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => WebinarsScreen()));
               },
             ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout_rounded),
               title: Text(AppLocalizations.of(context)!.translate('logout')!),
               onTap: () async {
                 await AuthService().signOut();
-                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/');
               },
             ),
           ],
         ),
       ),
-      body: _screens[_selectedIndex],
+      body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
         items: [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home_rounded),
-            label: AppLocalizations.of(context)!.translate('hub')!,
+            icon: const Icon(Icons.dashboard_rounded),
+            label: AppLocalizations.of(context)!.translate('dashboard')!,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.history_rounded),
+            icon: const Icon(Icons.list_rounded),
             label: AppLocalizations.of(context)!.translate('activities')!,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.group_rounded),
-            label: AppLocalizations.of(context)!.translate('hub')!,
+            icon: const Icon(Icons.people_rounded),
+            label: AppLocalizations.of(context)!.translate('community')!,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.person_rounded),
             label: AppLocalizations.of(context)!.translate('profile')!,
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: accentPrimary,
-        unselectedItemColor: textMuted,
-        type: BottomNavigationBarType.fixed,
-        onTap: _onItemTapped,
       ),
     );
   }
