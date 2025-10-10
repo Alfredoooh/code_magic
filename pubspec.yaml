@@ -12,56 +12,22 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # Firebase - ESSENCIAIS
-  firebase_core: ^2.24.2          # Core do Firebase
-  firebase_auth: ^4.16.0          # Autenticação
-  cloud_firestore: ^4.14.0        # Banco de dados (mensagens e usuários)
-  firebase_storage: ^11.7.7       # Armazenamento de imagens de perfil
-  
-  # firebase_database: ^10.4.0    # NÃO USADO - Realtime Database (você está usando Firestore)
+  # Firebase - ATUALIZADOS (versões compatíveis)
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
 
-  # Network & API - NÃO USADAS NO MOMENTO
-  # http: ^1.2.0                  # Requisições HTTP (não está sendo usado)
-  # web_socket_channel: ^3.0.1   # WebSockets (não está sendo usado)
+  # State Management
+  provider: ^6.1.2
 
-  # Charts & UI - NÃO USADAS NO MOMENTO
-  # fl_chart: ^0.66.0             # Gráficos (não está sendo usado)
-  # animate_do: ^3.3.4            # Animações (não está sendo usado)
-  # flutter_staggered_grid_view: ^0.7.0  # Grid view (não está sendo usado)
-  # carousel_slider: ^5.0.0       # Carousel (não está sendo usado)
-
-  # State Management & Storage - ESSENCIAIS
-  provider: ^6.1.2                # Gerenciamento de estado (USADO no AuthLogic)
-  # shared_preferences: ^2.3.2    # NÃO USADO - Preferências locais (tema é salvo no Firebase)
-  # flutter_secure_storage: ^9.2.2  # NÃO USADO - Armazenamento seguro
-
-  # Utilities - ESSENCIAIS
-  image_picker: ^1.0.7            # Seleção de imagens para perfil
-  
-  # intl: any                     # NÃO USADO - Internacionalização (não está sendo usado)
-  # url_launcher: ^6.3.0          # NÃO USADO - Abrir URLs
-  # path_provider: ^2.1.4         # NÃO USADO - Diretórios do sistema
-  # pdf: ^3.10.9                  # NÃO USADO - Geração de PDF
-  # open_file: ^3.5.0             # NÃO USADO - Abrir arquivos
+  # Utilities
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
-
-  # assets:
-  #   - assets/icon/icon.png      # NÃO USADO - Remova se não existir
-
-  # Fontes personalizadas - OPCIONAL
-  # Se não tiver essas fontes, comente ou remova esta seção
-  # fonts:
-  #   - family: SF Pro
-  #     fonts:
-  #       - asset: assets/fonts/SF-Pro-Display-Regular.ttf
-  #       - asset: assets/fonts/SF-Pro-Display-Medium.ttf
-  #         weight: 500
-  #       - asset: assets/fonts/SF-Pro-Text-Bold.ttf
-  #         weight: 700
