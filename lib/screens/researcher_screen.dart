@@ -43,13 +43,16 @@ class _ResearcherScreenState extends State<ResearcherScreen> {
               GlassCard(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  children: [
-                    Text(AppLocalizations.of(context)!.translate('results')!, style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 8),
-                    Text('Price: \$${ _result['price']}'),
-                    Text('Change: ${ _result['change']}%'),
-                    // More details
-                  ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(AppLocalizations.of(context)!.translate('results')!, style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 8),
+                      Text('Price: \$${_result['price']}'),
+                      Text('Change: ${_result['change']}%'),
+                      // More details
+                    ],
+                  ),
                 ),
               ),
           ],
