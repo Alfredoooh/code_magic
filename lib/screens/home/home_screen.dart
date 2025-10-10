@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:madeeasy/screens/dashboard/dashboard_screen.dart';
-import 'package:madeeasy/screens/activities/activities_screen.dart';
+import 'dashboard_screen.dart';
+import 'package:madeeasy/screens/activities/activity_screen.dart';
 import 'package:madeeasy/screens/community/community_screen.dart';
 import 'package:madeeasy/screens/profile/profile_screen.dart';
 import 'package:madeeasy/widgets/design_system.dart';
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     DashboardScreen(),
-    ActivitiesScreen(),
+    ActivityScreen(),
     CommunityScreen(),
     ProfileScreen(),
   ];
