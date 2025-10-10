@@ -46,11 +46,11 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
               children: [
                 CustomTextField(controller: _nameController, label: AppLocalizations.of(context)!.translate('name')!, icon: Icons.label_rounded),
                 const SizedBox(height: 16),
-                CustomTextField(controller: _descriptionController, label: AppLocalizations.of(context)!.translate('description')!, icon: Icons.description_rounded),
+                CustomTextField(controller: _descriptionController, label: 'Description', icon: Icons.description_rounded),
                 const SizedBox(height: 16),
-                CustomTextField(controller: _codeController, label: AppLocalizations.of(context)!.translate('code')!, icon: Icons.code_rounded, maxLines: 10),
+                CustomTextField(controller: _codeController, label: 'Code', icon: Icons.code_rounded, maxLines: 10),
                 const SizedBox(height: 16),
-                CustomButton(text: AppLocalizations.of(context)!.translate('create_strategy')!, onPressed: _createStrategy),
+                CustomButton(text: 'Create Strategy', onPressed: _createStrategy),
               ],
             ),
           ),
@@ -60,7 +60,11 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
               builder: (context, snapshot) {
                 if (snapshot.hasError) return Text(AppLocalizations.of(context)!.translate('error_loading')!);
                 if (snapshot.connectionState == ConnectionState.waiting) return const CircularProgressIndicator();
-                final strategies = snapshot.data!.docs.map((doc) => StrategyModel.fromJson(doc.data() as Map<String, dynamic>)..id = doc.id).toList();
+                final strategies = snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  data['id'] = doc.id;
+                  return StrategyModel.fromJson(data);
+                }).toList();
                 return ListView.builder(
                   itemCount: strategies.length,
                   itemBuilder: (context, index) {
