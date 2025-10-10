@@ -4,15 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../../models/user_model.dart';
-import '../../services/email_service.dart';
-import '../../services/auth_service.dart';
-import '../../widgets/design_system.dart';
-import '../../localization/app_localizations.dart';
-import '../themes_screen.dart';
-import '../languages_screen.dart';
-import '../integrations_screen.dart';
-import '../auth/login_screen.dart';
+
+import 'package:madeeasy/models/user_model.dart';
+import 'package:madeeasy/services/email_service.dart';
+import 'package:madeeasy/services/auth_service.dart';
+import 'package:madeeasy/widgets/design_system.dart';
+import 'package:madeeasy/localization/app_localizations.dart';
+
+import 'package:madeeasy/screens/themes_screen.dart';
+import 'package:madeeasy/screens/languages_screen.dart';
+import 'package:madeeasy/screens/integrations_screen.dart';
+import 'package:madeeasy/screens/auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -83,90 +85,184 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_userModel == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CustomProgressIndicator());
     }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: _uploadProfileImage,
-            child: CircleAvatar(
-              radius: 50,
-              backgroundImage: _userModel!.profileImage != null ? NetworkImage(_userModel!.profileImage!) : null,
-              child: _userModel!.profileImage == null ? const Icon(Icons.person_rounded, size: 50) : null,
+          Center(
+            child: GestureDetector(
+              onTap: _uploadProfileImage,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: accentGradient,
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentPrimary.withOpacity(0.4),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: CircleAvatar(
+                      radius: 60,
+                      backgroundColor: secondaryBg,
+                      backgroundImage: _userModel!.profileImage != null ? NetworkImage(_userModel!.profileImage!) : null,
+                      child: _userModel!.profileImage == null ? const Icon(Icons.person_rounded, size: 60, color: accentPrimary) : null,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accentPrimary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.camera_alt_rounded, size: 20, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(_userModel!.fullName, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _bioController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.translate('bio')!,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            maxLines: 3,
-            onSubmitted: (_) => _updateBio(),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(_userModel!.fullName, style: Theme.of(context).textTheme.headlineMedium),
           ),
           const SizedBox(height: 8),
-          CustomButton(
-            text: AppLocalizations.of(context)!.translate('update_bio')!,
-            onPressed: _updateBio,
+          Center(
+            child: Text(
+              FirebaseAuth.instance.currentUser?.email ?? '',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          const SizedBox(height: 24),
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(AppLocalizations.of(context)!.translate('bio')!, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    controller: _bioController,
+                    label: AppLocalizations.of(context)!.translate('bio')!,
+                    icon: Icons.edit_rounded,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  CustomButton(
+                    text: AppLocalizations.of(context)!.translate('update_bio')!,
+                    onPressed: _updateBio,
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           Text(AppLocalizations.of(context)!.translate('statistics')!, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.star_rounded),
-            title: Text('${AppLocalizations.of(context)!.translate('points')!}: ${_userModel!.points}'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.group_rounded),
-            title: Text('${AppLocalizations.of(context)!.translate('followers')!}: ${_userModel!.followedUsers.length}'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: GlassCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Icon(Icons.star_rounded, color: warning, size: 32),
+                        const SizedBox(height: 8),
+                        Text('${_userModel!.points}', style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 4),
+                        Text(AppLocalizations.of(context)!.translate('points')!, style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GlassCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Icon(Icons.group_rounded, color: accentPrimary, size: 32),
+                        const SizedBox(height: 8),
+                        Text('${_userModel!.followedUsers.length}', style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 4),
+                        Text(AppLocalizations.of(context)!.translate('followers')!, style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           Text(AppLocalizations.of(context)!.translate('settings')!, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.palette_rounded),
-            title: Text(AppLocalizations.of(context)!.translate('themes')!),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ThemesScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.language_rounded),
-            title: Text(AppLocalizations.of(context)!.translate('languages')!),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => LanguagesScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.link_rounded),
-            title: Text(AppLocalizations.of(context)!.translate('integrations')!),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => IntegrationsScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.security_rounded),
-            title: Text(AppLocalizations.of(context)!.translate('security')!),
-            onTap: () {
-              // Open security screen with 2FA, etc.
-            },
+          const SizedBox(height: 12),
+          GlassCard(
+            child: Column(
+              children: [
+                CustomListTile(
+                  leadingIcon: Icons.palette_rounded,
+                  title: AppLocalizations.of(context)!.translate('themes')!,
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => ThemesScreen()));
+                  },
+                ),
+                CustomDivider(),
+                CustomListTile(
+                  leadingIcon: Icons.language_rounded,
+                  title: AppLocalizations.of(context)!.translate('languages')!,
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => LanguagesScreen()));
+                  },
+                ),
+                CustomDivider(),
+                CustomListTile(
+                  leadingIcon: Icons.link_rounded,
+                  title: AppLocalizations.of(context)!.translate('integrations')!,
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => IntegrationsScreen()));
+                  },
+                ),
+                CustomDivider(),
+                CustomListTile(
+                  leadingIcon: Icons.security_rounded,
+                  title: AppLocalizations.of(context)!.translate('security')!,
+                  onTap: () {},
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           CustomButton(
             text: _isLoading ? '' : AppLocalizations.of(context)!.translate('export_data')!,
             isLoading: _isLoading,
             onPressed: _exportAndSendData,
+            color: info,
           ),
           const SizedBox(height: 16),
           CustomButton(
             text: AppLocalizations.of(context)!.translate('logout')!,
-            color: Colors.red,
+            color: danger,
             onPressed: () async {
               await AuthService().signOut();
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
