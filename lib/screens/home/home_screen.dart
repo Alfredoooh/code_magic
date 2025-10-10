@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../home/dashboard_screen.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../activities/activities_screen.dart';
 import '../community/community_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../widgets/design_system.dart';
 import '../../localization/app_localizations.dart';
-import '../chart_screen.dart';
+import '../charts/chart_screen.dart';
 import '../screener_screen.dart';
 import '../calculators_screen.dart';
 import '../journal_screen.dart';
@@ -23,9 +23,10 @@ import '../football_screen.dart';
 import '../entertainment_hub_screen.dart';
 import '../learning_hub_screen.dart';
 import '../webinars_screen.dart';
+import '../notifications_screen.dart';
 import '../../services/auth_service.dart';
 
-class HomeScreen extends StatefullWidget {
+class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -152,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.heatmap_chart),
+              leading: const Icon(Icons.grid_on_rounded),
               title: Text(AppLocalizations.of(context)!.translate('heatmaps')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => HeatmapScreen()));
@@ -209,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.home_rounded),
-            label: AppLocalizations.of(context)!.translate('home')!,
+            label: AppLocalizations.of(context)!.translate('hub')!,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.history_rounded),
@@ -217,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.group_rounded),
-            label: AppLocalizations.of(context)!.translate('community')!,
+            label: AppLocalizations.of(context)!.translate('hub')!,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.person_rounded),
