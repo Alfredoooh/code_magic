@@ -1,12 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class AlertModel {
   final String id;
   final String userId;
   final String asset;
   final String condition;
   final bool active;
-  final Timestamp lastTriggered;
+  final Timestamp? lastTriggered;
 
   AlertModel({
     required this.id,
@@ -14,28 +12,45 @@ class AlertModel {
     required this.asset,
     required this.condition,
     this.active = true,
-    required this.lastTriggered,
+    this.lastTriggered,
   });
 
   factory AlertModel.fromJson(Map<String, dynamic> json) {
     return AlertModel(
-      id: json['id'],
-      userId: json['userId'],
-      asset: json['asset'],
-      condition: json['condition'],
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      asset: json['asset'] ?? '',
+      condition: json['condition'] ?? '',
       active: json['active'] ?? true,
-      lastTriggered: json['lastTriggered'] as Timestamp,
+      lastTriggered: json['lastTriggered'] as Timestamp?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'userId': userId,
       'asset': asset,
       'condition': condition,
       'active': active,
-      'lastTriggered': lastTriggered,
+      'lastTriggered': lastTriggered ?? FieldValue.serverTimestamp(),
     };
+  }
+
+  AlertModel copyWith({
+    String? id,
+    String? userId,
+    String? asset,
+    String? condition,
+    bool? active,
+    Timestamp? lastTriggered,
+  }) {
+    return AlertModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      asset: asset ?? this.asset,
+      condition: condition ?? this.condition,
+      active: active ?? this.active,
+      lastTriggered: lastTriggered ?? this.lastTriggered,
+    );
   }
 }
