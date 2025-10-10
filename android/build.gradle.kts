@@ -1,15 +1,13 @@
-// android/build.gradle.kts (root project)
-import org.gradle.api.tasks.Delete
-
 buildscript {
+    ext.kotlin_version = '1.9.22'
     repositories {
         google()
         mavenCentral()
     }
-    // Mantive vazio o classpath aqui porque usamos pluginManagement no settings.gradle.kts
     dependencies {
-        // Se preferir usar classpath ao invés de pluginManagement, adicione aqui:
-        // classpath("com.google.gms:google-services:4.4.2")
+        classpath 'com.android.tools.build:gradle:8.1.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.2' // Google services (Firebase)
     }
 }
 
@@ -20,7 +18,6 @@ allprojects {
     }
 }
 
-// Tarefa de limpeza compartilhada
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
