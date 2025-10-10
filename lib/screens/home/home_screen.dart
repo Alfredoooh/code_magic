@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     DashboardScreen(),
-    ActivityScreen(),
+    ActivitiesScreen(),
     CommunityScreen(),
     ProfileScreen(),
   ];
