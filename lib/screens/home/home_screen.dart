@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'dashboard_screen.dart';
-import 'package:madeeasy/screens/activities/activity_screen.dart';
+import 'package:madeeasy/screens/activities/activities_screen.dart';
 import 'package:madeeasy/screens/community/community_screen.dart';
 import 'package:madeeasy/screens/profile/profile_screen.dart';
 import 'package:madeeasy/widgets/design_system.dart';
@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.strategy_rounded),
+              leading: const Icon(Icons.analytics_rounded),
               title: Text(AppLocalizations.of(context)!.translate('strategies')!),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => StrategiesScreen()));
