@@ -6,9 +6,17 @@ version: 3.0.0+3
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
-firebase_core: ^2.24.2
-firebase_auth: ^4.16.0
-firebase_database: ^10.4.0
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  firebase_database: ^10.4.0
+
+  # Ícones e Material
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
