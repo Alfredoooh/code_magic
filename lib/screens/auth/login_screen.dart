@@ -19,6 +19,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Remove o foco do teclado
+    FocusScope.of(context).unfocus();
+
     setState(() => _isLoading = true);
 
     try {
@@ -27,13 +30,73 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
         context: context,
       );
+
+      // Login bem-sucedido - não precisa navegar manualmente
+      // O StreamBuilder no main.dart já vai redirecionar automaticamente
+      
+    } on FirebaseAuthException catch (e) {
+      // Tratamento específico de erros do Firebase
+      String errorMessage;
+      
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = AppLocalizations.of(context)!.translate('user_not_found') ?? 
+                        'Usuário não encontrado';
+          break;
+        case 'wrong-password':
+          errorMessage = AppLocalizations.of(context)!.translate('wrong_password') ?? 
+                        'Senha incorreta';
+          break;
+        case 'invalid-email':
+          errorMessage = AppLocalizations.of(context)!.translate('invalid_email') ?? 
+                        'Email inválido';
+          break;
+        case 'user-disabled':
+          errorMessage = AppLocalizations.of(context)!.translate('user_disabled') ?? 
+                        'Usuário desabilitado';
+          break;
+        case 'too-many-requests':
+          errorMessage = AppLocalizations.of(context)!.translate('too_many_requests') ?? 
+                        'Muitas tentativas. Aguarde um momento';
+          break;
+        case 'network-request-failed':
+          errorMessage = AppLocalizations.of(context)!.translate('network_error') ?? 
+                        'Erro de conexão. Verifique sua internet';
+          break;
+        default:
+          errorMessage = AppLocalizations.of(context)!.translate('auth_error') ?? 
+                        'Erro de autenticação: ${e.message}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: danger,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.translate('auth_error')!),
-          backgroundColor: danger,
-        ),
-      );
+      // Captura outros erros (API externa, verificação de sessão, etc)
+      if (mounted) {
+        String errorMessage = e.toString();
+        
+        // Remove o "Exception: " do início da mensagem se existir
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(11);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: danger,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -67,11 +130,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: AppLocalizations.of(context)!.translate('email')!,
                         icon: Icons.email_rounded,
                         keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        enabled: !_isLoading,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return AppLocalizations.of(context)!.translate('enter_email')!;
                           }
                           if (!value.contains('@')) {
+                            return AppLocalizations.of(context)!.translate('invalid_email')!;
+                          }
+                          // Validação adicional de email
+                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          if (!emailRegex.hasMatch(value.trim())) {
                             return AppLocalizations.of(context)!.translate('invalid_email')!;
                           }
                           return null;
@@ -83,6 +153,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: AppLocalizations.of(context)!.translate('password')!,
                         icon: Icons.lock_rounded,
                         obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        enabled: !_isLoading,
+                        onFieldSubmitted: (_) => _login(),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return AppLocalizations.of(context)!.translate('enter_password')!;
@@ -97,11 +170,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       CustomButton(
                         text: _isLoading ? '' : AppLocalizations.of(context)!.translate('login')!,
                         isLoading: _isLoading,
-                        onPressed: _login,
+                        onPressed: _isLoading ? null : _login,
                       ),
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: () {
+                        onPressed: _isLoading ? null : () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => SignupScreen()),
@@ -109,7 +182,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         child: Text(
                           AppLocalizations.of(context)!.translate('create_account')!,
-                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: accentPrimary),
+                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                            color: _isLoading ? Colors.grey : accentPrimary,
+                          ),
                         ),
                       ),
                     ],
