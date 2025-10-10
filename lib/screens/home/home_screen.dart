@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../dashboard/dashboard_screen.dart';
+import 'dashboard_screen.dart';
 import '../activities/activities_screen.dart';
 import '../community/community_screen.dart';
 import '../profile/profile_screen.dart';
