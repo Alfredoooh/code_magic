@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AlertModel {
   final String id;
   final String userId;
@@ -28,29 +30,12 @@ class AlertModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'userId': userId,
       'asset': asset,
       'condition': condition,
       'active': active,
-      'lastTriggered': lastTriggered ?? FieldValue.serverTimestamp(),
+      'lastTriggered': lastTriggered,
     };
-  }
-
-  AlertModel copyWith({
-    String? id,
-    String? userId,
-    String? asset,
-    String? condition,
-    bool? active,
-    Timestamp? lastTriggered,
-  }) {
-    return AlertModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      asset: asset ?? this.asset,
-      condition: condition ?? this.condition,
-      active: active ?? this.active,
-      lastTriggered: lastTriggered ?? this.lastTriggered,
-    );
   }
 }
