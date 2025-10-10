@@ -33,7 +33,7 @@ class _ChartScreenState extends State<ChartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.translate('chart')!),
+        title: Text(AppLocalizations.of(context)!.translate('charts')!),
         actions: [
           DropdownButton<String>(
             value: _selectedTimeframe,
@@ -111,7 +111,7 @@ class _ChartScreenState extends State<ChartScreen> {
             ),
           ),
           ExpansionTile(
-            title: Text(AppLocalizations.of(context)!.translate('order_book')!),
+            title: Text(AppLocalizations.of(context)!.translate('orders')!),
             children: [
               SizedBox(
                 height: 200,
