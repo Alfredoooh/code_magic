@@ -9,6 +9,7 @@ import 'screens/home/dashboard_screen.dart';
 import 'screens/converter_screen.dart';
 import 'widgets/design_system.dart';
 import 'localization/app_localizations.dart';
+// Remove duplicate import - keep only one NotificationsScreen
 import 'screens/notifications_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -78,6 +79,27 @@ class AuthGate extends StatelessWidget {
         }
         return LoginScreen();
       },
+    );
+  }
+}
+
+// Placeholder screens if they don't exist yet
+class SendReceiveScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Send/Receive')),
+      body: Center(child: Text('Send/Receive Screen')),
+    );
+  }
+}
+
+class DepositScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Deposit')),
+      body: Center(child: Text('Deposit Screen')),
     );
   }
 }
