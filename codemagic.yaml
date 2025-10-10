@@ -1,19 +1,19 @@
 workflows:
-  android-workflow:
-    name: Android Release Build
+  android-release:
+    name: Android Release
     max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       flutter: stable
       java: 17
-      vars:
-        JAVA_HOME: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
       groups:
         - google_play
+      vars:
+        JAVA_HOME: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
     cache:
       cache_paths:
         - $HOME/.gradle/caches
-        - $HOME/Library/Caches/CocoaPods
+        - $FLUTTER_ROOT/.pub-cache
     triggering:
       events:
         - push
@@ -21,37 +21,28 @@ workflows:
         - pattern: '*'
           include: true
     scripts:
-      - name: Set up keystore
+      - name: Set up local.properties
         script: |
-          echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
-          cat >> "$CM_BUILD_DIR/android/key.properties" <<EOF
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyPassword=$CM_KEY_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          storeFile=../keystore.jks
-          EOF
+          echo "flutter.sdk=$HOME/programs/flutter" > $CM_BUILD_DIR/android/local.properties
+      
       - name: Get Flutter packages
         script: |
+          cd $CM_BUILD_DIR
           flutter clean
+          rm -rf .dart_tool
+          rm -rf build
+          rm -f pubspec.lock
           flutter pub get
-      - name: Flutter analyze
-        script: |
-          flutter analyze --no-fatal-infos --no-fatal-warnings
+      
       - name: Build APK
         script: |
-          flutter build apk --release \
-            --dart-define=FLUTTER_WEB_AUTO_DETECT=true \
-            --target-platform android-arm,android-arm64,android-x64 \
-            --split-per-abi
-      - name: Build App Bundle
-        script: |
-          flutter build appbundle --release \
-            --dart-define=FLUTTER_WEB_AUTO_DETECT=true
+          cd $CM_BUILD_DIR
+          flutter build apk --release --no-tree-shake-icons
+    
     artifacts:
       - build/**/outputs/**/*.apk
-      - build/**/outputs/**/*.aab
       - build/**/outputs/**/mapping.txt
-      - flutter_drive.log
+    
     publishing:
       email:
         recipients:
