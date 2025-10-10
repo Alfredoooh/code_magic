@@ -1,7 +1,7 @@
 name: madeeasy
-description: Sistema de autenticação com design Material Design 3 e verificação 2FA
-
-version: 3.0.0+3
+description: Chat app com Firebase
+publish_to: 'none'
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,14 +9,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  # Firebase Core - OBRIGATÓRIO
+  firebase_core: ^3.15.2
+  
+  # Firebase Authentication
+  firebase_auth: ^5.7.0
+  
+  # Cloud Firestore
+  cloud_firestore: ^5.6.12
+  
+  # Firebase Realtime Database (se necessário)
+  firebase_database: ^11.3.10
+  
+  # URL Launcher para abrir links
+  url_launcher: ^6.3.1
 
-  # Firebase - Versões atualizadas e compatíveis
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
-  firebase_database: ^11.1.4
-  cloud_firestore: ^5.4.4
-
-  # Ícones e Material
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -26,3 +34,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Assets
+  assets:
+    - assets/chat_background.png
