@@ -46,7 +46,7 @@ class ChatApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: Color(0xFF0F1112),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 6,
