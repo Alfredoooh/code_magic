@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/market_service.dart';
 import '../widgets/design_system.dart';
 import '../localization/app_localizations.dart';
-import 'charts/chart_screen.dart';
+import 'chart_screen.dart';
 
 class ScreenerScreen extends StatefulWidget {
   @override
