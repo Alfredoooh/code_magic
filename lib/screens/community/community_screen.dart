@@ -43,7 +43,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
             builder: (context, snapshot) {
               if (snapshot.hasError) return Text(AppLocalizations.of(context)!.translate('error_loading')!);
               if (snapshot.connectionState == ConnectionState.waiting) return const CircularProgressIndicator();
-              final posts = snapshot.data!.docs.map((doc) => PostModel.fromJson(doc.data() as Map<String, dynamic>)..id = doc.id).toList();
+              final posts = snapshot.data!.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                data['id'] = doc.id;
+                return PostModel.fromJson(data);
+              }).toList();
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -108,7 +112,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
             builder: (context, snapshot) {
               if (snapshot.hasError) return Text(AppLocalizations.of(context)!.translate('error_loading')!);
               if (snapshot.connectionState == ConnectionState.waiting) return const CircularProgressIndicator();
-              final strategies = snapshot.data!.docs.map((doc) => StrategyModel.fromJson(doc.data() as Map<String, dynamic>)..id = doc.id).toList();
+              final strategies = snapshot.data!.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                data['id'] = doc.id;
+                return StrategyModel.fromJson(data);
+              }).toList();
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
