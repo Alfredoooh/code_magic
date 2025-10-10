@@ -1,9 +1,7 @@
+// android/app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android") version "1.9.22"
-    id("dev.flutter.flutter-gradle-plugin")
-    // o plugin google-services normalmente é aplicado no módulo app,
-    // mas o classpath precisa estar no buildscript/top-level before applying it.
+    id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
 }
 
@@ -17,7 +15,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
-
         multiDexEnabled = true
     }
 
@@ -52,13 +49,12 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
     implementation("androidx.multidex:multidex:2.0.1")
 
-    // Firebase (mantive as versões que você tinha, apenas alinhei Kotlin)
-    implementation("com.google.firebase:firebase-auth-ktx:23.0.0")        // Autenticação
-    implementation("com.google.firebase:firebase-database-ktx:21.0.0")   // Realtime Database
-    implementation("com.google.firebase:firebase-firestore-ktx:25.0.0")  // Firestore (opcional)
+    // Firebase
+    implementation("com.google.firebase:firebase-auth-ktx:23.0.0")
+    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+    implementation("com.google.firebase:firebase-firestore-ktx:25.0.0")
 }
