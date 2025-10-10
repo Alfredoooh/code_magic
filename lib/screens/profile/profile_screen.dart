@@ -1,16 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../models/user_model.dart';
-import '../services/email_service.dart';
-import '../services/auth_service.dart';
-import '../widgets/design_system.dart';
-import '../localization/app_localizations.dart';
-import '../screens/themes_screen.dart';
-import '../screens/languages_screen.dart';
-import '../screens/integrations_screen.dart';
+import '../../models/user_model.dart';
+import '../../services/email_service.dart';
+import '../../services/auth_service.dart';
+import '../../widgets/design_system.dart';
+import '../../localization/app_localizations.dart';
+import '../themes_screen.dart';
+import '../languages_screen.dart';
+import '../integrations_screen.dart';
+import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -164,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           CustomButton(
             text: AppLocalizations.of(context)!.translate('logout')!,
-            color: danger,
+            color: Colors.red,
             onPressed: () async {
               await AuthService().signOut();
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
