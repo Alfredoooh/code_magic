@@ -1,38 +1,65 @@
 // lib/main.dart
-// App de Chat em um único ficheiro (usa: firebase_core, firebase_auth, firebase_database)
-// ATENÇÃO: já assumo que configuraste o Firebase no Android / iOS (google-services.json / GoogleService-Info.plist).
-// Dependências no pubspec.yaml:
+//
+// App de Chat (single-file) — usa apenas:
 //   firebase_core: ^2.24.2
 //   firebase_auth: ^4.16.0
 //   firebase_database: ^10.4.0
 //
-// Observações:
-// - Não há OTP. Login por email+password. Há verificação de email (sendEmailVerification).
-// - Armazenamento: Realtime Database.
-// - Presença: .info/connected + onDisconnect for presence.
-// - Mensagens: nós /messages/{chatId}/{messageId}
-// - Chats privados: chatId = uid1_uid2 (ordenado) ; Grupos: /groups/{groupId}/messages
-// - UI: Material, NavigationBar (pill native), bottom tabs.
-// - Adaptar às tuas regras de segurança pós-teste.
+// Instruções:
+// 1) Confirma pubspec.yaml com essas dependências e executa `flutter pub get`.
+// 2) Coloca google-services.json (Android) / GoogleService-Info.plist (iOS).
+// 3) Garante que no Android gradle config tens o plugin google-services aplicado.
+// 4) Se usas CodeMagic, certifica-te que o workflow faz `flutter pub get` antes de construir.
+//
+// Nota: Evitei nomes/assunções que tipicamente causam falhas no frontend em CI.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 
-// ---------- CONFIG ----------
-const bool REQUIRE_EMAIL_VERIFICATION = true; // exige email verificado para aceder
 // ----------------------------
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(ChatApp());
+// UTILIDADES
+// ----------------------------
+T? safeCast<T>(dynamic value) {
+  try {
+    return value as T;
+  } catch (e) {
+    return null;
+  }
 }
 
-// ---------- MODELS ----------
+Map<String, dynamic> mapFromSnapshot(dynamic v) {
+  if (v == null) return {};
+  if (v is Map) {
+    return Map<String, dynamic>.from(v.map((k, val) => MapEntry(k.toString(), val)));
+  }
+  // JSON string?
+  if (v is String) {
+    try {
+      final decoded = json.decode(v);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (e) {}
+  }
+  return {};
+}
+
+List<String> listStringsFrom(dynamic v) {
+  if (v == null) return [];
+  if (v is List) return v.map((e) => e.toString()).toList();
+  if (v is Map) return v.keys.map((k) => k.toString()).toList();
+  return [];
+}
+
+String nowIso() => DateTime.now().toIso8601String();
+int nowEpoch() => DateTime.now().millisecondsSinceEpoch;
+
+// ----------------------------
+// MODELS
+// ----------------------------
 class AppUser {
   final String uid;
   final String email;
@@ -42,7 +69,7 @@ class AppUser {
   String signo;
   String avatarUrl;
   bool online;
-  int lastSeenEpoch;
+  int lastSeen;
 
   AppUser({
     required this.uid,
@@ -53,20 +80,20 @@ class AppUser {
     this.signo = '',
     this.avatarUrl = '',
     this.online = false,
-    this.lastSeenEpoch = 0,
+    required this.lastSeen,
   });
 
-  factory AppUser.fromMap(String uid, Map<dynamic, dynamic> map) {
+  factory AppUser.fromMap(String uid, Map<String, dynamic> m) {
     return AppUser(
       uid: uid,
-      email: map['email'] ?? '',
-      name: map['name'] ?? '',
-      location: map['location'] ?? '',
-      age: map['age'] ?? 0,
-      signo: map['signo'] ?? '',
-      avatarUrl: map['avatarUrl'] ?? '',
-      online: map['online'] ?? false,
-      lastSeenEpoch: map['lastSeenEpoch'] ?? 0,
+      email: m['email'] ?? '',
+      name: m['name'] ?? '',
+      location: m['location'] ?? '',
+      age: (m['age'] is int) ? m['age'] : int.tryParse('${m['age']}') ?? 0,
+      signo: m['signo'] ?? '',
+      avatarUrl: m['avatarUrl'] ?? '',
+      online: m['online'] == true,
+      lastSeen: (m['lastSeenEpoch'] is int) ? m['lastSeenEpoch'] : int.tryParse('${m['lastSeenEpoch'] ?? 0}') ?? 0,
     );
   }
 
@@ -79,7 +106,7 @@ class AppUser {
       'signo': signo,
       'avatarUrl': avatarUrl,
       'online': online,
-      'lastSeenEpoch': lastSeenEpoch,
+      'lastSeenEpoch': lastSeen,
     };
   }
 }
@@ -87,9 +114,10 @@ class AppUser {
 class Message {
   final String id;
   final String fromUid;
-  final String text;
+  String text;
   final int timestamp;
-  final bool edited;
+  bool edited;
+  Map<String, dynamic> meta;
 
   Message({
     required this.id,
@@ -97,15 +125,17 @@ class Message {
     required this.text,
     required this.timestamp,
     this.edited = false,
-  });
+    Map<String, dynamic>? meta,
+  }) : meta = meta ?? {};
 
-  factory Message.fromMap(String id, Map<dynamic, dynamic> map) {
+  factory Message.fromMap(String id, Map<String, dynamic> m) {
     return Message(
       id: id,
-      fromUid: map['fromUid'] ?? '',
-      text: map['text'] ?? '',
-      timestamp: map['timestamp'] ?? 0,
-      edited: map['edited'] ?? false,
+      fromUid: m['fromUid'] ?? '',
+      text: m['text'] ?? '',
+      timestamp: (m['timestamp'] is int) ? m['timestamp'] : int.tryParse('${m['timestamp'] ?? 0}') ?? 0,
+      edited: m['edited'] == true,
+      meta: m['meta'] != null ? Map<String, dynamic>.from(m['meta']) : {},
     );
   }
 
@@ -115,58 +145,93 @@ class Message {
       'text': text,
       'timestamp': timestamp,
       'edited': edited,
+      'meta': meta,
     };
   }
 }
 
 class ChatRoom {
   final String id;
-  final String title;
   final bool isGroup;
-  final List<String> members; // uids
-  final String groupAdmin; // empty if private
+  String title;
+  String groupAdmin;
+  Map<String, bool> members;
 
   ChatRoom({
     required this.id,
-    required this.title,
-    required this.isGroup,
-    required this.members,
+    this.isGroup = false,
+    this.title = '',
     this.groupAdmin = '',
-  });
+    Map<String, bool>? members,
+  }) : members = members ?? {};
 
-  factory ChatRoom.fromMap(String id, Map<dynamic, dynamic> map) {
+  factory ChatRoom.fromMap(String id, Map<String, dynamic> m) {
+    final mem = <String, bool>{};
+    if (m['members'] is Map) {
+      (m['members'] as Map).forEach((k, v) {
+        mem[k.toString()] = v == true;
+      });
+    } else if (m['members'] is List) {
+      for (var e in List.from(m['members'])) {
+        mem['${e}'] = true;
+      }
+    }
     return ChatRoom(
       id: id,
-      title: map['title'] ?? '',
-      isGroup: map['isGroup'] ?? false,
-      members: map['members'] != null ? List<String>.from(map['members']) : [],
-      groupAdmin: map['groupAdmin'] ?? '',
+      isGroup: m['isGroup'] == true,
+      title: m['title'] ?? '',
+      groupAdmin: m['groupAdmin'] ?? '',
+      members: mem,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'title': title,
       'isGroup': isGroup,
-      'members': members,
+      'title': title,
       'groupAdmin': groupAdmin,
+      'members': members,
     };
   }
 }
 
-// ---------- SERVICES ----------
+// ----------------------------
+// FIREBASE SERVICE
+// ----------------------------
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _dbRoot = FirebaseDatabase.instance.ref();
+  final DatabaseReference _root = FirebaseDatabase.instance.ref();
 
-  User? get currentUser => _auth.currentUser;
+  User? user() => _auth.currentUser;
 
-  // Auth
-  Future<UserCredential> signUpWithEmail(String email, String password) async {
+  // Initialize presence when called
+  void enablePresence(String uid) {
+    final connectedRef = FirebaseDatabase.instance.ref('.info/connected');
+    final userRef = _root.child('users').child(uid);
+    connectedRef.onValue.listen((event) async {
+      final val = event.snapshot.value;
+      final connected = val == true || val == 'true';
+      if (connected) {
+        try {
+          await userRef.update({'online': true, 'lastSeenEpoch': nowEpoch()});
+          userRef.onDisconnect().update({'online': false, 'lastSeenEpoch': nowEpoch()});
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        // connection lost
+      }
+    }, onError: (err) {
+      // debug
+      // print('presence listen error: $err');
+    });
+  }
+
+  Future<UserCredential> signUp(String email, String password) async {
     final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    // create user node in Realtime DB
     final uid = cred.user!.uid;
-    await _dbRoot.child('users').child(uid).set({
+    final now = nowEpoch();
+    await _root.child('users').child(uid).set({
       'email': email,
       'name': '',
       'location': '',
@@ -174,20 +239,15 @@ class FirebaseService {
       'signo': '',
       'avatarUrl': '',
       'online': false,
-      'lastSeenEpoch': DateTime.now().millisecondsSinceEpoch,
+      'lastSeenEpoch': now,
     });
-    // send verification email (if required)
     try {
-      if (!cred.user!.emailVerified) {
-        await cred.user!.sendEmailVerification();
-      }
-    } catch (e) {
-      // ignore
-    }
+      if (!cred.user!.emailVerified) await cred.user!.sendEmailVerification();
+    } catch (e) {}
     return cred;
   }
 
-  Future<UserCredential> signInWithEmail(String email, String password) async {
+  Future<UserCredential> signIn(String email, String password) async {
     final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
     return cred;
   }
@@ -195,146 +255,138 @@ class FirebaseService {
   Future<void> signOut() async {
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
-      await setUserOnline(uid, false);
+      try {
+        await _root.child('users').child(uid).update({'online': false, 'lastSeenEpoch': nowEpoch()});
+      } catch (e) {}
     }
     await _auth.signOut();
   }
 
-  Future<void> sendPasswordReset(String email) async {
+  Future<void> resetPassword(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
-  Future<void> reloadUser() async {
-    await _auth.currentUser?.reload();
-  }
-
   // PROFILE
-  DatabaseReference usersRef() => _dbRoot.child('users');
-
-  Future<void> updateProfile(String uid, Map<String, dynamic> values) async {
-    await usersRef().child(uid).update(values);
-  }
+  DatabaseReference usersRef() => _root.child('users');
 
   Future<AppUser?> getUserOnce(String uid) async {
     final snap = await usersRef().child(uid).get();
     if (!snap.exists) return null;
-    return AppUser.fromMap(uid, Map<dynamic, dynamic>.from(snap.value as Map));
+    return AppUser.fromMap(uid, mapFromSnapshot(snap.value));
   }
 
-  // PRESENCE
-  Future<void> setUserOnline(String uid, bool online) async {
-    final ref = usersRef().child(uid);
-    final now = DateTime.now().millisecondsSinceEpoch;
-    await ref.update({
-      'online': online,
-      'lastSeenEpoch': now,
-    });
+  Future<void> updateProfile(String uid, Map<String, dynamic> data) async {
+    await usersRef().child(uid).update(data);
   }
 
-  // presence with .info/connected and onDisconnect
-  void enablePresenceListener(String uid) {
-    final connectedRef = FirebaseDatabase.instance.ref('.info/connected');
-    final userStatusRef = usersRef().child(uid);
-    connectedRef.onValue.listen((event) async {
-      final connected = event.snapshot.value as bool? ?? false;
-      if (connected) {
-        // set online true and setup onDisconnect to set offline
-        await userStatusRef.update({
-          'online': true,
-          'lastSeenEpoch': DateTime.now().millisecondsSinceEpoch,
-        });
-        userStatusRef.onDisconnect().update({
-          'online': false,
-          'lastSeenEpoch': DateTime.now().millisecondsSinceEpoch,
-        });
-      } else {
-        // connection lost
-      }
-    });
-  }
+  // CHATROOMS
+  DatabaseReference chatRoomsRef() => _root.child('chatRooms');
+  DatabaseReference messagesRef(String chatId) => _root.child('messages').child(chatId);
+  DatabaseReference lastMsgRef(String chatId) => _root.child('lastMessages').child(chatId);
 
-  // CHAT / MESSAGES
-  String privateChatIdFor(String a, String b) {
+  String privateChatId(String a, String b) {
     final list = [a, b]..sort();
     return '${list[0]}_${list[1]}';
   }
 
-  DatabaseReference messagesRef(String chatId) => _dbRoot.child('messages').child(chatId);
+  Future<void> createPrivateIfNotExists(String a, String b) async {
+    final id = privateChatId(a, b);
+    final ref = chatRoomsRef().child(id);
+    final snap = await ref.get();
+    if (!snap.exists) {
+      await ref.set({
+        'isGroup': false,
+        'title': '',
+        'groupAdmin': a,
+        'members': {a: true, b: true}
+      });
+    } else {
+      // ensure members map correct
+      final m = mapFromSnapshot(snap.value);
+      if (m['members'] is List) {
+        // migrate to map
+        final arr = List.from(m['members']);
+        final mapMembers = <String, bool>{};
+        for (var e in arr) mapMembers['${e}'] = true;
+        await ref.child('members').set(mapMembers);
+      }
+    }
+  }
+
+  Future<String> createGroup(String title, String creatorUid, List<String> members) async {
+    final ref = chatRoomsRef().push();
+    final id = ref.key!;
+    final membersMap = <String, bool>{};
+    for (var m in members) membersMap[m] = true;
+    membersMap[creatorUid] = true;
+    await ref.set({
+      'isGroup': true,
+      'title': title,
+      'groupAdmin': creatorUid,
+      'members': membersMap,
+    });
+    return id;
+  }
 
   Future<void> sendMessage(String chatId, Message msg) async {
     final ref = messagesRef(chatId).push();
     await ref.set(msg.toMap());
+    await lastMsgRef(chatId).set({'text': msg.text, 'fromUid': msg.fromUid, 'timestamp': msg.timestamp});
   }
 
-  Future<void> createGroup(String title, String creatorUid, List<String> members) async {
-    final groupRef = _dbRoot.child('groups').push();
-    final groupId = groupRef.key!;
-    final chatRoom = ChatRoom(
-      id: groupId,
-      title: title,
-      isGroup: true,
-      members: members,
-      groupAdmin: creatorUid,
-    );
-    await groupRef.set(chatRoom.toMap());
-    // create a node to link group messages: /messages/{groupId} will be used
+  Future<void> editMessage(String chatId, String messageId, String newText) async {
+    await messagesRef(chatId).child(messageId).update({'text': newText, 'edited': true});
   }
 
-  DatabaseReference groupsRef() => _dbRoot.child('groups');
-  DatabaseReference chatRoomsRef() => _dbRoot.child('chatRooms'); // optional mapping
-
-  // last messages summary (for chats list)
-  DatabaseReference lastMsgRef(String chatId) => _dbRoot.child('lastMessages').child(chatId);
-
-  Future<void> setLastMessage(String chatId, Message msg) async {
-    await lastMsgRef(chatId).set({
-      'text': msg.text,
-      'fromUid': msg.fromUid,
-      'timestamp': msg.timestamp,
-    });
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    await messagesRef(chatId).child(messageId).remove();
   }
 
-  // Search users by name/email (simple full scan, consider index in rules)
-  Query allUsersQuery() => usersRef().orderByChild('name');
-
-  // typing indicator
-  DatabaseReference typingRef(String chatId, String uid) => _dbRoot.child('typing').child(chatId).child(uid);
-
-  Future<void> setTyping(String chatId, String uid, bool isTyping) async {
-    final ref = typingRef(chatId, uid);
-    if (isTyping) {
-      await ref.set(true);
-      ref.onDisconnect().remove();
+  // typing
+  DatabaseReference typingRef(String chatId) => _root.child('typing').child(chatId);
+  Future<void> setTyping(String chatId, String uid, bool typing) async {
+    final r = typingRef(chatId).child(uid);
+    if (typing) {
+      await r.set(true);
+      await r.onDisconnect().remove();
     } else {
-      await ref.remove();
+      await r.remove();
     }
   }
+
+  // helpers:
+  Query usersByNameQuery(String prefix) => usersRef().orderByChild('name').startAt(prefix).endAt(prefix + "\uf8ff");
 }
 
 final firebaseService = FirebaseService();
 
-// ---------- UI ----------
-class ChatApp extends StatefulWidget {
-  @override
-  State<ChatApp> createState() => _ChatAppState();
+// ----------------------------
+// MAIN
+// ----------------------------
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
 }
 
-class _ChatAppState extends State<ChatApp> {
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   StreamSubscription<User?>? _authSub;
+  User? _user;
 
   @override
   void initState() {
     super.initState();
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (user != null) {
-        if (REQUIRE_EMAIL_VERIFICATION && !user.emailVerified) {
-          // keep in login flow but allow user to request verification
-        } else {
-          // enable presence tracking
-          firebaseService.enablePresenceListener(user.uid);
-        }
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((u) {
+      setState(() => _user = u);
+      if (u != null) {
+        // enable presence tracking
+        firebaseService.enablePresence(u.uid);
       }
-      setState(() {});
     });
   }
 
@@ -348,179 +400,121 @@ class _ChatAppState extends State<ChatApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ChatApp',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        // NO gradients, flat clean Material design
-        colorSchemeSeed: Colors.indigo,
+        primarySwatch: Colors.indigo,
+        useMaterial3: false,
       ),
-      home: AuthGate(),
+      home: _user == null ? AuthScreen() : HomeScreen(),
     );
   }
 }
 
-class AuthGate extends StatefulWidget {
+// ----------------------------
+// AUTH UI
+// ----------------------------
+class AuthScreen extends StatefulWidget {
   @override
-  State<AuthGate> createState() => _AuthGateState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthGateState extends State<AuthGate> {
-  User? user;
-  StreamSubscription<User?>? _sub;
+class _AuthScreenState extends State<AuthScreen> {
+  final _email = TextEditingController();
+  final _pass = TextEditingController();
+  bool loading = false;
+  String error = '';
 
-  @override
-  void initState() {
-    super.initState();
-    user = FirebaseAuth.instance.currentUser;
-    _sub = FirebaseAuth.instance.authStateChanges().listen((u) {
-      setState(() {
-        user = u;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _sub?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (user == null) {
-      return SignInScreen();
-    } else {
-      if (REQUIRE_EMAIL_VERIFICATION && !user!.emailVerified) {
-        return EmailVerifyScreen(user: user!);
-      }
-      return HomeScreen();
-    }
-  }
-}
-
-// ---------- LOGIN / SIGNUP ----------
-class SignInScreen extends StatefulWidget {
-  @override
-  State<SignInScreen> createState() => _SignInScreenState();
-}
-
-class _SignInScreenState extends State<SignInScreen> {
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _loading = false;
-  String _error = '';
-
-  Future<void> _signIn() async {
+  Future<void> signIn() async {
     setState(() {
-      _loading = true;
-      _error = '';
+      loading = true;
+      error = '';
     });
     try {
-      await firebaseService.signInWithEmail(_emailCtrl.text.trim(), _passCtrl.text);
-      final u = FirebaseAuth.instance.currentUser!;
-      if (REQUIRE_EMAIL_VERIFICATION && !u.emailVerified) {
-        // keep in verify screen
-      } else {
-        firebaseService.enablePresenceListener(u.uid);
-      }
+      await firebaseService.signIn(_email.text.trim(), _pass.text);
+      final u = FirebaseAuth.instance.currentUser;
+      if (u != null) firebaseService.enablePresence(u.uid);
     } on FirebaseAuthException catch (e) {
-      _error = e.message ?? 'Erro no login';
+      error = e.message ?? 'Erro';
     } catch (e) {
-      _error = 'Erro desconhecido';
+      error = 'Erro desconhecido: $e';
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 
-  Future<void> _signup() async {
+  Future<void> signUp() async {
     setState(() {
-      _loading = true;
-      _error = '';
+      loading = true;
+      error = '';
     });
     try {
-      await firebaseService.signUpWithEmail(_emailCtrl.text.trim(), _passCtrl.text);
-      // user created, email verification sent
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conta criada. Verifica o email.')));
+      await firebaseService.signUp(_email.text.trim(), _pass.text);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conta criada. Verifica o email se necessário.')));
     } on FirebaseAuthException catch (e) {
-      _error = e.message ?? 'Erro no registo';
+      error = e.message ?? 'Erro';
     } catch (e) {
-      _error = 'Erro desconhecido';
+      error = 'Erro desconhecido: $e';
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
-    _passCtrl.dispose();
+    _email.dispose();
+    _pass.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Layout: centered card, nice Material without gradients
+    final w = MediaQuery.of(context).size.width;
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 420),
+          constraints: BoxConstraints(maxWidth: min(520, w - 40)),
           child: Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            elevation: 6,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             margin: EdgeInsets.all(16),
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+              padding: EdgeInsets.all(18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.chat_bubble_rounded, size: 64),
-                  SizedBox(height: 12),
-                  Text('Bem-vindo ao ChatApp', style: Theme.of(context).textTheme.headlineSmall),
-                  SizedBox(height: 12),
-                  TextField(
-                    controller: _emailCtrl,
-                    decoration: InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_rounded)),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
+                  Icon(Icons.chat_rounded, size: 72),
                   SizedBox(height: 8),
-                  TextField(
-                    controller: _passCtrl,
-                    decoration: InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_rounded)),
-                    obscureText: true,
-                  ),
+                  Text('ChatApp', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   SizedBox(height: 12),
-                  if (_error.isNotEmpty) ...[
-                    Text(_error, style: TextStyle(color: Colors.red)),
+                  TextField(controller: _email, decoration: InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email))),
+                  SizedBox(height: 8),
+                  TextField(controller: _pass, decoration: InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock)), obscureText: true),
+                  SizedBox(height: 12),
+                  if (error.isNotEmpty) ...[
+                    Text(error, style: TextStyle(color: Colors.red)),
                     SizedBox(height: 8),
                   ],
                   Row(
                     children: [
-                      Expanded(
-                        child: FilledButton.tonalIcon(
-                          icon: Icon(Icons.login_rounded),
-                          label: Text('Entrar'),
-                          onPressed: _loading ? null : _signIn,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: Icon(Icons.person_add_rounded),
-                          label: Text('Registar'),
-                          onPressed: _loading ? null : _signup,
-                        ),
-                      )
+                      Expanded(child: ElevatedButton.icon(onPressed: loading ? null : signIn, icon: Icon(Icons.login), label: Text('Entrar'))),
+                      SizedBox(width: 10),
+                      Expanded(child: OutlinedButton.icon(onPressed: loading ? null : signUp, icon: Icon(Icons.person_add), label: Text('Registar'))),
                     ],
                   ),
                   SizedBox(height: 8),
                   TextButton(
                     onPressed: () async {
-                      final email = _emailCtrl.text.trim();
+                      final email = _email.text.trim();
                       if (email.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Introduz o email para recuperar.')));
                         return;
                       }
-                      await firebaseService.sendPasswordReset(email);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email de recuperação enviado.')));
+                      try {
+                        await firebaseService.resetPassword(email);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email de recuperação enviado.')));
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao enviar email.')));
+                      }
                     },
                     child: Text('Esqueci a password'),
                   )
@@ -534,113 +528,17 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 }
 
-class EmailVerifyScreen extends StatefulWidget {
-  final User user;
-  EmailVerifyScreen({required this.user});
-  @override
-  State<EmailVerifyScreen> createState() => _EmailVerifyScreenState();
-}
-
-class _EmailVerifyScreenState extends State<EmailVerifyScreen> {
-  bool _sent = false;
-  bool _loading = false;
-
-  Future<void> _send() async {
-    setState(() {
-      _loading = true;
-    });
-    try {
-      await widget.user.sendEmailVerification();
-      setState(() {
-        _sent = true;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao enviar email.')));
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _check() async {
-    setState(() {
-      _loading = true;
-    });
-    await widget.user.reload();
-    if (widget.user.emailVerified) {
-      // reload and go to home automatically (auth state changes)
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email verificado!')));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email ainda não verificado.')));
-    }
-    setState(() {
-      _loading = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Verifica o Email'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await firebaseService.signOut();
-            },
-            icon: Icon(Icons.logout_rounded),
-          )
-        ],
-      ),
-      body: Center(
-        child: Card(
-          margin: EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.mark_email_read_rounded, size: 56),
-              SizedBox(height: 8),
-              Text('Verifica o teu email', style: Theme.of(context).textTheme.titleLarge),
-              SizedBox(height: 8),
-              Text('Enviámos um email para ${widget.user.email}. Confirma a verificação.'),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: FilledButton(onPressed: _loading ? null : _send, child: Text(_sent ? 'Reenviar' : 'Enviar email'))),
-                  SizedBox(width: 8),
-                  Expanded(child: OutlinedButton(onPressed: _loading ? null : _check, child: Text('Já verifiquei'))),
-                ],
-              ),
-              SizedBox(height: 8),
-              TextButton(onPressed: () async => await firebaseService.signOut(), child: Text('Sair')),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------- HOME + TABS ----------
+// ----------------------------
+// HOME + NAV
+// ----------------------------
 class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  static const tabs = ['Chats', 'People', 'Groups', 'Profile'];
-  final uid = FirebaseAuth.instance.currentUser!.uid;
-
-  final List<Widget> _pages = [
-    ChatsListPage(),
-    PeopleListPage(),
-    GroupsPage(),
-    ProfilePage(),
-  ];
-
+  int idx = 0;
+  final pages = [ChatsPage(), PeoplePage(), GroupsPage(), ProfilePage()];
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -648,202 +546,162 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('ChatApp'),
         actions: [
           IconButton(
-              onPressed: () async {
-                await firebaseService.reloadUser();
-                setState(() {});
-              },
-              icon: Icon(Icons.refresh_rounded))
+            icon: Icon(Icons.logout),
+            onPressed: () async {
+              await firebaseService.signOut();
+            },
+            tooltip: 'Sair',
+          )
         ],
       ),
-      body: SafeArea(child: _pages[_selectedIndex]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        // NavigationBar provides pill native indicator (Material 3)
-        destinations: [
-          NavigationDestination(icon: RoundedIcon(Icons.chat_bubble_outline_rounded), label: 'Chats'),
-          NavigationDestination(icon: RoundedIcon(Icons.people_outline_rounded), label: 'People'),
-          NavigationDestination(icon: RoundedIcon(Icons.group_outlined), label: 'Groups'),
-          NavigationDestination(icon: RoundedIcon(Icons.person_outline_rounded), label: 'Perfil'),
+      body: pages[idx],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: idx,
+        onTap: (i) => setState(() => idx = i),
+        type: BottomNavigationBarType.fixed,
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chats'),
+          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: 'Pessoas'),
+          BottomNavigationBarItem(icon: Icon(Icons.group_outlined), label: 'Grupos'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],
       ),
-      floatingActionButton: _selectedIndex == 0
+      floatingActionButton: idx == 0
           ? FloatingActionButton(
-              child: Icon(Icons.message_rounded),
-              onPressed: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => NewChatPage()));
-              },
+              child: Icon(Icons.message),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => NewChatScreen())),
             )
           : null,
     );
   }
 }
 
-class RoundedIcon extends StatelessWidget {
-  final IconData icon;
-  RoundedIcon(this.icon);
+// ----------------------------
+// CHATS PAGE: lista de conversas (lastMessages)
+// ----------------------------
+class ChatsPage extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), boxShadow: [
-        BoxShadow(color: Colors.black12, blurRadius: 2, spreadRadius: 0)
-      ]),
-      padding: EdgeInsets.all(6),
-      child: Icon(icon),
-    );
-  }
+  State<ChatsPage> createState() => _ChatsPageState();
 }
 
-// ---------- CHATS LIST ----------
-class ChatsListPage extends StatefulWidget {
-  @override
-  State<ChatsListPage> createState() => _ChatsListPageState();
-}
-
-class _ChatsListPageState extends State<ChatsListPage> {
-  late final String uid;
-  late DatabaseReference lastMessagesRef;
-  StreamSubscription<DatabaseEvent>? _lastSub;
-  Map<String, dynamic> lastMessages = {}; // chatId -> map
+class _ChatsPageState extends State<ChatsPage> {
+  Map<String, dynamic> lastMessages = {};
+  StreamSubscription? _sub;
+  final uid = FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
     super.initState();
-    uid = FirebaseAuth.instance.currentUser!.uid;
-    lastMessagesRef = FirebaseDatabase.instance.ref('lastMessages');
-    // we'll listen to lastMessages and filter those where chatId contains uid or groups where user is member
-    _lastSub = lastMessagesRef.onValue.listen((event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data == null) {
-        setState(() => lastMessages = {});
-        return;
-      }
-      final map = Map<String, dynamic>.from(data.map((k, v) => MapEntry(k.toString(), v)));
-      setState(() {
-        lastMessages = map;
-      });
+    _sub = FirebaseDatabase.instance.ref('lastMessages').onValue.listen((event) {
+      final m = mapFromSnapshot(event.snapshot.value);
+      setState(() => lastMessages = m);
+    }, onError: (e) {
+      // ignore
     });
   }
 
   @override
   void dispose() {
-    _lastSub?.cancel();
+    _sub?.cancel();
     super.dispose();
+  }
+
+  String titleForChat(String chatId, Map<String, dynamic> data) {
+    final isPrivate = chatId.contains('_');
+    if (isPrivate) {
+      final parts = chatId.split('_');
+      final other = parts[0] == uid ? parts[1] : parts[0];
+      return other;
+    } else {
+      return data['title'] ?? 'Grupo';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // show chats where chatId contains uid OR group ids (we might need to fetch groups separately)
     final items = lastMessages.entries.toList()
       ..sort((a, b) {
         final ta = (a.value['timestamp'] ?? 0) as int;
         final tb = (b.value['timestamp'] ?? 0) as int;
         return tb.compareTo(ta);
       });
+
     return ListView(
       children: [
-        Padding(
-          padding: EdgeInsets.all(12),
-          child: Text('Conversas recentes', style: Theme.of(context).textTheme.titleLarge),
-        ),
-        ...items.map((entry) {
-          final chatId = entry.key;
-          final data = Map<String, dynamic>.from(entry.value as Map);
-          final ts = data['timestamp'] ?? 0;
-          final txt = data['text'] ?? '';
-          final fromUid = data['fromUid'] ?? '';
-          final isPrivate = chatId.contains('_'); // simple heuristic
-          String title = isPrivate ? 'Mensagem privada' : 'Grupo';
-          if (isPrivate) {
-            final parts = chatId.split('_');
-            final otherUid = parts[0] == uid ? parts[1] : parts[0];
-            title = otherUid;
-          } else {
-            title = chatId;
-          }
+        Padding(padding: EdgeInsets.all(12), child: Text('Conversas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+        ...items.map((e) {
+          final chatId = e.key;
+          final d = Map<String, dynamic>.from(e.value);
+          final t = titleForChat(chatId, d);
+          final txt = d['text'] ?? '';
+          final ts = d['timestamp'] ?? 0;
           return ListTile(
-            leading: CircleAvatar(child: Icon(Icons.chat_rounded)),
-            title: Text(title),
+            leading: CircleAvatar(child: Icon(Icons.chat)),
+            title: Text(t),
             subtitle: Text(txt, maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: Text(_formatTime(ts)),
-            onTap: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage(chatId: chatId, isGroup: !isPrivate)));
-            },
+            trailing: Text(ts == 0 ? '' : DateTime.fromMillisecondsSinceEpoch(ts).hour.toString().padLeft(2, '0') + ':' + DateTime.fromMillisecondsSinceEpoch(ts).minute.toString().padLeft(2, '0')),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatScreen(chatId: chatId, isGroup: !chatId.contains('_')))),
           );
         }).toList(),
-        SizedBox(height: 20),
       ],
     );
   }
-
-  String _formatTime(int epoch) {
-    if (epoch == 0) return '';
-    final dt = DateTime.fromMillisecondsSinceEpoch(epoch);
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
-// ---------- PEOPLE LIST (contacts) ----------
-class PeopleListPage extends StatefulWidget {
+// ----------------------------
+// PEOPLE PAGE: lista de utilizadores
+// ----------------------------
+class PeoplePage extends StatefulWidget {
   @override
-  State<PeopleListPage> createState() => _PeopleListPageState();
+  State<PeoplePage> createState() => _PeoplePageState();
 }
 
-class _PeopleListPageState extends State<PeopleListPage> {
-  final usersRef = FirebaseDatabase.instance.ref('users');
-  StreamSubscription<DatabaseEvent>? _usersSub;
-  Map<String, dynamic> _users = {};
+class _PeoplePageState extends State<PeoplePage> {
+  Map<String, dynamic> users = {};
+  StreamSubscription? _sub;
 
   @override
   void initState() {
     super.initState();
-    _usersSub = usersRef.onValue.listen((event) {
-      final map = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (map == null) {
-        setState(() => _users = {});
-        return;
-      }
-      final m = Map<String, dynamic>.from(map.map((k, v) => MapEntry(k.toString(), v)));
-      setState(() => _users = m);
+    _sub = FirebaseDatabase.instance.ref('users').onValue.listen((event) {
+      final m = mapFromSnapshot(event.snapshot.value);
+      setState(() => users = m);
     });
   }
 
   @override
   void dispose() {
-    _usersSub?.cancel();
+    _sub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final list = _users.entries.where((e) => e.key != uid).toList()
-      ..sort((a, b) {
-        final an = (a.value['name'] ?? '') as String;
-        final bn = (b.value['name'] ?? '') as String;
-        return an.compareTo(bn);
-      });
+    final myUid = FirebaseAuth.instance.currentUser!.uid;
+    final list = users.entries.where((e) => e.key != myUid).toList()
+      ..sort((a, b) => (a.value['name'] ?? '').toString().compareTo((b.value['name'] ?? '').toString()));
     return Column(
       children: [
-        Padding(padding: EdgeInsets.all(12), child: Text('Utilizadores', style: Theme.of(context).textTheme.titleLarge)),
+        Padding(padding: EdgeInsets.all(12), child: Text('Utilizadores', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
         Expanded(
           child: ListView.builder(
             itemCount: list.length,
-            itemBuilder: (context, i) {
+            itemBuilder: (ctx, i) {
               final uid = list[i].key;
-              final data = Map<String, dynamic>.from(list[i].value);
-              final name = data['name'] ?? data['email'] ?? 'Anon';
-              final online = data['online'] ?? false;
-              final location = data['location'] ?? '';
+              final d = Map<String, dynamic>.from(list[i].value);
+              final name = d['name'] ?? d['email'] ?? 'Anon';
+              final location = d['location'] ?? '';
+              final online = d['online'] == true;
               return ListTile(
-                leading: CircleAvatar(child: Icon(Icons.person_rounded)),
+                leading: CircleAvatar(child: Icon(Icons.person)),
                 title: Text(name),
                 subtitle: Text(location),
                 trailing: online ? Icon(Icons.circle, color: Colors.green, size: 12) : Icon(Icons.circle_outlined, size: 12),
-                onTap: () {
-                  final myUid = FirebaseAuth.instance.currentUser!.uid;
-                  final chatId = firebaseService.privateChatIdFor(myUid, uid);
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage(chatId: chatId, isGroup: false, otherUid: uid)));
+                onTap: () async {
+                  final my = FirebaseAuth.instance.currentUser!.uid;
+                  await firebaseService.createPrivateIfNotExists(my, uid);
+                  final chatId = firebaseService.privateChatId(my, uid);
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatScreen(chatId: chatId, isGroup: false)));
                 },
               );
             },
@@ -854,70 +712,64 @@ class _PeopleListPageState extends State<PeopleListPage> {
   }
 }
 
-// ---------- GROUPS PAGE ----------
+// ----------------------------
+// GROUPS PAGE
+// ----------------------------
 class GroupsPage extends StatefulWidget {
   @override
   State<GroupsPage> createState() => _GroupsPageState();
 }
 
 class _GroupsPageState extends State<GroupsPage> {
-  final groupsRef = FirebaseDatabase.instance.ref('groups');
-  StreamSubscription<DatabaseEvent>? _groupsSub;
   Map<String, dynamic> _groups = {};
+  StreamSubscription? _sub;
 
   @override
   void initState() {
     super.initState();
-    _groupsSub = groupsRef.onValue.listen((event) {
-      final map = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (map == null) {
-        setState(() => _groups = {});
-        return;
-      }
-      final m = Map<String, dynamic>.from(map.map((k, v) => MapEntry(k.toString(), v)));
+    _sub = FirebaseDatabase.instance.ref('chatRooms').onValue.listen((event) {
+      final m = mapFromSnapshot(event.snapshot.value);
       setState(() => _groups = m);
     });
   }
 
   @override
   void dispose() {
-    _groupsSub?.cancel();
+    _sub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final items = _groups.entries.toList();
+    final list = _groups.entries.toList();
     return Column(
       children: [
-        Padding(padding: EdgeInsets.all(12), child: Text('Grupos', style: Theme.of(context).textTheme.titleLarge)),
+        Padding(padding: EdgeInsets.all(12), child: Text('Grupos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
         Expanded(
           child: ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, i) {
-              final id = items[i].key;
-              final data = Map<String, dynamic>.from(items[i].value);
-              final title = data['title'] ?? 'Grupo';
-              final members = data['members'] != null ? List<String>.from(data['members']) : [];
+            itemCount: list.length,
+            itemBuilder: (ctx, i) {
+              final id = list[i].key;
+              final d = Map<String, dynamic>.from(list[i].value);
+              final title = d['title'] ?? 'Grupo';
+              final members = d['members'] is Map ? (d['members'] as Map).length : (d['members'] is List ? (d['members'] as List).length : 0);
+              final isGroup = d['isGroup'] == true;
+              if (!isGroup) return SizedBox.shrink();
               return ListTile(
-                leading: CircleAvatar(child: Icon(Icons.group_rounded)),
+                leading: CircleAvatar(child: Icon(Icons.group)),
                 title: Text(title),
-                subtitle: Text('${members.length} membros'),
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage(chatId: id, isGroup: true)));
-                },
+                subtitle: Text('$members membros'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatScreen(chatId: id, isGroup: true))),
               );
             },
           ),
         ),
         Padding(
           padding: EdgeInsets.all(12),
-          child: FilledButton.icon(
-            icon: Icon(Icons.add_rounded),
-            label: Text('Criar grupo'),
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CreateGroupPage()));
-            },
+          child: ElevatedButton.icon(
+            icon: Icon(Icons.add),
+            label: Text('Criar Grupo'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CreateGroupScreen())),
           ),
         )
       ],
@@ -925,7 +777,9 @@ class _GroupsPageState extends State<GroupsPage> {
   }
 }
 
-// ---------- PROFILE PAGE ----------
+// ----------------------------
+// PROFILE PAGE
+// ----------------------------
 class ProfilePage extends StatefulWidget {
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -933,211 +787,207 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final uid = FirebaseAuth.instance.currentUser!.uid;
-  late DatabaseReference userRef;
-  StreamSubscription<DatabaseEvent>? _userSub;
-  AppUser? appUser;
+  Map<String, dynamic> userMap = {};
+  StreamSubscription? _sub;
 
-  final _nameCtrl = TextEditingController();
-  final _locationCtrl = TextEditingController();
-  final _ageCtrl = TextEditingController();
+  final _name = TextEditingController();
+  final _location = TextEditingController();
+  final _age = TextEditingController();
   String _signo = '';
 
   @override
   void initState() {
     super.initState();
-    userRef = FirebaseDatabase.instance.ref('users').child(uid);
-    _userSub = userRef.onValue.listen((event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data == null) return;
-      final u = AppUser.fromMap(uid, Map<dynamic, dynamic>.from(data));
+    _sub = FirebaseDatabase.instance.ref('users').child(uid).onValue.listen((event) {
+      final m = mapFromSnapshot(event.snapshot.value);
       setState(() {
-        appUser = u;
-        _nameCtrl.text = u.name;
-        _locationCtrl.text = u.location;
-        _ageCtrl.text = u.age == 0 ? '' : u.age.toString();
-        _signo = u.signo;
+        userMap = m;
+        _name.text = m['name'] ?? '';
+        _location.text = m['location'] ?? '';
+        _age.text = (m['age'] ?? '').toString();
+        _signo = m['signo'] ?? '';
       });
     });
   }
 
   @override
   void dispose() {
-    _userSub?.cancel();
-    _nameCtrl.dispose();
-    _locationCtrl.dispose();
-    _ageCtrl.dispose();
+    _sub?.cancel();
+    _name.dispose();
+    _location.dispose();
+    _age.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    final name = _nameCtrl.text.trim();
-    final location = _locationCtrl.text.trim();
-    final age = int.tryParse(_ageCtrl.text.trim()) ?? 0;
-    await firebaseService.updateProfile(uid, {
-      'name': name,
-      'location': location,
-      'age': age,
-      'signo': _signo,
-    });
+    final nm = _name.text.trim();
+    final loc = _location.text.trim();
+    final age = int.tryParse(_age.text.trim()) ?? 0;
+    await firebaseService.updateProfile(uid, {'name': nm, 'location': loc, 'age': age, 'signo': _signo});
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Perfil atualizado')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final email = FirebaseAuth.instance.currentUser!.email ?? '';
+    final email = FirebaseAuth.instance.currentUser?.email ?? '';
     return Padding(
       padding: EdgeInsets.all(12),
       child: ListView(
         children: [
-          Center(
-            child: CircleAvatar(radius: 44, child: Icon(Icons.person_rounded, size: 44)),
-          ),
-          SizedBox(height: 12),
+          Center(child: CircleAvatar(radius: 44, child: Icon(Icons.person, size: 44))),
+          SizedBox(height: 8),
           Text(email, textAlign: TextAlign.center),
           SizedBox(height: 12),
-          TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: 'Nome')),
+          TextField(controller: _name, decoration: InputDecoration(labelText: 'Nome')),
           SizedBox(height: 8),
-          TextField(controller: _locationCtrl, decoration: InputDecoration(labelText: 'Localização')),
+          TextField(controller: _location, decoration: InputDecoration(labelText: 'Localização')),
           SizedBox(height: 8),
-          TextField(controller: _ageCtrl, decoration: InputDecoration(labelText: 'Idade'), keyboardType: TextInputType.number),
+          TextField(controller: _age, decoration: InputDecoration(labelText: 'Idade'), keyboardType: TextInputType.number),
           SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: _signo.isEmpty ? null : _signo,
-            hint: Text('Signo'),
-            items: [
-              'Áries', 'Touro', 'Gêmeos', 'Câncer', 'Leão', 'Virgem', 'Libra', 'Escorpião', 'Sagitário', 'Capricórnio', 'Aquário', 'Peixes'
-            ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+            items: ['Áries', 'Touro', 'Gêmeos', 'Câncer', 'Leão', 'Virgem', 'Libra', 'Escorpião', 'Sagitário', 'Capricórnio', 'Aquário', 'Peixes']
+                .map((s) => DropdownMenuItem(child: Text(s), value: s))
+                .toList(),
             onChanged: (v) => setState(() => _signo = v ?? ''),
+            decoration: InputDecoration(labelText: 'Signo'),
           ),
           SizedBox(height: 12),
-          FilledButton(onPressed: _save, child: Text('Salvar')),
-          SizedBox(height: 12),
-          OutlinedButton(onPressed: () async => await firebaseService.signOut(), child: Text('Sair')),
+          ElevatedButton(onPressed: _save, child: Text('Salvar')),
         ],
       ),
     );
   }
 }
 
-// ---------- CHAT PAGE ----------
-class ChatPage extends StatefulWidget {
+// ----------------------------
+// CHAT SCREEN
+// ----------------------------
+class ChatScreen extends StatefulWidget {
   final String chatId;
   final bool isGroup;
-  final String? otherUid; // for private chats
-  ChatPage({required this.chatId, required this.isGroup, this.otherUid});
+  ChatScreen({required this.chatId, required this.isGroup});
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  final _controller = TextEditingController();
-  final uid = FirebaseAuth.instance.currentUser!.uid;
-  late DatabaseReference messagesRef;
-  late DatabaseReference typingRef;
-  StreamSubscription<DatabaseEvent>? _messagesSub;
+class _ChatScreenState extends State<ChatScreen> {
+  final _text = TextEditingController();
+  final _uid = FirebaseAuth.instance.currentUser!.uid;
   List<Message> _messages = [];
+  StreamSubscription? _msgSub;
+  StreamSubscription? _typingSub;
+  Set<String> _othersTyping = {};
   Timer? _typingTimer;
   bool _isTyping = false;
-  StreamSubscription<DatabaseEvent>? _typingSub;
-  Set<String> othersTyping = {};
 
   @override
   void initState() {
     super.initState();
-    messagesRef = firebaseService.messagesRef(widget.chatId);
-    messagesRef.onChildAdded.listen(_onMessageAdded);
-    messagesRef.onChildChanged.listen(_onMessageChanged);
-    messagesRef.onChildRemoved.listen(_onMessageRemoved);
-    typingRef = FirebaseDatabase.instance.ref('typing').child(widget.chatId);
-    _typingSub = typingRef.onValue.listen((event) {
-      final map = event.snapshot.value as Map<dynamic, dynamic>?;
-      final set = <String>{};
-      if (map != null) {
-        map.forEach((k, v) {
-          if (k != uid) set.add(k.toString());
-        });
-      }
+    final messagesRef = FirebaseDatabase.instance.ref('messages').child(widget.chatId);
+    _msgSub = messagesRef.orderByChild('timestamp').onChildAdded.listen((event) {
+      final m = Message.fromMap(event.snapshot.key ?? '', mapFromSnapshot(event.snapshot.value));
       setState(() {
-        othersTyping = set;
+        _messages.insert(0, m);
       });
-    });
-  }
+    }, onError: (e) {});
 
-  void _onMessageAdded(DatabaseEvent event) {
-    final id = event.snapshot.key!;
-    final data = Map<String, dynamic>.from(event.snapshot.value as Map);
-    final msg = Message.fromMap(id, data);
-    setState(() {
-      _messages.insert(0, msg);
-    });
-  }
-
-  void _onMessageChanged(DatabaseEvent event) {
-    final id = event.snapshot.key!;
-    final data = Map<String, dynamic>.from(event.snapshot.value as Map);
-    final msg = Message.fromMap(id, data);
-    setState(() {
-      final idx = _messages.indexWhere((m) => m.id == id);
-      if (idx >= 0) _messages[idx] = msg;
-    });
-  }
-
-  void _onMessageRemoved(DatabaseEvent event) {
-    final id = event.snapshot.key!;
-    setState(() {
-      _messages.removeWhere((m) => m.id == id);
-    });
+    _typingSub = FirebaseDatabase.instance.ref('typing').child(widget.chatId).onValue.listen((event) {
+      final map = mapFromSnapshot(event.snapshot.value);
+      final set = <String>{};
+      map.forEach((k, v) {
+        if (k != _uid) set.add(k);
+      });
+      setState(() => _othersTyping = set);
+    }, onError: (_) {});
   }
 
   @override
   void dispose() {
-    _messagesSub?.cancel();
-    _typingTimer?.cancel();
+    _msgSub?.cancel();
     _typingSub?.cancel();
+    _text.dispose();
+    _typingTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _send() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    final id = firebaseService.messagesRef(widget.chatId).push().key ?? '';
-    final msg = Message(id: id, fromUid: uid, text: text, timestamp: DateTime.now().millisecondsSinceEpoch);
-    await firebaseService.sendMessage(widget.chatId, msg);
-    await firebaseService.setLastMessage(widget.chatId, msg);
-    _controller.clear();
-    await firebaseService.setTyping(widget.chatId, uid, false);
-    setState(() {
-      _isTyping = false;
-    });
+    final txt = _text.text.trim();
+    if (txt.isEmpty) return;
+    final id = FirebaseDatabase.instance.ref('messages').child(widget.chatId).push().key ?? '';
+    final msg = Message(id: id, fromUid: _uid, text: txt, timestamp: nowEpoch());
+    try {
+      await firebaseService.sendMessage(widget.chatId, msg);
+      _text.clear();
+      await firebaseService.setTyping(widget.chatId, _uid, false);
+      setState(() => _isTyping = false);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao enviar')));
+    }
   }
 
-  void _onTyping(String text) {
+  void _onTyping(String t) {
     if (!_isTyping) {
       _isTyping = true;
-      firebaseService.setTyping(widget.chatId, uid, true);
+      firebaseService.setTyping(widget.chatId, _uid, true);
     }
     _typingTimer?.cancel();
     _typingTimer = Timer(Duration(milliseconds: 1200), () {
       _isTyping = false;
-      firebaseService.setTyping(widget.chatId, uid, false);
+      firebaseService.setTyping(widget.chatId, _uid, false);
     });
+  }
+
+  Future<void> _editMessage(Message m) async {
+    final ctl = TextEditingController(text: m.text);
+    final res = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Editar mensagem'),
+        content: TextField(controller: ctl),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(null), child: Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(ctl.text.trim()), child: Text('Salvar')),
+        ],
+      ),
+    );
+    if (res != null && res.isNotEmpty) {
+      await firebaseService.editMessage(widget.chatId, m.id, res);
+    }
+  }
+
+  Future<void> _deleteMessage(Message m) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Apagar mensagem?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Não')),
+          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Sim')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await firebaseService.deleteMessage(widget.chatId, m.id);
+      setState(() => _messages.removeWhere((it) => it.id == m.id));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.isGroup ? 'Grupo' : (widget.otherUid ?? 'Privado');
+    final title = widget.chatId;
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          CircleAvatar(child: Icon(widget.isGroup ? Icons.group_rounded : Icons.person_rounded)),
+          CircleAvatar(child: Icon(widget.isGroup ? Icons.group : Icons.person)),
           SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title),
-            if (othersTyping.isNotEmpty) Text('${othersTyping.length} a escrever...', style: TextStyle(fontSize: 12))
-          ]),
+            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            if (_othersTyping.isNotEmpty) Text('${_othersTyping.length} a escrever...', style: TextStyle(fontSize: 12))
+          ])
         ]),
         actions: [
-          IconButton(onPressed: () {}, icon: Icon(Icons.more_vert_rounded))
+          IconButton(onPressed: () {}, icon: Icon(Icons.more_vert)),
         ],
       ),
       body: Column(
@@ -1148,29 +998,45 @@ class _ChatPageState extends State<ChatPage> {
                 : ListView.builder(
                     reverse: true,
                     itemCount: _messages.length,
-                    itemBuilder: (context, i) {
+                    itemBuilder: (ctx, i) {
                       final m = _messages[i];
-                      final mine = m.fromUid == uid;
+                      final mine = m.fromUid == _uid;
                       return Align(
                         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: mine ? Colors.indigo.shade100 : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(m.text),
-                              SizedBox(height: 6),
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                                Text(_timeString(m.timestamp), style: TextStyle(fontSize: 10, color: Colors.black54)),
-                                if (mine) SizedBox(width: 6),
-                                if (mine) Icon(Icons.check, size: 12),
-                              ])
-                            ],
+                        child: GestureDetector(
+                          onLongPress: () {
+                            if (mine) {
+                              showModalBottomSheet(context: context, builder: (c) => Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(leading: Icon(Icons.edit), title: Text('Editar'), onTap: () { Navigator.of(c).pop(); _editMessage(m); }),
+                                  ListTile(leading: Icon(Icons.delete), title: Text('Apagar'), onTap: () { Navigator.of(c).pop(); _deleteMessage(m); }),
+                                ],
+                              ));
+                            }
+                          },
+                          child: Container(
+                            margin: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: mine ? Colors.indigo.shade100 : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(m.text),
+                                SizedBox(height: 6),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('${DateTime.fromMillisecondsSinceEpoch(m.timestamp).hour.toString().padLeft(2,'0')}:${DateTime.fromMillisecondsSinceEpoch(m.timestamp).minute.toString().padLeft(2,'0')}', style: TextStyle(fontSize: 10)),
+                                    if (m.edited) SizedBox(width: 6),
+                                    if (m.edited) Text('(edit)', style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
+                                  ],
+                                )
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -1182,15 +1048,15 @@ class _ChatPageState extends State<ChatPage> {
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 children: [
-                  IconButton(onPressed: () {}, icon: Icon(Icons.attach_file_rounded)),
+                  IconButton(onPressed: () {}, icon: Icon(Icons.attach_file)),
                   Expanded(
                     child: TextField(
-                      controller: _controller,
+                      controller: _text,
                       onChanged: _onTyping,
                       decoration: InputDecoration(hintText: 'Escreve uma mensagem'),
                     ),
                   ),
-                  IconButton(onPressed: _send, icon: Icon(Icons.send_rounded)),
+                  IconButton(icon: Icon(Icons.send), onPressed: _send),
                 ],
               ),
             ),
@@ -1199,146 +1065,131 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
-
-  String _timeString(int epoch) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(epoch);
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
-// ---------- CREATE GROUP PAGE ----------
-class CreateGroupPage extends StatefulWidget {
+// ----------------------------
+// NEW CHAT SCREEN
+// ----------------------------
+class NewChatScreen extends StatefulWidget {
   @override
-  State<CreateGroupPage> createState() => _CreateGroupPageState();
+  State<NewChatScreen> createState() => _NewChatScreenState();
 }
 
-class _CreateGroupPageState extends State<CreateGroupPage> {
-  final _titleCtrl = TextEditingController();
+class _NewChatScreenState extends State<NewChatScreen> {
   Map<String, dynamic> users = {};
-  Set<String> selected = {};
-  StreamSubscription<DatabaseEvent>? _usersSub;
+  StreamSubscription? _usersSub;
+  final myUid = FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
     super.initState();
     _usersSub = FirebaseDatabase.instance.ref('users').onValue.listen((event) {
-      final map = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (map == null) {
-        setState(() => users = {});
-        return;
-      }
-      setState(() => users = Map<String, dynamic>.from(map.map((k, v) => MapEntry(k.toString(), v))));
+      setState(() => users = mapFromSnapshot(event.snapshot.value));
     });
   }
 
   @override
   void dispose() {
     _usersSub?.cancel();
-    _titleCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _create() async {
-    final title = _titleCtrl.text.trim();
-    if (title.isEmpty || selected.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Título e pelo menos 1 membro')));
-      return;
-    }
-    final creator = FirebaseAuth.instance.currentUser!.uid;
-    final members = selected.toList()..add(creator);
-    await firebaseService.createGroup(title, creator, members);
-    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final list = users.entries.toList();
+    final list = users.entries.where((e) => e.key != myUid).toList();
     return Scaffold(
-      appBar: AppBar(title: Text('Criar grupo')),
-      body: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(12),
-            child: TextField(controller: _titleCtrl, decoration: InputDecoration(labelText: 'Nome do grupo')),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: list.length,
-              itemBuilder: (context, i) {
-                final uid = list[i].key;
-                final data = Map<String, dynamic>.from(list[i].value);
-                final name = data['name'] ?? data['email'];
-                final isSelected = selected.contains(uid);
-                return CheckboxListTile(
-                  value: isSelected,
-                  onChanged: (v) => setState(() {
-                    if (v == true)
-                      selected.add(uid);
-                    else
-                      selected.remove(uid);
-                  }),
-                  title: Text(name),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(12),
-            child: FilledButton(onPressed: _create, child: Text('Criar grupo')),
-          )
-        ],
+      appBar: AppBar(title: Text('Novo chat')),
+      body: ListView.builder(
+        itemCount: list.length,
+        itemBuilder: (ctx, i) {
+          final otherUid = list[i].key;
+          final d = Map<String, dynamic>.from(list[i].value);
+          final name = d['name'] ?? d['email'];
+          return ListTile(
+            leading: CircleAvatar(child: Icon(Icons.person)),
+            title: Text(name),
+            onTap: () async {
+              await firebaseService.createPrivateIfNotExists(myUid, otherUid);
+              final chatId = firebaseService.privateChatId(myUid, otherUid);
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatScreen(chatId: chatId, isGroup: false)));
+            },
+          );
+        },
       ),
     );
   }
 }
 
-// ---------- NEW CHAT PAGE ----------
-class NewChatPage extends StatefulWidget {
+// ----------------------------
+// CREATE GROUP SCREEN
+// ----------------------------
+class CreateGroupScreen extends StatefulWidget {
   @override
-  State<NewChatPage> createState() => _NewChatPageState();
+  State<CreateGroupScreen> createState() => _CreateGroupScreenState();
 }
 
-class _NewChatPageState extends State<NewChatPage> {
+class _CreateGroupScreenState extends State<CreateGroupScreen> {
+  final _title = TextEditingController();
   Map<String, dynamic> users = {};
-  StreamSubscription<DatabaseEvent>? _usersSub;
+  Set<String> selected = {};
+  StreamSubscription? _usersSub;
+  final myUid = FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
     super.initState();
     _usersSub = FirebaseDatabase.instance.ref('users').onValue.listen((event) {
-      final map = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (map == null) return;
-      setState(() => users = Map<String, dynamic>.from(map.map((k, v) => MapEntry(k.toString(), v))));
+      setState(() => users = mapFromSnapshot(event.snapshot.value));
     });
   }
 
   @override
   void dispose() {
+    _title.dispose();
     _usersSub?.cancel();
     super.dispose();
   }
 
+  Future<void> _create() async {
+    final t = _title.text.trim();
+    if (t.isEmpty || selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Título e pelo menos 1 membro obrigatórios')));
+      return;
+    }
+    final membersList = selected.toList();
+    final id = await firebaseService.createGroup(t, myUid, membersList);
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatScreen(chatId: id, isGroup: true)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final list = users.entries.where((e) => e.key != uid).toList();
+    final list = users.entries.where((e) => e.key != myUid).toList();
     return Scaffold(
-      appBar: AppBar(title: Text('Iniciar conversa')),
-      body: ListView.builder(
-        itemCount: list.length,
-        itemBuilder: (context, i) {
-          final otherUid = list[i].key;
-          final data = Map<String, dynamic>.from(list[i].value);
-          final name = data['name'] ?? data['email'];
-          return ListTile(
-            leading: CircleAvatar(child: Icon(Icons.person_rounded)),
-            title: Text(name),
-            onTap: () {
-              final chatId = firebaseService.privateChatIdFor(uid, otherUid);
-              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatPage(chatId: chatId, isGroup: false, otherUid: otherUid)));
-            },
-          );
-        },
+      appBar: AppBar(title: Text('Criar Grupo')),
+      body: Column(
+        children: [
+          Padding(padding: EdgeInsets.all(12), child: TextField(controller: _title, decoration: InputDecoration(labelText: 'Nome do grupo'))),
+          Expanded(
+            child: ListView.builder(
+              itemCount: list.length,
+              itemBuilder: (ctx, i) {
+                final uid = list[i].key;
+                final d = Map<String, dynamic>.from(list[i].value);
+                final name = d['name'] ?? d['email'];
+                final sel = selected.contains(uid);
+                return CheckboxListTile(value: sel, onChanged: (v) {
+                  setState(() {
+                    if (v == true) selected.add(uid); else selected.remove(uid);
+                  });
+                }, title: Text(name));
+              },
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(12),
+            child: ElevatedButton(onPressed: _create, child: Text('Criar grupo')),
+          )
+        ],
       ),
     );
   }
