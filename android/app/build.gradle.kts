@@ -1,73 +1,64 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")            // kotlin plugin id correto para Kotlin DSL
-    id("com.google.gms.google-services")          // google services plugin (Firebase)
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.nexa.madeeasy"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.nexa.madeeasy"
-        minSdk = 23
-        targetSdk = 34
-        versionCode = 3
-        versionName = "3.0.0"
+        minSdk = 21
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0.0"
+
+        // Necessário se você usar notificações exatas (SCHEDULE_EXACT_ALARM)
+        // Evita crashes em Android 12+
         multiDexEnabled = true
-        vectorDrawables.useSupportLibrary = true
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
-    // Kotlin options
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "11"
     }
 
     buildTypes {
         getByName("release") {
-            // Em produção deves usar um signingConfig apropriado (keystore)
-            // Aqui mantive o debug signing para evitar falhas se não tiveres keystore configurado no CI.
-            signingConfig = signingConfigs.getByName("debug")
+            // Desativa shrink/obfuscation para evitar problemas com plugins Flutter
             isMinifyEnabled = false
             isShrinkResources = false
-        }
-        getByName("debug") {
-            // debug defaults
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
     packagingOptions {
         resources {
-            excludes.addAll(listOf(
-                "META-INF/DEPENDENCIES",
-                "META-INF/LICENSE",
-                "META-INF/LICENSE.txt",
-                "META-INF/license.txt",
-                "META-INF/NOTICE",
-                "META-INF/NOTICE.txt",
-                "META-INF/notice.txt",
-                "META-INF/ASL2.0",
-                "META-INF/*.kotlin_module"
-            ))
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
 
+flutter {
+    source = "../.."
+}
+
 dependencies {
-    // BOM para coordenar versões Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
-    // Firebase (Auth + Realtime DB). Analytics é opcional — remove se não quiseres.
-    implementation("com.google.firebase:firebase-analytics-ktx") // opcional
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-database-ktx")
+    // Dependência essencial para compatibilidade com Android 13+ permissões
+    implementation("androidx.core:core-ktx:1.12.0")
 
-    // AndroidX + multidex
-    implementation("androidx.core:core-ktx:1.15.0")
+    // Kotlin
+  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+  
+    // Suporte multidex (caso use muitos plugins, evita erro de limite de métodos)
     implementation("androidx.multidex:multidex:2.0.1")
 }
