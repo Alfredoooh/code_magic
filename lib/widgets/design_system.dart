@@ -50,7 +50,7 @@ final darkTheme = ThemeData(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
     ),
   ),
-  cardTheme: const CardTheme(
+  cardTheme: CardThemeData(
     color: secondaryBg,
     elevation: 4,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -65,7 +65,7 @@ final darkTheme = ThemeData(
     selectedItemColor: accentPrimary,
     unselectedItemColor: textMuted,
   ),
-  dialogTheme: DialogTheme(
+  dialogTheme: DialogThemeData(
     backgroundColor: secondaryBg,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
   ),
