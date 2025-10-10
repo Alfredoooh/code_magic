@@ -14,13 +14,13 @@ pluginManagement {
         id("com.android.application") version "8.1.1"
         id("org.jetbrains.kotlin.android") version "1.9.22"
         id("com.google.gms.google-services") version "4.4.2"
-        // plugin flutter: a versão é fornecida pelo Flutter tooling, sem declarar versão aqui
-        id("dev.flutter.flutter-gradle-plugin") version "0.0.0" apply false
+        // O plugin do Flutter é fornecido pela toolchain do Flutter; não precisa versão aqui.
+        id("dev.flutter.flutter-gradle-plugin") apply false
     }
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(org.gradle.api.initialization.dsl.RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    // Removemos repositoriesMode para compatibilidade com diferentes versões do Gradle
     repositories {
         google()
         mavenCentral()
