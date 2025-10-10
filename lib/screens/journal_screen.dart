@@ -66,7 +66,8 @@ class _JournalScreenState extends State<JournalScreen> {
                       title: Text(entry['note']),
                       subtitle: Text(entry['timestamp'].toDate().toLocal().toString()),
                     );
-                },
+                  },
+                );
               },
             ),
           ),
