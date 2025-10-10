@@ -481,7 +481,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/chat_background.png'),
+                image: NetworkImage('https://alfredoooh.github.io/database/gallery/image_background.jpg'),
                 fit: BoxFit.cover,
                 opacity: 0.1,
               ),
