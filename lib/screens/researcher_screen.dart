@@ -34,7 +34,6 @@ class _ResearcherScreenState extends State<ResearcherScreen> {
               controller: _searchController,
               label: AppLocalizations.of(context)!.translate('search_query')!,
               icon: Icons.search_rounded,
-              onSubmitted: (_) => _search(),
             ),
             const SizedBox(height: 16),
             CustomButton(text: AppLocalizations.of(context)!.translate('search')!, onPressed: _search),
