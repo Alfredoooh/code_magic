@@ -1,30 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../dashboard/dashboard_screen.dart';
-import '../activities/activities_screen.dart';
-import '../community/community_screen.dart';
-import '../profile/profile_screen.dart';
-import '../../widgets/design_system.dart';
-import '../../localization/app_localizations.dart';
-import '../chart_screen.dart';
-import '../screener_screen.dart';
-import '../calculators_screen.dart';
-import '../journal_screen.dart';
-import '../strategies_screen.dart';
-import '../backtesting_screen.dart';
-import '../paper_trading_screen.dart';
-import '../reminders_screen.dart';
-import '../researcher_screen.dart';
-import '../dictionary_screen.dart';
-import '../converter/converter_screen.dart';
-import '../heatmap_screen.dart';
-import '../correlation_screen.dart';
-import '../football_screen.dart';
-import '../entertainment_hub_screen.dart';
-import '../learning_hub_screen.dart';
-import '../webinars_screen.dart';
-import '../notifications_screen.dart';
-import '../../services/auth_service.dart';
+
+import 'package:madeeasy/screens/dashboard/dashboard_screen.dart';
+import 'package:madeeasy/screens/activities/activities_screen.dart';
+import 'package:madeeasy/screens/community/community_screen.dart';
+import 'package:madeeasy/screens/profile/profile_screen.dart';
+import 'package:madeeasy/widgets/design_system.dart';
+import 'package:madeeasy/localization/app_localizations.dart';
+import 'package:madeeasy/screens/chart_screen.dart';
+import 'package:madeeasy/screens/screener_screen.dart';
+import 'package:madeeasy/screens/calculators_screen.dart';
+import 'package:madeeasy/screens/journal_screen.dart';
+import 'package:madeeasy/screens/strategies_screen.dart';
+import 'package:madeeasy/screens/backtesting_screen.dart';
+import 'package:madeeasy/screens/paper_trading_screen.dart';
+import 'package:madeeasy/screens/reminders_screen.dart';
+import 'package:madeeasy/screens/researcher_screen.dart';
+import 'package:madeeasy/screens/dictionary_screen.dart';
+import 'package:madeeasy/screens/converter/converter_screen.dart';
+import 'package:madeeasy/screens/heatmap_screen.dart';
+import 'package:madeeasy/screens/correlation_screen.dart';
+import 'package:madeeasy/screens/football_screen.dart';
+import 'package:madeeasy/screens/entertainment_hub_screen.dart';
+import 'package:madeeasy/screens/learning_hub_screen.dart';
+import 'package:madeeasy/screens/webinars_screen.dart';
+import 'package:madeeasy/screens/notifications_screen.dart';
+import 'package:madeeasy/services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
