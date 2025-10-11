@@ -23,28 +23,39 @@ class MainScreen extends StatefulWidget {
   _MainScreenState createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late List<Widget> _screens;
   late List<GlobalKey<NavigatorState>> _navigatorKeys;
-  late PageController _pageController;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
   Map<String, dynamic>? _userData;
+  
+  // Track if each tab's navigator has pushed routes
+  final List<bool> _hasNavigatedInTab = [false, false, false, false];
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _updateUserStatus(true);
-    _pageController = PageController();
-    
+
+    // Initialize animation controller for smooth transitions
+    _animationController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+
     // Initialize navigator keys for each tab to maintain state
-    _navigatorKeys = [
-      GlobalKey<NavigatorState>(),
-      GlobalKey<NavigatorState>(),
-      GlobalKey<NavigatorState>(),
-      GlobalKey<NavigatorState>(),
-    ];
-    
+    _navigatorKeys = List.generate(
+      4,
+      (index) => GlobalKey<NavigatorState>(),
+    );
+
     _screens = [
       HomeScreen(
         onThemeChanged: widget.onThemeChanged,
@@ -80,107 +91,179 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   void dispose() {
     _updateUserStatus(false);
-    _pageController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   Future<bool> _onWillPop() async {
     // Try to pop the current tab's navigator
     final isFirstRouteInCurrentTab = !await _navigatorKeys[_currentIndex].currentState!.maybePop();
-    
+
     if (isFirstRouteInCurrentTab) {
       // If we're on the first route of the current tab
       if (_currentIndex != 0) {
         // If not on Home tab, go to Home
-        setState(() => _currentIndex = 0);
-        _pageController.jumpToPage(0);
+        _onTabTapped(0);
         return false;
       }
       // If on Home tab, allow back button to exit
       return true;
     }
-    
+
     // Navigator popped a route, don't exit
     return false;
   }
 
+  void _onTabTapped(int index) {
+    if (_currentIndex == index) {
+      // If tapping the same tab, pop to first route
+      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      setState(() => _hasNavigatedInTab[index] = false);
+    } else {
+      setState(() => _currentIndex = index);
+      _animationController.forward(from: 0);
+    }
+  }
+
+  bool _shouldShowBottomBar() {
+    // Check if current tab has navigated to another screen
+    final navigatorState = _navigatorKeys[_currentIndex].currentState;
+    if (navigatorState != null) {
+      final canPop = navigatorState.canPop();
+      return !canPop;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        body: PageView.builder(
-          controller: _pageController,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: _screens.length,
-          onPageChanged: (index) {
-            setState(() => _currentIndex = index);
-          },
-          itemBuilder: (context, index) {
-            return Navigator(
-              key: _navigatorKeys[index],
-              onGenerateRoute: (routeSettings) {
-                return MaterialPageRoute(
-                  builder: (context) => _screens[index],
-                );
-              },
+        body: Stack(
+          children: List.generate(_screens.length, (index) {
+            return Offstage(
+              offstage: _currentIndex != index,
+              child: Navigator(
+                key: _navigatorKeys[index],
+                observers: [
+                  _NavigatorObserver(
+                    onPush: () {
+                      setState(() => _hasNavigatedInTab[index] = true);
+                    },
+                    onPop: () {
+                      // Check if we're back to the root
+                      Future.microtask(() {
+                        if (_navigatorKeys[index].currentState?.canPop() == false) {
+                          setState(() => _hasNavigatedInTab[index] = false);
+                        }
+                      });
+                    },
+                  ),
+                ],
+                onGenerateRoute: (routeSettings) {
+                  return MaterialPageRoute(
+                    builder: (context) => _screens[index],
+                  );
+                },
+              ),
             );
-          },
+          }),
         ),
-        bottomNavigationBar: Container(
-          height: 62,
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 10,
-                offset: Offset(0, -2),
+        bottomNavigationBar: AnimatedSlide(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          offset: _shouldShowBottomBar() ? Offset.zero : Offset(0, 1),
+          child: AnimatedOpacity(
+            duration: Duration(milliseconds: 200),
+            opacity: _shouldShowBottomBar() ? 1.0 : 0.0,
+            child: Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: Offset(0, -2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              if (_currentIndex == index) {
-                // If tapping the same tab, pop to first route
-                _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
-              } else {
-                setState(() => _currentIndex = index);
-                _pageController.jumpToPage(index);
-              }
-            },
-            height: 62,
-            backgroundColor: Theme.of(context).brightness == Brightness.dark 
-                ? Color(0xFF1A1A1A) 
-                : Colors.white,
-            indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            elevation: 0,
-            destinations: [
-              NavigationDestination(
-                icon: Icon(Icons.home_rounded, size: 24),
-                selectedIcon: Icon(Icons.home_rounded, color: Color(0xFFFF444F), size: 26),
-                label: 'Home',
+              child: NavigationBar(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: _onTabTapped,
+                height: 62,
+                backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
+                indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                elevation: 0,
+                animationDuration: Duration(milliseconds: 400),
+                destinations: [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_rounded, size: 24),
+                    selectedIcon: Icon(Icons.home_rounded, color: Color(0xFFFF444F), size: 26),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.shopping_bag_rounded, size: 24),
+                    selectedIcon: Icon(Icons.shopping_bag_rounded, color: Color(0xFFFF444F), size: 26),
+                    label: 'Mercado',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.article_rounded, size: 24),
+                    selectedIcon: Icon(Icons.article_rounded, color: Color(0xFFFF444F), size: 26),
+                    label: 'Notícias',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.chat_rounded, size: 24),
+                    selectedIcon: Icon(Icons.chat_rounded, color: Color(0xFFFF444F), size: 26),
+                    label: 'Chat',
+                  ),
+                ],
               ),
-              NavigationDestination(
-                icon: Icon(Icons.shopping_bag_rounded, size: 24),
-                selectedIcon: Icon(Icons.shopping_bag_rounded, color: Color(0xFFFF444F), size: 26),
-                label: 'Mercado',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.article_rounded, size: 24),
-                selectedIcon: Icon(Icons.article_rounded, color: Color(0xFFFF444F), size: 26),
-                label: 'Notícias',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.chat_rounded, size: 24),
-                selectedIcon: Icon(Icons.chat_rounded, color: Color(0xFFFF444F), size: 26),
-                label: 'Chat',
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
+  }
+}
+
+// Custom Navigator Observer to track navigation
+class _NavigatorObserver extends NavigatorObserver {
+  final VoidCallback onPush;
+  final VoidCallback onPop;
+
+  _NavigatorObserver({
+    required this.onPush,
+    required this.onPop,
+  });
+
+  @override
+  void didPush(Route route, Route? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (previousRoute != null) {
+      onPush();
+    }
+  }
+
+  @override
+  void didPop(Route route, Route? previousRoute) {
+    super.didPop(route, previousRoute);
+    onPop();
+  }
+
+  @override
+  void didRemove(Route route, Route? previousRoute) {
+    super.didRemove(route, previousRoute);
+    onPop();
+  }
+
+  @override
+  void didReplace({Route? newRoute, Route? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (oldRoute != null && newRoute != null) {
+      onPush();
+    }
   }
 }
