@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/language_service.dart';
+import 'admin_panel_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -26,6 +27,23 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _setUserOnline(true);
+  }
+
+  @override
+  void dispose() {
+    _setUserOnline(false);
+    super.dispose();
+  }
+
+  void _setUserOnline(bool isOnline) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'isOnline': isOnline});
+    }
   }
 
   void _loadUserData() async {
@@ -40,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showUserModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -120,7 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: 'Painel Admin',
                       onTap: () {
                         Navigator.pop(context);
-                        // Navigate to admin panel
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => AdminPanelScreen()),
+                        );
                       },
                     ),
                   _buildMenuItem(
@@ -146,8 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () {
-                        FirebaseAuth.instance.signOut();
+                      onPressed: () async {
+                        await _setUserOnline(false);
+                        await FirebaseAuth.instance.signOut();
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
@@ -175,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showSettingsModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -351,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMenuItem({required IconData icon, required String title, required VoidCallback onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -376,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSettingItem({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -403,7 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -685,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStatCard({required IconData icon, required String title, required String value, required Color color}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -818,7 +840,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       child: ListTile(
