@@ -23,43 +23,58 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        final userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
+        // Verificar acesso do usuário
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCred.user!.uid)
+            .get();
+
+        if (userDoc.exists && userDoc.data()?['access'] == false) {
+          await FirebaseAuth.instance.signOut();
+          throw Exception('Acesso negado. Entre em contato com o administrador.');
+        }
       } else {
         final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        
+
         await userCredential.user?.updateDisplayName(_nameController.text.trim());
-        
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
+
+        // Criar documento do usuário no Firestore
+        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
           'id': userCredential.user!.uid,
           'username': _nameController.text.trim(),
           'email': _emailController.text.trim(),
           'full_name': _nameController.text.trim(),
-          'phone': '',
           'access': true,
-          'expiration_date': DateTime.now().add(Duration(days: 7)).toIso8601String(),
-          'user_key': 'FREE-${DateTime.now().millisecondsSinceEpoch}',
           'created_at': FieldValue.serverTimestamp(),
-          'profile_image': 'https://ui-avatars.com/api/?name=${_nameController.text.trim()}&background=FF444F&color=fff',
+          'profile_image': '',
           'role': 'user',
           'blocked': false,
           'failed_attempts': 0,
-          'blocked_until': null,
           'theme': 'dark',
           'language': 'pt',
+          'tokens': 50,
           'is_pro': false,
+          'pro_expiration': null,
           'is_admin': false,
-          'tokens_used_today': 0,
-          'max_daily_tokens': 50,
-          'last_token_reset': FieldValue.serverTimestamp(),
+          'online': true,
+          'last_seen': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Atualizar status online
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'online': true,
+          'last_seen': FieldValue.serverTimestamp(),
         });
       }
     } on FirebaseAuthException catch (e) {
@@ -75,17 +90,13 @@ class _AuthScreenState extends State<AuthScreen> {
       } else if (e.code == 'invalid-email') {
         message = 'Email inválido';
       }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -93,222 +104,167 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Color(0xFF0E0E0E),
+      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0xFFFF444F).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Image.network(
-                        'https://alfredoooh.github.io/database/gallery/app_icon.png',
-                        width: 80,
-                        height: 80,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.chat_bubble_rounded,
-                            size: 60,
-                            color: Colors.white,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 40),
-                  Text(
-                    _isLogin ? 'Bem-vindo de volta' : 'Criar Conta',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _isLogin
-                        ? 'Entre para continuar'
-                        : 'Preencha os dados abaixo',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  SizedBox(height: 40),
-                  if (!_isLogin) ...[
-                    _buildTextField(
-                      controller: _nameController,
-                      label: 'Nome Completo',
-                      icon: Icons.person_rounded,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Digite seu nome';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 16),
-                  ],
-                  _buildTextField(
-                    controller: _emailController,
-                    label: 'Email',
-                    icon: Icons.email_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Digite seu email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Email inválido';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _passwordController,
-                    label: 'Senha',
-                    icon: Icons.lock_rounded,
-                    obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite sua senha';
-                      }
-                      if (value.length < 6) {
-                        return 'Senha deve ter no mínimo 6 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFFFF444F),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _isLoading
-                          ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              _isLogin ? 'Entrar' : 'Criar Conta',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+        child: Stack(
+          children: [
+            Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(24),
+                child: Card(
+                  color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Logo do App
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              image: DecorationImage(
+                                image: NetworkImage('https://alfredoooh.github.io/database/gallery/app_icon.png'),
+                                fit: BoxFit.cover,
                               ),
                             ),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  TextButton(
-                    onPressed: () => setState(() => _isLogin = !_isLogin),
-                    child: RichText(
-                      text: TextSpan(
-                        text: _isLogin
-                            ? 'Não tem conta? '
-                            : 'Já tem conta? ',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: _isLogin ? 'Criar uma' : 'Entrar',
+                          ),
+                          SizedBox(height: 24),
+                          Text(
+                            _isLogin ? 'Entrar' : 'Criar Conta',
                             style: TextStyle(
-                              color: Color(0xFFFF444F),
+                              fontSize: 28,
                               fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 32),
+                          if (!_isLogin)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xFF2C2C2C) : Color(0xFFF0F0F0),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: TextFormField(
+                                controller: _nameController,
+                                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                decoration: InputDecoration(
+                                  labelText: 'Nome',
+                                  labelStyle: TextStyle(color: Colors.grey),
+                                  prefixIcon: Icon(Icons.person_rounded, color: Color(0xFFFF444F)),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) return 'Digite seu nome';
+                                  return null;
+                                },
+                              ),
+                            ),
+                          if (!_isLogin) SizedBox(height: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? Color(0xFF2C2C2C) : Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: TextFormField(
+                              controller: _emailController,
+                              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'Email',
+                                labelStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(Icons.email_rounded, color: Color(0xFFFF444F)),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) return 'Digite seu email';
+                                if (!value.contains('@')) return 'Email inválido';
+                                return null;
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? Color(0xFF2C2C2C) : Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: TextFormField(
+                              controller: _passwordController,
+                              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'Senha',
+                                labelStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(Icons.lock_rounded, color: Color(0xFFFF444F)),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              ),
+                              obscureText: true,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Digite sua senha';
+                                if (value.length < 6) return 'Senha deve ter no mínimo 6 caracteres';
+                                return null;
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFFFF444F),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: 0,
+                              ),
+                              child: _isLoading
+                                  ? CircularProgressIndicator(color: Colors.white)
+                                  : Text(
+                                      _isLogin ? 'Entrar' : 'Criar Conta',
+                                      style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600),
+                                    ),
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          TextButton(
+                            onPressed: () => setState(() => _isLogin = !_isLogin),
+                            child: Text(
+                              _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
+                              style: TextStyle(fontSize: 16, color: Color(0xFFFF444F), fontWeight: FontWeight.w500),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                icon: Icon(Icons.close_rounded, size: 28),
+                onPressed: () {
+                  // Fechar a tela (voltar ou minimizar)
+                  Navigator.of(context).canPop() ? Navigator.of(context).pop() : null;
+                },
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool obscureText = false,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      style: TextStyle(color: Colors.white, fontSize: 16),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Colors.grey),
-        prefixIcon: Icon(icon, color: Color(0xFFFF444F)),
-        filled: true,
-        fillColor: Color(0xFF1A1A1A),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Color(0xFF2A2A2A), width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Color(0xFFFF444F), width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.red, width: 1),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.red, width: 2),
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      ),
-      validator: validator,
     );
   }
 
