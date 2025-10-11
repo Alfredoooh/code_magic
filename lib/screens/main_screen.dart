@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_screen.dart';
-import 'chat_list_screen.dart';
+import 'chats_list_screen.dart';
 import 'marketplace_screen.dart';
 import 'news_screen.dart';
 
