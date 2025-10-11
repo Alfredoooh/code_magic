@@ -1,30 +1,26 @@
-// chats_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'chat_room_screen.dart';
-import 'group_chat_screen.dart';
+import 'chat_screen.dart';
 
-class ChatsListScreen extends StatefulWidget {
-  final Map<String, dynamic>? userData;
-
-  ChatsListScreen({this.userData});
-
+class ChatListScreen extends StatefulWidget {
   @override
-  _ChatsListScreenState createState() => _ChatsListScreenState();
+  _ChatListScreenState createState() => _ChatListScreenState();
 }
 
-class _ChatsListScreenState extends State<ChatsListScreen> {
-  int _activeUsers = 0;
+class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _onlineUsers = 0;
 
   @override
   void initState() {
     super.initState();
-    _countActiveUsers();
+    _tabController = TabController(length: 3, vsync: this);
+    _countOnlineUsers();
   }
 
-  void _countActiveUsers() {
+  void _countOnlineUsers() {
     FirebaseFirestore.instance
         .collection('users')
         .where('online', isEqualTo: true)
@@ -32,98 +28,185 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
         .listen((snapshot) {
       if (mounted) {
         setState(() {
-          _activeUsers = snapshot.docs.length;
+          _onlineUsers = snapshot.docs.length;
         });
       }
     });
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   void _showChatOptions() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = FirebaseAuth.instance.currentUser;
     
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text('Opções de Chat'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showUsersList();
-            },
-            child: Text('Nova Conversa'),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 24),
+              ListTile(
+                leading: Icon(Icons.group_add_rounded, color: Color(0xFFFF444F)),
+                title: Text('Criar Grupo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _createGroup();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.person_add_rounded, color: Color(0xFFFF444F)),
+                title: Text('Nova Conversa'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showUsersList();
+                },
+              ),
+              SizedBox(height: 16),
+            ],
           ),
-          if (widget.userData?['isPro'] == true)
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.pop(context);
-                _showCreateGroupDialog();
-              },
-              child: Text('Criar Grupo'),
-            ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showGroupsList();
-            },
-            child: Text('Ver Grupos'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDefaultAction: true,
-          child: Text('Cancelar'),
         ),
       ),
     );
   }
 
-  void _showUsersList() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showCupertinoModalPopup(
+  void _createGroup() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>;
+
+    if (userData['is_pro'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Apenas usuários PRO podem criar grupos'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+
+    showDialog(
       context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Criar Grupo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Nome do Grupo',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: descController,
+              decoration: InputDecoration(
+                labelText: 'Descrição',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty) return;
+
+              await FirebaseFirestore.instance.collection('groups').add({
+                'name': nameController.text.trim(),
+                'description': descController.text.trim(),
+                'created_by': user.uid,
+                'created_at': FieldValue.serverTimestamp(),
+                'members': [user.uid],
+                'admins': [user.uid],
+                'image': '',
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Grupo criado com sucesso!')),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFFF444F)),
+            child: Text('Criar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUsersList() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
+        height: MediaQuery.of(context).size.height * 0.8,
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [
+            SizedBox(height: 12),
             Container(
               width: 40,
               height: 4,
-              margin: EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.grey[400],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+            SizedBox(height: 24),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 'Selecionar Usuário',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Color(0xFF0E0E0E),
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
+            SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .where('id',
-                        isNotEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                    .snapshots(),
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return Center(child: CupertinoActivityIndicator());
+                    return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
                   }
 
-                  final users = snapshot.data!.docs;
+                  final currentUser = FirebaseAuth.instance.currentUser;
+                  final users = snapshot.data!.docs.where((doc) => doc.id != currentUser?.uid).toList();
 
                   return ListView.builder(
                     padding: EdgeInsets.symmetric(horizontal: 16),
@@ -132,231 +215,60 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                       final userData = users[index].data() as Map<String, dynamic>;
                       final userId = users[index].id;
 
-                      return _buildUserItem(userData, userId);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserItem(Map<String, dynamic> userData, String userId) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isOnline = userData['online'] == true;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              CupertinoPageRoute(
-                builder: (context) => ChatRoomScreen(
-                  recipientId: userId,
-                  recipientName: userData['full_name'] ?? 'Usuário',
-                  recipientImage: userData['profile_image'],
-                  isOnline: isOnline,
-                ),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundImage: NetworkImage(
-                        userData['profile_image'] ??
-                            'https://alfredoooh.github.io/database/gallery/app_icon.png',
-                      ),
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF5F5F5),
-                              width: 2,
+                      return ListTile(
+                        leading: Stack(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage: userData['profile_image'] != null && userData['profile_image'].isNotEmpty
+                                  ? NetworkImage(userData['profile_image'])
+                                  : null,
+                              backgroundColor: Color(0xFFFF444F),
+                              child: userData['profile_image'] == null || userData['profile_image'].isEmpty
+                                  ? Text(
+                                      (userData['username'] ?? 'U')[0].toUpperCase(),
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
                             ),
+                            if (userData['online'] == true)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        title: Text(userData['username'] ?? 'Usuário'),
+                        subtitle: Text(
+                          userData['online'] == true ? 'Online' : 'Offline',
+                          style: TextStyle(
+                            color: userData['online'] == true ? Colors.green : Colors.grey,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userData['full_name'] ?? 'Usuário',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Color(0xFF0E0E0E),
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        isOnline ? 'Online' : 'Offline',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isOnline ? Colors.green : Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showCreateGroupDialog() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final TextEditingController groupNameController = TextEditingController();
-
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Criar Grupo'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 16),
-          child: CupertinoTextField(
-            controller: groupNameController,
-            placeholder: 'Nome do grupo',
-            padding: EdgeInsets.all(12),
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () async {
-              if (groupNameController.text.trim().isNotEmpty) {
-                final user = FirebaseAuth.instance.currentUser;
-                await FirebaseFirestore.instance.collection('groups').add({
-                  'name': groupNameController.text.trim(),
-                  'creator_id': user?.uid,
-                  'creator_name': widget.userData?['full_name'] ?? 'Usuário',
-                  'members': [user?.uid],
-                  'created_at': FieldValue.serverTimestamp(),
-                  'image_url': 'https://alfredoooh.github.io/database/gallery/app_icon.png',
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Grupo criado com sucesso!')),
-                );
-              }
-            },
-            isDefaultAction: true,
-            child: Text('Criar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showGroupsList() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                'Grupos Disponíveis',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Color(0xFF0E0E0E),
-                ),
-              ),
-            ),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('groups')
-                    .orderBy('created_at', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return Center(child: CupertinoActivityIndicator());
-                  }
-
-                  final groups = snapshot.data!.docs;
-
-                  if (groups.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.group_rounded, size: 60, color: Colors.grey),
-                          SizedBox(height: 12),
-                          Text(
-                            'Nenhum grupo disponível',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: groups.length,
-                    itemBuilder: (context, index) {
-                      final groupData = groups[index].data() as Map<String, dynamic>;
-                      final groupId = groups[index].id;
-
-                      return _buildGroupItem(groupData, groupId);
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                chatId: _getChatId(currentUser!.uid, userId),
+                                chatName: userData['username'] ?? 'Usuário',
+                                isGroup: false,
+                                recipientId: userId,
+                              ),
+                            ),
+                          );
+                        },
+                      );
                     },
                   );
                 },
@@ -368,344 +280,270 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
     );
   }
 
-  Widget _buildGroupItem(Map<String, dynamic> groupData, String groupId) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              CupertinoPageRoute(
-                builder: (context) => GroupChatScreen(
-                  groupId: groupId,
-                  groupName: groupData['name'] ?? 'Grupo',
-                  groupImage: groupData['image_url'],
-                ),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundImage: NetworkImage(
-                    groupData['image_url'] ??
-                        'https://alfredoooh.github.io/database/gallery/app_icon.png',
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        groupData['name'] ?? 'Grupo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Color(0xFF0E0E0E),
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '${(groupData['members'] as List?)?.length ?? 0} membros',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  String _getChatId(String userId1, String userId2) {
+    return userId1.hashCode <= userId2.hashCode ? '${userId1}_$userId2' : '${userId2}_$userId1';
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final user = FirebaseAuth.instance.currentUser;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1C1C1E) : Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? Color(0xFF38383A) : Colors.grey[300]!,
-            width: 0.5,
-          ),
-        ),
-        leading: Container(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Text('Chats', style: TextStyle(fontWeight: FontWeight.w600)),
+            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(12),
               ),
-              SizedBox(width: 4),
-              Text(
-                '$_activeUsers',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
+              child: Text(
+                '$_onlineUsers online',
+                style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        middle: Text(
-          'Chats',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Color(0xFF0E0E0E),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.more_vert_rounded),
+            onPressed: _showChatOptions,
           ),
-        ),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _showChatOptions,
-          child: Icon(
-            Icons.add_circle_rounded,
-            color: Color(0xFFFF444F),
-            size: 28,
-          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Color(0xFFFF444F),
+          labelColor: Color(0xFFFF444F),
+          unselectedLabelColor: Colors.grey,
+          tabs: [
+            Tab(text: 'Recentes'),
+            Tab(text: 'Grupos'),
+            Tab(text: 'Privados'),
+          ],
         ),
       ),
-      child: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('chats')
-              .where('participants', arrayContains: user?.uid)
-              .orderBy('last_message_time', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return Center(child: CupertinoActivityIndicator());
-            }
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildRecentChats(),
+          _buildGroupsList(),
+          _buildPrivateChats(),
+        ],
+      ),
+    );
+  }
 
-            final chats = snapshot.data!.docs;
+  Widget _buildRecentChats() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Center(child: Text('Faça login para ver suas conversas'));
 
-            if (chats.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 100,
-                      color: Colors.grey.withOpacity(0.5),
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      'Nenhuma conversa ainda',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Toque no + para iniciar uma conversa',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: user.uid)
+          .orderBy('last_message_time', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
+        }
+
+        if (snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.chat_bubble_outline_rounded, size: 80, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Nenhuma conversa ainda',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
-              );
-            }
+                SizedBox(height: 8),
+                Text(
+                  'Inicie uma nova conversa',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ],
+            ),
+          );
+        }
 
-            return ListView.builder(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: chats.length,
-              itemBuilder: (context, index) {
-                final chatData = chats[index].data() as Map<String, dynamic>;
-                final chatId = chats[index].id;
+        return ListView.builder(
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final chatData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+            final chatId = snapshot.data!.docs[index].id;
 
-                final participants = chatData['participants'] as List;
-                final otherUserId = participants.firstWhere(
-                  (id) => id != user?.uid,
-                  orElse: () => null,
-                );
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(chatData['participants'].firstWhere((id) => id != user.uid))
+                  .get(),
+              builder: (context, userSnapshot) {
+                if (!userSnapshot.hasData) return SizedBox();
 
-                if (otherUserId == null) return SizedBox.shrink();
+                final otherUser = userSnapshot.data!.data() as Map<String, dynamic>;
 
-                return FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(otherUserId)
-                      .get(),
-                  builder: (context, userSnapshot) {
-                    if (!userSnapshot.hasData) {
-                      return SizedBox.shrink();
-                    }
-
-                    final otherUserData = userSnapshot.data!.data() as Map<String, dynamic>?;
-                    if (otherUserData == null) return SizedBox.shrink();
-
-                    return _buildChatItem(
-                      chatData,
-                      chatId,
-                      otherUserData,
-                      otherUserId,
+                return ListTile(
+                  leading: Stack(
+                    children: [
+                      CircleAvatar(
+                        backgroundImage: otherUser['profile_image'] != null && otherUser['profile_image'].isNotEmpty
+                            ? NetworkImage(otherUser['profile_image'])
+                            : null,
+                        backgroundColor: Color(0xFFFF444F),
+                        child: otherUser['profile_image'] == null || otherUser['profile_image'].isEmpty
+                            ? Text(
+                                (otherUser['username'] ?? 'U')[0].toUpperCase(),
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              )
+                            : null,
+                      ),
+                      if (otherUser['online'] == true)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  title: Text(
+                    otherUser['username'] ?? 'Usuário',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    chatData['last_message'] ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  trailing: chatData['unread_count'] != null && chatData['unread_count'] > 0
+                      ? Container(
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFF444F),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${chatData['unread_count']}',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      : null,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatScreen(
+                          chatId: chatId,
+                          chatName: otherUser['username'] ?? 'Usuário',
+                          isGroup: false,
+                          recipientId: userSnapshot.data!.id,
+                        ),
+                      ),
                     );
                   },
                 );
               },
             );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildChatItem(
-    Map<String, dynamic> chatData,
-    String chatId,
-    Map<String, dynamic> otherUserData,
-    String otherUserId,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isOnline = otherUserData['online'] == true;
-    final lastMessage = chatData['last_message'] ?? '';
-    final unreadCount = chatData['unread_${FirebaseAuth.instance.currentUser?.uid}'] ?? 0;
+  Widget _buildGroupsList() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Center(child: Text('Faça login para ver grupos'));
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              CupertinoPageRoute(
-                builder: (context) => ChatRoomScreen(
-                  recipientId: otherUserId,
-                  recipientName: otherUserData['full_name'] ?? 'Usuário',
-                  recipientImage: otherUserData['profile_image'],
-                  isOnline: isOnline,
-                  chatId: chatId,
-                ),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('groups')
+          .where('members', arrayContains: user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
+        }
+
+        if (snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundImage: NetworkImage(
-                        otherUserData['profile_image'] ??
-                            'https://alfredoooh.github.io/database/gallery/app_icon.png',
-                      ),
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                Icon(Icons.group_outlined, size: 80, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Nenhum grupo ainda',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        otherUserData['full_name'] ?? 'Usuário',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Color(0xFF0E0E0E),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        lastMessage,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                SizedBox(height: 8),
+                Text(
+                  'Crie ou junte-se a um grupo',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
-                if (unreadCount > 0)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Color(0xFFFF444F),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$unreadCount',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
               ],
             ),
-          ),
-        ),
-      ),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final groupData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+            final groupId = snapshot.data!.docs[index].id;
+
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: groupData['image'] != null && groupData['image'].isNotEmpty
+                    ? NetworkImage(groupData['image'])
+                    : null,
+                backgroundColor: Color(0xFFFF444F),
+                child: groupData['image'] == null || groupData['image'].isEmpty
+                    ? Icon(Icons.group_rounded, color: Colors.white)
+                    : null,
+              ),
+              title: Text(
+                groupData['name'] ?? 'Grupo',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                '${groupData['members'].length} membros',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      chatId: groupId,
+                      chatName: groupData['name'] ?? 'Grupo',
+                      isGroup: true,
+                      recipientId: null,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
+  }
+
+  Widget _buildPrivateChats() {
+    return _buildRecentChats();
   }
 }
