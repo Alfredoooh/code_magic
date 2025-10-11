@@ -23,58 +23,121 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _conversationId;
   Map<String, dynamic>? _userData;
-  Map<String, DateTime> _editableMessages = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    _initConversation();
+    _initializeChat();
   }
 
-  void _loadUserData() async {
+  Future<void> _initializeChat() async {
+    await _loadUserData();
+    await _initConversation();
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        setState(() => _userData = doc.data());
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          setState(() => _userData = doc.data());
+        }
+      } catch (e) {
+        print('Erro ao carregar dados do usuário: $e');
       }
     }
   }
 
   Future<void> _initConversation() async {
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    final conversationQuery = await FirebaseFirestore.instance
-        .collection('conversations')
-        .where('participants', arrayContains: currentUser.uid)
-        .get();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
-    for (var doc in conversationQuery.docs) {
-      final participants = List<String>.from(doc.data()['participants']);
-      if (participants.contains(widget.recipientId)) {
-        setState(() => _conversationId = doc.id);
+    try {
+      // Verificar se o destinatário existe
+      final recipientDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.recipientId)
+          .get();
+
+      if (!recipientDoc.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Usuário não encontrado'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.pop(context);
+        }
         return;
       }
+
+      // Buscar conversa existente
+      final conversationQuery = await FirebaseFirestore.instance
+          .collection('conversations')
+          .where('participants', arrayContains: currentUser.uid)
+          .get();
+
+      for (var doc in conversationQuery.docs) {
+        final participants = List<String>.from(doc.data()['participants']);
+        if (participants.contains(widget.recipientId) && participants.length == 2) {
+          setState(() => _conversationId = doc.id);
+          _markAsRead();
+          return;
+        }
+      }
+
+      // Criar nova conversa
+      final newConv = await FirebaseFirestore.instance.collection('conversations').add({
+        'participants': [currentUser.uid, widget.recipientId],
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'unreadCount_${currentUser.uid}': 0,
+        'unreadCount_${widget.recipientId}': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() => _conversationId = newConv.id);
+    } catch (e) {
+      print('Erro ao inicializar conversa: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao abrir conversa'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
 
-    // Create new conversation
-    final newConv = await FirebaseFirestore.instance.collection('conversations').add({
-      'participants': [currentUser.uid, widget.recipientId],
-      'lastMessage': '',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'unreadCount_${currentUser.uid}': 0,
-      'unreadCount_${widget.recipientId}': 0,
-    });
+  Future<void> _markAsRead() async {
+    if (_conversationId == null) return;
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
-    setState(() => _conversationId = newConv.id);
+    try {
+      await FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(_conversationId)
+          .update({
+        'unreadCount_${currentUser.uid}': 0,
+      });
+    } catch (e) {
+      print('Erro ao marcar como lido: $e');
+    }
   }
 
   Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty || _conversationId == null) return;
 
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    
-    // Check tokens
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    // Verificar tokens
     if (_userData?['pro'] != true) {
       if ((_userData?['tokens'] ?? 0) <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -82,37 +145,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
         return;
       }
-      
-      // Decrease token
-      await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
-        'tokens': FieldValue.increment(-1),
-      });
+
+      try {
+        // Diminuir token
+        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
+          'tokens': FieldValue.increment(-1),
+        });
+        // Atualizar localmente
+        if (_userData != null) {
+          _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
+        }
+      } catch (e) {
+        print('Erro ao decrementar tokens: $e');
+      }
     }
 
     final messageText = _controller.text.trim();
     _controller.clear();
 
-    await FirebaseFirestore.instance
-        .collection('conversations')
-        .doc(_conversationId)
-        .collection('messages')
-        .add({
-      'text': messageText,
-      'senderId': currentUser.uid,
-      'senderName': _userData?['username'] ?? 'Usuário',
-      'timestamp': FieldValue.serverTimestamp(),
-      'likes': 0,
-      'likedBy': [],
-      'edited': false,
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(_conversationId)
+          .collection('messages')
+          .add({
+        'text': messageText,
+        'senderId': currentUser.uid,
+        'senderName': _userData?['username'] ?? 'Usuário',
+        'timestamp': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'likedBy': [],
+        'edited': false,
+      });
 
-    await FirebaseFirestore.instance.collection('conversations').doc(_conversationId).update({
-      'lastMessage': messageText,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'unreadCount_${widget.recipientId}': FieldValue.increment(1),
-    });
+      await FirebaseFirestore.instance.collection('conversations').doc(_conversationId).update({
+        'lastMessage': messageText,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'unreadCount_${widget.recipientId}': FieldValue.increment(1),
+      });
 
-    _scrollToBottom();
+      _scrollToBottom();
+    } catch (e) {
+      print('Erro ao enviar mensagem: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao enviar mensagem'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -126,35 +204,40 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Future<void> _likeMessage(String messageId, List likedBy) async {
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    
-    if (likedBy.contains(currentUser.uid)) {
-      await FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(_conversationId)
-          .collection('messages')
-          .doc(messageId)
-          .update({
-        'likedBy': FieldValue.arrayRemove([currentUser.uid]),
-        'likes': FieldValue.increment(-1),
-      });
-    } else {
-      await FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(_conversationId)
-          .collection('messages')
-          .doc(messageId)
-          .update({
-        'likedBy': FieldValue.arrayUnion([currentUser.uid]),
-        'likes': FieldValue.increment(1),
-      });
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || _conversationId == null) return;
+
+    try {
+      if (likedBy.contains(currentUser.uid)) {
+        await FirebaseFirestore.instance
+            .collection('conversations')
+            .doc(_conversationId)
+            .collection('messages')
+            .doc(messageId)
+            .update({
+          'likedBy': FieldValue.arrayRemove([currentUser.uid]),
+          'likes': FieldValue.increment(-1),
+        });
+      } else {
+        await FirebaseFirestore.instance
+            .collection('conversations')
+            .doc(_conversationId)
+            .collection('messages')
+            .doc(messageId)
+            .update({
+          'likedBy': FieldValue.arrayUnion([currentUser.uid]),
+          'likes': FieldValue.increment(1),
+        });
+      }
+    } catch (e) {
+      print('Erro ao curtir mensagem: $e');
     }
   }
 
   Future<void> _editMessage(String messageId, String currentText, DateTime timestamp) async {
     final now = DateTime.now();
     final diff = now.difference(timestamp);
-    
+
     if (diff.inMinutes > 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Não é possível editar após 5 minutos'), backgroundColor: Colors.red),
@@ -163,42 +246,157 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
 
     final controller = TextEditingController(text: currentText);
-    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar Mensagem'),
+        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
+        title: Text('Editar Mensagem', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
         content: TextField(
           controller: controller,
           maxLines: 3,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: 'Digite a nova mensagem',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            hintStyle: TextStyle(color: Colors.grey),
+            filled: true,
+            fillColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
               if (controller.text.trim().isNotEmpty) {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('conversations')
+                      .doc(_conversationId)
+                      .collection('messages')
+                      .doc(messageId)
+                      .update({
+                    'text': controller.text.trim(),
+                    'edited': true,
+                  });
+                  Navigator.pop(context);
+                } catch (e) {
+                  print('Erro ao editar mensagem: $e');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFFFF444F),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Salvar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteMessage(String messageId) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
+        title: Text('Excluir Mensagem', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+        content: Text(
+          'Tem certeza que deseja excluir esta mensagem?',
+          style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
                 await FirebaseFirestore.instance
                     .collection('conversations')
                     .doc(_conversationId)
                     .collection('messages')
                     .doc(messageId)
-                    .update({
-                  'text': controller.text.trim(),
-                  'edited': true,
-                });
+                    .delete();
                 Navigator.pop(context);
+              } catch (e) {
+                print('Erro ao excluir mensagem: $e');
               }
             },
-            child: Text('Salvar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Excluir', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showMessageOptions(String messageId, String messageText, DateTime timestamp, bool isMe) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 24),
+            if (isMe) ...[
+              ListTile(
+                leading: Icon(Icons.edit_rounded, color: Color(0xFFFF444F)),
+                title: Text('Editar', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editMessage(messageId, messageText, timestamp);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_rounded, color: Colors.red),
+                title: Text('Excluir', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteMessage(messageId);
+                },
+              ),
+            ],
+            ListTile(
+              leading: Icon(Icons.copy_rounded, color: Color(0xFFFF444F)),
+              title: Text('Copiar', style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                // Implementar copiar para clipboard
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -213,9 +411,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           WidgetSpan(
             child: GestureDetector(
               onTap: () async {
-                final uri = Uri.parse(word);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                try {
+                  final uri = Uri.parse(word);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (e) {
+                  print('Erro ao abrir URL: $e');
                 }
               },
               child: Text(
@@ -270,7 +472,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentUser = FirebaseAuth.instance.currentUser!;
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF444F))),
+      );
+    }
 
     return Scaffold(
       backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
@@ -364,6 +573,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                   'Nenhuma mensagem ainda',
                                   style: TextStyle(color: Colors.grey, fontSize: 16),
                                 ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Envie a primeira mensagem!',
+                                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                                ),
                               ],
                             ),
                           );
@@ -379,20 +593,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           itemBuilder: (context, index) {
                             final messageDoc = messages[index];
                             final message = messageDoc.data() as Map<String, dynamic>;
-                            final isMe = message['senderId'] == currentUser.uid;
+                            final isMe = message['senderId'] == currentUser?.uid;
                             final timestamp = message['timestamp'] as Timestamp?;
                             final likes = message['likes'] ?? 0;
                             final likedBy = List.from(message['likedBy'] ?? []);
-                            final isLiked = likedBy.contains(currentUser.uid);
+                            final isLiked = likedBy.contains(currentUser?.uid);
                             final isEdited = message['edited'] == true;
 
                             if (timestamp == null) return SizedBox.shrink();
 
                             return GestureDetector(
                               onLongPress: () {
-                                if (isMe) {
-                                  _editMessage(messageDoc.id, message['text'], timestamp.toDate());
-                                }
+                                _showMessageOptions(messageDoc.id, message['text'], timestamp.toDate(), isMe);
                               },
                               child: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 4),
