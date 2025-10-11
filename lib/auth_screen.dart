@@ -23,10 +23,43 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        
+        // Verificar se o documento do usuário existe, se não, criar
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .get();
+        
+        if (!userDoc.exists) {
+          // Criar documento do usuário se não existir
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+            'uid': userCredential.user!.uid,
+            'email': userCredential.user!.email,
+            'displayName': userCredential.user!.displayName ?? userCredential.user!.email?.split('@')[0] ?? 'Usuário',
+            'photoURL': 'https://ui-avatars.com/api/?name=${userCredential.user!.displayName ?? 'User'}&background=FF8C00&color=fff',
+            'theme': 'dark',
+            'language': 'pt',
+            'isPro': false,
+            'admin': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'lastSeen': FieldValue.serverTimestamp(),
+          });
+        } else {
+          // Atualizar lastSeen se o documento já existe
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({
+            'lastSeen': FieldValue.serverTimestamp(),
+          });
+        }
       } else {
         final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
