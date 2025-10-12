@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:async';
 import 'dart:math';
 
 class AdminPanelScreen extends StatefulWidget {
@@ -11,6 +13,14 @@ class AdminPanelScreen extends StatefulWidget {
 class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedPeriod = '7d';
+  String _searchQuery = '';
+  String _userFilter = 'all';
+  List<Map<String, dynamic>> _realtimeActivities = [];
+  StreamSubscription? _activitySubscription;
+  StreamSubscription? _usersSubscription;
+  StreamSubscription? _postsSubscription;
+  StreamSubscription? _messagesSubscription;
+  
   Map<String, dynamic> _stats = {
     'totalUsers': 0,
     'activeUsers': 0,
@@ -18,25 +28,201 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     'totalPosts': 0,
     'totalTokens': 0,
     'newUsersToday': 0,
+    'totalMessages': 0,
+    'bannedUsers': 0,
+    'totalLikes': 0,
+    'totalComments': 0,
   };
+
+  List<FlSpot> _userGrowthData = [];
+  List<FlSpot> _activityData = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    _setupRealtimeListeners();
     _loadStatistics();
+    _generateChartData();
+  }
+
+  void _setupRealtimeListeners() {
+    // Monitor de atividades em tempo real
+    _activitySubscription = FirebaseFirestore.instance
+        .collection('activities')
+        .orderBy('timestamp', descending: true)
+        .limit(50)
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _realtimeActivities = snapshot.docs.map((doc) {
+          return {
+            'id': doc.id,
+            ...doc.data(),
+          };
+        }).toList();
+      });
+      
+      // Mostrar notificação para cada nova atividade
+      if (snapshot.docChanges.isNotEmpty) {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final data = change.doc.data() as Map<String, dynamic>;
+            _showActivityNotification(data);
+          }
+        }
+      }
+    });
+
+    // Monitor de usuários em tempo real
+    _usersSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .snapshots()
+        .listen((snapshot) {
+      _loadStatistics();
+      
+      for (var change in snapshot.docChanges) {
+        final userData = change.doc.data() as Map<String, dynamic>?;
+        if (userData != null) {
+          if (change.type == DocumentChangeType.added) {
+            _logActivity('Novo usuário', '${userData['username'] ?? 'Usuário'} se cadastrou', 'user_add');
+          } else if (change.type == DocumentChangeType.modified) {
+            if (userData['isOnline'] == true) {
+              _logActivity('Login', '${userData['username'] ?? 'Usuário'} entrou online', 'login');
+            }
+          }
+        }
+      }
+    });
+
+    // Monitor de posts em tempo real
+    _postsSubscription = FirebaseFirestore.instance
+        .collection('posts')
+        .snapshots()
+        .listen((snapshot) {
+      _loadStatistics();
+      
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final postData = change.doc.data() as Map<String, dynamic>?;
+          if (postData != null) {
+            _logActivity('Novo Post', '${postData['userName'] ?? 'Usuário'} criou um post', 'post');
+          }
+        }
+      }
+    });
+
+    // Monitor de mensagens em tempo real
+    _messagesSubscription = FirebaseFirestore.instance
+        .collection('messages')
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _stats['totalMessages'] = snapshot.docs.length;
+      });
+    });
+  }
+
+  void _logActivity(String type, String description, String icon) async {
+    await FirebaseFirestore.instance.collection('activities').add({
+      'type': type,
+      'description': description,
+      'icon': icon,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  void _showActivityNotification(Map<String, dynamic> activity) {
+    if (!mounted) return;
+    
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _getActivityIcon(activity['icon'] ?? 'info'),
+            SizedBox(width: 8),
+            Text(activity['type'] ?? 'Atividade'),
+          ],
+        ),
+        content: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(activity['description'] ?? ''),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('OK'),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+
+    Future.delayed(Duration(seconds: 3), () {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  Widget _getActivityIcon(String type) {
+    IconData iconData;
+    Color color;
+    
+    switch (type) {
+      case 'user_add':
+        iconData = CupertinoIcons.person_add;
+        color = CupertinoColors.systemBlue;
+        break;
+      case 'login':
+        iconData = CupertinoIcons.checkmark_circle_fill;
+        color = CupertinoColors.systemGreen;
+        break;
+      case 'post':
+        iconData = CupertinoIcons.square_pencil;
+        color = CupertinoColors.systemPurple;
+        break;
+      case 'message':
+        iconData = CupertinoIcons.chat_bubble_fill;
+        color = CupertinoColors.systemOrange;
+        break;
+      default:
+        iconData = CupertinoIcons.info_circle_fill;
+        color = CupertinoColors.systemGrey;
+    }
+    
+    return Icon(iconData, color: color, size: 20);
+  }
+
+  void _generateChartData() {
+    // Dados simulados para crescimento (em produção viriam do Firebase)
+    _userGrowthData = List.generate(7, (i) {
+      return FlSpot(i.toDouble(), (Random().nextInt(20) + 10).toDouble());
+    });
+
+    _activityData = List.generate(7, (i) {
+      return FlSpot(i.toDouble(), (Random().nextInt(30) + 15).toDouble());
+    });
   }
 
   Future<void> _loadStatistics() async {
     try {
       final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
       final postsSnapshot = await FirebaseFirestore.instance.collection('posts').get();
+      final messagesSnapshot = await FirebaseFirestore.instance.collection('messages').get();
       
       int totalUsers = usersSnapshot.docs.length;
       int activeUsers = usersSnapshot.docs.where((doc) => doc.data()['isOnline'] == true).length;
       int proUsers = usersSnapshot.docs.where((doc) => doc.data()['pro'] == true).length;
+      int bannedUsers = usersSnapshot.docs.where((doc) => doc.data()['banned'] == true).length;
       int totalPosts = postsSnapshot.docs.length;
+      int totalMessages = messagesSnapshot.docs.length;
       int totalTokens = usersSnapshot.docs.fold(0, (sum, doc) => sum + (doc.data()['tokens'] ?? 0) as int);
+      
+      int totalLikes = postsSnapshot.docs.fold(0, (sum, doc) => sum + (doc.data()['likes'] ?? 0) as int);
+      int totalComments = postsSnapshot.docs.fold(0, (sum, doc) => sum + (doc.data()['comments'] ?? 0) as int);
       
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
@@ -53,6 +239,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           'totalPosts': totalPosts,
           'totalTokens': totalTokens,
           'newUsersToday': newUsersToday,
+          'totalMessages': totalMessages,
+          'bannedUsers': bannedUsers,
+          'totalLikes': totalLikes,
+          'totalComments': totalComments,
         };
       });
     } catch (e) {
@@ -62,274 +252,73 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : Colors.black87),
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.systemGroupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: CupertinoColors.systemBackground.withOpacity(0.9),
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(CupertinoIcons.back, color: CupertinoColors.systemBlue),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Painel Administrativo',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
+        middle: Text(
+          'Painel Admin',
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh_rounded, color: isDark ? Colors.white : Colors.black87),
-            onPressed: _loadStatistics,
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Color(0xFFFF444F),
-          labelColor: Color(0xFFFF444F),
-          unselectedLabelColor: Colors.grey,
-          labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: [
-            Tab(text: 'Dashboard'),
-            Tab(text: 'Usuários'),
-            Tab(text: 'Posts'),
-            Tab(text: 'Analytics'),
-          ],
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(CupertinoIcons.refresh, color: CupertinoColors.systemBlue),
+          onPressed: _loadStatistics,
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildDashboardTab(isDark),
-          _buildUsersTab(isDark),
-          _buildPostsTab(isDark),
-          _buildAnalyticsTab(isDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDashboardTab(bool isDark) {
-    return RefreshIndicator(
-      color: Color(0xFFFF444F),
-      onRefresh: _loadStatistics,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+      child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Visão Geral',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
+            CupertinoSegmentedControl<int>(
+              padding: EdgeInsets.all(16),
+              borderColor: CupertinoColors.systemGrey4,
+              selectedColor: CupertinoColors.systemBlue,
+              unselectedColor: CupertinoColors.systemBackground,
+              groupValue: _tabController.index,
+              onValueChanged: (value) {
+                setState(() {
+                  _tabController.animateTo(value);
+                });
+              },
+              children: {
+                0: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('Dashboard', style: TextStyle(fontSize: 12)),
+                ),
+                1: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('Usuários', style: TextStyle(fontSize: 12)),
+                ),
+                2: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('Posts', style: TextStyle(fontSize: 12)),
+                ),
+                3: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('Atividades', style: TextStyle(fontSize: 12)),
+                ),
+                4: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('Analytics', style: TextStyle(fontSize: 12)),
+                ),
+              },
             ),
-            SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              children: [
-                _buildStatCard(
-                  icon: Icons.people_rounded,
-                  title: 'Total Usuários',
-                  value: '${_stats['totalUsers']}',
-                  color: Colors.blue,
-                  isDark: isDark,
-                ),
-                _buildStatCard(
-                  icon: Icons.online_prediction_rounded,
-                  title: 'Usuários Ativos',
-                  value: '${_stats['activeUsers']}',
-                  color: Colors.green,
-                  isDark: isDark,
-                ),
-                _buildStatCard(
-                  icon: Icons.star_rounded,
-                  title: 'Contas PRO',
-                  value: '${_stats['proUsers']}',
-                  color: Colors.amber,
-                  isDark: isDark,
-                ),
-                _buildStatCard(
-                  icon: Icons.article_rounded,
-                  title: 'Total Posts',
-                  value: '${_stats['totalPosts']}',
-                  color: Colors.purple,
-                  isDark: isDark,
-                ),
-                _buildStatCard(
-                  icon: Icons.toll_rounded,
-                  title: 'Total Tokens',
-                  value: '${_stats['totalTokens']}',
-                  color: Colors.orange,
-                  isDark: isDark,
-                ),
-                _buildStatCard(
-                  icon: Icons.person_add_rounded,
-                  title: 'Novos Hoje',
-                  value: '${_stats['newUsersToday']}',
-                  color: Colors.cyan,
-                  isDark: isDark,
-                ),
-              ],
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Distribuição de Usuários',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            SizedBox(height: 16),
-            Container(
-              height: 280,
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildDashboardTab(),
+                  _buildUsersTab(),
+                  _buildPostsTab(),
+                  _buildActivitiesTab(),
+                  _buildAnalyticsTab(),
                 ],
-              ),
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 60,
-                  sections: [
-                    PieChartSectionData(
-                      value: (_stats['proUsers'] as int).toDouble(),
-                      title: 'PRO',
-                      color: Colors.amber,
-                      radius: 80,
-                      titleStyle: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    PieChartSectionData(
-                      value: (_stats['activeUsers'] as int).toDouble(),
-                      title: 'Ativos',
-                      color: Colors.green,
-                      radius: 80,
-                      titleStyle: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    PieChartSectionData(
-                      value: ((_stats['totalUsers'] as int) - (_stats['activeUsers'] as int)).toDouble(),
-                      title: 'Inativos',
-                      color: Colors.grey,
-                      radius: 80,
-                      titleStyle: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Crescimento de Usuários',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            SizedBox(height: 16),
-            Container(
-              height: 280,
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true, drawVerticalLine: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            value.toInt().toString(),
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-                          if (value.toInt() >= 0 && value.toInt() < days.length) {
-                            return Text(
-                              days[value.toInt()],
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
-                            );
-                          }
-                          return Text('');
-                        },
-                      ),
-                    ),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: [
-                        FlSpot(0, 3),
-                        FlSpot(1, 5),
-                        FlSpot(2, 4),
-                        FlSpot(3, 8),
-                        FlSpot(4, 6),
-                        FlSpot(5, 10),
-                        FlSpot(6, 12),
-                      ],
-                      isCurved: true,
-                      color: Color(0xFFFF444F),
-                      barWidth: 4,
-                      dotData: FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: Color(0xFFFF444F).withOpacity(0.1),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
@@ -338,178 +327,364 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildUsersTab(bool isDark) {
-    return Column(
+  Widget _buildDashboardTab() {
+    return CupertinoScrollbar(
+      child: CustomScrollView(
+        slivers: [
+          CupertinoSliverRefreshControl(
+            onRefresh: _loadStatistics,
+          ),
+          SliverPadding(
+            padding: EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Text(
+                  'Visão Geral em Tempo Real',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: CupertinoColors.label,
+                  ),
+                ),
+                SizedBox(height: 20),
+                _buildStatsGrid(),
+                SizedBox(height: 24),
+                _buildOnlineUsersSection(),
+                SizedBox(height: 24),
+                _buildChartCard(
+                  title: 'Crescimento de Usuários',
+                  data: _userGrowthData,
+                  color: CupertinoColors.systemBlue,
+                ),
+                SizedBox(height: 16),
+                _buildChartCard(
+                  title: 'Atividade da Plataforma',
+                  data: _activityData,
+                  color: CupertinoColors.systemPurple,
+                ),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.4,
       children: [
-        Container(
-          padding: EdgeInsets.all(16),
-          color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                  decoration: InputDecoration(
-                    hintText: 'Buscar usuários...',
-                    hintStyle: TextStyle(color: Colors.grey),
-                    prefixIcon: Icon(Icons.search_rounded, color: Color(0xFFFF444F)),
-                    filled: true,
-                    fillColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Color(0xFFFF444F),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  icon: Icon(Icons.filter_list_rounded, color: Colors.white),
-                  onPressed: () => _showFilterDialog(isDark),
-                ),
-              ),
-            ],
-          ),
+        _buildStatCard(
+          icon: CupertinoIcons.person_2_fill,
+          title: 'Total Usuários',
+          value: '${_stats['totalUsers']}',
+          color: CupertinoColors.systemBlue,
         ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
-              }
-
-              final users = snapshot.data!.docs;
-
-              if (users.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline_rounded, size: 80, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'Nenhum usuário encontrado',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: EdgeInsets.all(16),
-                itemCount: users.length,
-                itemBuilder: (context, index) {
-                  final userData = users[index].data() as Map<String, dynamic>;
-                  final userId = users[index].id;
-                  return _buildUserCard(userData, userId, isDark);
-                },
-              );
-            },
-          ),
+        _buildStatCard(
+          icon: CupertinoIcons.circle_fill,
+          title: 'Online Agora',
+          value: '${_stats['activeUsers']}',
+          color: CupertinoColors.systemGreen,
+          isLive: true,
+        ),
+        _buildStatCard(
+          icon: CupertinoIcons.star_fill,
+          title: 'Contas PRO',
+          value: '${_stats['proUsers']}',
+          color: CupertinoColors.systemYellow,
+        ),
+        _buildStatCard(
+          icon: CupertinoIcons.doc_text_fill,
+          title: 'Posts Totais',
+          value: '${_stats['totalPosts']}',
+          color: CupertinoColors.systemPurple,
+        ),
+        _buildStatCard(
+          icon: CupertinoIcons.chat_bubble_2_fill,
+          title: 'Mensagens',
+          value: '${_stats['totalMessages']}',
+          color: CupertinoColors.systemOrange,
+        ),
+        _buildStatCard(
+          icon: CupertinoIcons.person_badge_plus_fill,
+          title: 'Novos Hoje',
+          value: '${_stats['newUsersToday']}',
+          color: CupertinoColors.systemTeal,
+        ),
+        _buildStatCard(
+          icon: CupertinoIcons.heart_fill,
+          title: 'Total Likes',
+          value: '${_stats['totalLikes']}',
+          color: CupertinoColors.systemRed,
+        ),
+        _buildStatCard(
+          icon: CupertinoIcons.xmark_shield_fill,
+          title: 'Banidos',
+          value: '${_stats['bannedUsers']}',
+          color: CupertinoColors.systemGrey,
         ),
       ],
     );
   }
 
-  Widget _buildPostsTab(bool isDark) {
+  Widget _buildStatCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    bool isLive = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.systemGrey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: color, size: 28),
+              if (isLive)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemGreen.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemGreen,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'LIVE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: CupertinoColors.systemGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: CupertinoColors.label,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: CupertinoColors.systemGrey,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOnlineUsersSection() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('isOnline', isEqualTo: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
+          return SizedBox.shrink();
         }
 
-        final posts = snapshot.data!.docs;
+        final onlineUsers = snapshot.data!.docs;
 
-        if (posts.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.article_outlined, size: 80, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'Nenhuma publicação encontrada',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
+        if (onlineUsers.isEmpty) {
+          return SizedBox.shrink();
         }
 
-        return ListView.builder(
+        return Container(
           padding: EdgeInsets.all(16),
-          itemCount: posts.length,
-          itemBuilder: (context, index) {
-            final postData = posts[index].data() as Map<String, dynamic>;
-            final postId = posts[index].id;
-            return _buildPostCard(postData, postId, isDark);
-          },
+          decoration: BoxDecoration(
+            color: CupertinoColors.systemBackground,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGreen,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Usuários Online (${onlineUsers.length})',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: CupertinoColors.label,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
+              SizedBox(
+                height: 60,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: onlineUsers.length,
+                  itemBuilder: (context, index) {
+                    final userData = onlineUsers[index].data() as Map<String, dynamic>;
+                    return Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child: Column(
+                        children: [
+                          Stack(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  image: userData['profile_image'] != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(userData['profile_image']),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                  color: CupertinoColors.systemGrey5,
+                                ),
+                                child: userData['profile_image'] == null
+                                    ? Center(
+                                        child: Text(
+                                          (userData['username'] ?? 'U')[0].toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: CupertinoColors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: CupertinoColors.systemGreen,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: CupertinoColors.systemBackground,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildAnalyticsTab(bool isDark) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
+  Widget _buildChartCard({
+    required String title,
+    required List<FlSpot> data,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              _buildPeriodChip('7d', '7 Dias', isDark),
-              SizedBox(width: 8),
-              _buildPeriodChip('30d', '30 Dias', isDark),
-              SizedBox(width: 8),
-              _buildPeriodChip('90d', '90 Dias', isDark),
-            ],
-          ),
-          SizedBox(height: 24),
           Text(
-            'Atividade por Categoria',
+            title,
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.w600,
+              color: CupertinoColors.label,
             ),
           ),
-          SizedBox(height: 16),
-          Container(
-            height: 300,
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
+          SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 10,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: CupertinoColors.systemGrey5,
+                      strokeWidth: 0.5,
+                    );
+                  },
                 ),
-              ],
-            ),
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 100,
-                barTouchData: BarTouchData(enabled: true),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
+                      reservedSize: 35,
                       getTitlesWidget: (value, meta) {
                         return Text(
                           value.toInt().toString(),
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          style: TextStyle(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 10,
+                          ),
                         );
                       },
                     ),
@@ -518,13 +693,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        final categories = ['Posts', 'Usuários', 'Tokens', 'PRO'];
-                        if (value.toInt() >= 0 && value.toInt() < categories.length) {
+                        final days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+                        if (value.toInt() >= 0 && value.toInt() < days.length) {
                           return Padding(
                             padding: EdgeInsets.only(top: 8),
                             child: Text(
-                              categories[value.toInt()],
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                              days[value.toInt()],
+                              style: TextStyle(
+                                color: CupertinoColors.systemGrey,
+                                fontSize: 10,
+                              ),
                             ),
                           );
                         }
@@ -536,196 +714,182 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                   rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
-                gridData: FlGridData(show: true, drawVerticalLine: false),
-                barGroups: [
-                  BarChartGroupData(
-                    x: 0,
-                    barRods: [
-                      BarChartRodData(
-                        toY: (_stats['totalPosts'] as int).toDouble(),
-                        color: Colors.purple,
-                        width: 20,
-                        borderRadius: BorderRadius.circular(4),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: data,
+                    isCurved: true,
+                    color: color,
+                    barWidth: 2,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 3,
+                          color: color,
+                          strokeWidth: 1.5,
+                          strokeColor: CupertinoColors.systemBackground,
+                        );
+                      },
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          color.withOpacity(0.3),
+                          color.withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                       ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 1,
-                    barRods: [
-                      BarChartRodData(
-                        toY: (_stats['totalUsers'] as int).toDouble(),
-                        color: Colors.blue,
-                        width: 20,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 2,
-                    barRods: [
-                      BarChartRodData(
-                        toY: min((_stats['totalTokens'] as int).toDouble(), 100),
-                        color: Colors.orange,
-                        width: 20,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 3,
-                    barRods: [
-                      BarChartRodData(
-                        toY: (_stats['proUsers'] as int).toDouble(),
-                        color: Colors.amber,
-                        width: 20,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          SizedBox(height: 24),
-          Text(
-            'Taxa de Conversão PRO',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          SizedBox(height: 16),
-          Container(
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Conversão',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? Colors.white70 : Colors.black54,
-                      ),
-                    ),
-                    Text(
-                      '${_calculateConversionRate()}%',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFFF444F),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 16),
-                LinearProgressIndicator(
-                  value: _calculateConversionRate() / 100,
-                  backgroundColor: Colors.grey.withOpacity(0.2),
-                  color: Color(0xFFFF444F),
-                  minHeight: 12,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: color, size: 32),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildUsersTab() {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(16),
+          color: CupertinoColors.systemBackground,
+          child: Column(
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+              CupertinoSearchTextField(
+                placeholder: 'Buscar usuários...',
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
+                },
               ),
-              SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+              SizedBox(height: 12),
+              CupertinoSegmentedControl<String>(
+                groupValue: _userFilter,
+                onValueChanged: (value) {
+                  setState(() {
+                    _userFilter = value;
+                  });
+                },
+                children: {
+                  'all': Text('Todos', style: TextStyle(fontSize: 12)),
+                  'online': Text('Online', style: TextStyle(fontSize: 12)),
+                  'pro': Text('PRO', style: TextStyle(fontSize: 12)),
+                  'banned': Text('Banidos', style: TextStyle(fontSize: 12)),
+                },
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return Center(child: CupertinoActivityIndicator());
+              }
+
+              var users = snapshot.data!.docs.where((doc) {
+                final userData = doc.data() as Map<String, dynamic>;
+                final username = (userData['username'] ?? '').toString().toLowerCase();
+                final email = (userData['email'] ?? '').toString().toLowerCase();
+                
+                bool matchesSearch = _searchQuery.isEmpty ||
+                    username.contains(_searchQuery) ||
+                    email.contains(_searchQuery);
+
+                bool matchesFilter = true;
+                if (_userFilter == 'online') {
+                  matchesFilter = userData['isOnline'] == true;
+                } else if (_userFilter == 'pro') {
+                  matchesFilter = userData['pro'] == true;
+                } else if (_userFilter == 'banned') {
+                  matchesFilter = userData['banned'] == true;
+                }
+
+                return matchesSearch && matchesFilter;
+              }).toList();
+
+              if (users.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.person_2,
+                        size: 64,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Nenhum usuário encontrado',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return CupertinoScrollbar(
+                child: ListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final userData = users[index].data() as Map<String, dynamic>;
+                    final userId = users[index].id;
+                    return _buildUserCard(userData, userId);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildUserCard(Map<String, dynamic> userData, String userId, bool isDark) {
+  Widget _buildUserCard(Map<String, dynamic> userData, String userId) {
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
+        color: CupertinoColors.systemBackground,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        contentPadding: EdgeInsets.all(12),
+      child: CupertinoListTile(
+        padding: EdgeInsets.all(12),
         leading: Stack(
           children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Color(0xFFFF444F),
-              backgroundImage: userData['profile_image'] != null && userData['profile_image'].isNotEmpty
-                  ? NetworkImage(userData['profile_image'])
-                  : null,
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                image: userData['profile_image'] != null && userData['profile_image'].isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(userData['profile_image']),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+                color: CupertinoColors.systemGrey5,
+              ),
               child: userData['profile_image'] == null || userData['profile_image'].isEmpty
-                  ? Text(
-                      (userData['username'] ?? 'U')[0].toUpperCase(),
-                      style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                  ? Center(
+                      child: Text(
+                        (userData['username'] ?? 'U')[0].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: CupertinoColors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     )
                   : null,
             ),
@@ -737,9 +901,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                   width: 14,
                   height: 14,
                   decoration: BoxDecoration(
-                    color: Colors.green,
+                    color: CupertinoColors.systemGreen,
                     shape: BoxShape.circle,
-                    border: Border.all(color: isDark ? Color(0xFF1A1A1A) : Colors.white, width: 2),
+                    border: Border.all(
+                      color: CupertinoColors.systemBackground,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -750,23 +917,23 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             Text(
               userData['username'] ?? 'Usuário',
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w600,
+                color: CupertinoColors.label,
               ),
             ),
             SizedBox(width: 8),
             if (userData['pro'] == true)
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.amber,
-                  borderRadius: BorderRadius.circular(8),
+                  color: CupertinoColors.systemYellow,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   'PRO',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
+                    color: CupertinoColors.white,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -774,16 +941,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             if (userData['admin'] == true)
               Container(
                 margin: EdgeInsets.only(left: 4),
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Color(0xFFFF444F),
-                  borderRadius: BorderRadius.circular(8),
+                  color: CupertinoColors.systemRed,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   'ADMIN',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
+                    color: CupertinoColors.white,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -796,89 +963,256 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             SizedBox(height: 4),
             Text(
               userData['email'] ?? '',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(
+                color: CupertinoColors.systemGrey,
+                fontSize: 13,
+              ),
             ),
             SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.toll_rounded, size: 14, color: Colors.orange),
-                SizedBox(width: 4),
-                Text(
-                  '${userData['tokens'] ?? 0} tokens',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
+            Text(
+              '${userData['tokens'] ?? 0} tokens',
+              style: TextStyle(
+                color: CupertinoColors.systemGrey2,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
-        trailing: PopupMenuButton(
-          icon: Icon(Icons.more_vert_rounded, color: isDark ? Colors.white : Colors.black87),
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              child: Row(
-                children: [
-                  Icon(Icons.edit_rounded, size: 20, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Text('Editar'),
-                ],
-              ),
-              onTap: () => _editUser(userId, userData, isDark),
-            ),
-            PopupMenuItem(
-              child: Row(
-                children: [
-                  Icon(Icons.star_rounded, size: 20, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text(userData['pro'] == true ? 'Remover PRO' : 'Tornar PRO'),
-                ],
-              ),
-              onTap: () => _togglePro(userId, userData['pro'] == true),
-            ),
-            PopupMenuItem(
-              child: Row(
-                children: [
-                  Icon(Icons.block_rounded, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Banir'),
-                ],
-              ),
-              onTap: () => _banUser(userId),
-            ),
-          ],
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(CupertinoIcons.ellipsis_circle, color: CupertinoColors.systemGrey),
+          onPressed: () => _showUserOptions(userId, userData),
         ),
       ),
     );
   }
 
-  Widget _buildPostCard(Map<String, dynamic> postData, String postId, bool isDark) {
+  void _showUserOptions(String userId, Map<String, dynamic> userData) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text('Gerenciar Usuário'),
+        message: Text(userData['username'] ?? 'Usuário'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _editUser(userId, userData);
+            },
+            child: Text('Editar Dados'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _togglePro(userId, userData['pro'] == true);
+            },
+            child: Text(userData['pro'] == true ? 'Remover PRO' : 'Promover a PRO'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _toggleAdmin(userId, userData['admin'] == true);
+            },
+            child: Text(userData['admin'] == true ? 'Remover Admin' : 'Tornar Admin'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              _banUser(userId, userData['username'] ?? 'Usuário');
+            },
+            child: Text('Banir Usuário'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar'),
+        ),
+      ),
+    );
+  }
+
+  void _editUser(String userId, Map<String, dynamic> userData) {
+    final tokensController = TextEditingController(text: '${userData['tokens'] ?? 0}');
+    final usernameController = TextEditingController(text: userData['username'] ?? '');
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Editar Usuário'),
+        content: Column(
+          children: [
+            SizedBox(height: 16),
+            CupertinoTextField(
+              controller: usernameController,
+              placeholder: 'Nome de usuário',
+              prefix: Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(CupertinoIcons.person, size: 20),
+              ),
+            ),
+            SizedBox(height: 12),
+            CupertinoTextField(
+              controller: tokensController,
+              placeholder: 'Tokens',
+              keyboardType: TextInputType.number,
+              prefix: Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(CupertinoIcons.money_dollar_circle, size: 20),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('users').doc(userId).update({
+                'username': usernameController.text,
+                'tokens': int.tryParse(tokensController.text) ?? 0,
+              });
+              _logActivity('Edição', 'Admin editou dados de ${usernameController.text}', 'info');
+              Navigator.pop(context);
+            },
+            child: Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _togglePro(String userId, bool isPro) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'pro': !isPro,
+    });
+    _logActivity(
+      isPro ? 'PRO Removido' : 'PRO Ativado',
+      'Status PRO foi ${isPro ? 'removido' : 'ativado'}',
+      'star',
+    );
+  }
+
+  void _toggleAdmin(String userId, bool isAdmin) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'admin': !isAdmin,
+    });
+    _logActivity(
+      isAdmin ? 'Admin Removido' : 'Admin Ativado',
+      'Privilégios de admin foram ${isAdmin ? 'removidos' : 'concedidos'}',
+      'info',
+    );
+  }
+
+  void _banUser(String userId, String username) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Confirmar Banimento'),
+        content: Text('Tem certeza que deseja banir $username?'),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('users').doc(userId).update({
+                'banned': true,
+                'isOnline': false,
+              });
+              _logActivity('Banimento', '$username foi banido', 'info');
+              Navigator.pop(context);
+            },
+            child: Text('Banir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('posts')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CupertinoActivityIndicator());
+        }
+
+        final posts = snapshot.data!.docs;
+
+        if (posts.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.doc_text,
+                  size: 64,
+                  color: CupertinoColors.systemGrey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Nenhuma publicação encontrada',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return CupertinoScrollbar(
+          child: ListView.builder(
+            padding: EdgeInsets.all(16),
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final postData = posts[index].data() as Map<String, dynamic>;
+              final postId = posts[index].id;
+              return _buildPostCard(postData, postId);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPostCard(Map<String, dynamic> postData, String postId) {
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
+        color: CupertinoColors.systemBackground,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (postData['image'] != null && postData['image'].isNotEmpty)
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.network(
                 postData['image'],
                 width: double.infinity,
-                height: 180,
+                height: 200,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stack) => Container(
-                  height: 180,
-                  color: Colors.grey[300],
-                  child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                  height: 200,
+                  color: CupertinoColors.systemGrey5,
+                  child: Icon(
+                    CupertinoIcons.photo,
+                    size: 50,
+                    color: CupertinoColors.systemGrey,
+                  ),
                 ),
               ),
             ),
@@ -889,25 +1223,41 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Color(0xFFFF444F),
-                      child: Text(
-                        (postData['userName'] ?? 'U')[0].toUpperCase(),
-                        style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.systemGrey5,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          (postData['userName'] ?? 'U')[0].toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: CupertinoColors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                     SizedBox(width: 8),
-                    Text(
-                      postData['userName'] ?? 'Usuário',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                    Expanded(
+                      child: Text(
+                        postData['userName'] ?? 'Usuário',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.label,
+                        ),
                       ),
                     ),
-                    Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.delete_rounded, color: Colors.red, size: 20),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: Icon(
+                        CupertinoIcons.trash,
+                        color: CupertinoColors.systemRed,
+                        size: 20,
+                      ),
                       onPressed: () => _deletePost(postId),
                     ),
                   ],
@@ -916,8 +1266,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 Text(
                   postData['content'] ?? '',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white70 : Colors.black54,
+                    fontSize: 15,
+                    color: CupertinoColors.label,
                   ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -925,19 +1275,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.favorite_rounded, size: 16, color: Colors.red),
+                    Icon(CupertinoIcons.heart_fill, size: 16, color: CupertinoColors.systemRed),
                     SizedBox(width: 4),
-                    Text('${postData['likes'] ?? 0}', style: TextStyle(color: Colors.grey)),
+                    Text('${postData['likes'] ?? 0}', style: TextStyle(color: CupertinoColors.systemGrey)),
                     SizedBox(width: 16),
-                    Icon(Icons.comment_rounded, size: 16, color: Colors.blue),
+                    Icon(CupertinoIcons.chat_bubble_fill, size: 16, color: CupertinoColors.systemBlue),
                     SizedBox(width: 4),
-                    Text('${postData['comments'] ?? 0}', style: TextStyle(color: Colors.grey)),
+                    Text('${postData['comments'] ?? 0}', style: TextStyle(color: CupertinoColors.systemGrey)),
                     SizedBox(width: 16),
-                    Icon(Icons.access_time_rounded, size: 16, color: Colors.grey),
+                    Icon(CupertinoIcons.time, size: 16, color: CupertinoColors.systemGrey),
                     SizedBox(width: 4),
                     Text(
                       _formatTimestamp(postData['timestamp']),
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 12),
                     ),
                   ],
                 ),
@@ -949,199 +1299,279 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildPeriodChip(String period, String label, bool isDark) {
-    final isSelected = _selectedPeriod == period;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPeriod = period),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Color(0xFFFF444F) : (isDark ? Color(0xFF1A1A1A) : Colors.white),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Color(0xFFFF444F) : Colors.grey.withOpacity(0.3),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showFilterDialog(bool isDark) {
-    showDialog(
+  void _deletePost(String postId) {
+    showCupertinoDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        title: Text(
-          'Filtrar Usuários',
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text('Todos', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: Text('Apenas PRO', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: Text('Ativos', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: Text('Inativos', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Confirmar Exclusão'),
+        content: Text('Tem certeza que deseja excluir esta publicação?'),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
+              _logActivity('Post Deletado', 'Admin deletou uma publicação', 'post');
+              Navigator.pop(context);
+            },
+            child: Text('Excluir'),
+          ),
+        ],
       ),
     );
   }
 
-  void _editUser(String userId, Map<String, dynamic> userData, bool isDark) {
-    Future.delayed(Duration(milliseconds: 100), () {
-      final tokensController = TextEditingController(text: '${userData['tokens'] ?? 0}');
-      
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-          title: Text(
-            'Editar Usuário',
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+  Widget _buildActivitiesTab() {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(16),
+          color: CupertinoColors.systemBackground,
+          child: Row(
             children: [
-              TextField(
-                controller: tokensController,
-                keyboardType: TextInputType.number,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                decoration: InputDecoration(
-                  labelText: 'Tokens',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Color(0xFFFF444F)),
-                  ),
+              Icon(CupertinoIcons.dot_radiowaves_left_right, color: CupertinoColors.systemGreen),
+              SizedBox(width: 8),
+              Text(
+                'Atividades em Tempo Real',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: CupertinoColors.label,
                 ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await FirebaseFirestore.instance.collection('users').doc(userId).update({
-                  'tokens': int.tryParse(tokensController.text) ?? 0,
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Usuário atualizado com sucesso!'),
-                    backgroundColor: Colors.green,
+        ),
+        Expanded(
+          child: _realtimeActivities.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.clock,
+                        size: 64,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Nenhuma atividade recente',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFFF444F)),
-              child: Text('Salvar', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  void _togglePro(String userId, bool isPro) {
-    Future.delayed(Duration(milliseconds: 100), () async {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'pro': !isPro,
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isPro ? 'PRO removido!' : 'Usuário promovido a PRO!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    });
-  }
-
-  void _banUser(String userId) {
-    Future.delayed(Duration(milliseconds: 100), () {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Confirmar Banimento'),
-          content: Text('Tem certeza que deseja banir este usuário?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await FirebaseFirestore.instance.collection('users').doc(userId).update({
-                  'banned': true,
-                  'isOnline': false,
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Usuário banido com sucesso!'),
-                    backgroundColor: Colors.red,
+                )
+              : CupertinoScrollbar(
+                  child: ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _realtimeActivities.length,
+                    itemBuilder: (context, index) {
+                      final activity = _realtimeActivities[index];
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemBackground,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            _getActivityIcon(activity['icon'] ?? 'info'),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    activity['type'] ?? 'Atividade',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: CupertinoColors.label,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    activity['description'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: CupertinoColors.systemGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              _formatTimestamp(activity['timestamp']),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: CupertinoColors.systemGrey2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text('Banir', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  void _deletePost(String postId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirmar Exclusão'),
-        content: Text('Tem certeza que deseja excluir esta publicação?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Publicação excluída com sucesso!'),
-                  backgroundColor: Colors.red,
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Excluir', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticsTab() {
+    return CupertinoScrollbar(
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Text(
+                  'Analytics Avançado',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: CupertinoColors.label,
+                  ),
+                ),
+                SizedBox(height: 16),
+                CupertinoSegmentedControl<String>(
+                  groupValue: _selectedPeriod,
+                  onValueChanged: (value) {
+                    setState(() {
+                      _selectedPeriod = value;
+                    });
+                  },
+                  children: {
+                    '7d': Text('7 Dias', style: TextStyle(fontSize: 12)),
+                    '30d': Text('30 Dias', style: TextStyle(fontSize: 12)),
+                    '90d': Text('90 Dias', style: TextStyle(fontSize: 12)),
+                  },
+                ),
+                SizedBox(height: 24),
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemBackground,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Taxa de Conversão PRO',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.label,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Conversão',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ),
+                          Text(
+                            '${_calculateConversionRate()}%',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: CupertinoColors.systemBlue,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: _calculateConversionRate() / 100,
+                          backgroundColor: CupertinoColors.systemGrey5,
+                          color: CupertinoColors.systemBlue,
+                          minHeight: 8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemBackground,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Engajamento',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.label,
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      _buildEngagementRow('Likes Totais', _stats['totalLikes'], CupertinoIcons.heart_fill, CupertinoColors.systemRed),
+                      SizedBox(height: 12),
+                      _buildEngagementRow('Comentários', _stats['totalComments'], CupertinoIcons.chat_bubble_fill, CupertinoColors.systemBlue),
+                      SizedBox(height: 12),
+                      _buildEngagementRow('Mensagens', _stats['totalMessages'], CupertinoIcons.mail_solid, CupertinoColors.systemOrange),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEngagementRow(String label, int value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              color: CupertinoColors.label,
+            ),
+          ),
+        ),
+        Text(
+          value.toString(),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: CupertinoColors.label,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1152,9 +1582,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       final now = DateTime.now();
       final difference = now.difference(date);
       
-      if (difference.inDays > 0) return '${difference.inDays}d atrás';
-      if (difference.inHours > 0) return '${difference.inHours}h atrás';
-      if (difference.inMinutes > 0) return '${difference.inMinutes}min atrás';
+      if (difference.inDays > 0) return '${difference.inDays}d';
+      if (difference.inHours > 0) return '${difference.inHours}h';
+      if (difference.inMinutes > 0) return '${difference.inMinutes}min';
       return 'Agora';
     } catch (e) {
       return 'Agora';
@@ -1169,6 +1599,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   @override
   void dispose() {
     _tabController.dispose();
+    _activitySubscription?.cancel();
+    _usersSubscription?.cancel();
+    _postsSubscription?.cancel();
+    _messagesSubscription?.cancel();
     super.dispose();
   }
 }
