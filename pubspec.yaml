@@ -12,6 +12,7 @@ dependencies:
 
   palette_generator: ^0.3.3+2
   fl_chart: ^1.1.1
+  share_plus: ^7.2.1
   
   # Firebase Core - OBRIGATÓRIO
   firebase_core: ^3.15.2
