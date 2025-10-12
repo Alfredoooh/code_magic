@@ -1,10 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:ui';
+import 'package:palette_generator/palette_generator.dart';
 import '../services/language_service.dart';
 import 'admin_panel_screen.dart';
+import 'news_detail_screen.dart';
+import '../models/news_article.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -24,9 +29,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _userData;
-  bool _showDrawer = false;
-  List<Map<String, dynamic>> _newsArticles = [];
+  List<NewsArticle> _newsArticles = [];
   bool _loadingNews = true;
+  bool _showNews = true;
+  Map<int, Color> _newsColors = {};
 
   @override
   void initState() {
@@ -45,19 +51,46 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['results'] as List? ?? [];
+        
+        List<NewsArticle> articles = [];
+        for (var article in results.take(10)) {
+          articles.add(NewsArticle.fromNewsdata(article));
+        }
+
         setState(() {
-          _newsArticles = results.take(10).map((article) => {
-                'title': article['title'] ?? '',
-                'image': article['image_url'] ?? '',
-                'source': article['source_id'] ?? '',
-              }).toList();
+          _newsArticles = articles;
           _loadingNews = false;
         });
+
+        _extractColors();
       } else {
         setState(() => _loadingNews = false);
       }
     } catch (e) {
       setState(() => _loadingNews = false);
+    }
+  }
+
+  Future<void> _extractColors() async {
+    for (int i = 0; i < _newsArticles.length; i++) {
+      if (_newsArticles[i].imageUrl.isNotEmpty) {
+        try {
+          final paletteGenerator = await PaletteGenerator.fromImageProvider(
+            NetworkImage(_newsArticles[i].imageUrl),
+            maximumColorCount: 10,
+          );
+          
+          setState(() {
+            _newsColors[i] = paletteGenerator.dominantColor?.color ?? 
+                            paletteGenerator.vibrantColor?.color ?? 
+                            Color(0xFFFF444F);
+          });
+        } catch (e) {
+          setState(() {
+            _newsColors[i] = Color(0xFFFF444F);
+          });
+        }
+      }
     }
   }
 
@@ -79,7 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists) {
-        setState(() => _userData = doc.data());
+        setState(() {
+          _userData = doc.data();
+          _showNews = _userData?['showNews'] ?? true;
+        });
       }
     }
   }
@@ -87,256 +123,129 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showUserModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showModalBottomSheet(
+    showCupertinoModalPopup(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
+      builder: (context) => CupertinoPageScaffold(
+        backgroundColor: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemBackground,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          middle: Text('Perfil'),
+          trailing: CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: Icon(CupertinoIcons.xmark_circle_fill),
+            onPressed: () => Navigator.pop(context),
           ),
+          border: null,
         ),
-        child: Column(
-          children: [
-            SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            SizedBox(height: 24),
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Color(0xFFFF444F),
-              backgroundImage: _userData?['profile_image'] != null && _userData!['profile_image'].isNotEmpty
-                  ? NetworkImage(_userData!['profile_image'])
-                  : null,
-              child: _userData?['profile_image'] == null || _userData!['profile_image'].isEmpty
-                  ? Text(
-                      (_userData?['username'] ?? 'U')[0].toUpperCase(),
-                      style: TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
-                    )
-                  : null,
-            ),
-            SizedBox(height: 16),
-            Text(
-              _userData?['username'] ?? 'Usuário',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              _userData?['email'] ?? '',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _userData?['pro'] == true ? Color(0xFFFF444F) : Colors.grey,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _userData?['pro'] == true ? 'PRO' : 'FREEMIUM',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.all(20),
+            children: [
+              SizedBox(height: 20),
+              Center(
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Color(0xFFFF444F),
+                  backgroundImage: _userData?['profile_image'] != null && _userData!['profile_image'].isNotEmpty
+                      ? NetworkImage(_userData!['profile_image'])
+                      : null,
+                  child: _userData?['profile_image'] == null || _userData!['profile_image'].isEmpty
+                      ? Text(
+                          (_userData?['username'] ?? 'U')[0].toUpperCase(),
+                          style: TextStyle(fontSize: 48, color: CupertinoColors.white, fontWeight: FontWeight.bold),
+                        )
+                      : null,
                 ),
               ),
-            ),
-            SizedBox(height: 24),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                children: [
-                  if (_userData?['admin'] == true)
-                    _buildMenuItem(
-                      icon: Icons.admin_panel_settings_rounded,
-                      title: 'Painel Admin',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => AdminPanelScreen()),
-                        );
-                      },
-                    ),
-                  _buildMenuItem(
-                    icon: Icons.settings_rounded,
-                    title: 'Configurações',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showSettingsModal();
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.person_rounded,
-                    title: 'Editar Perfil',
-                    onTap: () {},
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.info_rounded,
-                    title: 'Sobre',
-                    onTap: () {},
-                  ),
-                  SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Últimas Notícias',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: Text(
-                          'Ver Todas',
-                          style: TextStyle(
-                            color: Color(0xFFFF444F),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  _loadingNews
-                      ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
-                      : Container(
-                          height: 160,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _newsArticles.length,
-                            itemBuilder: (context, index) {
-                              final article = _newsArticles[index];
-                              return Container(
-                                width: 280,
-                                margin: EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: Radius.circular(16),
-                                        bottomLeft: Radius.circular(16),
-                                      ),
-                                      child: article['image'].isNotEmpty
-                                          ? Image.network(
-                                              article['image'],
-                                              width: 100,
-                                              height: 160,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stack) => Container(
-                                                width: 100,
-                                                height: 160,
-                                                color: Colors.grey[300],
-                                                child: Icon(Icons.image_not_supported, color: Colors.grey),
-                                              ),
-                                            )
-                                          : Container(
-                                              width: 100,
-                                              height: 160,
-                                              color: Colors.grey[300],
-                                              child: Icon(Icons.article, color: Colors.grey),
-                                            ),
-                                    ),
-                                    Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Container(
-                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Color(0xFFFF444F).withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                article['source'].toUpperCase(),
-                                                style: TextStyle(
-                                                  color: Color(0xFFFF444F),
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              article['title'],
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDark ? Colors.white : Colors.black87,
-                                                height: 1.3,
-                                              ),
-                                              maxLines: 4,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                  SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await _setUserOnline(false);
-                        await FirebaseAuth.instance.signOut();
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.logout_rounded, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Sair', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              SizedBox(height: 20),
+              Text(
+                _userData?['username'] ?? 'Usuário',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                ),
               ),
-            ),
-          ],
+              SizedBox(height: 8),
+              Text(
+                _userData?['email'] ?? '',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: CupertinoColors.systemGrey),
+              ),
+              SizedBox(height: 12),
+              Center(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _userData?['pro'] == true ? Color(0xFFFF444F) : CupertinoColors.systemGrey,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _userData?['pro'] == true ? 'PRO' : 'FREEMIUM',
+                    style: TextStyle(
+                      color: CupertinoColors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 32),
+              if (_userData?['admin'] == true)
+                _buildCupertinoMenuItem(
+                  icon: CupertinoIcons.shield_fill,
+                  title: 'Painel Admin',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (context) => AdminPanelScreen()),
+                    );
+                  },
+                  isDark: isDark,
+                ),
+              _buildCupertinoMenuItem(
+                icon: CupertinoIcons.settings,
+                title: 'Configurações',
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSettingsModal();
+                },
+                isDark: isDark,
+              ),
+              _buildCupertinoMenuItem(
+                icon: CupertinoIcons.person_fill,
+                title: 'Editar Perfil',
+                onTap: () {},
+                isDark: isDark,
+              ),
+              _buildCupertinoMenuItem(
+                icon: CupertinoIcons.info_circle_fill,
+                title: 'Sobre',
+                onTap: () {},
+                isDark: isDark,
+              ),
+              SizedBox(height: 32),
+              CupertinoButton(
+                color: CupertinoColors.destructiveRed,
+                borderRadius: BorderRadius.circular(12),
+                onPressed: () async {
+                  await _setUserOnline(false);
+                  await FirebaseAuth.instance.signOut();
+                  Navigator.pop(context);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(CupertinoIcons.arrow_right_square),
+                    SizedBox(width: 8),
+                    Text('Sair', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -345,147 +254,171 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showSettingsModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showModalBottomSheet(
+    showCupertinoModalPopup(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
+      builder: (context) => CupertinoPageScaffold(
+        backgroundColor: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemBackground,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          middle: Text('Configurações'),
+          trailing: CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: Icon(CupertinoIcons.xmark_circle_fill),
+            onPressed: () => Navigator.pop(context),
           ),
+          border: null,
         ),
-        child: Column(
-          children: [
-            SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(2),
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.all(20),
+            children: [
+              SizedBox(height: 20),
+              _buildCupertinoSettingItem(
+                icon: CupertinoIcons.moon_fill,
+                title: 'Tema',
+                subtitle: isDark ? 'Escuro' : 'Claro',
+                onTap: () => _showThemeDialog(),
+                isDark: isDark,
               ),
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Configurações',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
+              _buildCupertinoSettingItem(
+                icon: CupertinoIcons.globe,
+                title: 'Idioma',
+                subtitle: _getLanguageName(widget.currentLocale),
+                onTap: () => _showLanguageDialog(),
+                isDark: isDark,
               ),
-            ),
-            SizedBox(height: 24),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                children: [
-                  _buildSettingItem(
-                    icon: Icons.dark_mode_rounded,
-                    title: 'Tema',
-                    subtitle: isDark ? 'Escuro' : 'Claro',
-                    onTap: () => _showThemeDialog(),
-                  ),
-                  _buildSettingItem(
-                    icon: Icons.language_rounded,
-                    title: 'Idioma',
-                    subtitle: _getLanguageName(widget.currentLocale),
-                    onTap: () => _showLanguageDialog(),
-                  ),
-                  _buildSettingItem(
-                    icon: Icons.notifications_rounded,
-                    title: 'Notificações',
-                    subtitle: 'Ativadas',
-                    onTap: () {},
-                  ),
-                ],
+              _buildCupertinoSettingItem(
+                icon: CupertinoIcons.bell_fill,
+                title: 'Notificações',
+                subtitle: 'Ativadas',
+                onTap: () {},
+                isDark: isDark,
               ),
-            ),
-          ],
+              Container(
+                margin: EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(CupertinoIcons.news, color: Color(0xFFFF444F), size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mostrar Notícias',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 17,
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Exibir notícias no ecrã principal',
+                            style: TextStyle(
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    CupertinoSwitch(
+                      value: _showNews,
+                      activeColor: Color(0xFFFF444F),
+                      onChanged: (value) async {
+                        setState(() => _showNews = value);
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .update({'showNews': value});
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   void _showThemeDialog() {
-    showDialog(
+    showCupertinoModalPopup(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => CupertinoActionSheet(
         title: Text('Escolha o tema'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text('Claro'),
-              leading: Radio<ThemeMode>(
-                value: ThemeMode.light,
-                groupValue: Theme.of(context).brightness == Brightness.light ? ThemeMode.light : ThemeMode.dark,
-                onChanged: (value) {
-                  widget.onThemeChanged(value!);
-                  _updateUserTheme('light');
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            ListTile(
-              title: Text('Escuro'),
-              leading: Radio<ThemeMode>(
-                value: ThemeMode.dark,
-                groupValue: Theme.of(context).brightness == Brightness.dark ? ThemeMode.dark : ThemeMode.light,
-                onChanged: (value) {
-                  widget.onThemeChanged(value!);
-                  _updateUserTheme('dark');
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
+        actions: [
+          CupertinoActionSheetAction(
+            child: Text('Claro'),
+            onPressed: () {
+              widget.onThemeChanged(ThemeMode.light);
+              _updateUserTheme('light');
+              Navigator.pop(context);
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: Text('Escuro'),
+            onPressed: () {
+              widget.onThemeChanged(ThemeMode.dark);
+              _updateUserTheme('dark');
+              Navigator.pop(context);
+            },
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          child: Text('Cancelar'),
+          isDestructiveAction: true,
+          onPressed: () => Navigator.pop(context),
         ),
       ),
     );
   }
 
   void _showLanguageDialog() {
-    showDialog(
+    showCupertinoModalPopup(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => CupertinoActionSheet(
         title: Text('Escolha o idioma'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text('Português'),
-              onTap: () {
-                widget.onLocaleChanged('pt');
-                _updateUserLanguage('pt');
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: Text('English'),
-              onTap: () {
-                widget.onLocaleChanged('en');
-                _updateUserLanguage('en');
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: Text('Español'),
-              onTap: () {
-                widget.onLocaleChanged('es');
-                _updateUserLanguage('es');
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-            ),
-          ],
+        actions: [
+          CupertinoActionSheetAction(
+            child: Text('Português'),
+            onPressed: () {
+              widget.onLocaleChanged('pt');
+              _updateUserLanguage('pt');
+              Navigator.pop(context);
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: Text('English'),
+            onPressed: () {
+              widget.onLocaleChanged('en');
+              _updateUserLanguage('en');
+              Navigator.pop(context);
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: Text('Español'),
+            onPressed: () {
+              widget.onLocaleChanged('es');
+              _updateUserLanguage('es');
+              Navigator.pop(context);
+            },
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          child: Text('Cancelar'),
+          isDestructiveAction: true,
+          onPressed: () => Navigator.pop(context),
         ),
       ),
     );
@@ -518,53 +451,63 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildMenuItem({required IconData icon, required String title, required VoidCallback onTap}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  Widget _buildCupertinoMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
     return Container(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: Color(0xFFFF444F)),
+      child: CupertinoListTile(
+        leading: Icon(icon, color: Color(0xFFFF444F), size: 24),
         title: Text(
           title,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
+            fontSize: 17,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
           ),
         ),
-        trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey),
+        trailing: Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
         onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
-  Widget _buildSettingItem({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  Widget _buildCupertinoSettingItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
     return Container(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: Color(0xFFFF444F)),
+      child: CupertinoListTile(
+        leading: Icon(icon, color: Color(0xFFFF444F), size: 24),
         title: Text(
           title,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
+            fontSize: 17,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
           ),
         ),
-        subtitle: Text(subtitle, style: TextStyle(color: Colors.grey)),
-        trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13),
+        ),
+        trailing: Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
         onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -573,34 +516,29 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : Colors.black87),
-          onPressed: () => setState(() => _showDrawer = true),
-        ),
-        title: Text(
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        middle: Text(
           'K Paga',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search_rounded, color: isDark ? Colors.white : Colors.black87),
-            onPressed: () {},
-          ),
-          GestureDetector(
-            onTap: _showUserModal,
-            child: Padding(
-              padding: EdgeInsets.only(right: 16),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: Icon(CupertinoIcons.search, color: isDark ? CupertinoColors.white : CupertinoColors.black),
+              onPressed: () {},
+            ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
               child: CircleAvatar(
-                radius: 18,
+                radius: 16,
                 backgroundColor: Color(0xFFFF444F),
                 backgroundImage: _userData?['profile_image'] != null && _userData!['profile_image'].isNotEmpty
                     ? NetworkImage(_userData!['profile_image'])
@@ -608,366 +546,461 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: _userData?['profile_image'] == null || _userData!['profile_image'].isEmpty
                     ? Text(
                         (_userData?['username'] ?? 'U')[0].toUpperCase(),
-                        style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, color: CupertinoColors.white, fontWeight: FontWeight.bold),
                       )
                     : null,
               ),
+              onPressed: _showUserModal,
             ),
-          ),
-        ],
+          ],
+        ),
+        border: null,
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      child: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Card de Carteira Realista
+                  Container(
+                    width: double.infinity,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 25,
+                          offset: Offset(0, 15),
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFFFF444F).withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Stack(
                         children: [
-                          Text(
-                            'Tokens Disponíveis',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          // Fundo com gradiente
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF1a1a1a), Color(0xFF2d2d2d), Color(0xFF1a1a1a)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                             ),
                           ),
-                          Icon(Icons.account_balance_wallet_rounded, color: Colors.white70, size: 24),
-                        ],
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        '${_userData?['tokens'] ?? 0}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      if (_userData?['pro'] == true)
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
+                          // Padrão de textura
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: CardPatternPainter(),
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.star_rounded, color: Colors.white, size: 16),
-                              SizedBox(width: 4),
-                              Text(
-                                'Conta PRO - Tokens Ilimitados',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                          // Brilho sutil
+                          Positioned(
+                            top: -50,
+                            right: -50,
+                            child: Container(
+                              width: 200,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.1),
+                                    Colors.transparent,
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        )
-                      else
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Expira em: ${_getExpirationDate()}',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          // Conteúdo
+                          Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Tokens Disponíveis',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.7),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          '${_userData?['tokens'] ?? 0}',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 48,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1,
+                                            shadows: [
+                                              Shadow(
+                                                color: Colors.black.withOpacity(0.3),
+                                                offset: Offset(0, 2),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Color(0xFFFF444F),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Color(0xFFFF444F).withOpacity(0.4),
+                                            blurRadius: 12,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        CupertinoIcons.creditcard_fill,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (_userData?['pro'] == true)
+                                      Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFFFF444F),
+                                          borderRadius: BorderRadius.circular(20),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Color(0xFFFF444F).withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(CupertinoIcons.star_fill, color: Colors.white, size: 14),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'PRO - Tokens Ilimitados',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.2),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Expira: ${_getExpirationDate()}',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      _userData?['username'] ?? 'Utilizador',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  // Cards de Estatísticas
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          icon: CupertinoIcons.chat_bubble_2_fill,
+                          title: 'Mensagens',
+                          value: '0',
+                          color: CupertinoColors.systemBlue,
                         ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          icon: CupertinoIcons.group_solid,
+                          title: 'Grupos',
+                          value: '0',
+                          color: CupertinoColors.systemGreen,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        icon: Icons.chat_rounded,
-                        title: 'Mensagens',
-                        value: '0',
-                        color: Colors.blue,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        icon: Icons.group_rounded,
-                        title: 'Grupos',
-                        value: '0',
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+                  if (_showNews) ...[
+                    SizedBox(height: 32),
                     Text(
                       'Últimas Notícias',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Ver Todas',
-                        style: TextStyle(
-                          color: Color(0xFFFF444F),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                _loadingNews
-                    ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
-                    : Container(
-                        height: 160,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _newsArticles.length,
-                          itemBuilder: (context, index) {
-                            final article = _newsArticles[index];
-                            return Container(
-                              width: 280,
-                              margin: EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 8,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(16),
-                                      bottomLeft: Radius.circular(16),
+                    SizedBox(height: 16),
+                    _loadingNews
+                        ? Center(
+                            child: CupertinoActivityIndicator(radius: 16),
+                          )
+                        : Container(
+                            height: 200,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              physics: BouncingScrollPhysics(),
+                              itemCount: _newsArticles.length,
+                              itemBuilder: (context, index) {
+                                final article = _newsArticles[index];
+                                final cardColor = _newsColors[index] ?? Color(0xFFFF444F);
+                                
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      CupertinoPageRoute(
+                                        builder: (context) => NewsDetailScreen(
+                                          article: article,
+                                          allArticles: _newsArticles,
+                                          currentIndex: index,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    width: 320,
+                                    margin: EdgeInsets.only(right: 16),
+                                    decoration: BoxDecoration(
+                                      color: cardColor.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: cardColor.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: cardColor.withOpacity(0.2),
+                                          blurRadius: 12,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
-                                    child: article['image'].isNotEmpty
-                                        ? Image.network(
-                                            article['image'],
-                                            width: 100,
-                                            height: 160,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stack) => Container(
-                                              width: 100,
-                                              height: 160,
-                                              color: Colors.grey[300],
-                                              child: Icon(Icons.image_not_supported, color: Colors.grey),
-                                            ),
-                                          )
-                                        : Container(
-                                            width: 100,
-                                            height: 160,
-                                            color: Colors.grey[300],
-                                            child: Icon(Icons.article, color: Colors.grey),
-                                          ),
-                                  ),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Stack(
                                         children: [
-                                          Container(
-                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Color(0xFFFF444F).withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(6),
+                                          if (article.imageUrl.isNotEmpty)
+                                            Positioned.fill(
+                                              child: Image.network(
+                                                article.imageUrl,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stack) => Container(
+                                                  color: cardColor.withOpacity(0.2),
+                                                  child: Icon(
+                                                    CupertinoIcons.photo,
+                                                    color: cardColor,
+                                                    size: 60,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
-                                            child: Text(
-                                              article['source'].toUpperCase(),
-                                              style: TextStyle(
-                                                color: Color(0xFFFF444F),
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
+                                          Positioned.fill(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Colors.transparent,
+                                                    Colors.black.withOpacity(0.8),
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            article['title'],
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark ? Colors.white : Colors.black87,
-                                              height: 1.3,
+                                          Positioned(
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            child: Padding(
+                                              padding: EdgeInsets.all(16),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Container(
+                                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                                    decoration: BoxDecoration(
+                                                      color: cardColor,
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: Text(
+                                                      article.source.toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 8),
+                                                  Text(
+                                                    article.title,
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                      height: 1.3,
+                                                    ),
+                                                    maxLines: 3,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            maxLines: 4,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                SizedBox(height: 24),
-                Text(
-                  'Publicações Recentes',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                SizedBox(height: 16),
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).limit(10).snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
-                    }
-
-                    final posts = snapshot.data!.docs;
-
-                    if (posts.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Column(
-                            children: [
-                              Icon(Icons.article_rounded, size: 60, color: Colors.grey),
-                              SizedBox(height: 16),
-                              Text(
-                                'Nenhuma publicação ainda',
-                                style: TextStyle(color: Colors.grey, fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      itemCount: posts.length,
-                      itemBuilder: (context, index) {
-                        final post = posts[index].data() as Map<String, dynamic>;
-                        return _buildPostCard(post, isDark);
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          if (_showDrawer)
-            GestureDetector(
-              onTap: () => setState(() => _showDrawer = false),
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Row(
-                  children: [
-                    Container(
-                      width: MediaQuery.of(context).size.width * 0.8,
-                      color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                      child: SafeArea(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Opções',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white : Colors.black87),
-                                    onPressed: () => setState(() => _showDrawer = false),
-                                  ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
-                            Expanded(
-                              child: ListView(
-                                padding: EdgeInsets.symmetric(horizontal: 16),
-                                children: [
-                                  _buildDrawerItem(Icons.home_rounded, 'Home', () {}),
-                                  _buildDrawerItem(Icons.info_rounded, 'Sobre', () {}),
-                                  _buildDrawerItem(Icons.help_rounded, 'Ajuda', () {}),
-                                  _buildDrawerItem(Icons.policy_rounded, 'Política de Privacidade', () {}),
-                                ],
+                          ),
+                  ],
+                  SizedBox(height: 32),
+                  Text(
+                    'Publicações Recentes',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                ]),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('posts')
+                    .orderBy('timestamp', descending: true)
+                    .limit(10)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CupertinoActivityIndicator(radius: 16),
+                      ),
+                    );
+                  }
+
+                  final posts = snapshot.data!.docs;
+
+                  if (posts.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(
+                              CupertinoIcons.doc_text,
+                              size: 60,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Nenhuma publicação ainda',
+                              style: TextStyle(
+                                color: CupertinoColors.systemGrey,
+                                fontSize: 16,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    Expanded(child: SizedBox()),
-                  ],
-                ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: posts.length,
+                    itemBuilder: (context, index) {
+                      final post = posts[index].data() as Map<String, dynamic>;
+                      return _buildPostCard(post, isDark);
+                    },
+                  );
+                },
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatCard({required IconData icon, required String title, required String value, required Color color}) {
+  Widget _buildStatCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -985,17 +1018,17 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
             ),
           ),
           SizedBox(height: 4),
           Text(
             title,
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
+              fontSize: 13,
+              color: CupertinoColors.systemGrey,
             ),
           ),
         ],
@@ -1007,7 +1040,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1030,8 +1063,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   height: 200,
-                  color: Colors.grey[300],
-                  child: Icon(Icons.image_rounded, size: 60, color: Colors.grey),
+                  color: CupertinoColors.systemGrey5,
+                  child: Icon(
+                    CupertinoIcons.photo,
+                    size: 60,
+                    color: CupertinoColors.systemGrey,
+                  ),
                 ),
               ),
             ),
@@ -1047,7 +1084,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor: Color(0xFFFF444F),
                       child: Text(
                         (post['userName'] ?? 'U')[0].toUpperCase(),
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     SizedBox(width: 8),
@@ -1055,7 +1096,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       post['userName'] ?? 'Usuário',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
                       ),
                     ),
                   ],
@@ -1064,8 +1105,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   post['content'] ?? '',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white70 : Colors.black54,
+                    fontSize: 15,
+                    color: isDark ? CupertinoColors.white.withOpacity(0.85) : CupertinoColors.black,
                   ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -1073,46 +1114,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.favorite_border_rounded, color: Colors.grey),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minSize: 30,
+                      child: Icon(
+                        CupertinoIcons.heart,
+                        color: CupertinoColors.systemGrey,
+                        size: 22,
+                      ),
                       onPressed: () {},
                     ),
-                    Text('${post['likes'] ?? 0}', style: TextStyle(color: Colors.grey)),
+                    Text(
+                      '${post['likes'] ?? 0}',
+                      style: TextStyle(color: CupertinoColors.systemGrey),
+                    ),
                     SizedBox(width: 16),
-                    IconButton(
-                      icon: Icon(Icons.comment_rounded, color: Colors.grey),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minSize: 30,
+                      child: Icon(
+                        CupertinoIcons.chat_bubble,
+                        color: CupertinoColors.systemGrey,
+                        size: 22,
+                      ),
                       onPressed: () {},
                     ),
-                    Text('${post['comments'] ?? 0}', style: TextStyle(color: Colors.grey)),
+                    Text(
+                      '${post['comments'] ?? 0}',
+                      style: TextStyle(color: CupertinoColors.systemGrey),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: Color(0xFFFF444F)),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        onTap: () {
-          setState(() => _showDrawer = false);
-          onTap();
-        },
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -1127,4 +1163,23 @@ class _HomeScreenState extends State<HomeScreen> {
       return 'N/A';
     }
   }
+}
+
+// Painter para criar padrão no cartão
+class CardPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.03)
+      ..style = PaintingStyle.fill;
+
+    for (double i = -50; i < size.width; i += 30) {
+      for (double j = -50; j < size.height; j += 30) {
+        canvas.drawCircle(Offset(i, j), 1.5, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
