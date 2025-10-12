@@ -19,7 +19,7 @@ class _NewsScreenState extends State<NewsScreen> {
   bool isLoading = true;
   bool hasSheets = false;
   String selectedCategory = 'all';
-  
+
   final List<Map<String, String>> categories = [
     {'id': 'all', 'name': 'Todas'},
     {'id': 'business', 'name': 'Negócios'},
@@ -38,12 +38,12 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<void> loadAllContent() async {
     setState(() => isLoading = true);
-    
+
     await Future.wait([
       loadAllNews(),
       loadSheets(),
     ]);
-    
+
     setState(() => isLoading = false);
   }
 
@@ -52,13 +52,13 @@ class _NewsScreenState extends State<NewsScreen> {
       final response = await http.get(
         Uri.parse('https://alfredoooh.github.io/database/data/SHEETS/sheets.json'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final sheetsList = (data['sheets'] as List)
             .map((sheet) => SheetStory.fromJson(sheet))
             .toList();
-        
+
         setState(() {
           sheets = sheetsList;
           hasSheets = sheets.isNotEmpty;
@@ -72,22 +72,22 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<void> loadAllNews() async {
     List<NewsArticle> newsFromSources = [];
-    
+
     newsFromSources.addAll(await loadCustomNews());
     newsFromSources.addAll(await fetchNewsFromNewsdata());
     newsFromSources.addAll(await fetchNewsFromNewsApi());
     newsFromSources.addAll(await fetchNewsFromGNews());
-    
+
     final uniqueNews = <String, NewsArticle>{};
     for (var article in newsFromSources) {
       if (!uniqueNews.containsKey(article.title)) {
         uniqueNews[article.title] = article;
       }
     }
-    
+
     final sortedNews = uniqueNews.values.toList()
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    
+
     setState(() {
       allNews = sortedNews;
       filterNewsByCategory();
@@ -99,7 +99,7 @@ class _NewsScreenState extends State<NewsScreen> {
       final response = await http.get(
         Uri.parse('https://alfredoooh.github.io/database/data/News/news.json'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return (data['articles'] as List)
@@ -117,7 +117,7 @@ class _NewsScreenState extends State<NewsScreen> {
       final response = await http.get(
         Uri.parse('https://newsdata.io/api/1/news?apikey=pub_7d7d1ac2f86b4bc6b4662fd5d6dad47c&language=pt&country=br'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['results'] as List? ?? [];
@@ -134,7 +134,7 @@ class _NewsScreenState extends State<NewsScreen> {
       final response = await http.get(
         Uri.parse('https://newsapi.org/v2/top-headlines?apiKey=b2e4d59068e545abbdffaf947c371bcd&country=br'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['articles'] as List? ?? [];
@@ -151,7 +151,7 @@ class _NewsScreenState extends State<NewsScreen> {
       final response = await http.get(
         Uri.parse('https://gnews.io/api/v4/top-headlines?token=5a3e9cdd12d67717cfb6643d25ebaeb5&lang=pt&country=br'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['articles'] as List? ?? [];
@@ -176,7 +176,7 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
       navigationBar: CupertinoNavigationBar(
@@ -277,7 +277,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   },
                 ),
               ),
-            
+
             // Categorias iOS Style
             Container(
               height: 50,
@@ -289,7 +289,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 itemBuilder: (context, index) {
                   final category = categories[index];
                   final isSelected = selectedCategory == category['id'];
-                  
+
                   return Padding(
                     padding: EdgeInsets.only(right: 8),
                     child: GestureDetector(
@@ -325,7 +325,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 },
               ),
             ),
-            
+
             // Lista de Notícias
             Expanded(
               child: isLoading
@@ -606,11 +606,6 @@ class _NewsScreenState extends State<NewsScreen> {
           allArticles: filteredNews,
           currentIndex: articleIndex,
         ),
-      ),
-    );
-  }ator: true).push(
-      CupertinoPageRoute(
-        builder: (context) => NewsDetailScreen(article: article),
       ),
     );
   }
