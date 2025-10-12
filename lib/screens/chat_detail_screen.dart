@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -34,7 +36,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _initializeChat() async {
     await _loadUserData();
     await _initConversation();
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -42,7 +46,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (user != null) {
       try {
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (doc.exists) {
+        if (doc.exists && mounted) {
           setState(() => _userData = doc.data());
         }
       } catch (e) {
@@ -56,7 +60,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (currentUser == null) return;
 
     try {
-      // Verificar se o destinatário existe
       final recipientDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.recipientId)
@@ -64,18 +67,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       if (!recipientDoc.exists) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Usuário não encontrado'),
-              backgroundColor: Colors.red,
-            ),
-          );
           Navigator.pop(context);
         }
         return;
       }
 
-      // Buscar conversa existente
       final conversationQuery = await FirebaseFirestore.instance
           .collection('conversations')
           .where('participants', arrayContains: currentUser.uid)
@@ -84,13 +80,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       for (var doc in conversationQuery.docs) {
         final participants = List<String>.from(doc.data()['participants']);
         if (participants.contains(widget.recipientId) && participants.length == 2) {
-          setState(() => _conversationId = doc.id);
+          if (mounted) {
+            setState(() => _conversationId = doc.id);
+          }
           _markAsRead();
           return;
         }
       }
 
-      // Criar nova conversa
       final newConv = await FirebaseFirestore.instance.collection('conversations').add({
         'participants': [currentUser.uid, widget.recipientId],
         'lastMessage': '',
@@ -100,17 +97,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      setState(() => _conversationId = newConv.id);
+      if (mounted) {
+        setState(() => _conversationId = newConv.id);
+      }
     } catch (e) {
       print('Erro ao inicializar conversa: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao abrir conversa'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
@@ -137,21 +128,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
-    // Verificar tokens
     if (_userData?['pro'] != true) {
       if ((_userData?['tokens'] ?? 0) <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tokens insuficientes'), backgroundColor: Colors.red),
-        );
+        _showToast('Tokens insuficientes');
         return;
       }
 
       try {
-        // Diminuir token
         await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
           'tokens': FieldValue.increment(-1),
         });
-        // Atualizar localmente
         if (_userData != null) {
           _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
         }
@@ -187,9 +173,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       _scrollToBottom();
     } catch (e) {
       print('Erro ao enviar mensagem: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao enviar mensagem'), backgroundColor: Colors.red),
-      );
+      _showToast('Erro ao enviar mensagem');
     }
   }
 
@@ -234,43 +218,66 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
+  void _showToast(String message) {
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Center(
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: 40),
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: BoxDecoration(
+            color: CupertinoColors.systemGrey.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            message,
+            style: TextStyle(
+              color: CupertinoColors.white,
+              fontSize: 15,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+    Future.delayed(Duration(seconds: 2), () {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    });
+  }
+
   Future<void> _editMessage(String messageId, String currentText, DateTime timestamp) async {
     final now = DateTime.now();
     final diff = now.difference(timestamp);
 
     if (diff.inMinutes > 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não é possível editar após 5 minutos'), backgroundColor: Colors.red),
-      );
+      _showToast('Não é possível editar após 5 minutos');
       return;
     }
 
     final controller = TextEditingController(text: currentText);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showDialog(
+    showCupertinoDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        title: Text('Editar Mensagem', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          decoration: InputDecoration(
-            hintText: 'Digite a nova mensagem',
-            hintStyle: TextStyle(color: Colors.grey),
-            filled: true,
-            fillColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Editar Mensagem'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 16),
+          child: CupertinoTextField(
+            controller: controller,
+            maxLines: 3,
+            placeholder: 'Digite a nova mensagem',
+            style: TextStyle(fontSize: 15),
+            padding: EdgeInsets.all(12),
           ),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text('Cancelar'),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () async {
               if (controller.text.trim().isNotEmpty) {
                 try {
@@ -289,11 +296,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 }
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFFFF444F),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text('Salvar', style: TextStyle(color: Colors.white)),
+            child: Text('Salvar'),
           ),
         ],
       ),
@@ -301,23 +304,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Future<void> _deleteMessage(String messageId) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
+    showCupertinoDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        title: Text('Excluir Mensagem', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-        content: Text(
-          'Tem certeza que deseja excluir esta mensagem?',
-          style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
-        ),
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Excluir Mensagem'),
+        content: Text('Tem certeza que deseja excluir esta mensagem?'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text('Cancelar'),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () async {
               try {
                 await FirebaseFirestore.instance
@@ -331,11 +329,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 print('Erro ao excluir mensagem: $e');
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text('Excluir', style: TextStyle(color: Colors.white)),
+            child: Text('Excluir'),
           ),
         ],
       ),
@@ -343,65 +337,68 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _showMessageOptions(String messageId, String messageText, DateTime timestamp, bool isMe) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
+    showCupertinoModalPopup(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) => CupertinoActionSheet(
+        title: Text('Opções da Mensagem'),
+        actions: [
+          if (isMe) ...[
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                _editMessage(messageId, messageText, timestamp);
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.pencil, color: Color(0xFFFF444F)),
+                  SizedBox(width: 8),
+                  Text('Editar', style: TextStyle(color: Color(0xFFFF444F))),
+                ],
               ),
             ),
-            SizedBox(height: 24),
-            if (isMe) ...[
-              ListTile(
-                leading: Icon(Icons.edit_rounded, color: Color(0xFFFF444F)),
-                title: Text('Editar', style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _editMessage(messageId, messageText, timestamp);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.delete_rounded, color: Colors.red),
-                title: Text('Excluir', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteMessage(messageId);
-                },
-              ),
-            ],
-            ListTile(
-              leading: Icon(Icons.copy_rounded, color: Color(0xFFFF444F)),
-              title: Text('Copiar', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                // Implementar copiar para clipboard
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
                 Navigator.pop(context);
+                _deleteMessage(messageId);
               },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.delete),
+                  SizedBox(width: 8),
+                  Text('Excluir'),
+                ],
+              ),
             ),
           ],
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: messageText));
+              Navigator.pop(context);
+              _showToast('Mensagem copiada');
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.doc_on_clipboard, color: Color(0xFFFF444F)),
+                SizedBox(width: 8),
+                Text('Copiar', style: TextStyle(color: Color(0xFFFF444F))),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          isDefaultAction: true,
+          child: Text('Cancelar'),
         ),
       ),
     );
   }
 
-  Widget _buildMessageText(String text, bool isMe) {
+  Widget _buildMessageText(String text, bool isMe, bool isDark) {
     final urlPattern = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
     List<InlineSpan> spans = [];
 
@@ -423,9 +420,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               child: Text(
                 word + ' ',
                 style: TextStyle(
-                  color: isMe ? Colors.white : Colors.blue,
+                  color: isMe ? CupertinoColors.white : CupertinoColors.activeBlue,
                   decoration: TextDecoration.underline,
-                  fontSize: 15,
+                  fontSize: 16,
                 ),
               ),
             ),
@@ -437,8 +434,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             text: word.substring(1, word.length - 1) + ' ',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isMe ? Colors.white : Colors.black87,
-              fontSize: 15,
+              color: isMe ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
+              fontSize: 16,
             ),
           ),
         );
@@ -448,8 +445,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             text: word.substring(1, word.length - 1) + ' ',
             style: TextStyle(
               fontStyle: FontStyle.italic,
-              color: isMe ? Colors.white : Colors.black87,
-              fontSize: 15,
+              color: isMe ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
+              fontSize: 16,
             ),
           ),
         );
@@ -458,8 +455,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           TextSpan(
             text: word + ' ',
             style: TextStyle(
-              color: isMe ? Colors.white : Colors.black87,
-              fontSize: 15,
+              color: isMe ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
+              fontSize: 16,
             ),
           ),
         );
@@ -471,80 +468,115 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF444F))),
+      return CupertinoPageScaffold(
+        backgroundColor: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGroupedBackground,
+        child: Center(
+          child: CupertinoActivityIndicator(radius: 15),
+        ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_rounded, color: isDark ? Colors.white : Colors.black87),
-          onPressed: () => Navigator.pop(context),
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGroupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5,
+            width: 0.5,
+          ),
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: Color(0xFFFF444F),
-              backgroundImage: widget.recipientImage.isNotEmpty ? NetworkImage(widget.recipientImage) : null,
-              child: widget.recipientImage.isEmpty
-                  ? Text(
-                      widget.recipientName[0].toUpperCase(),
-                      style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                    )
-                  : null,
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.recipientName,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance.collection('users').doc(widget.recipientId).snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return SizedBox.shrink();
-                      final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                      final isOnline = userData?['isOnline'] == true;
-                      return Text(
-                        isOnline ? 'Online' : 'Offline',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isOnline ? Colors.green : Colors.grey,
-                        ),
-                      );
-                    },
-                  ),
-                ],
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(CupertinoIcons.back, color: Color(0xFFFF444F)),
+              SizedBox(width: 4),
+              Text(
+                'Voltar',
+                style: TextStyle(
+                  color: Color(0xFFFF444F),
+                  fontSize: 17,
+                ),
               ),
+            ],
+          ),
+        ),
+        middle: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFFF444F),
+              ),
+              child: widget.recipientImage.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
+                        widget.recipientImage,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        widget.recipientName[0].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: CupertinoColors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+            ),
+            SizedBox(width: 8),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.recipientName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(widget.recipientId).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return SizedBox.shrink();
+                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                    final isOnline = userData?['isOnline'] == true;
+                    return Text(
+                      isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
       ),
-      body: _conversationId == null
-          ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
+      child: _conversationId == null
+          ? Center(child: CupertinoActivityIndicator(radius: 15))
           : Container(
               decoration: BoxDecoration(
                 image: DecorationImage(
                   image: NetworkImage('https://alfredoooh.github.io/database/gallery/image_background.jpg'),
                   fit: BoxFit.cover,
-                  opacity: isDark ? 0.05 : 0.03,
+                  opacity: isDark ? 0.03 : 0.02,
                 ),
               ),
               child: Column(
@@ -559,7 +591,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
+                          return Center(
+                            child: CupertinoActivityIndicator(radius: 15),
+                          );
                         }
 
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -567,16 +601,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.chat_bubble_outline_rounded, size: 80, color: Colors.grey),
+                                Icon(
+                                  CupertinoIcons.chat_bubble_2,
+                                  size: 80,
+                                  color: CupertinoColors.systemGrey,
+                                ),
                                 SizedBox(height: 16),
                                 Text(
                                   'Nenhuma mensagem ainda',
-                                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                                  style: TextStyle(
+                                    color: CupertinoColors.systemGrey,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Envie a primeira mensagem!',
-                                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                                  style: TextStyle(
+                                    color: CupertinoColors.systemGrey,
+                                    fontSize: 15,
+                                  ),
                                 ),
                               ],
                             ),
@@ -588,7 +633,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         return ListView.builder(
                           controller: _scrollController,
                           reverse: true,
-                          padding: EdgeInsets.all(16),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           itemCount: messages.length,
                           itemBuilder: (context, index) {
                             final messageDoc = messages[index];
@@ -604,46 +649,51 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
                             return GestureDetector(
                               onLongPress: () {
+                                HapticFeedback.mediumImpact();
                                 _showMessageOptions(messageDoc.id, message['text'], timestamp.toDate(), isMe);
                               },
                               child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 4),
+                                padding: EdgeInsets.symmetric(vertical: 3),
                                 child: Row(
                                   mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    if (!isMe) SizedBox(width: 8),
+                                    if (!isMe) SizedBox(width: 4),
                                     Flexible(
                                       child: Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                         decoration: BoxDecoration(
-                                          color: isMe ? Color(0xFFFF444F) : (isDark ? Color(0xFF1A1A1A) : Colors.white),
+                                          color: isMe 
+                                              ? Color(0xFFFF444F) 
+                                              : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
                                           borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(18),
-                                            topRight: Radius.circular(18),
-                                            bottomLeft: isMe ? Radius.circular(18) : Radius.circular(4),
-                                            bottomRight: isMe ? Radius.circular(4) : Radius.circular(18),
+                                            topLeft: Radius.circular(20),
+                                            topRight: Radius.circular(20),
+                                            bottomLeft: isMe ? Radius.circular(20) : Radius.circular(4),
+                                            bottomRight: isMe ? Radius.circular(4) : Radius.circular(20),
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.05),
-                                              blurRadius: 5,
-                                              offset: Offset(0, 2),
+                                              color: CupertinoColors.black.withOpacity(0.08),
+                                              blurRadius: 4,
+                                              offset: Offset(0, 1),
                                             ),
                                           ],
                                         ),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            _buildMessageText(message['text'] ?? '', isMe),
+                                            _buildMessageText(message['text'] ?? '', isMe, isDark),
                                             if (isEdited)
                                               Padding(
                                                 padding: EdgeInsets.only(top: 4),
                                                 child: Text(
                                                   'editado',
                                                   style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: isMe ? Colors.white70 : Colors.grey,
+                                                    fontSize: 11,
+                                                    color: isMe 
+                                                        ? CupertinoColors.white.withOpacity(0.7) 
+                                                        : CupertinoColors.systemGrey,
                                                     fontStyle: FontStyle.italic,
                                                   ),
                                                 ),
@@ -655,16 +705,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
                                                     Icon(
-                                                      isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                                      isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
                                                       size: 14,
-                                                      color: isMe ? Colors.white : Colors.red,
+                                                      color: isMe ? CupertinoColors.white : CupertinoColors.systemRed,
                                                     ),
                                                     SizedBox(width: 4),
                                                     Text(
                                                       '$likes',
                                                       style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                                                        fontSize: 13,
+                                                        color: isMe 
+                                                            ? CupertinoColors.white 
+                                                            : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                                                        fontWeight: FontWeight.w500,
                                                       ),
                                                     ),
                                                   ],
@@ -676,13 +729,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                     ),
                                     SizedBox(width: 8),
                                     GestureDetector(
-                                      onTap: () => _likeMessage(messageDoc.id, likedBy),
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        _likeMessage(messageDoc.id, likedBy);
+                                      },
                                       child: Icon(
-                                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                        isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
                                         size: 20,
-                                        color: isLiked ? Colors.red : Colors.grey,
+                                        color: isLiked ? CupertinoColors.systemRed : CupertinoColors.systemGrey,
                                       ),
                                     ),
+                                    if (isMe) SizedBox(width: 4),
                                   ],
                                 ),
                               ),
@@ -693,49 +750,62 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                   ),
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: Offset(0, -2),
+                      color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+                      border: Border(
+                        top: BorderSide(
+                          color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5,
+                          width: 0.5,
                         ),
-                      ],
+                      ),
                     ),
                     child: SafeArea(
                       child: Row(
                         children: [
                           Expanded(
                             child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-                                borderRadius: BorderRadius.circular(24),
+                                color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              child: TextField(
+                              child: CupertinoTextField(
                                 controller: _controller,
-                                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                maxLines: null,
-                                decoration: InputDecoration(
-                                  hintText: 'Mensagem',
-                                  hintStyle: TextStyle(color: Colors.grey),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                style: TextStyle(
+                                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                  fontSize: 16,
                                 ),
+                                maxLines: null,
+                                placeholder: 'Mensagem',
+                                placeholderStyle: TextStyle(
+                                  color: CupertinoColors.systemGrey,
+                                  fontSize: 16,
+                                ),
+                                decoration: BoxDecoration(),
+                                padding: EdgeInsets.zero,
                                 onSubmitted: (_) => _sendMessage(),
                               ),
                             ),
                           ),
-                          SizedBox(width: 12),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFF444F),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: Icon(Icons.send_rounded, color: Colors.white, size: 22),
-                              onPressed: _sendMessage,
+                          SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              _sendMessage();
+                            },
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFFF444F),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                CupertinoIcons.arrow_up,
+                                color: CupertinoColors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ],
