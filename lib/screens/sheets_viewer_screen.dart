@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'models/sheet_story.dart';
+import '../models/sheet_story.dart';
 
 class SheetsViewerScreen extends StatefulWidget {
   final List<SheetStory> sheets;
