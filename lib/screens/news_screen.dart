@@ -4,8 +4,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'news_detail_screen.dart';
 import 'sheets_viewer_screen.dart';
-import 'models/news_article.dart';
-import 'models/sheet_story.dart';
+import '../models/news_article.dart';
+import '../models/sheet_story.dart';
 
 class NewsScreen extends StatefulWidget {
   @override
