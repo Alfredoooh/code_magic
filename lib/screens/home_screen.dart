@@ -33,6 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingNews = true;
   bool _showNews = true;
   Map<int, Color> _newsColors = {};
+  String _cardStyle = 'modern'; // modern, gradient, minimal, glass
+  int _messageCount = 0;
+  int _groupCount = 0;
 
   @override
   void initState() {
@@ -40,6 +43,42 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserData();
     _setUserOnline(true);
     _loadNews();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Carregar contagem de mensagens
+    final convSnapshot = await FirebaseFirestore.instance
+        .collection('conversations')
+        .where('participants', arrayContains: user.uid)
+        .get();
+    
+    int totalMessages = 0;
+    for (var conv in convSnapshot.docs) {
+      final messagesSnapshot = await FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(conv.id)
+          .collection('messages')
+          .where('senderId', isEqualTo: user.uid)
+          .get();
+      totalMessages += messagesSnapshot.docs.length;
+    }
+
+    // Carregar contagem de grupos
+    final groupSnapshot = await FirebaseFirestore.instance
+        .collection('groups')
+        .where('members', arrayContains: user.uid)
+        .get();
+
+    if (mounted) {
+      setState(() {
+        _messageCount = totalMessages;
+        _groupCount = groupSnapshot.docs.length;
+      });
+    }
   }
 
   Future<void> _loadNews() async {
@@ -51,23 +90,29 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['results'] as List? ?? [];
-        
+
         List<NewsArticle> articles = [];
         for (var article in results.take(10)) {
           articles.add(NewsArticle.fromNewsdata(article));
         }
 
-        setState(() {
-          _newsArticles = articles;
-          _loadingNews = false;
-        });
+        if (mounted) {
+          setState(() {
+            _newsArticles = articles;
+            _loadingNews = false;
+          });
+        }
 
         _extractColors();
       } else {
-        setState(() => _loadingNews = false);
+        if (mounted) {
+          setState(() => _loadingNews = false);
+        }
       }
     } catch (e) {
-      setState(() => _loadingNews = false);
+      if (mounted) {
+        setState(() => _loadingNews = false);
+      }
     }
   }
 
@@ -79,16 +124,20 @@ class _HomeScreenState extends State<HomeScreen> {
             NetworkImage(_newsArticles[i].imageUrl),
             maximumColorCount: 10,
           );
-          
-          setState(() {
-            _newsColors[i] = paletteGenerator.dominantColor?.color ?? 
-                            paletteGenerator.vibrantColor?.color ?? 
-                            Color(0xFFFF444F);
-          });
+
+          if (mounted) {
+            setState(() {
+              _newsColors[i] = paletteGenerator.dominantColor?.color ?? 
+                              paletteGenerator.vibrantColor?.color ?? 
+                              Color(0xFFFF444F);
+            });
+          }
         } catch (e) {
-          setState(() {
-            _newsColors[i] = Color(0xFFFF444F);
-          });
+          if (mounted) {
+            setState(() {
+              _newsColors[i] = Color(0xFFFF444F);
+            });
+          }
         }
       }
     }
@@ -110,18 +159,513 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        setState(() {
-          _userData = doc.data();
-          _showNews = _userData?['showNews'] ?? true;
-        });
-      }
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+        if (doc.exists && mounted) {
+          setState(() {
+            _userData = doc.data();
+            _showNews = _userData?['showNews'] ?? true;
+            _cardStyle = _userData?['cardStyle'] ?? 'modern';
+          });
+        }
+      });
     }
   }
 
+  void _showCardStylePicker() {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: 400,
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: 16),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemGrey,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Escolha o Estilo do Cartão',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+            ),
+            SizedBox(height: 20),
+            Expanded(
+              child: GridView.count(
+                padding: EdgeInsets.all(16),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                children: [
+                  _buildStyleOption('modern', 'Moderno', CupertinoIcons.creditcard_fill),
+                  _buildStyleOption('gradient', 'Gradiente', CupertinoIcons.color_filter),
+                  _buildStyleOption('minimal', 'Minimalista', CupertinoIcons.rectangle),
+                  _buildStyleOption('glass', 'Vidro', CupertinoIcons.sparkles),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStyleOption(String style, String name, IconData icon) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final isSelected = _cardStyle == style;
+
+    return GestureDetector(
+      onTap: () async {
+        setState(() => _cardStyle = style);
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({'cardStyle': style});
+        }
+        Navigator.pop(context);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? Color(0xFFFF444F).withOpacity(0.2)
+              : (isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Color(0xFFFF444F) : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: isSelected ? Color(0xFFFF444F) : CupertinoColors.systemGrey,
+            ),
+            SizedBox(height: 12),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected 
+                    ? Color(0xFFFF444F) 
+                    : (isDark ? CupertinoColors.white : CupertinoColors.black),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletCard() {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    switch (_cardStyle) {
+      case 'gradient':
+        return _buildGradientCard(isDark);
+      case 'minimal':
+        return _buildMinimalCard(isDark);
+      case 'glass':
+        return _buildGlassCard(isDark);
+      default:
+        return _buildModernCard(isDark);
+    }
+  }
+
+  Widget _buildModernCard(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 220,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 25,
+            offset: Offset(0, 15),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1a1a1a), Color(0xFF2d2d2d), Color(0xFF1a1a1a)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: CardPatternPainter(),
+              ),
+            ),
+            Positioned(
+              top: -50,
+              right: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.1),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            _buildCardContent(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGradientCard(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 220,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFFF444F),
+            Color(0xFFFF6B6B),
+            Color(0xFFFF8E53),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFFFF444F).withOpacity(0.5),
+            blurRadius: 25,
+            offset: Offset(0, 15),
+          ),
+        ],
+      ),
+      child: _buildCardContent(),
+    );
+  }
+
+  Widget _buildMinimalCard(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 220,
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tokens',
+                      style: TextStyle(
+                        color: CupertinoColors.systemGrey,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '${_userData?['tokens'] ?? 0}',
+                      style: TextStyle(
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Icon(
+                  CupertinoIcons.creditcard_fill,
+                  color: Color(0xFFFF444F),
+                  size: 32,
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_userData?['pro'] == true)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFF444F),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'PRO',
+                      style: TextStyle(
+                        color: CupertinoColors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                SizedBox(height: 8),
+                Text(
+                  _userData?['username'] ?? 'Utilizador',
+                  style: TextStyle(
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassCard(bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          height: 220,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [
+                      Color(0xFF1A1A1A).withOpacity(0.8),
+                      Color(0xFF2C2C2C).withOpacity(0.6),
+                    ]
+                  : [
+                      CupertinoColors.white.withOpacity(0.8),
+                      CupertinoColors.white.withOpacity(0.6),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark 
+                  ? CupertinoColors.white.withOpacity(0.1)
+                  : CupertinoColors.black.withOpacity(0.1),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: _buildCardContent(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardContent() {
+    return Padding(
+      padding: EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tokens Disponíveis',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(FirebaseAuth.instance.currentUser?.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final tokens = snapshot.data?.data() != null
+                          ? (snapshot.data!.data() as Map<String, dynamic>)['tokens'] ?? 0
+                          : 0;
+                      return Text(
+                        '$tokens',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.3),
+                              offset: Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: _showCardStylePicker,
+                child: Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFF444F),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFFFF444F).withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    CupertinoIcons.paintbrush_fill,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_userData?['pro'] == true)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFF444F),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFFFF444F).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(CupertinoIcons.star_fill, color: Colors.white, size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        'PRO - Tokens Ilimitados',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    'Expira: ${_getExpirationDate()}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              SizedBox(height: 12),
+              Text(
+                _userData?['username'] ?? 'Utilizador',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showUserModal() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
     showCupertinoModalPopup(
       context: context,
@@ -252,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSettingsModal() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
     showCupertinoModalPopup(
       context: context,
@@ -288,10 +832,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 isDark: isDark,
               ),
               _buildCupertinoSettingItem(
-                icon: CupertinoIcons.bell_fill,
-                title: 'Notificações',
-                subtitle: 'Ativadas',
-                onTap: () {},
+                icon: CupertinoIcons.paintbrush_fill,
+                title: 'Estilo do Cartão',
+                subtitle: _getCardStyleName(_cardStyle),
+                onTap: _showCardStylePicker,
                 isDark: isDark,
               ),
               Container(
@@ -451,6 +995,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String _getCardStyleName(String style) {
+    switch (style) {
+      case 'modern':
+        return 'Moderno';
+      case 'gradient':
+        return 'Gradiente';
+      case 'minimal':
+        return 'Minimalista';
+      case 'glass':
+        return 'Vidro';
+      default:
+        return 'Moderno';
+    }
+  }
+
   Widget _buildCupertinoMenuItem({
     required IconData icon,
     required String title,
@@ -514,7 +1073,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
@@ -559,207 +1118,26 @@ class _HomeScreenState extends State<HomeScreen> {
       child: SafeArea(
         child: CustomScrollView(
           slivers: [
+            CupertinoSliverRefreshControl(
+              onRefresh: () async {
+                await _loadUserData();
+                await _loadNews();
+                await _loadStats();
+              },
+            ),
             SliverPadding(
               padding: EdgeInsets.all(16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Card de Carteira Realista
-                  Container(
-                    width: double.infinity,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 25,
-                          offset: Offset(0, 15),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Stack(
-                        children: [
-                          // Fundo com gradiente
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF1a1a1a), Color(0xFF2d2d2d), Color(0xFF1a1a1a)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                          ),
-                          // Padrão de textura
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: CardPatternPainter(),
-                            ),
-                          ),
-                          // Brilho sutil
-                          Positioned(
-                            top: -50,
-                            right: -50,
-                            child: Container(
-                              width: 200,
-                              height: 200,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.white.withOpacity(0.1),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Conteúdo
-                          Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Tokens Disponíveis',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          '${_userData?['tokens'] ?? 0}',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 48,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1,
-                                            shadows: [
-                                              Shadow(
-                                                color: Colors.black.withOpacity(0.3),
-                                                offset: Offset(0, 2),
-                                                blurRadius: 4,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Color(0xFFFF444F),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Color(0xFFFF444F).withOpacity(0.4),
-                                            blurRadius: 12,
-                                            offset: Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        CupertinoIcons.creditcard_fill,
-                                        color: Colors.white,
-                                        size: 28,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (_userData?['pro'] == true)
-                                      Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Color(0xFFFF444F),
-                                          borderRadius: BorderRadius.circular(20),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Color(0xFFFF444F).withOpacity(0.3),
-                                              blurRadius: 8,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(CupertinoIcons.star_fill, color: Colors.white, size: 14),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'PRO - Tokens Ilimitados',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    else
-                                      Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: Colors.white.withOpacity(0.2),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Expira: ${_getExpirationDate()}',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                      ),
-                                    SizedBox(height: 12),
-                                    Text(
-                                      _userData?['username'] ?? 'Utilizador',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildWalletCard(),
                   SizedBox(height: 24),
-                  // Cards de Estatísticas
                   Row(
                     children: [
                       Expanded(
                         child: _buildStatCard(
                           icon: CupertinoIcons.chat_bubble_2_fill,
                           title: 'Mensagens',
-                          value: '0',
+                          value: '$_messageCount',
                           color: CupertinoColors.systemBlue,
                         ),
                       ),
@@ -768,7 +1146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _buildStatCard(
                           icon: CupertinoIcons.group_solid,
                           title: 'Grupos',
-                          value: '0',
+                          value: '$_groupCount',
                           color: CupertinoColors.systemGreen,
                         ),
                       ),
@@ -798,7 +1176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               itemBuilder: (context, index) {
                                 final article = _newsArticles[index];
                                 final cardColor = _newsColors[index] ?? Color(0xFFFF444F);
-                                
+
                                 return GestureDetector(
                                   onTap: () {
                                     Navigator.push(
@@ -995,7 +1373,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String value,
     required Color color,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.all(20),
@@ -1165,7 +1543,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Painter para criar padrão no cartão
 class CardPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
