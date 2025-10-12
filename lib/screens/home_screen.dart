@@ -15,7 +15,8 @@ class HomeScreen extends StatefulWidget {
     required this.onThemeChanged,
     required this.onLocaleChanged,
     required this.currentLocale,
-  });
+    Key? key,
+  }) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -46,12 +47,14 @@ class _HomeScreenState extends State<HomeScreen> {
         final results = data['results'] as List? ?? [];
         setState(() {
           _newsArticles = results.take(10).map((article) => {
-            'title': article['title'] ?? '',
-            'image': article['image_url'] ?? '',
-            'source': article['source_id'] ?? '',
-          }).toList();
+                'title': article['title'] ?? '',
+                'image': article['image_url'] ?? '',
+                'source': article['source_id'] ?? '',
+              }).toList();
           _loadingNews = false;
         });
+      } else {
+        setState(() => _loadingNews = false);
       }
     } catch (e) {
       setState(() => _loadingNews = false);
@@ -64,17 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _setUserOnline(bool isOnline) async {
+  Future<void> _setUserOnline(bool isOnline) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'isOnline': isOnline});
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'isOnline': isOnline});
     }
   }
 
-  void _loadUserData() async {
+  Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
@@ -191,125 +191,125 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {},
                   ),
                   SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Últimas Notícias',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Ver Todas',
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Últimas Notícias',
                         style: TextStyle(
-                          color: Color(0xFFFF444F),
-                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                _loadingNews
-                    ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
-                    : Container(
-                        height: 160,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _newsArticles.length,
-                          itemBuilder: (context, index) {
-                            final article = _newsArticles[index];
-                            return Container(
-                              width: 280,
-                              margin: EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 8,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(16),
-                                      bottomLeft: Radius.circular(16),
+                      TextButton(
+                        onPressed: () {},
+                        child: Text(
+                          'Ver Todas',
+                          style: TextStyle(
+                            color: Color(0xFFFF444F),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  _loadingNews
+                      ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
+                      : Container(
+                          height: 160,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _newsArticles.length,
+                            itemBuilder: (context, index) {
+                              final article = _newsArticles[index];
+                              return Container(
+                                width: 280,
+                                margin: EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 3),
                                     ),
-                                    child: article['image'].isNotEmpty
-                                        ? Image.network(
-                                            article['image'],
-                                            width: 100,
-                                            height: 160,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stack) => Container(
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(16),
+                                        bottomLeft: Radius.circular(16),
+                                      ),
+                                      child: article['image'].isNotEmpty
+                                          ? Image.network(
+                                              article['image'],
+                                              width: 100,
+                                              height: 160,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stack) => Container(
+                                                width: 100,
+                                                height: 160,
+                                                color: Colors.grey[300],
+                                                child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                              ),
+                                            )
+                                          : Container(
                                               width: 100,
                                               height: 160,
                                               color: Colors.grey[300],
-                                              child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                              child: Icon(Icons.article, color: Colors.grey),
                                             ),
-                                          )
-                                        : Container(
-                                            width: 100,
-                                            height: 160,
-                                            color: Colors.grey[300],
-                                            child: Icon(Icons.article, color: Colors.grey),
-                                          ),
-                                  ),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Color(0xFFFF444F).withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              article['source'].toUpperCase(),
-                                              style: TextStyle(
-                                                color: Color(0xFFFF444F),
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Color(0xFFFF444F).withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                article['source'].toUpperCase(),
+                                                style: TextStyle(
+                                                  color: Color(0xFFFF444F),
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            article['title'],
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark ? Colors.white : Colors.black87,
-                                              height: 1.3,
+                                            SizedBox(height: 8),
+                                            Text(
+                                              article['title'],
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? Colors.white : Colors.black87,
+                                                height: 1.3,
+                                              ),
+                                              maxLines: 4,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            maxLines: 4,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                SizedBox(height: 24),
+                  SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -491,14 +491,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _updateUserTheme(String theme) async {
+  Future<void> _updateUserTheme(String theme) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'theme': theme});
     }
   }
 
-  void _updateUserLanguage(String language) async {
+  Future<void> _updateUserLanguage(String language) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'language': language});
@@ -568,8 +568,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -864,11 +862,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 16),
                 StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('posts')
-                      .orderBy('timestamp', descending: true)
-                      .limit(10)
-                      .snapshots(),
+                  stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).limit(10).snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       return Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)));
