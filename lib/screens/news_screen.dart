@@ -193,7 +193,6 @@ class _NewsScreenState extends State<NewsScreen> {
       child: SafeArea(
         child: Column(
           children: [
-            // Sheets horizontal
             if (hasSheets)
               Container(
                 height: 110,
@@ -277,8 +276,6 @@ class _NewsScreenState extends State<NewsScreen> {
                   },
                 ),
               ),
-
-            // Categorias iOS Style
             Container(
               height: 50,
               color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
@@ -325,8 +322,6 @@ class _NewsScreenState extends State<NewsScreen> {
                 },
               ),
             ),
-
-            // Lista de Notícias
             Expanded(
               child: isLoading
                   ? Center(
