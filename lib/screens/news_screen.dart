@@ -17,6 +17,7 @@ class _NewsScreenState extends State<NewsScreen> {
   List<NewsArticle> filteredNews = [];
   List<SheetStory> sheets = [];
   bool isLoading = true;
+  bool isLoadingSheets = true;
   bool hasSheets = false;
   String selectedCategory = 'all';
 
@@ -37,36 +38,71 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Future<void> loadAllContent() async {
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      isLoadingSheets = true;
+    });
 
     await Future.wait([
-      loadAllNews(),
       loadSheets(),
+      loadAllNews(),
     ]);
 
-    setState(() => isLoading = false);
+    setState(() {
+      isLoading = false;
+      isLoadingSheets = false;
+    });
   }
 
   Future<void> loadSheets() async {
+    print('🔍 Iniciando carregamento de sheets...');
+    
     try {
       final response = await http.get(
         Uri.parse('https://alfredoooh.github.io/database/data/SHEETS/sheets.json'),
-      );
+      ).timeout(Duration(seconds: 10));
+
+      print('📡 Status da resposta dos sheets: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final sheetsList = (data['sheets'] as List)
-            .map((sheet) => SheetStory.fromJson(sheet))
-            .toList();
+        print('📦 Dados recebidos: $data');
+        
+        if (data['sheets'] != null) {
+          final sheetsList = (data['sheets'] as List)
+              .map((sheet) => SheetStory.fromJson(sheet))
+              .toList();
 
+          print('✅ ${sheetsList.length} sheets carregados com sucesso!');
+
+          setState(() {
+            sheets = sheetsList;
+            hasSheets = sheets.isNotEmpty;
+            isLoadingSheets = false;
+          });
+        } else {
+          print('⚠️ Campo "sheets" não encontrado no JSON');
+          setState(() {
+            sheets = [];
+            hasSheets = false;
+            isLoadingSheets = false;
+          });
+        }
+      } else {
+        print('❌ Erro HTTP: ${response.statusCode}');
         setState(() {
-          sheets = sheetsList;
-          hasSheets = sheets.isNotEmpty;
+          sheets = [];
+          hasSheets = false;
+          isLoadingSheets = false;
         });
       }
     } catch (e) {
-      print('Erro ao carregar sheets: $e');
-      setState(() => hasSheets = false);
+      print('❌ Erro ao carregar sheets: $e');
+      setState(() {
+        sheets = [];
+        hasSheets = false;
+        isLoadingSheets = false;
+      });
     }
   }
 
@@ -188,12 +224,19 @@ class _NewsScreenState extends State<NewsScreen> {
             color: isDark ? CupertinoColors.white : CupertinoColors.black,
           ),
         ),
+        trailing: isLoadingSheets
+            ? CupertinoActivityIndicator(radius: 10)
+            : (hasSheets
+                ? Icon(CupertinoIcons.checkmark_circle_fill, 
+                    color: CupertinoColors.systemGreen, size: 20)
+                : null),
         border: null,
       ),
       child: SafeArea(
         child: Column(
           children: [
-            if (hasSheets)
+            // Sheets horizontais
+            if (hasSheets && sheets.isNotEmpty)
               Container(
                 height: 110,
                 color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
@@ -233,12 +276,25 @@ class _NewsScreenState extends State<NewsScreen> {
                                   color: CupertinoColors.white,
                                   width: 3,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0xFFFF444F).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: sheet.imageUrl.isNotEmpty
                                   ? ClipOval(
                                       child: Image.network(
                                         sheet.imageUrl,
                                         fit: BoxFit.cover,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Center(
+                                            child: CupertinoActivityIndicator(radius: 10),
+                                          );
+                                        },
                                         errorBuilder: (context, error, stack) => Container(
                                           color: Color(0xFFFF444F),
                                           child: Icon(
@@ -265,6 +321,7 @@ class _NewsScreenState extends State<NewsScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                                 ),
                               ),
@@ -276,6 +333,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   },
                 ),
               ),
+            // Categorias
             Container(
               height: 50,
               color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
@@ -322,6 +380,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 },
               ),
             ),
+            // Notícias
             Expanded(
               child: isLoading
                   ? Center(
@@ -429,6 +488,7 @@ class _NewsScreenState extends State<NewsScreen> {
               Positioned(
                 top: 16,
                 left: 16,
+                right: 16,
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -442,6 +502,8 @@ class _NewsScreenState extends State<NewsScreen> {
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -451,6 +513,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 right: 20,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       article.title,
@@ -465,20 +528,26 @@ class _NewsScreenState extends State<NewsScreen> {
                     ),
                     SizedBox(height: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(CupertinoIcons.time, color: CupertinoColors.white.withOpacity(0.7), size: 14),
                         SizedBox(width: 4),
-                        Text(
-                          article.timeAgo,
-                          style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12),
+                        Flexible(
+                          child: Text(
+                            article.timeAgo,
+                            style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         SizedBox(width: 12),
                         Icon(CupertinoIcons.doc_text, color: CupertinoColors.white.withOpacity(0.7), size: 14),
                         SizedBox(width: 4),
-                        Expanded(
+                        Flexible(
                           child: Text(
                             article.source,
                             style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -510,83 +579,100 @@ class _NewsScreenState extends State<NewsScreen> {
             ),
           ],
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-              ),
-              child: article.imageUrl.isNotEmpty
-                  ? Image.network(
-                      article.imageUrl,
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) => Container(
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                ),
+                child: article.imageUrl.isNotEmpty
+                    ? Image.network(
+                        article.imageUrl,
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) => Container(
+                          width: 120,
+                          height: 120,
+                          color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
+                          child: Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey),
+                        ),
+                      )
+                    : Container(
                         width: 120,
                         height: 120,
                         color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
-                        child: Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey),
+                        child: Icon(CupertinoIcons.news, color: CupertinoColors.systemGrey),
                       ),
-                    )
-                  : Container(
-                      width: 120,
-                      height: 120,
-                      color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
-                      child: Icon(CupertinoIcons.news, color: CupertinoColors.systemGrey),
-                    ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Color(0xFFFF444F).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Color(0xFFFF444F).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              article.category.toUpperCase(),
+                              style: TextStyle(
+                                color: Color(0xFFFF444F),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            article.title,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                              height: 1.3,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        article.category.toUpperCase(),
-                        style: TextStyle(
-                          color: Color(0xFFFF444F),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      SizedBox(height: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(CupertinoIcons.time, size: 12, color: CupertinoColors.systemGrey),
+                          SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              article.timeAgo,
+                              style: TextStyle(fontSize: 11, color: CupertinoColors.systemGrey),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      article.title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                        height: 1.3,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(CupertinoIcons.time, size: 12, color: CupertinoColors.systemGrey),
-                        SizedBox(width: 4),
-                        Text(
-                          article.timeAgo,
-                          style: TextStyle(fontSize: 11, color: CupertinoColors.systemGrey),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
