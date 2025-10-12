@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'models/news_article.dart';
+import '../models/news_article.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
