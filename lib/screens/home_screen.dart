@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../services/language_service.dart';
 import 'admin_panel_screen.dart';
 
@@ -22,12 +24,38 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _userData;
   bool _showDrawer = false;
+  List<Map<String, dynamic>> _newsArticles = [];
+  bool _loadingNews = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _setUserOnline(true);
+    _loadNews();
+  }
+
+  Future<void> _loadNews() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://newsdata.io/api/1/news?apikey=pub_7d7d1ac2f86b4bc6b4662fd5d6dad47c&language=pt&country=br'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['results'] as List? ?? [];
+        setState(() {
+          _newsArticles = results.take(10).map((article) => {
+            'title': article['title'] ?? '',
+            'image': article['image_url'] ?? '',
+            'source': article['source_id'] ?? '',
+          }).toList();
+          _loadingNews = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _loadingNews = false);
+    }
   }
 
   @override
@@ -163,6 +191,125 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {},
                   ),
                   SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Últimas Notícias',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {},
+                      child: Text(
+                        'Ver Todas',
+                        style: TextStyle(
+                          color: Color(0xFFFF444F),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12),
+                _loadingNews
+                    ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
+                    : Container(
+                        height: 160,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _newsArticles.length,
+                          itemBuilder: (context, index) {
+                            final article = _newsArticles[index];
+                            return Container(
+                              width: 280,
+                              margin: EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(16),
+                                      bottomLeft: Radius.circular(16),
+                                    ),
+                                    child: article['image'].isNotEmpty
+                                        ? Image.network(
+                                            article['image'],
+                                            width: 100,
+                                            height: 160,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stack) => Container(
+                                              width: 100,
+                                              height: 160,
+                                              color: Colors.grey[300],
+                                              child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                            ),
+                                          )
+                                        : Container(
+                                            width: 100,
+                                            height: 160,
+                                            color: Colors.grey[300],
+                                            child: Icon(Icons.article, color: Colors.grey),
+                                          ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Color(0xFFFF444F).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              article['source'].toUpperCase(),
+                                              style: TextStyle(
+                                                color: Color(0xFFFF444F),
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            article['title'],
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                              height: 1.3,
+                                            ),
+                                            maxLines: 4,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -422,6 +569,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -446,9 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.search_rounded, color: isDark ? Colors.white : Colors.black87),
-            onPressed: () {
-              // Search functionality
-            },
+            onPressed: () {},
           ),
           GestureDetector(
             onTap: _showUserModal,
@@ -478,7 +625,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Wallet Card
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.all(24),
@@ -567,7 +713,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 SizedBox(height: 24),
-                // Stats Grid
                 Row(
                   children: [
                     Expanded(
@@ -590,6 +735,125 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Últimas Notícias',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {},
+                      child: Text(
+                        'Ver Todas',
+                        style: TextStyle(
+                          color: Color(0xFFFF444F),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12),
+                _loadingNews
+                    ? Center(child: CircularProgressIndicator(color: Color(0xFFFF444F)))
+                    : Container(
+                        height: 160,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _newsArticles.length,
+                          itemBuilder: (context, index) {
+                            final article = _newsArticles[index];
+                            return Container(
+                              width: 280,
+                              margin: EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(16),
+                                      bottomLeft: Radius.circular(16),
+                                    ),
+                                    child: article['image'].isNotEmpty
+                                        ? Image.network(
+                                            article['image'],
+                                            width: 100,
+                                            height: 160,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stack) => Container(
+                                              width: 100,
+                                              height: 160,
+                                              color: Colors.grey[300],
+                                              child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                            ),
+                                          )
+                                        : Container(
+                                            width: 100,
+                                            height: 160,
+                                            color: Colors.grey[300],
+                                            child: Icon(Icons.article, color: Colors.grey),
+                                          ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Color(0xFFFF444F).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              article['source'].toUpperCase(),
+                                              style: TextStyle(
+                                                color: Color(0xFFFF444F),
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            article['title'],
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                              height: 1.3,
+                                            ),
+                                            maxLines: 4,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                SizedBox(height: 24),
                 Text(
                   'Publicações Recentes',
                   style: TextStyle(
@@ -599,7 +863,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 SizedBox(height: 16),
-                // Posts Stream
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('posts')
@@ -645,7 +908,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          // Custom Drawer
           if (_showDrawer)
             GestureDetector(
               onTap: () => setState(() => _showDrawer = false),
