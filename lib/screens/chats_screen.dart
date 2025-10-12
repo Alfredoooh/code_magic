@@ -515,9 +515,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
               ),
             ),
             Expanded(
-              child: _selectedTab == 0
-                  ? _buildConversationsList(currentUser!, isDark)
-                  : _buildGroupsList(currentUser, isDark),
+              child: currentUser == null
+                  ? Center(child: CupertinoActivityIndicator(radius: 15))
+                  : (_selectedTab == 0
+                      ? _buildConversationsList(currentUser, isDark)
+                      : _buildGroupsList(currentUser, isDark)),
             ),
           ],
         ),
