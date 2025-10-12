@@ -1,164 +1,166 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'news_detail_screen.dart';
+import 'sheets_viewer_screen.dart';
+import 'models/news_article.dart';
+import 'models/sheet_story.dart';
 
 class NewsScreen extends StatefulWidget {
   @override
   _NewsScreenState createState() => _NewsScreenState();
 }
 
-class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _NewsScreenState extends State<NewsScreen> {
   List<NewsArticle> allNews = [];
   List<NewsArticle> filteredNews = [];
+  List<SheetStory> sheets = [];
   bool isLoading = true;
+  bool hasSheets = false;
   String selectedCategory = 'all';
-  List<ApiConfig> apiConfigs = [];
   
-  final List<String> categories = [
-    'all',
-    'business',
-    'technology',
-    'sports',
-    'entertainment',
-    'health',
-    'science',
+  final List<Map<String, String>> categories = [
+    {'id': 'all', 'name': 'Todas'},
+    {'id': 'business', 'name': 'Negócios'},
+    {'id': 'technology', 'name': 'Tecnologia'},
+    {'id': 'sports', 'name': 'Esportes'},
+    {'id': 'entertainment', 'name': 'Entretenimento'},
+    {'id': 'health', 'name': 'Saúde'},
+    {'id': 'science', 'name': 'Ciência'},
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: categories.length, vsync: this);
-    _tabController.addListener(_onTabChanged);
-    loadApiConfigs();
+    loadAllContent();
   }
 
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) {
-      setState(() {
-        selectedCategory = categories[_tabController.index];
-        filterNewsByCategory();
-      });
-    }
+  Future<void> loadAllContent() async {
+    setState(() => isLoading = true);
+    
+    await Future.wait([
+      loadAllNews(),
+      loadSheets(),
+    ]);
+    
+    setState(() => isLoading = false);
   }
 
-  Future<void> loadApiConfigs() async {
+  Future<void> loadSheets() async {
     try {
       final response = await http.get(
-        Uri.parse('https://alfredoooh.github.io/database/data/API/apis.json'),
+        Uri.parse('https://alfredoooh.github.io/database/data/SHEETS/sheets.json'),
       );
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        apiConfigs = (data['apis'] as List)
-            .map((api) => ApiConfig.fromJson(api))
+        final sheetsList = (data['sheets'] as List)
+            .map((sheet) => SheetStory.fromJson(sheet))
             .toList();
+        
+        setState(() {
+          sheets = sheetsList;
+          hasSheets = sheets.isNotEmpty;
+        });
       }
     } catch (e) {
-      print('Erro ao carregar APIs: $e');
+      print('Erro ao carregar sheets: $e');
+      setState(() => hasSheets = false);
     }
-    
-    await loadAllNews();
   }
 
   Future<void> loadAllNews() async {
-    setState(() => isLoading = true);
-    
     List<NewsArticle> newsFromSources = [];
     
-    // Carregar notícias personalizadas
     newsFromSources.addAll(await loadCustomNews());
+    newsFromSources.addAll(await fetchNewsFromNewsdata());
+    newsFromSources.addAll(await fetchNewsFromNewsApi());
+    newsFromSources.addAll(await fetchNewsFromGNews());
     
-    // Carregar notícias das APIs
-    for (var apiConfig in apiConfigs) {
-      if (apiConfig.enabled) {
-        newsFromSources.addAll(await fetchNewsFromApi(apiConfig));
+    final uniqueNews = <String, NewsArticle>{};
+    for (var article in newsFromSources) {
+      if (!uniqueNews.containsKey(article.title)) {
+        uniqueNews[article.title] = article;
       }
     }
     
-    // Ordenar por data (mais recentes primeiro)
-    newsFromSources.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    final sortedNews = uniqueNews.values.toList()
+      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     
     setState(() {
-      allNews = newsFromSources;
+      allNews = sortedNews;
       filterNewsByCategory();
-      isLoading = false;
     });
   }
 
   Future<List<NewsArticle>> loadCustomNews() async {
-    List<NewsArticle> customNews = [];
-    
-    for (int i = 1; i <= 5; i++) {
-      try {
-        final url = i == 1 
-            ? 'https://alfredoooh.github.io/database/data/News/news.json'
-            : 'https://alfredoooh.github.io/database/data/News/news$i.json';
-            
-        final response = await http.get(Uri.parse(url));
-        
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final articles = (data['articles'] as List)
-              .map((article) => NewsArticle.fromCustomJson(article))
-              .toList();
-          customNews.addAll(articles);
-        }
-      } catch (e) {
-        if (i == 1) print('Erro ao carregar notícias personalizadas: $e');
-        break;
-      }
-    }
-    
-    return customNews;
-  }
-
-  Future<List<NewsArticle>> fetchNewsFromApi(ApiConfig apiConfig) async {
     try {
-      String url = '';
-      
-      if (apiConfig.type == 'newsdata') {
-        url = 'https://newsdata.io/api/1/news?apikey=${apiConfig.key}&language=pt&country=br';
-      } else if (apiConfig.type == 'newsapi') {
-        url = 'https://newsapi.org/v2/top-headlines?apiKey=${apiConfig.key}&country=br';
-      } else if (apiConfig.type == 'gnews') {
-        url = 'https://gnews.io/api/v4/top-headlines?token=${apiConfig.key}&lang=pt&country=br';
-      } else if (apiConfig.type == 'newsmonitor') {
-        url = apiConfig.key;
-      }
-      
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(
+        Uri.parse('https://alfredoooh.github.io/database/data/News/news.json'),
+      );
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return parseNewsFromApi(data, apiConfig.type);
+        return (data['articles'] as List)
+            .map((article) => NewsArticle.fromCustomJson(article))
+            .toList();
       }
     } catch (e) {
-      print('Erro ao buscar notícias de ${apiConfig.name}: $e');
+      print('Erro ao carregar notícias personalizadas: $e');
     }
-    
     return [];
   }
 
-  List<NewsArticle> parseNewsFromApi(Map<String, dynamic> data, String apiType) {
-    List<NewsArticle> articles = [];
-    
+  Future<List<NewsArticle>> fetchNewsFromNewsdata() async {
     try {
-      if (apiType == 'newsdata') {
+      final response = await http.get(
+        Uri.parse('https://newsdata.io/api/1/news?apikey=pub_7d7d1ac2f86b4bc6b4662fd5d6dad47c&language=pt&country=br'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
         final results = data['results'] as List? ?? [];
-        articles = results.map((article) => NewsArticle.fromNewsdata(article)).toList();
-      } else if (apiType == 'newsapi') {
-        final results = data['articles'] as List? ?? [];
-        articles = results.map((article) => NewsArticle.fromNewsApi(article)).toList();
-      } else if (apiType == 'gnews') {
-        final results = data['articles'] as List? ?? [];
-        articles = results.map((article) => NewsArticle.fromGNews(article)).toList();
+        return results.map((article) => NewsArticle.fromNewsdata(article)).toList();
       }
     } catch (e) {
-      print('Erro ao parsear notícias: $e');
+      print('Erro Newsdata: $e');
     }
-    
-    return articles;
+    return [];
+  }
+
+  Future<List<NewsArticle>> fetchNewsFromNewsApi() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://newsapi.org/v2/top-headlines?apiKey=b2e4d59068e545abbdffaf947c371bcd&country=br'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['articles'] as List? ?? [];
+        return results.map((article) => NewsArticle.fromNewsApi(article)).toList();
+      }
+    } catch (e) {
+      print('Erro NewsAPI: $e');
+    }
+    return [];
+  }
+
+  Future<List<NewsArticle>> fetchNewsFromGNews() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://gnews.io/api/v4/top-headlines?token=5a3e9cdd12d67717cfb6643d25ebaeb5&lang=pt&country=br'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['articles'] as List? ?? [];
+        return results.map((article) => NewsArticle.fromGNews(article)).toList();
+      }
+    } catch (e) {
+      print('Erro GNews: $e');
+    }
+    return [];
   }
 
   void filterNewsByCategory() {
@@ -175,103 +177,217 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-              elevation: 0,
-              floating: true,
-              pinned: true,
-              snap: false,
-              expandedHeight: 120,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  'Notícias',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        middle: Text(
+          'Notícias',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+        border: null,
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Sheets horizontal
+            if (hasSheets)
+              Container(
+                height: 110,
+                color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  itemCount: sheets.length,
+                  itemBuilder: (context, index) {
+                    final sheet = sheets[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.of(context, rootNavigator: true).push(
+                          CupertinoPageRoute(
+                            fullscreenDialog: true,
+                            builder: (context) => SheetsViewerScreen(
+                              sheets: sheets,
+                              initialIndex: index,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: EdgeInsets.only(right: 12),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                border: Border.all(
+                                  color: CupertinoColors.white,
+                                  width: 3,
+                                ),
+                              ),
+                              child: sheet.imageUrl.isNotEmpty
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        sheet.imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stack) => Container(
+                                          color: Color(0xFFFF444F),
+                                          child: Icon(
+                                            CupertinoIcons.photo,
+                                            color: CupertinoColors.white,
+                                            size: 30,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Icon(
+                                      CupertinoIcons.photo,
+                                      color: CupertinoColors.white,
+                                      size: 30,
+                                    ),
+                            ),
+                            SizedBox(height: 6),
+                            SizedBox(
+                              width: 70,
+                              child: Text(
+                                sheet.title,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                centerTitle: false,
-                titlePadding: EdgeInsets.only(left: 16, bottom: 16),
               ),
-              actions: [
-                IconButton(
-                  icon: Icon(Icons.refresh_rounded, color: isDark ? Colors.white : Colors.black87),
-                  onPressed: loadAllNews,
-                ),
-                IconButton(
-                  icon: Icon(Icons.search_rounded, color: isDark ? Colors.white : Colors.black87),
-                  onPressed: () => _showSearchDialog(context, isDark),
-                ),
-              ],
-              bottom: PreferredSize(
-                preferredSize: Size.fromHeight(48),
-                child: Container(
-                  color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    indicatorColor: Color(0xFFFF444F),
-                    indicatorWeight: 3,
-                    labelColor: Color(0xFFFF444F),
-                    unselectedLabelColor: Colors.grey,
-                    labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    tabs: [
-                      Tab(text: 'Todas'),
-                      Tab(text: 'Negócios'),
-                      Tab(text: 'Tecnologia'),
-                      Tab(text: 'Esportes'),
-                      Tab(text: 'Entretenimento'),
-                      Tab(text: 'Saúde'),
-                      Tab(text: 'Ciência'),
-                    ],
-                  ),
-                ),
+            
+            // Categorias iOS Style
+            Container(
+              height: 50,
+              color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  final isSelected = selectedCategory == category['id'];
+                  
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedCategory = category['id']!;
+                          filterNewsByCategory();
+                        });
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected 
+                              ? Color(0xFFFF444F) 
+                              : (isDark ? Color(0xFF2C2C2C) : Color(0xFFF0F0F0)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Text(
+                            category['name']!,
+                            style: TextStyle(
+                              color: isSelected 
+                                  ? CupertinoColors.white 
+                                  : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                              fontSize: 14,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ];
-        },
-        body: isLoading
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: Color(0xFFFF444F)),
-                    SizedBox(height: 16),
-                    Text(
-                      'Carregando notícias...',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              )
-            : filteredNews.isEmpty
-                ? _buildEmptyState(isDark)
-                : RefreshIndicator(
-                    color: Color(0xFFFF444F),
-                    onRefresh: loadAllNews,
-                    child: ListView.builder(
-                      padding: EdgeInsets.all(16),
-                      itemCount: filteredNews.length,
-                      itemBuilder: (context, index) {
-                        if (index == 0 && filteredNews.isNotEmpty) {
-                          return _buildFeaturedCard(filteredNews[0], isDark);
-                        }
-                        return _buildNewsCard(filteredNews[index], isDark);
-                      },
-                    ),
-                  ),
+            
+            // Lista de Notícias
+            Expanded(
+              child: isLoading
+                  ? Center(
+                      child: CupertinoActivityIndicator(
+                        radius: 15,
+                        color: Color(0xFFFF444F),
+                      ),
+                    )
+                  : filteredNews.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                CupertinoIcons.news,
+                                size: 80,
+                                color: CupertinoColors.systemGrey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Nenhuma notícia encontrada',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: CupertinoColors.systemGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : CustomScrollView(
+                          slivers: [
+                            CupertinoSliverRefreshControl(
+                              onRefresh: loadAllContent,
+                            ),
+                            SliverPadding(
+                              padding: EdgeInsets.all(16),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    if (index == 0 && filteredNews.isNotEmpty) {
+                                      return _buildFeaturedCard(filteredNews[0], isDark);
+                                    }
+                                    return _buildNewsCard(filteredNews[index], isDark);
+                                  },
+                                  childCount: filteredNews.length,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFeaturedCard(NewsArticle article, bool isDark) {
     return GestureDetector(
-      onTap: () => _showArticleDetail(article, isDark),
+      onTap: () => _openArticleDetail(article),
       child: Container(
         margin: EdgeInsets.only(bottom: 16),
         height: 320,
@@ -279,7 +395,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: CupertinoColors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: Offset(0, 5),
             ),
@@ -295,13 +411,13 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                       article.imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stack) => Container(
-                        color: isDark ? Color(0xFF1A1A1A) : Colors.grey[300],
-                        child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.systemGrey5,
+                        child: Icon(CupertinoIcons.photo, size: 50, color: CupertinoColors.systemGrey),
                       ),
                     )
                   : Container(
-                      color: isDark ? Color(0xFF1A1A1A) : Colors.grey[300],
-                      child: Icon(Icons.article, size: 50, color: Colors.grey),
+                      color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.systemGrey5,
+                      child: Icon(CupertinoIcons.news, size: 50, color: CupertinoColors.systemGrey),
                     ),
               Container(
                 decoration: BoxDecoration(
@@ -309,8 +425,8 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.8),
+                      CupertinoColors.black.withOpacity(0),
+                      CupertinoColors.black.withOpacity(0.8),
                     ],
                   ),
                 ),
@@ -327,7 +443,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                   child: Text(
                     article.category.toUpperCase(),
                     style: TextStyle(
-                      color: Colors.white,
+                      color: CupertinoColors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),
@@ -344,7 +460,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                     Text(
                       article.title,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: CupertinoColors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         height: 1.3,
@@ -355,19 +471,19 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                     SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, color: Colors.white70, size: 14),
+                        Icon(CupertinoIcons.time, color: CupertinoColors.white.withOpacity(0.7), size: 14),
                         SizedBox(width: 4),
                         Text(
                           article.timeAgo,
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                          style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12),
                         ),
                         SizedBox(width: 12),
-                        Icon(Icons.source, color: Colors.white70, size: 14),
+                        Icon(CupertinoIcons.doc_text, color: CupertinoColors.white.withOpacity(0.7), size: 14),
                         SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             article.source,
-                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                            style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -385,15 +501,15 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
 
   Widget _buildNewsCard(NewsArticle article, bool isDark) {
     return GestureDetector(
-      onTap: () => _showArticleDetail(article, isDark),
+      onTap: () => _openArticleDetail(article),
       child: Container(
         margin: EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : Colors.white,
+          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: CupertinoColors.black.withOpacity(0.05),
               blurRadius: 5,
               offset: Offset(0, 2),
             ),
@@ -416,15 +532,15 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                       errorBuilder: (context, error, stack) => Container(
                         width: 120,
                         height: 120,
-                        color: isDark ? Color(0xFF0E0E0E) : Colors.grey[200],
-                        child: Icon(Icons.image_not_supported, color: Colors.grey),
+                        color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
+                        child: Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey),
                       ),
                     )
                   : Container(
                       width: 120,
                       height: 120,
-                      color: isDark ? Color(0xFF0E0E0E) : Colors.grey[200],
-                      child: Icon(Icons.article, color: Colors.grey),
+                      color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
+                      child: Icon(CupertinoIcons.news, color: CupertinoColors.systemGrey),
                     ),
             ),
             Expanded(
@@ -454,7 +570,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
                         height: 1.3,
                       ),
                       maxLines: 3,
@@ -463,11 +579,11 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                     SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 12, color: Colors.grey),
+                        Icon(CupertinoIcons.time, size: 12, color: CupertinoColors.systemGrey),
                         SizedBox(width: 4),
                         Text(
                           article.timeAgo,
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                          style: TextStyle(fontSize: 11, color: CupertinoColors.systemGrey),
                         ),
                       ],
                     ),
@@ -481,292 +597,21 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.newspaper, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Nenhuma notícia encontrada',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Tente outra categoria ou atualize',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSearchDialog(BuildContext context, bool isDark) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-        title: Text('Buscar Notícias', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-        content: TextField(
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          decoration: InputDecoration(
-            hintText: 'Digite sua busca...',
-            hintStyle: TextStyle(color: Colors.grey),
-            prefixIcon: Icon(Icons.search, color: Color(0xFFFF444F)),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Color(0xFFFF444F)),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFFF444F)),
-            child: Text('Buscar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showArticleDetail(NewsArticle article, bool isDark) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-          ),
-          child: ListView(
-            controller: scrollController,
-            padding: EdgeInsets.all(20),
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-              if (article.imageUrl.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    article.imageUrl,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              SizedBox(height: 16),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Color(0xFFFF444F).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  article.category.toUpperCase(),
-                  style: TextStyle(
-                    color: Color(0xFFFF444F),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                article.title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                  height: 1.3,
-                ),
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.source, size: 16, color: Colors.grey),
-                  SizedBox(width: 6),
-                  Text(
-                    article.source,
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  SizedBox(width: 16),
-                  Icon(Icons.access_time, size: 16, color: Colors.grey),
-                  SizedBox(width: 6),
-                  Text(
-                    article.timeAgo,
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-              Text(
-                article.description,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDark ? Colors.white70 : Colors.black87,
-                  height: 1.6,
-                ),
-              ),
-              SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: Icon(Icons.open_in_new),
-                label: Text('Ler Notícia Completa'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFF444F),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
+  void _openArticleDetail(NewsArticle article) {
+    final articleIndex = filteredNews.indexOf(article);
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute(
+        builder: (context) => NewsDetailScreen(
+          article: article,
+          allArticles: filteredNews,
+          currentIndex: articleIndex,
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-}
-
-class NewsArticle {
-  final String title;
-  final String description;
-  final String imageUrl;
-  final String source;
-  final String category;
-  final DateTime publishedAt;
-  final String url;
-
-  NewsArticle({
-    required this.title,
-    required this.description,
-    required this.imageUrl,
-    required this.source,
-    required this.category,
-    required this.publishedAt,
-    required this.url,
-  });
-
-  String get timeAgo {
-    final difference = DateTime.now().difference(publishedAt);
-    if (difference.inDays > 7) {
-      return '${(difference.inDays / 7).floor()}sem atrás';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d atrás';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h atrás';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}min atrás';
-    } else {
-      return 'Agora';
-    }
-  }
-
-  factory NewsArticle.fromCustomJson(Map<String, dynamic> json) {
-    return NewsArticle(
-      title: json['title'] ?? 'Sem título',
-      description: json['description'] ?? 'Sem descrição',
-      imageUrl: json['imageUrl'] ?? '',
-      source: json['source'] ?? 'Desconhecido',
-      category: json['category'] ?? 'all',
-      publishedAt: DateTime.parse(json['publishedAt'] ?? DateTime.now().toIso8601String()),
-      url: json['url'] ?? '',
-    );
-  }
-
-  factory NewsArticle.fromNewsdata(Map<String, dynamic> json) {
-    return NewsArticle(
-      title: json['title'] ?? 'Sem título',
-      description: json['description'] ?? 'Sem descrição',
-      imageUrl: json['image_url'] ?? '',
-      source: json['source_id'] ?? 'Desconhecido',
-      category: (json['category'] != null && json['category'].isNotEmpty) 
-          ? json['category'][0] 
-          : 'all',
-      publishedAt: DateTime.parse(json['pubDate'] ?? DateTime.now().toIso8601String()),
-      url: json['link'] ?? '',
-    );
-  }
-
-  factory NewsArticle.fromNewsApi(Map<String, dynamic> json) {
-    return NewsArticle(
-      title: json['title'] ?? 'Sem título',
-      description: json['description'] ?? 'Sem descrição',
-      imageUrl: json['urlToImage'] ?? '',
-      source: json['source']['name'] ?? 'Desconhecido',
-      category: 'all',
-      publishedAt: DateTime.parse(json['publishedAt'] ?? DateTime.now().toIso8601String()),
-      url: json['url'] ?? '',
-    );
-  }
-
-  factory NewsArticle.fromGNews(Map<String, dynamic> json) {
-    return NewsArticle(
-      title: json['title'] ?? 'Sem título',
-      description: json['description'] ?? 'Sem descrição',
-      imageUrl: json['image'] ?? '',
-      source: json['source']['name'] ?? 'Desconhecido',
-      category: 'all',
-      publishedAt: DateTime.parse(json['publishedAt'] ?? DateTime.now().toIso8601String()),
-      url: json['url'] ?? '',
-    );
-  }
-}
-
-class ApiConfig {
-  final String name;
-  final String type;
-  final String key;
-  final bool enabled;
-
-  ApiConfig({
-    required this.name,
-    required this.type,
-    required this.key,
-    required this.enabled,
-  });
-
-  factory ApiConfig.fromJson(Map<String, dynamic> json) {
-    return ApiConfig(
-      name: json['name'] ?? '',
-      type: json['type'] ?? '',
-      key: json['key'] ?? '',
-      enabled: json['enabled'] ?? true,
+  }ator: true).push(
+      CupertinoPageRoute(
+        builder: (context) => NewsDetailScreen(article: article),
+      ),
     );
   }
 }
