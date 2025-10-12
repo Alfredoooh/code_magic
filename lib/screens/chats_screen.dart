@@ -213,7 +213,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                 ),
               ),
               SizedBox(height: 16),
-              // Search Bar
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
@@ -258,10 +257,8 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                     }
 
                     final allUsers = snapshot.data!.docs.where((doc) {
-                      // Filtrar o usuário atual
                       if (doc.id == currentUser!.uid) return false;
 
-                      // Aplicar busca se houver query
                       if (_searchQuery.isNotEmpty) {
                         final data = doc.data() as Map<String, dynamic>;
                         final username = (data['username'] ?? '').toString().toLowerCase();
