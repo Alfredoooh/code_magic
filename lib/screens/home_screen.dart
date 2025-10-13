@@ -1,3 +1,4 @@
+// lib/screens/home_screen.dart
 import 'dart:async';
 import 'dart:convert';
 
@@ -405,6 +406,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           userData: _userData,
                           cardStyle: _cardStyle,
                           showCustomizeButton: false,
+                          // onStyleChanged is optional now; if you want a callback, pass it here.
                         ),
                         SizedBox(height: 16),
                         _buildActionButton(isDark),
@@ -743,12 +745,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 titlesData: FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
-                  LineBarData(
+                  LineChartBarData(
                     spots: crypto.sparkline.asMap().entries.map((e) {
                       return FlSpot(e.key.toDouble(), e.value);
                     }).toList(),
                     isCurved: true,
-                    color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                    colors: [isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed],
                     barWidth: 2,
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(show: false),
