@@ -1,3 +1,4 @@
+// lib/screens/crypto_list_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
@@ -271,14 +272,14 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                   titlesData: FlTitlesData(show: false),
                   borderData: FlBorderData(show: false),
                   lineBarsData: [
-                    LineBarData(
+                    LineChartBarData(
                       spots: crypto.sparkline.asMap().entries.map((e) {
                         return FlSpot(e.key.toDouble(), e.value);
                       }).toList(),
                       isCurved: true,
-                      color: isPositive
-                          ? CupertinoColors.systemGreen
-                          : CupertinoColors.systemRed,
+                      colors: [
+                        isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed
+                      ],
                       barWidth: 2,
                       dotData: FlDotData(show: false),
                       belowBarData: BarAreaData(show: false),
@@ -459,14 +460,14 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                             titlesData: FlTitlesData(show: false),
                             borderData: FlBorderData(show: false),
                             lineBarsData: [
-                              LineBarData(
+                              LineChartBarData(
                                 spots: crypto.sparkline.asMap().entries.map((e) {
                                   return FlSpot(e.key.toDouble(), e.value);
                                 }).toList(),
                                 isCurved: true,
-                                color: crypto.priceChange >= 0
-                                    ? CupertinoColors.systemGreen
-                                    : CupertinoColors.systemRed,
+                                colors: [
+                                  crypto.priceChange >= 0 ? CupertinoColors.systemGreen : CupertinoColors.systemRed
+                                ],
                                 barWidth: 3,
                                 dotData: FlDotData(show: false),
                                 belowBarData: BarAreaData(
