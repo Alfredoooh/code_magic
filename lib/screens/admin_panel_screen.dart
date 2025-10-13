@@ -348,15 +348,15 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
       final totalPosts = postsSnapshot.docs.length;
       final totalMessages = messagesSnapshot.docs.length;
       final totalTokens = users.fold<int>(
-          0, (sum, u) => sum + ((u['tokens'] ?? 0) is int ? (u['tokens'] ?? 0) : int.tryParse((u['tokens'] ?? 0).toString()) ?? 0));
+          0, (sum, u) => sum + (((u['tokens'] ?? 0) is int ? (u['tokens'] ?? 0) : int.tryParse((u['tokens'] ?? 0).toString()) ?? 0) as int));
       final totalLikes = postsSnapshot.docs.fold<int>(
           0,
           (sum, doc) =>
-              sum + ((doc.data()['likes'] ?? 0) is int ? (doc.data()['likes'] ?? 0) : int.tryParse((doc.data()['likes'] ?? 0).toString()) ?? 0));
+              sum + (((doc.data()['likes'] ?? 0) is int ? (doc.data()['likes'] ?? 0) : int.tryParse((doc.data()['likes'] ?? 0).toString()) ?? 0) as int));
       final totalComments = postsSnapshot.docs.fold<int>(
           0,
           (sum, doc) =>
-              sum + ((doc.data()['comments'] ?? 0) is int ? (doc.data()['comments'] ?? 0) : int.tryParse((doc.data()['comments'] ?? 0).toString()) ?? 0));
+              sum + (((doc.data()['comments'] ?? 0) is int ? (doc.data()['comments'] ?? 0) : int.tryParse((doc.data()['comments'] ?? 0).toString()) ?? 0) as int));
 
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
@@ -822,9 +822,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                       );
                     }
                     return Text('');
-                  }))),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  })),
                   rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
