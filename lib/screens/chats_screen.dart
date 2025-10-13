@@ -10,36 +10,43 @@ class ChatsScreen extends StatefulWidget {
   _ChatsScreenState createState() => _ChatsScreenState();
 }
 
-class _ChatsScreenState extends State<ChatsScreen> {
+class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStateMixin {
   int _activeUsers = 0;
   Map<String, dynamic>? _userData;
   int _selectedTab = 0;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  late AnimationController _badgeController;
 
   @override
   void initState() {
     super.initState();
+    _badgeController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300),
+    );
     _loadUserData();
-    _getActiveUsers();
     _setupRealtimeListeners();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _badgeController.dispose();
     super.dispose();
   }
 
   void _setupRealtimeListeners() {
-    // Listener para usuários online em tempo real
     FirebaseFirestore.instance
         .collection('users')
         .where('isOnline', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
       if (mounted) {
-        setState(() => _activeUsers = snapshot.docs.length);
+        setState(() {
+          _activeUsers = snapshot.docs.length;
+          _badgeController.forward(from: 0);
+        });
       }
     });
   }
@@ -59,23 +66,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
     }
   }
 
-  void _getActiveUsers() async {
-    final usersSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('isOnline', isEqualTo: true)
-        .get();
-    if (mounted) {
-      setState(() => _activeUsers = usersSnapshot.docs.length);
-    }
-  }
-
   void _showOptionsMenu() {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
         title: Text(
           'Novas Conversas',
-          style: TextStyle(fontSize: 13, color: CupertinoColors.systemGrey),
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+          ),
         ),
         actions: [
           CupertinoActionSheetAction(
@@ -133,7 +135,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
             placeholderStyle: TextStyle(color: CupertinoColors.systemGrey),
             style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black),
             decoration: BoxDecoration(
-              color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey6,
+              color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
               borderRadius: BorderRadius.circular(8),
             ),
             padding: EdgeInsets.all(12),
@@ -178,205 +180,12 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.85,
-          decoration: BoxDecoration(
-            color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5,
-                      width: 0.5,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancelar', style: TextStyle(color: Color(0xFFFF444F))),
-                    ),
-                    Text(
-                      'Novo Chat',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                      ),
-                    ),
-                    SizedBox(width: 60),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: CupertinoSearchTextField(
-                  controller: _searchController,
-                  placeholder: 'Buscar',
-                  style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black),
-                  onChanged: (value) {
-                    setModalState(() => _searchQuery = value.toLowerCase());
-                  },
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return Center(
-                        child: CupertinoActivityIndicator(radius: 15),
-                      );
-                    }
-
-                    final allUsers = snapshot.data!.docs.where((doc) {
-                      if (doc.id == currentUser!.uid) return false;
-                      if (_searchQuery.isNotEmpty) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final username = (data['username'] ?? '').toString().toLowerCase();
-                        final email = (data['email'] ?? '').toString().toLowerCase();
-                        return username.contains(_searchQuery) || email.contains(_searchQuery);
-                      }
-                      return true;
-                    }).toList();
-
-                    if (allUsers.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              CupertinoIcons.person_2,
-                              size: 60,
-                              color: CupertinoColors.systemGrey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              _searchQuery.isEmpty ? 'Nenhum usuário disponível' : 'Nenhum resultado',
-                              style: TextStyle(
-                                color: CupertinoColors.systemGrey,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      itemCount: allUsers.length,
-                      itemBuilder: (context, index) {
-                        final userDoc = allUsers[index];
-                        final userData = userDoc.data() as Map<String, dynamic>;
-                        final isOnline = userData['isOnline'] == true;
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey6,
-                                width: 0.5,
-                              ),
-                            ),
-                          ),
-                          child: CupertinoListTile(
-                            leading: Stack(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFFFF444F),
-                                  ),
-                                  child: userData['profile_image'] != null && userData['profile_image'].isNotEmpty
-                                      ? ClipOval(
-                                          child: Image.network(
-                                            userData['profile_image'],
-                                            fit: BoxFit.cover,
-                                          ),
-                                        )
-                                      : Center(
-                                          child: Text(
-                                            (userData['username'] ?? 'U')[0].toUpperCase(),
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              color: CupertinoColors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                ),
-                                if (isOnline)
-                                  Positioned(
-                                    right: 2,
-                                    bottom: 2,
-                                    child: Container(
-                                      width: 12,
-                                      height: 12,
-                                      decoration: BoxDecoration(
-                                        color: CupertinoColors.activeGreen,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.white,
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            title: Text(
-                              userData['username'] ?? 'Usuário',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                              ),
-                            ),
-                            subtitle: Text(
-                              isOnline ? 'Online' : 'Offline',
-                              style: TextStyle(
-                                color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
-                                fontSize: 13,
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                CupertinoPageRoute(
-                                  builder: (context) => ChatDetailScreen(
-                                    recipientId: userDoc.id,
-                                    recipientName: userData['username'] ?? 'Usuário',
-                                    recipientImage: userData['profile_image'] ?? '',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => _UsersListScreen(
+          currentUser: currentUser,
+          userData: _userData,
         ),
       ),
     );
@@ -388,15 +197,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGroupedBackground,
+      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5,
-            width: 0.5,
-          ),
-        ),
+        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
+        border: null,
         middle: Text(
           'Conversas',
           style: TextStyle(
@@ -407,42 +211,63 @@ class _ChatsScreenState extends State<ChatsScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_activeUsers > 0)
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: CupertinoColors.activeGreen.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.activeGreen,
-                        shape: BoxShape.circle,
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minSize: 32,
+              onPressed: _showUsersDialog,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    CupertinoIcons.person_2,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    size: 24,
+                  ),
+                  if (_activeUsers > 0)
+                    Positioned(
+                      right: -6,
+                      top: -4,
+                      child: ScaleTransition(
+                        scale: CurvedAnimation(
+                          parent: _badgeController,
+                          curve: Curves.elasticOut,
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFF444F),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                              width: 2,
+                            ),
+                          ),
+                          constraints: BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            _activeUsers > 99 ? '99+' : '$_activeUsers',
+                            style: TextStyle(
+                              color: CupertinoColors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      '$_activeUsers',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: CupertinoColors.activeGreen,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
+            ),
             SizedBox(width: 8),
             CupertinoButton(
               padding: EdgeInsets.zero,
+              minSize: 32,
               onPressed: _showOptionsMenu,
               child: Icon(
-                CupertinoIcons.add_circled,
+                CupertinoIcons.plus_circle_fill,
                 color: Color(0xFFFF444F),
                 size: 28,
               ),
@@ -451,75 +276,105 @@ class _ChatsScreenState extends State<ChatsScreen> {
         ),
       ),
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
-            Container(
-              color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTab = 0),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: _selectedTab == 0 ? Color(0xFFFF444F) : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          'Chats',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _selectedTab == 0
-                                ? Color(0xFFFF444F)
-                                : CupertinoColors.systemGrey,
-                            fontWeight: _selectedTab == 0 ? FontWeight.w600 : FontWeight.normal,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTab = 1),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: _selectedTab == 1 ? Color(0xFFFF444F) : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          'Grupos',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _selectedTab == 1
-                                ? Color(0xFFFF444F)
-                                : CupertinoColors.systemGrey,
-                            fontWeight: _selectedTab == 1 ? FontWeight.w600 : FontWeight.normal,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildSegmentedControl(isDark),
             Expanded(
               child: currentUser == null
                   ? Center(child: CupertinoActivityIndicator(radius: 15))
                   : (_selectedTab == 0
                       ? _buildConversationsList(currentUser, isDark)
                       : _buildGroupsList(currentUser, isDark)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentedControl(bool isDark) {
+    return Container(
+      color: isDark ? CupertinoColors.black : CupertinoColors.white,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedTab = 0),
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _selectedTab == 0
+                        ? (isDark ? Color(0xFF2C2C2E) : CupertinoColors.white)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7),
+                    boxShadow: _selectedTab == 0
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: Offset(0, 1),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    'Chats',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _selectedTab == 0
+                          ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                          : (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey),
+                      fontWeight: _selectedTab == 0 ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedTab = 1),
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _selectedTab == 1
+                        ? (isDark ? Color(0xFF2C2C2E) : CupertinoColors.white)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7),
+                    boxShadow: _selectedTab == 1
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: Offset(0, 1),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    'Grupos',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _selectedTab == 1
+                          ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                          : (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey),
+                      fontWeight: _selectedTab == 1 ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -536,48 +391,29 @@ class _ChatsScreenState extends State<ChatsScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CupertinoActivityIndicator(radius: 15),
-          );
+          return Center(child: CupertinoActivityIndicator(radius: 15));
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.chat_bubble_2,
-                  size: 80,
-                  color: CupertinoColors.systemGrey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Nenhuma conversa',
-                  style: TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Toque em + para começar',
-                  style: TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
+          return _buildEmptyState(
+            icon: CupertinoIcons.chat_bubble_2,
+            title: 'Nenhuma conversa',
+            subtitle: 'Toque em + para começar',
+            isDark: isDark,
           );
         }
 
         final conversations = snapshot.data!.docs;
 
-        return ListView.builder(
+        return ListView.separated(
           padding: EdgeInsets.zero,
           itemCount: conversations.length,
+          separatorBuilder: (context, index) => Divider(
+            height: 1,
+            thickness: 0.5,
+            indent: 88,
+            color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
+          ),
           itemBuilder: (context, index) {
             final conversation = conversations[index].data() as Map<String, dynamic>;
             final participants = List<String>.from(conversation['participants'] ?? []);
@@ -601,16 +437,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                 final unreadCount = conversation['unreadCount_${currentUser.uid}'] ?? 0;
 
                 return Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey6,
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
+                  color: isDark ? CupertinoColors.black : CupertinoColors.white,
                   child: CupertinoListTile(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     leading: Stack(
                       children: [
                         Container(
@@ -620,11 +449,22 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             shape: BoxShape.circle,
                             color: Color(0xFFFF444F),
                           ),
-                          child: userData['profile_image'] != null && userData['profile_image'].isNotEmpty
+                          child: userData['profile_image'] != null &&
+                                  userData['profile_image'].isNotEmpty
                               ? ClipOval(
                                   child: Image.network(
                                     userData['profile_image'],
                                     fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        (userData['username'] ?? 'U')[0].toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          color: CupertinoColors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 )
                               : Center(
@@ -633,24 +473,24 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                     style: TextStyle(
                                       fontSize: 22,
                                       color: CupertinoColors.white,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
                         ),
                         if (isOnline)
                           Positioned(
-                            right: 2,
-                            bottom: 2,
+                            right: 0,
+                            bottom: 0,
                             child: Container(
-                              width: 14,
-                              height: 14,
+                              width: 16,
+                              height: 16,
                               decoration: BoxDecoration(
                                 color: CupertinoColors.activeGreen,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                                  width: 2,
+                                  color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                                  width: 2.5,
                                 ),
                               ),
                             ),
@@ -674,13 +514,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                         fontSize: 15,
                       ),
                     ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (unreadCount > 0)
-                          Container(
+                    trailing: unreadCount > 0
+                        ? Container(
                             padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            constraints: BoxConstraints(minWidth: 24),
                             decoration: BoxDecoration(
                               color: Color(0xFFFF444F),
                               borderRadius: BorderRadius.circular(12),
@@ -692,10 +529,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                      ],
-                    ),
+                          )
+                        : null,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -727,69 +564,47 @@ class _ChatsScreenState extends State<ChatsScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CupertinoActivityIndicator(radius: 15),
-          );
+          return Center(child: CupertinoActivityIndicator(radius: 15));
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.group,
-                  size: 80,
-                  color: CupertinoColors.systemGrey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Nenhum grupo',
-                  style: TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  _userData?['pro'] == true ? 'Toque em + para criar' : 'Apenas PRO',
-                  style: TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
+          return _buildEmptyState(
+            icon: CupertinoIcons.group,
+            title: 'Nenhum grupo',
+            subtitle: _userData?['pro'] == true ? 'Toque em + para criar' : 'Apenas PRO',
+            isDark: isDark,
           );
         }
 
         final groups = snapshot.data!.docs;
 
-        return ListView.builder(
+        return ListView.separated(
           padding: EdgeInsets.zero,
           itemCount: groups.length,
+          separatorBuilder: (context, index) => Divider(
+            height: 1,
+            thickness: 0.5,
+            indent: 88,
+            color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
+          ),
           itemBuilder: (context, index) {
             final groupData = groups[index].data() as Map<String, dynamic>;
             final members = List.from(groupData['members'] ?? []);
 
             return Container(
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey6,
-                    width: 0.5,
-                  ),
-                ),
-              ),
+              color: isDark ? CupertinoColors.black : CupertinoColors.white,
               child: CupertinoListTile(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 leading: Container(
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: CupertinoColors.activeGreen,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF34C759), Color(0xFF30D158)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
                   child: Icon(
                     CupertinoIcons.group_solid,
@@ -828,6 +643,289 @@ class _ChatsScreenState extends State<ChatsScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isDark,
+  }) {
+    return Container(
+      color: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 64,
+              color: CupertinoColors.systemGrey,
+            ),
+            SizedBox(height: 16),
+            Text(
+              title,
+              style: TextStyle(
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: CupertinoColors.systemGrey,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UsersListScreen extends StatefulWidget {
+  final User? currentUser;
+  final Map<String, dynamic>? userData;
+
+  _UsersListScreen({required this.currentUser, this.userData});
+
+  @override
+  __UsersListScreenState createState() => __UsersListScreenState();
+}
+
+class __UsersListScreenState extends State<_UsersListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancelar',
+            style: TextStyle(color: Color(0xFFFF444F)),
+          ),
+        ),
+        middle: Text(
+          'Novo Chat',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              color: isDark ? CupertinoColors.black : CupertinoColors.white,
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: CupertinoSearchTextField(
+                controller: _searchController,
+                placeholder: 'Buscar',
+                style: TextStyle(
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                ),
+                onChanged: (value) {
+                  setState(() => _searchQuery = value.toLowerCase());
+                },
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return Center(child: CupertinoActivityIndicator(radius: 15));
+                  }
+
+                  final allUsers = snapshot.data!.docs.where((doc) {
+                    if (doc.id == widget.currentUser!.uid) return false;
+                    if (_searchQuery.isNotEmpty) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final username = (data['username'] ?? '').toString().toLowerCase();
+                      final email = (data['email'] ?? '').toString().toLowerCase();
+                      return username.contains(_searchQuery) || email.contains(_searchQuery);
+                    }
+                    return true;
+                  }).toList();
+
+                  if (allUsers.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            CupertinoIcons.person_2,
+                            size: 64,
+                            color: CupertinoColors.systemGrey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            _searchQuery.isEmpty ? 'Nenhum usuário disponível' : 'Nenhum resultado',
+                            style: TextStyle(
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 17,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: allUsers.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      indent: 88,
+                      color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
+                    ),
+                    itemBuilder: (context, index) {
+                      final userDoc = allUsers[index];
+                      final userData = userDoc.data() as Map<String, dynamic>;
+                      final isOnline = userData['isOnline'] == true;
+
+                      return Container(
+                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                        child: CupertinoListTile(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          leading: Stack(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFFFF444F),
+                                ),
+                                child: userData['profile_image'] != null &&
+                                        userData['profile_image'].isNotEmpty
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          userData['profile_image'],
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Center(
+                                            child: Text(
+                                              (userData['username'] ?? 'U')[0].toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 22,
+                                                color: CupertinoColors.white,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          (userData['username'] ?? 'U')[0].toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            color: CupertinoColors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                              if (isOnline)
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: CupertinoColors.activeGreen,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                                        width: 2.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          title: Text(
+                            userData['username'] ?? 'Usuário',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 17,
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            ),
+                          ),
+                          subtitle: Text(
+                            isOnline ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
+                              fontSize: 15,
+                            ),
+                          ),
+                          trailing: CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            minSize: 32,
+                            child: Icon(
+                              CupertinoIcons.chat_bubble_fill,
+                              color: Color(0xFFFF444F),
+                              size: 24,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                CupertinoPageRoute(
+                                  builder: (context) => ChatDetailScreen(
+                                    recipientId: userDoc.id,
+                                    recipientName: userData['username'] ?? 'Usuário',
+                                    recipientImage: userData['profile_image'] ?? '',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              CupertinoPageRoute(
+                                builder: (context) => ChatDetailScreen(
+                                  recipientId: userDoc.id,
+                                  recipientName: userData['username'] ?? 'Usuário',
+                                  recipientImage: userData['profile_image'] ?? '',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
