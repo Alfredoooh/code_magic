@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
-import 'package:palette_generator/palette_generator.dart';
-import 'package:fl_chart/fl_chart.dart';
 
 import '../services/language_service.dart';
 import 'admin_panel_screen.dart';
@@ -19,6 +17,7 @@ import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import '../widgets/post_card.dart';
 import 'crypto_list_screen.dart';
+import 'more_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -41,13 +40,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<NewsArticle> _newsArticles = [];
   bool _loadingNews = true;
   bool _showNews = true;
-  Map<int, Color> _newsColors = {};
   String _cardStyle = 'modern';
   int _messageCount = 0;
   int _groupCount = 0;
   List<CryptoData> _cryptoData = [];
   bool _loadingCrypto = true;
   Timer? _cryptoTimer;
+  final PageController _newsPageController = PageController();
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSubscription;
 
@@ -91,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         
         if (mounted) {
           setState(() {
-            _cryptoData = usdtPairs.take(10).map((coin) => CryptoData.fromBinance(coin)).toList();
+            _cryptoData = usdtPairs.take(3).map((coin) => CryptoData.fromBinance(coin)).toList();
             _loadingCrypto = false;
           });
         }
@@ -162,8 +161,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _loadingNews = false;
           });
         }
-
-        unawaited(_extractColors());
       } else {
         if (mounted) {
           setState(() => _loadingNews = false);
@@ -176,43 +173,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _extractColors() async {
-    for (int i = 0; i < _newsArticles.length; i++) {
-      final imageUrl = _newsArticles[i].imageUrl;
-      if (imageUrl.isNotEmpty) {
-        try {
-          final paletteGenerator = await PaletteGenerator.fromImageProvider(
-            NetworkImage(imageUrl),
-            maximumColorCount: 10,
-          );
-
-          if (mounted) {
-            setState(() {
-              _newsColors[i] = paletteGenerator.dominantColor?.color ??
-                  paletteGenerator.vibrantColor?.color ??
-                  Color(0xFFFF444F);
-            });
-          }
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _newsColors[i] = Color(0xFFFF444F);
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _newsColors[i] = Color(0xFFFF444F);
-          });
-        }
-      }
-    }
-  }
-
   @override
   void dispose() {
     _cryptoTimer?.cancel();
+    _newsPageController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _userSubscription?.cancel();
     _safeSetUserOnline(false);
@@ -343,6 +307,97 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _showOptionsBottomSheet() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Color(0xFF1A1A1A)
+              : CupertinoColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 20),
+              CupertinoButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _handleCreatePost();
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(CupertinoIcons.add_circled_solid, color: Color(0xFFFF444F)),
+                      SizedBox(width: 12),
+                      Text(
+                        'Criar Publicação',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? CupertinoColors.white
+                              : CupertinoColors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Divider(height: 1),
+              CupertinoButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(builder: (context) => MoreScreen()),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(CupertinoIcons.ellipsis_circle_fill, color: CupertinoColors.activeBlue),
+                      SizedBox(width: 12),
+                      Text(
+                        'Mais Opções',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? CupertinoColors.white
+                              : CupertinoColors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -353,11 +408,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
         navigationBar: CupertinoNavigationBar(
           backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-          middle: Text(
-            'K Paga',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          leading: Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Cashing',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 32,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                ),
+              ),
             ),
           ),
           trailing: CupertinoButton(
@@ -385,204 +447,179 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           border: null,
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              CustomScrollView(
-                physics: BouncingScrollPhysics(),
-                slivers: [
-                  CupertinoSliverRefreshControl(
-                    onRefresh: () async {
-                      await _loadUserData();
-                      await _loadNews();
-                      await _loadStats();
-                      await _loadCryptoData();
-                    },
-                  ),
-                  SliverPadding(
-                    padding: EdgeInsets.all(16),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        WalletCard(
-                          userData: _userData,
-                          cardStyle: _cardStyle,
-                          showCustomizeButton: false,
-                        ),
-                        SizedBox(height: 16),
-                        _buildActionButton(isDark),
-                        SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                icon: CupertinoIcons.chat_bubble_2_fill,
-                                title: 'Mensagens',
-                                value: '$_messageCount',
-                                color: CupertinoColors.systemBlue,
-                                isDark: isDark,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: _buildStatCard(
-                                icon: CupertinoIcons.group_solid,
-                                title: 'Grupos',
-                                value: '$_groupCount',
-                                color: CupertinoColors.systemGreen,
-                                isDark: isDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 24),
-                        _buildCryptoSection(isDark),
-                        if (_showNews) ...[
-                          SizedBox(height: 32),
-                          Text(
-                            'Últimas Notícias',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          _loadingNews
-                              ? Center(
-                                  child: CupertinoActivityIndicator(radius: 16),
-                                )
-                              : Container(
-                                  height: 200,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    physics: BouncingScrollPhysics(),
-                                    itemCount: _newsArticles.length,
-                                    itemBuilder: (context, index) {
-                                      final article = _newsArticles[index];
-                                      final cardColor = _newsColors[index] ?? Color(0xFFFF444F);
-
-                                      return _buildNewsCard(article, cardColor, index);
-                                    },
-                                  ),
-                                ),
-                        ],
-                        SizedBox(height: 32),
-                        Text(
-                          'Publicações Recentes',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                      ]),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('publicacoes')
-                          .orderBy('timestamp', descending: true)
-                          .limit(20)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Center(child: CupertinoActivityIndicator(radius: 16)),
-                          );
-                        }
-
-                        if (!snapshot.hasData || snapshot.data == null) {
-                          return Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
-                                  SizedBox(height: 16),
-                                  Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        final posts = snapshot.data!.docs;
-
-                        if (posts.isEmpty) {
-                          return Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
-                                  SizedBox(height: 16),
-                                  Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            children: posts.map((docSnap) {
-                              final post = docSnap.data() as Map<String, dynamic>;
-                              final postId = docSnap.id;
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 12),
-                                child: PostCard(
-                                  post: post,
-                                  postId: postId,
-                                  isDark: isDark,
-                                  currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-                ],
+          child: CustomScrollView(
+            physics: BouncingScrollPhysics(),
+            slivers: [
+              CupertinoSliverRefreshControl(
+                onRefresh: () async {
+                  await _loadUserData();
+                  await _loadNews();
+                  await _loadStats();
+                  await _loadCryptoData();
+                },
               ),
-
-              Positioned(
-                right: 16,
-                bottom: MediaQuery.of(context).viewPadding.bottom + 16,
-                child: GestureDetector(
-                  onTap: _handleCreatePost,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0xFFFF444F).withOpacity(0.4),
-                          blurRadius: 15,
-                          offset: Offset(0, 8),
+              SliverPadding(
+                padding: EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    WalletCard(
+                      userData: _userData,
+                      cardStyle: _cardStyle,
+                      showCustomizeButton: false,
+                    ),
+                    SizedBox(height: 16),
+                    _buildActionButton(isDark),
+                    SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: CupertinoIcons.chat_bubble_2_fill,
+                            title: 'Mensagens',
+                            value: '$_messageCount',
+                            color: CupertinoColors.systemBlue,
+                            isDark: isDark,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: CupertinoIcons.group_solid,
+                            title: 'Grupos',
+                            value: '$_groupCount',
+                            color: CupertinoColors.systemGreen,
+                            isDark: isDark,
+                          ),
                         ),
                       ],
                     ),
-                    child: Icon(
-                      CupertinoIcons.plus,
-                      color: CupertinoColors.white,
-                      size: 28,
+                    SizedBox(height: 24),
+                    _buildCryptoSection(isDark),
+                    if (_showNews) ...[
+                      SizedBox(height: 32),
+                      Text(
+                        'Últimas Notícias',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      _loadingNews
+                          ? Center(
+                              child: CupertinoActivityIndicator(radius: 16),
+                            )
+                          : Container(
+                              height: 140,
+                              child: PageView.builder(
+                                controller: _newsPageController,
+                                physics: BouncingScrollPhysics(),
+                                itemCount: _newsArticles.length,
+                                itemBuilder: (context, index) {
+                                  final article = _newsArticles[index];
+                                  return Padding(
+                                    padding: EdgeInsets.only(right: 12),
+                                    child: _buildNewsCard(article, index, isDark),
+                                  );
+                                },
+                              ),
+                            ),
+                    ],
+                  ]),
+                ),
+              ),
+
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SliverAppBarDelegate(
+                  minHeight: 60,
+                  maxHeight: 60,
+                  child: Container(
+                    color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'Sheets',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      ),
                     ),
                   ),
                 ),
               ),
+
+              SliverToBoxAdapter(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('publicacoes')
+                      .orderBy('timestamp', descending: true)
+                      .limit(20)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: CupertinoActivityIndicator(radius: 16)),
+                      );
+                    }
+
+                    if (!snapshot.hasData || snapshot.data == null) {
+                      return Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
+                              SizedBox(height: 16),
+                              Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final posts = snapshot.data!.docs;
+
+                    if (posts.isEmpty) {
+                      return Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
+                              SizedBox(height: 16),
+                              Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: posts.map((docSnap) {
+                          final post = docSnap.data() as Map<String, dynamic>;
+                          final postId = docSnap.id;
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: PostCard(
+                              post: post,
+                              postId: postId,
+                              isDark: isDark,
+                              currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              SliverPadding(padding: EdgeInsets.only(bottom: 100)),
             ],
           ),
         ),
@@ -596,20 +633,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       height: 56,
       child: CupertinoButton(
         padding: EdgeInsets.zero,
-        onPressed: () {
-          // Ação do botão
-        },
+        onPressed: _showOptionsBottomSheet,
         child: Container(
           decoration: BoxDecoration(
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            gradient: LinearGradient(
+              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFF6366F1).withOpacity(0.3),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: Text(
-            'Ação Principal',
+            'Começar',
             style: TextStyle(
-              color: isDark ? CupertinoColors.black : CupertinoColors.white,
-              fontSize: 16,
+              color: CupertinoColors.white,
+              fontSize: 17,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -619,6 +665,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildCryptoSection(bool isDark) {
+    final cryptoIcons = {
+      'BTC': 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+      'ETH': 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+      'BNB': 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+      'SOL': 'https://cryptologos.cc/logos/solana-sol-logo.png',
+      'XRP': 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
+      'ADA': 'https://cryptologos.cc/logos/cardano-ada-logo.png',
+      'DOGE': 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+      'MATIC': 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+      'DOT': 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
+      'AVAX': 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+    };
+
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -648,12 +707,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               CupertinoButton(
                 padding: EdgeInsets.zero,
-                child: Text(
-                  'Ver mais',
-                  style: TextStyle(
-                    color: Color(0xFFFF444F),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFBBF24).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Color(0xFFFBBF24), width: 1.5),
+                  ),
+                  child: Text(
+                    'Ver mais',
+                    style: TextStyle(
+                      color: Color(0xFFFBBF24),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 onPressed: () {
@@ -672,9 +739,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ? Center(child: CupertinoActivityIndicator())
               : Column(
                   children: _cryptoData.map((crypto) {
+                    final iconUrl = cryptoIcons[crypto.symbol] ?? '';
                     return Padding(
                       padding: EdgeInsets.only(bottom: 12),
-                      child: _buildCryptoCard(crypto, isDark),
+                      child: _buildCryptoCard(crypto, isDark, iconUrl),
                     );
                   }).toList(),
                 ),
@@ -683,36 +751,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildCryptoCard(CryptoData crypto, bool isDark) {
+  Widget _buildCryptoCard(CryptoData crypto, bool isDark, String iconUrl) {
     final isPositive = crypto.priceChange >= 0;
     
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: isDark 
+              ? [Color(0xFF1F1F1F), Color(0xFF2A2A2A)]
+              : [Color(0xFFFAFAFA), Color(0xFFFFFFFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Color(0xFF2A2A2A) : Color(0xFFE5E5E5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: Color(0xFFFF444F).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Center(
-              child: Text(
-                crypto.symbol.substring(0, 1),
-                style: TextStyle(
-                  color: Color(0xFFFF444F),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+              color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
                 ),
-              ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: iconUrl.isNotEmpty
+                  ? Image.network(
+                      iconUrl,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stack) => Icon(
+                        CupertinoIcons.money_dollar_circle_fill,
+                        color: Color(0xFFFF444F),
+                        size: 24,
+                      ),
+                    )
+                  : Icon(
+                      CupertinoIcons.money_dollar_circle_fill,
+                      color: Color(0xFFFF444F),
+                      size: 24,
+                    ),
             ),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,58 +822,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Text(
                   crypto.symbol,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: isDark ? CupertinoColors.white : CupertinoColors.black,
                   ),
                 ),
+                SizedBox(height: 2),
                 Text(
-                  '\$${crypto.price.toStringAsFixed(2)}',
+                  '\$${crypto.price.toStringAsFixed(crypto.price < 1 ? 4 : 2)}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: CupertinoColors.systemGrey,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
           Container(
-            width: 80,
-            height: 40,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: false),
-                titlesData: FlTitlesData(show: false),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: crypto.sparkline.asMap().entries.map((e) {
-                      return FlSpot(e.key.toDouble(), e.value);
-                    }).toList(),
-                    isCurved: true,
-                    color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
-                    barWidth: 2,
-                    dotData: FlDotData(show: false),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(width: 12),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: isPositive 
-                  ? CupertinoColors.systemGreen.withOpacity(0.1)
-                  : CupertinoColors.systemRed.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
+                  ? CupertinoColors.systemGreen.withOpacity(0.15)
+                  : CupertinoColors.systemRed.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isPositive 
+                    ? CupertinoColors.systemGreen.withOpacity(0.3)
+                    : CupertinoColors.systemRed.withOpacity(0.3),
+                width: 1,
+              ),
             ),
             child: Text(
               '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
               style: TextStyle(
                 color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -827,7 +913,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildNewsCard(NewsArticle article, Color cardColor, int index) {
+  Widget _buildNewsCard(NewsArticle article, int index, bool isDark) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -842,99 +928,77 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         );
       },
       child: Container(
-        width: 320,
-        margin: EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
-          color: cardColor.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: cardColor.withOpacity(0.3),
-            width: 1,
-          ),
+          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: cardColor.withOpacity(0.2),
-              blurRadius: 12,
-              offset: Offset(0, 4),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: Offset(0, 2),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              if (article.imageUrl.isNotEmpty)
-                Positioned.fill(
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      article.title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        height: 1.3,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      article.description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: CupertinoColors.systemGrey,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (article.imageUrl.isNotEmpty)
+              Container(
+                width: 120,
+                height: 140,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
                   child: Image.network(
                     article.imageUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stack) => Container(
-                      color: cardColor.withOpacity(0.2),
+                      color: CupertinoColors.systemGrey5,
                       child: Icon(
                         CupertinoIcons.photo,
-                        color: cardColor,
-                        size: 60,
+                        color: CupertinoColors.systemGrey,
+                        size: 40,
                       ),
                     ),
                   ),
                 ),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.8),
-                      ],
-                    ),
-                  ),
-                ),
               ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          article.source.toUpperCase(),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        article.title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          height: 1.3,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -959,7 +1023,6 @@ class CryptoData {
     final price = double.parse(json['lastPrice'].toString());
     final priceChange = double.parse(json['priceChangePercent'].toString());
     
-    // Gerar sparkline simulado baseado na variação de preço
     List<double> sparkline = [];
     for (int i = 0; i < 20; i++) {
       sparkline.add(price * (1 + (priceChange / 100) * (i / 20)));
@@ -971,6 +1034,36 @@ class CryptoData {
       priceChange: priceChange,
       sparkline: sparkline,
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _SliverAppBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }
 
