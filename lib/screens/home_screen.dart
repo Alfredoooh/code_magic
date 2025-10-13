@@ -406,7 +406,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           userData: _userData,
                           cardStyle: _cardStyle,
                           showCustomizeButton: false,
-                          // onStyleChanged is optional now; if you want a callback, pass it here.
                         ),
                         SizedBox(height: 16),
                         _buildActionButton(isDark),
@@ -750,7 +749,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       return FlSpot(e.key.toDouble(), e.value);
                     }).toList(),
                     isCurved: true,
-                    colors: [isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed],
+                    color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
                     barWidth: 2,
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(show: false),
