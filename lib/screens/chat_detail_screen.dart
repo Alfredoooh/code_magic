@@ -14,7 +14,8 @@ class ChatDetailScreen extends StatefulWidget {
     required this.recipientId,
     required this.recipientName,
     required this.recipientImage,
-  });
+    Key? key,
+  }) : super(key: key);
 
   @override
   _ChatDetailScreenState createState() => _ChatDetailScreenState();
@@ -27,21 +28,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
 
+  // daily limits
+  static const int FREE_LIMIT = 20;
+  static const int PRO_LIMIT = 1000;
+
   @override
   void initState() {
     super.initState();
     _initializeChat();
   }
 
-  Future<void> _initializeChat() async {
+  Future _initializeChat() async {
     await _loadUserData();
     await _initConversation();
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<void> _loadUserData() async {
+  Future _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
@@ -55,7 +58,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  Future<void> _initConversation() async {
+  Future _refreshUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists && mounted) setState(() => _userData = doc.data());
+    } catch (e) {
+      print('Erro ao atualizar dados do usuário: $e');
+    }
+  }
+
+  Future _initConversation() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
@@ -64,11 +78,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           .collection('users')
           .doc(widget.recipientId)
           .get();
-
       if (!recipientDoc.exists) {
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (mounted) Navigator.pop(context);
         return;
       }
 
@@ -78,11 +89,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           .get();
 
       for (var doc in conversationQuery.docs) {
-        final participants = List<String>.from(doc.data()['participants']);
+        final participants = List<String>.from(doc.data()['participants'] ?? []);
         if (participants.contains(widget.recipientId) && participants.length == 2) {
-          if (mounted) {
-            setState(() => _conversationId = doc.id);
-          }
+          if (mounted) setState(() => _conversationId = doc.id);
           _markAsRead();
           return;
         }
@@ -97,15 +106,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (mounted) {
-        setState(() => _conversationId = newConv.id);
-      }
+      if (mounted) setState(() => _conversationId = newConv.id);
     } catch (e) {
       print('Erro ao inicializar conversa: $e');
     }
   }
 
-  Future<void> _markAsRead() async {
+  Future _markAsRead() async {
     if (_conversationId == null) return;
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
@@ -122,35 +129,119 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  Future<void> _sendMessage() async {
-    if (_controller.text.trim().isEmpty || _conversationId == null) return;
+  String _todayString() {
+    final now = DateTime.now().toUtc();
+    return now.toIso8601String().split('T').first; // yyyy-MM-dd
+  }
+
+  Future<int> _getUserMessagesSentToday() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 0;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!doc.exists) return 0;
+      final data = doc.data();
+      if (data == null) return 0;
+      final date = data['messagesSentAt'] as String? ?? '';
+      final count = (data['messagesSentToday'] ?? 0) as int;
+      if (date != _todayString()) {
+        // reset if date mismatch
+        return 0;
+      }
+      return count;
+    } catch (e) {
+      print('Erro ao obter contador diário: $e');
+      return 0;
+    }
+  }
+
+  Future<void> _incrementUserMessagesSent() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final today = _todayString();
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snapshot = await tx.get(ref);
+        if (!snapshot.exists) {
+          tx.set(ref, {'messagesSentToday': 1, 'messagesSentAt': today});
+          return;
+        }
+        final data = snapshot.data()!;
+        final date = (data['messagesSentAt'] as String?) ?? '';
+        int count = (data['messagesSentToday'] ?? 0) as int;
+        if (date != today) {
+          // reset to 1
+          tx.update(ref, {'messagesSentToday': 1, 'messagesSentAt': today});
+        } else {
+          count += 1;
+          tx.update(ref, {'messagesSentToday': count});
+        }
+      });
+      // refresh local
+      await _refreshUserData();
+    } catch (e) {
+      print('Erro ao incrementar contador diário: $e');
+    }
+  }
+
+  Future<bool> _canSendMessageAndMaybeWarn() async {
+    // refresh user data to avoid stale state
+    await _refreshUserData();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final isPro = _userData?['pro'] == true;
+    final limit = isPro ? PRO_LIMIT : FREE_LIMIT;
+    final sentToday = await _getUserMessagesSentToday();
+
+    if (sentToday >= limit) {
+      // user already used up the limit
+      _showToast('Você atingiu o limite diário de $limit mensagens.');
+      return false;
+    }
+
+    // allow sending; but if this send will reach the limit, show info after increment
+    return true;
+  }
+
+  Future _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _conversationId == null) return;
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
+    // verify daily limit
+    final canSend = await _canSendMessageAndMaybeWarn();
+    if (!canSend) return;
+
+    // proceed with token logic (keeping original behavior)
     if (_userData?['pro'] != true) {
+      // still check tokens if app uses tokens
       if ((_userData?['tokens'] ?? 0) <= 0) {
         _showToast('Tokens insuficientes');
         return;
-      }
-
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
-          'tokens': FieldValue.increment(-1),
-        });
-        if (_userData != null) {
-          _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
+      } else {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
+            'tokens': FieldValue.increment(-1),
+          });
+          if (_userData != null) {
+            _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
+          }
+        } catch (e) {
+          print('Erro ao decrementar tokens: $e');
         }
-      } catch (e) {
-        print('Erro ao decrementar tokens: $e');
       }
     }
 
-    final messageText = _controller.text.trim();
+    final messageText = text;
     _controller.clear();
 
     try {
-      await FirebaseFirestore.instance
+      final msgRef = await FirebaseFirestore.instance
           .collection('conversations')
           .doc(_conversationId)
           .collection('messages')
@@ -170,6 +261,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         'unreadCount_${widget.recipientId}': FieldValue.increment(1),
       });
 
+      // increment daily counter and possibly show notification when reaching the limit
+      await _incrementUserMessagesSent();
+      final sentAfter = await _getUserMessagesSentToday();
+      final isPro = _userData?['pro'] == true;
+      final limit = isPro ? PRO_LIMIT : FREE_LIMIT;
+      if (sentAfter >= limit) {
+        // show only when they have used the daily allowance (as requested)
+        _showToast('Você atingiu o limite diário de $limit mensagens.');
+      } else if (!isPro && sentAfter == limit - 1) {
+        // optional: warn user when very close to limit (not requested explicitly, so avoid showing)
+      }
+
       _scrollToBottom();
     } catch (e) {
       print('Erro ao enviar mensagem: $e');
@@ -179,15 +282,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      try {
+        _scrollController.animateTo(
+          0,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } catch (e) {
+        // fallback
+        _scrollController.jumpTo(0);
+      }
     }
   }
 
-  Future<void> _likeMessage(String messageId, List likedBy) async {
+  Future _likeMessage(String messageId, List likedBy) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null || _conversationId == null) return;
 
@@ -219,6 +327,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _showToast(String message) {
+    // Cupertino-style centered toast
     showCupertinoDialog(
       context: context,
       barrierDismissible: true,
@@ -246,10 +355,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  Future<void> _editMessage(String messageId, String currentText, DateTime timestamp) async {
+  Future _editMessage(String messageId, String currentText, DateTime timestamp) async {
     final now = DateTime.now();
     final diff = now.difference(timestamp);
-
     if (diff.inMinutes > 5) {
       _showToast('Não é possível editar após 5 minutos');
       return;
@@ -303,17 +411,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Future<void> _deleteMessage(String messageId) async {
+  Future _deleteMessage(String messageId) async {
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Excluir Mensagem'),
         content: Text('Tem certeza que deseja excluir esta mensagem?'),
         actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
+          CupertinoDialogAction(onPressed: () => Navigator.pop(context), child: Text('Cancelar')),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () async {
@@ -399,7 +504,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildMessageText(String text, bool isMe, bool isDark) {
-    final urlPattern = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
+    final urlPattern = RegExp(r'(https?://[^\s]+)', caseSensitive: false);
     List<InlineSpan> spans = [];
 
     text.split(' ').forEach((word) {
@@ -468,7 +573,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    // Use app theme instead of platformBrightness to be consistent with app theme toggles.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (_isLoading) {
@@ -663,8 +769,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                       child: Container(
                                         padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                         decoration: BoxDecoration(
-                                          color: isMe 
-                                              ? Color(0xFFFF444F) 
+                                          color: isMe
+                                              ? Color(0xFFFF444F)
                                               : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
                                           borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(20),
@@ -691,8 +797,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                   'editado',
                                                   style: TextStyle(
                                                     fontSize: 11,
-                                                    color: isMe 
-                                                        ? CupertinoColors.white.withOpacity(0.7) 
+                                                    color: isMe
+                                                        ? CupertinoColors.white.withOpacity(0.7)
                                                         : CupertinoColors.systemGrey,
                                                     fontStyle: FontStyle.italic,
                                                   ),
@@ -714,8 +820,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                       '$likes',
                                                       style: TextStyle(
                                                         fontSize: 13,
-                                                        color: isMe 
-                                                            ? CupertinoColors.white 
+                                                        color: isMe
+                                                            ? CupertinoColors.white
                                                             : (isDark ? CupertinoColors.white : CupertinoColors.black),
                                                         fontWeight: FontWeight.w500,
                                                       ),
