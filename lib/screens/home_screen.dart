@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:palette_generator/palette_generator.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../services/language_service.dart';
 import 'admin_panel_screen.dart';
@@ -16,6 +17,7 @@ import 'user_drawer.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import '../widgets/post_card.dart';
+import 'crypto_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -42,6 +44,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _cardStyle = 'modern';
   int _messageCount = 0;
   int _groupCount = 0;
+  List<CryptoData> _cryptoData = [];
+  bool _loadingCrypto = true;
+  Timer? _cryptoTimer;
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSubscription;
 
@@ -53,15 +58,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _safeSetUserOnline(true);
     _loadNews();
     _loadStats();
+    _loadCryptoData();
+    _cryptoTimer = Timer.periodic(Duration(seconds: 10), (_) => _loadCryptoData());
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Force rebuild when inherited theme changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _loadCryptoData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.binance.com/api/v3/ticker/24hr'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final usdtPairs = data.where((coin) => 
+          coin['symbol'].toString().endsWith('USDT') && 
+          !coin['symbol'].toString().contains('DOWN') &&
+          !coin['symbol'].toString().contains('UP') &&
+          !coin['symbol'].toString().contains('BEAR') &&
+          !coin['symbol'].toString().contains('BULL')
+        ).toList();
+        
+        usdtPairs.sort((a, b) => double.parse(b['quoteVolume'].toString()).compareTo(double.parse(a['quoteVolume'].toString())));
+        
+        if (mounted) {
+          setState(() {
+            _cryptoData = usdtPairs.take(10).map((coin) => CryptoData.fromBinance(coin)).toList();
+            _loadingCrypto = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingCrypto = false);
+      }
+    }
   }
 
   Future<void> _loadStats() async {
@@ -96,15 +134,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _groupCount = groupSnapshot.docs.length;
         });
       }
-    } catch (e) {
-      // Falha ao carregar stats — manter valores anteriores
-    }
+    } catch (e) {}
   }
 
   Future<void> _loadNews() async {
-    setState(() {
-      _loadingNews = true;
-    });
+    setState(() => _loadingNews = true);
 
     try {
       final response = await http.get(
@@ -128,7 +162,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           });
         }
 
-        // Extrair cores em background (não bloqueante)
         unawaited(_extractColors());
       } else {
         if (mounted) {
@@ -178,13 +211,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _cryptoTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _userSubscription?.cancel();
     _safeSetUserOnline(false);
     super.dispose();
   }
 
-  // wrapper with try/catch para evitar que erros de rede causem crashes
   Future<void> _safeSetUserOnline(bool isOnline) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -194,15 +227,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .doc(user.uid)
             .update({'isOnline': isOnline});
       }
-    } catch (e) {
-      // Falha a atualizar estado online — ignorar silênciosamente
-    }
+    } catch (e) {}
   }
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // cancelar subscrição anterior se existir
       await _userSubscription?.cancel();
 
       _userSubscription = FirebaseFirestore.instance
@@ -218,9 +248,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _cardStyle = _userData?['cardStyle'] ?? 'modern';
           });
         }
-      }, onError: (err) {
-        // ignorar erros de snapshot
-      });
+      }, onError: (err) {});
     }
   }
 
@@ -243,9 +271,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   .collection('users')
                   .doc(user.uid)
                   .update({'showNews': value});
-            } catch (e) {
-              // ignorar erro de escrita
-            }
+            } catch (e) {}
           }
         },
         onCardStyleChanged: (style) {
@@ -253,6 +279,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         },
       ),
     );
+  }
+
+  Future<void> _decrementToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final currentTokens = userDoc.data()?['tokens'] ?? 0;
+          if (currentTokens > 0) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .update({'tokens': currentTokens - 1});
+          }
+        }
+      } catch (e) {}
+    }
   }
 
   void _handleCreatePost() {
@@ -275,7 +323,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               isDefaultAction: true,
               onPressed: () {
                 Navigator.pop(context);
-                // Navegar para tela de upgrade — implementar conforme app
               },
             ),
           ],
@@ -284,6 +331,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
+    _decrementToken();
     Navigator.push(
       context,
       CupertinoPageRoute(
@@ -296,97 +344,129 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Usar Theme da app (não o brilho do sistema) para obedecer troca de tema do utilizador
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        middle: Text(
-          'K Paga',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: CupertinoPageScaffold(
+        backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          middle: Text(
+            'K Paga',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            ),
           ),
-        ),
-        // removido o ícone de pesquisa conforme pedido
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: CircleAvatar(
-            radius: 16,
-            backgroundColor: Color(0xFFFF444F),
-            backgroundImage: (_userData?['profile_image'] != null &&
-                    (_userData!['profile_image'] as String).isNotEmpty)
-                ? NetworkImage(_userData!['profile_image'])
-                : null,
-            child: (_userData?['profile_image'] == null ||
-                    (_userData!['profile_image'] as String).isEmpty)
-                ? Text(
-                    (_userData?['username'] ?? 'U')[0].toUpperCase(),
-                    style: TextStyle(
-                        fontSize: 14,
-                        color: CupertinoColors.white,
-                        fontWeight: FontWeight.bold),
-                  )
-                : null,
+          trailing: CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: Color(0xFFFF444F),
+              backgroundImage: (_userData?['profile_image'] != null &&
+                      (_userData!['profile_image'] as String).isNotEmpty)
+                  ? NetworkImage(_userData!['profile_image'])
+                  : null,
+              child: (_userData?['profile_image'] == null ||
+                      (_userData!['profile_image'] as String).isEmpty)
+                  ? Text(
+                      (_userData?['username'] ?? 'U')[0].toUpperCase(),
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: CupertinoColors.white,
+                          fontWeight: FontWeight.bold),
+                    )
+                  : null,
+            ),
+            onPressed: _showUserDrawer,
           ),
-          onPressed: _showUserDrawer,
+          border: null,
         ),
-        border: null,
-      ),
-      child: SafeArea(
-        child: Stack(
-          children: [
-            CustomScrollView(
-              physics: BouncingScrollPhysics(),
-              slivers: [
-                CupertinoSliverRefreshControl(
-                  onRefresh: () async {
-                    await _loadUserData();
-                    await _loadNews();
-                    await _loadStats();
-                  },
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.all(16),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      WalletCard(
-                        userData: _userData,
-                        cardStyle: _cardStyle,
-                        onStyleChanged: (style) {
-                          setState(() => _cardStyle = style);
-                        },
-                      ),
-                      SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              icon: CupertinoIcons.chat_bubble_2_fill,
-                              title: 'Mensagens',
-                              value: '$_messageCount',
-                              color: CupertinoColors.systemBlue,
-                              isDark: isDark,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              CustomScrollView(
+                physics: BouncingScrollPhysics(),
+                slivers: [
+                  CupertinoSliverRefreshControl(
+                    onRefresh: () async {
+                      await _loadUserData();
+                      await _loadNews();
+                      await _loadStats();
+                      await _loadCryptoData();
+                    },
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.all(16),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        WalletCard(
+                          userData: _userData,
+                          cardStyle: _cardStyle,
+                          showCustomizeButton: false,
+                        ),
+                        SizedBox(height: 16),
+                        _buildActionButton(isDark),
+                        SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: CupertinoIcons.chat_bubble_2_fill,
+                                title: 'Mensagens',
+                                value: '$_messageCount',
+                                color: CupertinoColors.systemBlue,
+                                isDark: isDark,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: CupertinoIcons.group_solid,
+                                title: 'Grupos',
+                                value: '$_groupCount',
+                                color: CupertinoColors.systemGreen,
+                                isDark: isDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        _buildCryptoSection(isDark),
+                        if (_showNews) ...[
+                          SizedBox(height: 32),
+                          Text(
+                            'Últimas Notícias',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             ),
                           ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatCard(
-                              icon: CupertinoIcons.group_solid,
-                              title: 'Grupos',
-                              value: '$_groupCount',
-                              color: CupertinoColors.systemGreen,
-                              isDark: isDark,
-                            ),
-                          ),
+                          SizedBox(height: 16),
+                          _loadingNews
+                              ? Center(
+                                  child: CupertinoActivityIndicator(radius: 16),
+                                )
+                              : Container(
+                                  height: 200,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    physics: BouncingScrollPhysics(),
+                                    itemCount: _newsArticles.length,
+                                    itemBuilder: (context, index) {
+                                      final article = _newsArticles[index];
+                                      final cardColor = _newsColors[index] ?? Color(0xFFFF444F);
+
+                                      return _buildNewsCard(article, cardColor, index);
+                                    },
+                                  ),
+                                ),
                         ],
-                      ),
-                      if (_showNews) ...[
                         SizedBox(height: 32),
                         Text(
-                          'Últimas Notícias',
+                          'Publicações Recentes',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -394,149 +474,308 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                         ),
                         SizedBox(height: 16),
-                        _loadingNews
-                            ? Center(
-                                child: CupertinoActivityIndicator(radius: 16),
-                              )
-                            : Container(
-                                height: 200,
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  physics: BouncingScrollPhysics(),
-                                  itemCount: _newsArticles.length,
-                                  itemBuilder: (context, index) {
-                                    final article = _newsArticles[index];
-                                    final cardColor = _newsColors[index] ?? Color(0xFFFF444F);
-
-                                    return _buildNewsCard(article, cardColor, index);
-                                  },
-                                ),
-                              ),
-                      ],
-                      SizedBox(height: 32),
-                      Text(
-                        'Publicações Recentes',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                    ]),
-                  ),
-                ),
-
-                // Posts: usar StreamBuilder que retorna um Column com PostCards (evita ListView aninhado)
-                SliverToBoxAdapter(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance
-                        .collection('publicacoes')
-                        .orderBy('timestamp', descending: true)
-                        .limit(20)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(child: CupertinoActivityIndicator(radius: 16)),
-                        );
-                      }
-
-                      if (!snapshot.hasData || snapshot.data == null) {
-                        return Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
-                                SizedBox(height: 16),
-                                Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-
-                      final posts = snapshot.data!.docs;
-
-                      if (posts.isEmpty) {
-                        return Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
-                                SizedBox(height: 16),
-                                Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-
-                      // Construir Column de PostCards (cada PostCard é responsável pelo seu próprio tamanho)
-                      return Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: posts.map((docSnap) {
-                            final post = docSnap.data() as Map<String, dynamic>;
-                            final postId = docSnap.id;
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: 12),
-                              child: PostCard(
-                                post: post,
-                                postId: postId,
-                                isDark: isDark,
-                                currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // espaço inferior para FAB
-                SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-              ],
-            ),
-
-            // FAB para criar publicação — respeita safe area
-            Positioned(
-              right: 16,
-              bottom: MediaQuery.of(context).viewPadding.bottom + 16,
-              child: GestureDetector(
-                onTap: _handleCreatePost,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                      ]),
                     ),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFFFF444F).withOpacity(0.4),
-                        blurRadius: 15,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
                   ),
-                  child: Icon(
-                    CupertinoIcons.plus,
-                    color: CupertinoColors.white,
-                    size: 28,
+
+                  SliverToBoxAdapter(
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('publicacoes')
+                          .orderBy('timestamp', descending: true)
+                          .limit(20)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(child: CupertinoActivityIndicator(radius: 16)),
+                          );
+                        }
+
+                        if (!snapshot.hasData || snapshot.data == null) {
+                          return Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
+                                  SizedBox(height: 16),
+                                  Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        final posts = snapshot.data!.docs;
+
+                        if (posts.isEmpty) {
+                          return Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
+                                  SizedBox(height: 16),
+                                  Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: posts.map((docSnap) {
+                              final post = docSnap.data() as Map<String, dynamic>;
+                              final postId = docSnap.id;
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: 12),
+                                child: PostCard(
+                                  post: post,
+                                  postId: postId,
+                                  isDark: isDark,
+                                  currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                ],
+              ),
+
+              Positioned(
+                right: 16,
+                bottom: MediaQuery.of(context).viewPadding.bottom + 16,
+                child: GestureDetector(
+                  onTap: _handleCreatePost,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xFFFF444F).withOpacity(0.4),
+                          blurRadius: 15,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      CupertinoIcons.plus,
+                      color: CupertinoColors.white,
+                      size: 28,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: () {
+          // Ação do botão
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            'Ação Principal',
+            style: TextStyle(
+              color: isDark ? CupertinoColors.black : CupertinoColors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCryptoSection(bool isDark) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Criptomoedas',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                ),
+              ),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: Text(
+                  'Ver mais',
+                  style: TextStyle(
+                    color: Color(0xFFFF444F),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => CryptoListScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          _loadingCrypto
+              ? Center(child: CupertinoActivityIndicator())
+              : Column(
+                  children: _cryptoData.map((crypto) {
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: _buildCryptoCard(crypto, isDark),
+                    );
+                  }).toList(),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCryptoCard(CryptoData crypto, bool isDark) {
+    final isPositive = crypto.priceChange >= 0;
+    
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Color(0xFFFF444F).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                crypto.symbol.substring(0, 1),
+                style: TextStyle(
+                  color: Color(0xFFFF444F),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  crypto.symbol,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
+                Text(
+                  '\$${crypto.price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 80,
+            height: 40,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: false),
+                titlesData: FlTitlesData(show: false),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineBarData(
+                    spots: crypto.sparkline.asMap().entries.map((e) {
+                      return FlSpot(e.key.toDouble(), e.value);
+                    }).toList(),
+                    isCurved: true,
+                    color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                    barWidth: 2,
+                    dotData: FlDotData(show: false),
+                    belowBarData: BarAreaData(show: false),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isPositive 
+                  ? CupertinoColors.systemGreen.withOpacity(0.1)
+                  : CupertinoColors.systemRed.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
+              style: TextStyle(
+                color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -701,5 +940,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-// small helper para unawaited future sem avisos
+class CryptoData {
+  final String symbol;
+  final double price;
+  final double priceChange;
+  final List<double> sparkline;
+
+  CryptoData({
+    required this.symbol,
+    required this.price,
+    required this.priceChange,
+    required this.sparkline,
+  });
+
+  factory CryptoData.fromBinance(Map<String, dynamic> json) {
+    final symbol = json['symbol'].toString().replaceAll('USDT', '');
+    final price = double.parse(json['lastPrice'].toString());
+    final priceChange = double.parse(json['priceChangePercent'].toString());
+    
+    // Gerar sparkline simulado baseado na variação de preço
+    List<double> sparkline = [];
+    for (int i = 0; i < 20; i++) {
+      sparkline.add(price * (1 + (priceChange / 100) * (i / 20)));
+    }
+    
+    return CryptoData(
+      symbol: symbol,
+      price: price,
+      priceChange: priceChange,
+      sparkline: sparkline,
+    );
+  }
+}
+
 void unawaited(Future? f) {}
