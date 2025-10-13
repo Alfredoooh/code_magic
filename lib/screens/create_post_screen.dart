@@ -66,7 +66,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: Text('Escolha uma opção'),
         actions: [
           CupertinoActionSheetAction(
             child: Row(
@@ -144,13 +143,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
 
+    if (_contentController.text.trim().isEmpty) {
+      _showErrorDialog('Por favor, escreva algo para publicar.');
+      return;
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final postId = FirebaseFirestore.instance.collection('publicacoes').doc().id;
-    
-    final subject = Uri.encodeComponent('Nova Publicação - K Paga - $postId');
-    final body = Uri.encodeComponent('''
+    setState(() => _isSubmitting = true);
+
+    try {
+      final postId = FirebaseFirestore.instance.collection('publicacoes').doc().id;
+
+      final subject = Uri.encodeComponent('Nova Publicação - K Paga - $postId');
+      final body = Uri.encodeComponent('''
 Detalhes da Publicação:
 
 ID da Publicação: $postId
@@ -161,32 +168,30 @@ Conteúdo: ${_contentController.text}
 Nome do Arquivo: $_imageFileName
 
 ---
-INSTRUÇÕES IMPORTANTES:
-1. Faça upload da imagem anexada para seu servidor de hospedagem
+INSTRUÇÕES:
+1. Faça upload da imagem anexada
 2. Crie um link público para a imagem
 3. Atualize o documento no Firestore:
    - Coleção: publicacoes
    - Documento ID: $postId
-   - Campo a atualizar: image (com o link da imagem)
-   - Campo a atualizar: status (de "pending" para "approved")
-
-A imagem está pronta para ser anexada neste email.
+   - Campo: image (com o link da imagem)
+   - Campo: status (de "pending" para "approved")
 ''');
 
-    final mailtoUrl = 'mailto:$_uploadEmail?subject=$subject&body=$body';
-
-    try {
       await _createPendingPost(postId);
+
+      final mailtoUrl = 'mailto:$_uploadEmail?subject=$subject&body=$body';
 
       if (await canLaunch(mailtoUrl)) {
         await launch(mailtoUrl);
-        
+
         if (mounted) {
           showCupertinoDialog(
             context: context,
+            barrierDismissible: false,
             builder: (context) => CupertinoAlertDialog(
               title: Text('Email Aberto'),
-              content: Text('Por favor, anexe a imagem selecionada e envie o email. Sua publicação será processada em breve.\n\nIMPORTANTE: Anexe a imagem ao email antes de enviar.'),
+              content: Text('Anexe a imagem selecionada e envie o email. Sua publicação será processada em breve.'),
               actions: [
                 CupertinoDialogAction(
                   child: Text('Entendi'),
@@ -203,7 +208,11 @@ A imagem está pronta para ser anexada neste email.
         _showErrorDialog('Não foi possível abrir o cliente de email.');
       }
     } catch (e) {
-      _showErrorDialog('Erro ao abrir email: $e');
+      _showErrorDialog('Erro ao processar publicação: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -216,8 +225,8 @@ A imagem está pronta para ser anexada neste email.
       'userId': user.uid,
       'userName': widget.userData['username'],
       'userProfileImage': widget.userData['profile_image'] ?? '',
-      'title': _titleController.text,
-      'content': _contentController.text,
+      'title': _titleController.text.trim(),
+      'content': _contentController.text.trim(),
       'image': '',
       'status': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
@@ -237,14 +246,17 @@ A imagem está pronta para ser anexada neste email.
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        _showErrorDialog('Usuário não autenticado.');
+        return;
+      }
 
       await FirebaseFirestore.instance.collection('publicacoes').add({
         'userId': user.uid,
-        'userName': widget.userData['username'],
+        'userName': widget.userData['username'] ?? 'Usuário',
         'userProfileImage': widget.userData['profile_image'] ?? '',
-        'title': _titleController.text,
-        'content': _contentController.text,
+        'title': _titleController.text.trim(),
+        'content': _contentController.text.trim(),
         'image': '',
         'status': 'approved',
         'timestamp': FieldValue.serverTimestamp(),
@@ -256,6 +268,7 @@ A imagem está pronta para ser anexada neste email.
       if (mounted) {
         showCupertinoDialog(
           context: context,
+          barrierDismissible: false,
           builder: (context) => CupertinoAlertDialog(
             title: Text('Sucesso!'),
             content: Text('Sua publicação foi criada com sucesso.'),
@@ -296,54 +309,47 @@ A imagem está pronta para ser anexada neste email.
     );
   }
 
-  void _showPublishOptions() {
+  void _handlePublish() {
+    if (_isSubmitting) return;
+
     if (_selectedImage != null) {
       _sendImageViaEmail();
     } else {
-      showCupertinoModalPopup(
-        context: context,
-        builder: (context) => CupertinoActionSheet(
-          title: Text('Como deseja publicar?'),
-          message: Text('Escolha se deseja adicionar uma imagem ou publicar apenas texto.'),
-          actions: [
-            CupertinoActionSheetAction(
-              child: Text('Adicionar Imagem e Publicar'),
-              onPressed: () {
-                Navigator.pop(context);
-                _pickImage();
-              },
-            ),
-            CupertinoActionSheetAction(
-              child: Text('Publicar sem Imagem'),
-              onPressed: () {
-                Navigator.pop(context);
-                _submitPostWithoutImage();
-              },
-            ),
-          ],
-          cancelButton: CupertinoActionSheetAction(
-            child: Text('Cancelar'),
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-      );
+      _submitPostWithoutImage();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        middle: Text('Nova Publicação'),
+        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            width: 0.5,
+          ),
+        ),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          child: Text('Cancelar'),
+          child: Text(
+            'Cancelar',
+            style: TextStyle(
+              color: Color(0xFFFF444F),
+              fontSize: 17,
+            ),
+          ),
           onPressed: () => Navigator.pop(context),
+        ),
+        middle: Text(
+          'Nova Publicação',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
@@ -352,332 +358,190 @@ A imagem está pronta para ser anexada neste email.
               : Text(
                   'Publicar',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFF444F),
+                    fontWeight: FontWeight.w600,
+                    color: _contentController.text.trim().isEmpty
+                        ? CupertinoColors.systemGrey
+                        : Color(0xFFFF444F),
+                    fontSize: 17,
                   ),
                 ),
-          onPressed: _isSubmitting ? null : _showPublishOptions,
+          onPressed: _isSubmitting || _contentController.text.trim().isEmpty
+              ? null
+              : _handlePublish,
         ),
-        border: null,
       ),
       child: SafeArea(
         child: _loadingEmail
-            ? Center(child: CupertinoActivityIndicator(radius: 16))
+            ? Center(child: CupertinoActivityIndicator())
             : ListView(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.zero,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Color(0xFFFF444F),
-                        backgroundImage: widget.userData['profile_image'] != null &&
-                                widget.userData['profile_image'].isNotEmpty
-                            ? NetworkImage(widget.userData['profile_image'])
-                            : null,
-                        child: widget.userData['profile_image'] == null ||
-                                widget.userData['profile_image'].isEmpty
-                            ? Text(
-                                (widget.userData['username'] ?? 'U')[0].toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: CupertinoColors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
-                      ),
-                      SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.userData['username'] ?? 'Usuário',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
+                  // User Info
+                  Container(
+                    color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFFF444F),
                           ),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFF444F),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  CupertinoIcons.star_fill,
-                                  color: CupertinoColors.white,
-                                  size: 10,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'PRO',
-                                  style: TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                          child: widget.userData['profile_image'] != null &&
+                                  widget.userData['profile_image'].isNotEmpty
+                              ? ClipOval(
+                                  child: Image.network(
+                                    widget.userData['profile_image'],
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    (widget.userData['username'] ?? 'U')[0].toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: CupertinoColors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          widget.userData['username'] ?? 'Usuário',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 24),
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                      borderRadius: BorderRadius.circular(16),
+                        ),
+                      ],
                     ),
+                  ),
+
+                  // Divider
+                  Container(
+                    height: 0.5,
+                    color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+                  ),
+
+                  // Content Input
+                  Container(
+                    color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       children: [
                         CupertinoTextField(
                           controller: _titleController,
                           placeholder: 'Título (opcional)',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.transparent,
                           ),
+                          padding: EdgeInsets.zero,
                           maxLength: 100,
+                          placeholderStyle: TextStyle(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: 12),
                         CupertinoTextField(
                           controller: _contentController,
                           placeholder: 'No que você está pensando?',
                           style: TextStyle(
                             fontSize: 16,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.transparent,
                           ),
-                          maxLines: 10,
+                          padding: EdgeInsets.zero,
+                          maxLines: null,
+                          minLines: 5,
                           maxLength: 1000,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      height: _selectedImage != null ? 300 : 150,
-                      decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _selectedImage != null 
-                              ? Color(0xFFFF444F).withOpacity(0.5)
-                              : (isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5),
-                          width: 2,
-                        ),
-                      ),
-                      child: _selectedImage != null
-                          ? Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Image.file(
-                                    _selectedImage!,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: GestureDetector(
-                                    onTap: _removeImage,
-                                    child: Container(
-                                      padding: EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        CupertinoIcons.xmark,
-                                        color: CupertinoColors.white,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 12,
-                                  left: 12,
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFFFF444F),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          CupertinoIcons.checkmark_circle_fill,
-                                          color: CupertinoColors.white,
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          'Imagem Selecionada',
-                                          style: TextStyle(
-                                            color: CupertinoColors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  CupertinoIcons.photo_on_rectangle,
-                                  size: 48,
-                                  color: Color(0xFFFF444F),
-                                ),
-                                SizedBox(height: 12),
-                                Text(
-                                  'Toque para adicionar imagem',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Câmera ou Galeria',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: CupertinoColors.systemGrey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Color(0xFFFF444F).withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              CupertinoIcons.info_circle_fill,
-                              color: Color(0xFFFF444F),
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              _selectedImage != null ? 'Publicar com Imagem' : 'Como Funciona',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 12),
-                        if (_selectedImage != null)
-                          Text(
-                            'Ao publicar, um email será aberto automaticamente. Anexe a imagem selecionada e envie o email. Sua publicação será processada em breve.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: CupertinoColors.systemGrey,
-                              height: 1.5,
-                            ),
-                          )
-                        else
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '• Adicione uma imagem tocando no botão acima',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: CupertinoColors.systemGrey,
-                                  height: 1.5,
-                                ),
-                              ),
-                              Text(
-                                '• Ou publique apenas texto clicando em "Publicar"',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: CupertinoColors.systemGrey,
-                                  height: 1.5,
-                                ),
-                              ),
-                              Text(
-                                '• Publicações com imagem são enviadas via email',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: CupertinoColors.systemGrey,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
+                          placeholderStyle: TextStyle(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 16,
                           ),
+                          onChanged: (value) {
+                            setState(() {});
+                          },
+                        ),
                       ],
                     ),
                   ),
-                  SizedBox(height: 24),
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Color(0xFFFF444F).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Color(0xFFFF444F).withOpacity(0.3),
-                        width: 1,
+
+                  SizedBox(height: 8),
+
+                  // Image Preview
+                  if (_selectedImage != null)
+                    Container(
+                      margin: EdgeInsets.symmetric(horizontal: 16),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedImage!,
+                              width: double.infinity,
+                              height: 300,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: _removeImage,
+                              child: Container(
+                                padding: EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  CupertinoIcons.xmark,
+                                  color: CupertinoColors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          CupertinoIcons.star_fill,
-                          color: Color(0xFFFF444F),
-                          size: 24,
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Recursos PRO desbloqueados: Publicações ilimitadas, imagens, prioridade na moderação',
+
+                  SizedBox(height: 8),
+
+                  // Action Button
+                  Container(
+                    color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _pickImage,
+                      child: Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.photo,
+                            color: Color(0xFFFF444F),
+                            size: 24,
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            _selectedImage != null ? 'Alterar Imagem' : 'Adicionar Imagem',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 16,
                               color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
