@@ -277,9 +277,7 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                         return FlSpot(e.key.toDouble(), e.value);
                       }).toList(),
                       isCurved: true,
-                      colors: [
-                        isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed
-                      ],
+                      color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
                       barWidth: 2,
                       dotData: FlDotData(show: false),
                       belowBarData: BarAreaData(show: false),
@@ -465,9 +463,7 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                                   return FlSpot(e.key.toDouble(), e.value);
                                 }).toList(),
                                 isCurved: true,
-                                colors: [
-                                  crypto.priceChange >= 0 ? CupertinoColors.systemGreen : CupertinoColors.systemRed
-                                ],
+                                color: crypto.priceChange >= 0 ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
                                 barWidth: 3,
                                 dotData: FlDotData(show: false),
                                 belowBarData: BarAreaData(
