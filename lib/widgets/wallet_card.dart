@@ -1,3 +1,4 @@
+// lib/widgets/wallet_card.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,12 +8,14 @@ import 'dart:ui';
 class WalletCard extends StatelessWidget {
   final Map<String, dynamic>? userData;
   final String cardStyle;
-  final Function(String) onStyleChanged;
+  final Function(String)? onStyleChanged;
+  final bool showCustomizeButton;
 
   const WalletCard({
     required this.userData,
     required this.cardStyle,
-    required this.onStyleChanged,
+    this.onStyleChanged,
+    this.showCustomizeButton = true,
     Key? key,
   }) : super(key: key);
 
@@ -76,7 +79,7 @@ class WalletCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () async {
-        onStyleChanged(style);
+        onStyleChanged?.call(style);
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           await FirebaseFirestore.instance
@@ -271,12 +274,15 @@ class WalletCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                GestureDetector(
-                  onTap: () => _showCardStylePicker(context),
-                  child: Icon(
-                    CupertinoIcons.paintbrush_fill,
-                    color: Color(0xFFFF444F),
-                    size: 32,
+                Visibility(
+                  visible: showCustomizeButton,
+                  child: GestureDetector(
+                    onTap: () => _showCardStylePicker(context),
+                    child: Icon(
+                      CupertinoIcons.paintbrush_fill,
+                      color: Color(0xFFFF444F),
+                      size: 32,
+                    ),
                   ),
                 ),
               ],
@@ -361,6 +367,7 @@ class WalletCard extends StatelessWidget {
   }
 
   Widget _buildCardContent(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.all(24),
       child: Column(
@@ -412,25 +419,28 @@ class WalletCard extends StatelessWidget {
                   ),
                 ],
               ),
-              GestureDetector(
-                onTap: () => _showCardStylePicker(context),
-                child: Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFFF444F),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFFFF444F).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    CupertinoIcons.paintbrush_fill,
-                    color: Colors.white,
-                    size: 28,
+              Visibility(
+                visible: showCustomizeButton,
+                child: GestureDetector(
+                  onTap: () => _showCardStylePicker(context),
+                  child: Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFF444F),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xFFFF444F).withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      CupertinoIcons.paintbrush_fill,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ),
               ),
