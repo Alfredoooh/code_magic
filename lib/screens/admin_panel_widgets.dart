@@ -5,6 +5,7 @@ import 'admin_panel_utils.dart';
 
 class AdminPanelWidgets {
   static Widget buildDashboardTab(
+    BuildContext context,
     ThemeData theme,
     Map<String, dynamic> stats,
     List<FlSpot> userGrowthData,
@@ -25,7 +26,7 @@ class AdminPanelWidgets {
           const SizedBox(height: 20),
           _buildStatsGrid(theme, stats, userGrowthData, activityData),
           const SizedBox(height: 24),
-          _buildOnlineUsersSection(theme.primaryColor, theme),
+          _buildOnlineUsersSection(context, theme.primaryColor, theme),
           const SizedBox(height: 24),
           _buildChartCard(
             title: 'Crescimento de Usuários', 
@@ -256,7 +257,7 @@ class AdminPanelWidgets {
     );
   }
 
-  static Widget _buildOnlineUsersSection(Color primaryColor, ThemeData theme) {
+  static Widget _buildOnlineUsersSection(BuildContext context, Color primaryColor, ThemeData theme) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -442,11 +443,13 @@ class AdminPanelWidgets {
   }
 
   static Widget buildUsersTab(
+    BuildContext context,
     ThemeData theme,
     String searchQuery,
     String userFilter,
     Function(String) onSearchChanged,
     Function(String) onFilterChanged,
+    Function() onUserDeleted,
   ) {
     final primaryColor = theme.primaryColor;
     
@@ -527,15 +530,12 @@ class AdminPanelWidgets {
                   final userData = userDoc.data();
                   final userId = userDoc.id;
                   return _buildUserCard(
+                    context,
                     userData, 
                     userId, 
                     primaryColor, 
                     theme,
-                    AdminPanelUtils.editUser,
-                    AdminPanelUtils.togglePro,
-                    AdminPanelUtils.toggleAdmin,
-                    AdminPanelUtils.banOrUnbanUser,
-                    AdminPanelUtils.confirmDeleteUser,
+                    onUserDeleted,
                   );
                 },
               );
@@ -567,15 +567,12 @@ class AdminPanelWidgets {
   }
 
   static Widget _buildUserCard(
+    BuildContext context,
     Map<String, dynamic> userData,
     String userId,
     Color primaryColor,
     ThemeData theme,
-    Function(String, Map<String, dynamic>) editUser,
-    Function(String, bool) togglePro,
-    Function(String, bool) toggleAdmin,
-    Function(String, String, bool) banOrUnbanUser,
-    Function(String, String) confirmDeleteUser,
+    Function() onUserDeleted,
   ) {
     final profile = (userData['profile_image'] ?? '').toString();
     final username = (userData['username'] ?? 'Usuário').toString();
@@ -730,20 +727,33 @@ class AdminPanelWidgets {
               value: 'delete'
             ),
           ],
-          onSelected: (value) {
-            final context = Navigator.of(context).context;
-            if (value == 'edit') editUser(context, userId, userData);
-            if (value == 'pro') togglePro(userId, isPro);
-            if (value == 'admin') toggleAdmin(userId, isAdmin);
-            if (value == 'ban') banOrUnbanUser(userId, username, isBanned);
-            if (value == 'delete') confirmDeleteUser(context, userId, username);
+          onSelected: (value) async {
+            if (value == 'edit') {
+              await AdminPanelUtils.editUser(context, userId, userData);
+              onUserDeleted();
+            }
+            if (value == 'pro') {
+              await AdminPanelUtils.togglePro(context, userId, isPro);
+              onUserDeleted();
+            }
+            if (value == 'admin') {
+              await AdminPanelUtils.toggleAdmin(context, userId, isAdmin);
+              onUserDeleted();
+            }
+            if (value == 'ban') {
+              await AdminPanelUtils.banOrUnbanUser(context, userId, username, isBanned);
+              onUserDeleted();
+            }
+            if (value == 'delete') {
+              AdminPanelUtils.confirmDeleteUser(context, userId, username, onUserDeleted);
+            }
           },
         ),
       ),
     );
   }
 
-  static Widget buildPostsTab(ThemeData theme) {
+  static Widget buildPostsTab(BuildContext context, ThemeData theme) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('posts')
@@ -774,11 +784,11 @@ class AdminPanelWidgets {
             final post = posts[index].data();
             final postId = posts[index].id;
             return _buildPostCard(
+              context,
               post, 
               postId, 
               theme.primaryColor, 
               theme,
-              AdminPanelUtils.deletePost,
             );
           },
         );
@@ -787,11 +797,11 @@ class AdminPanelWidgets {
   }
 
   static Widget _buildPostCard(
+    BuildContext context,
     Map<String, dynamic> postData,
     String postId,
     Color primaryColor,
     ThemeData theme,
-    Function(String) deletePost,
   ) {
     final image = (postData['image'] ?? '').toString();
     final userName = (postData['userName'] ?? 'Usuário').toString();
@@ -852,7 +862,7 @@ class AdminPanelWidgets {
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red), 
-                      onPressed: () => deletePost(postId)
+                      onPressed: () => AdminPanelUtils.deletePost(context, postId)
                     ),
                   ],
                 ),
@@ -898,6 +908,7 @@ class AdminPanelWidgets {
   }
 
   static Widget buildActivitiesTab(
+    BuildContext context,
     ThemeData theme, 
     List<Map<String, dynamic>> realtimeActivities
   ) {
@@ -992,6 +1003,7 @@ class AdminPanelWidgets {
   }
 
   static Widget buildAnalyticsTab(
+    BuildContext context,
     ThemeData theme,
     String selectedPeriod,
     Map<String, dynamic> stats,
