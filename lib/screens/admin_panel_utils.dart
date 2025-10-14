@@ -115,27 +115,67 @@ class AdminPanelUtils {
     );
   }
 
-  static Future<void> togglePro(String userId, bool isPro) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
-      'pro': !isPro
-    });
+  static Future<void> togglePro(BuildContext context, String userId, bool isPro) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'pro': !isPro
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(isPro ? 'PRO removido' : 'PRO ativado'))
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar PRO: $e'))
+        );
+      }
+    }
   }
 
-  static Future<void> toggleAdmin(String userId, bool isAdmin) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
-      'admin': !isAdmin
-    });
+  static Future<void> toggleAdmin(BuildContext context, String userId, bool isAdmin) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'admin': !isAdmin
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(isAdmin ? 'Admin removido' : 'Admin ativado'))
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar admin: $e'))
+        );
+      }
+    }
   }
 
   static Future<void> banOrUnbanUser(
+    BuildContext context,
     String userId, 
     String username, 
     bool isCurrentlyBanned
   ) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
-      'banned': !isCurrentlyBanned,
-      'isOnline': false,
-    });
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'banned': !isCurrentlyBanned,
+        'isOnline': false,
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(isCurrentlyBanned ? '$username desbanido' : '$username foi banido'))
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao banir/desbanir usuário: $e'))
+        );
+      }
+    }
   }
 
   static void confirmDeleteUser(
@@ -186,12 +226,7 @@ class AdminPanelUtils {
                 child: const Text('Excluir'),
                 onPressed: () async {
                   Navigator.pop(context);
-                  await _deleteUser(userId, alsoDeleteContent);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Usuário excluído do Firestore'))
-                    );
-                  }
+                  await _deleteUser(context, userId, alsoDeleteContent);
                   onSuccess?.call();
                 },
               ),
@@ -202,16 +237,25 @@ class AdminPanelUtils {
     );
   }
 
-  static Future<void> _deleteUser(String userId, bool removeContent) async {
+  static Future<void> _deleteUser(BuildContext context, String userId, bool removeContent) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).delete();
 
       if (removeContent) {
         await _deleteUserPostsAndMessages(userId);
       }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuário excluído do Firestore'))
+        );
+      }
     } catch (e) {
-      debugPrint('Erro ao excluir usuário: $e');
-      rethrow;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao excluir usuário: $e'))
+        );
+      }
     }
   }
 
@@ -264,11 +308,19 @@ class AdminPanelUtils {
     );
 
     if (confirmed == true) {
-      await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post deletado com sucesso'))
-        );
+      try {
+        await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Post deletado com sucesso'))
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao deletar post: $e'))
+          );
+        }
       }
     }
   }
