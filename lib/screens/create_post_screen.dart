@@ -194,7 +194,7 @@ INSTRUÇÕES:
               content: Text('Anexe a imagem selecionada e envie o email. Sua publicação será processada em breve.'),
               actions: [
                 CupertinoDialogAction(
-                  child: Text('Entendi'),
+                  child: Text('Entendi', style: TextStyle(color: Color(0xFFFF444F))),
                   onPressed: () {
                     Navigator.pop(context);
                     Navigator.pop(context);
@@ -220,10 +220,10 @@ INSTRUÇÕES:
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    await FirebaseFirestore.instance.collection('publicacoes').doc(postId).set({
-      'id': postId,
+    final postData = {
       'userId': user.uid,
-      'userName': widget.userData['username'],
+      'username': widget.userData['username'] ?? 'Usuário',
+      'displayName': widget.userData['username'] ?? 'Usuário',
       'userProfileImage': widget.userData['profile_image'] ?? '',
       'title': _titleController.text.trim(),
       'content': _contentController.text.trim(),
@@ -233,7 +233,13 @@ INSTRUÇÕES:
       'likes': 0,
       'comments': 0,
       'likedBy': [],
-    });
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    await FirebaseFirestore.instance
+        .collection('publicacoes')
+        .doc(postId)
+        .set(postData);
   }
 
   Future<void> _submitPostWithoutImage() async {
@@ -251,9 +257,10 @@ INSTRUÇÕES:
         return;
       }
 
-      await FirebaseFirestore.instance.collection('publicacoes').add({
+      final postData = {
         'userId': user.uid,
-        'userName': widget.userData['username'] ?? 'Usuário',
+        'username': widget.userData['username'] ?? 'Usuário',
+        'displayName': widget.userData['username'] ?? 'Usuário',
         'userProfileImage': widget.userData['profile_image'] ?? '',
         'title': _titleController.text.trim(),
         'content': _contentController.text.trim(),
@@ -263,7 +270,12 @@ INSTRUÇÕES:
         'likes': 0,
         'comments': 0,
         'likedBy': [],
-      });
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection('publicacoes')
+          .add(postData);
 
       if (mounted) {
         showCupertinoDialog(
@@ -274,7 +286,7 @@ INSTRUÇÕES:
             content: Text('Sua publicação foi criada com sucesso.'),
             actions: [
               CupertinoDialogAction(
-                child: Text('OK'),
+                child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pop(context);
@@ -301,7 +313,7 @@ INSTRUÇÕES:
         content: Text(message),
         actions: [
           CupertinoDialogAction(
-            child: Text('OK'),
+            child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -520,10 +532,13 @@ INSTRUÇÕES:
 
                   // Action Button
                   Container(
-                    color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    margin: EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: CupertinoButton(
-                      padding: EdgeInsets.zero,
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       onPressed: _pickImage,
                       child: Row(
                         children: [
@@ -544,6 +559,8 @@ INSTRUÇÕES:
                       ),
                     ),
                   ),
+                  
+                  SizedBox(height: 16),
                 ],
               ),
       ),
