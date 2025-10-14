@@ -1,182 +1,248 @@
-// lib/screens/more_screen.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class MoreScreen extends StatelessWidget {
-  const MoreScreen({Key? key}) : super(key: key);
+class TradingWarningScreen extends StatefulWidget {
+  @override
+  _TradingWarningScreenState createState() => _TradingWarningScreenState();
+}
+
+class _TradingWarningScreenState extends State<TradingWarningScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(0.0, 0.5, curve: Curves.easeOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+    ));
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDismiss() async {
+    await _controller.reverse();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenTradingWarning', true);
+    Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            CupertinoIcons.back,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: Text(
-          'Mais Opções',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-        ),
-        border: null,
-      ),
-      child: SafeArea(
-        child: ListView(
-          physics: BouncingScrollPhysics(),
-          padding: EdgeInsets.all(16),
-          children: [
-            _buildOptionCard(
-              icon: CupertinoIcons.settings,
-              title: 'Configurações',
-              subtitle: 'Gerencie suas preferências',
-              color: CupertinoColors.systemBlue,
-              isDark: isDark,
-              onTap: () {
-                // Navegar para configurações
-              },
-            ),
-            SizedBox(height: 12),
-            _buildOptionCard(
-              icon: CupertinoIcons.person_circle,
-              title: 'Perfil',
-              subtitle: 'Edite suas informações',
-              color: CupertinoColors.systemPurple,
-              isDark: isDark,
-              onTap: () {
-                // Navegar para perfil
-              },
-            ),
-            SizedBox(height: 12),
-            _buildOptionCard(
-              icon: CupertinoIcons.bell,
-              title: 'Notificações',
-              subtitle: 'Configure suas notificações',
-              color: CupertinoColors.systemOrange,
-              isDark: isDark,
-              onTap: () {
-                // Navegar para notificações
-              },
-            ),
-            SizedBox(height: 12),
-            _buildOptionCard(
-              icon: CupertinoIcons.shield,
-              title: 'Privacidade',
-              subtitle: 'Controle sua privacidade',
-              color: CupertinoColors.systemGreen,
-              isDark: isDark,
-              onTap: () {
-                // Navegar para privacidade
-              },
-            ),
-            SizedBox(height: 12),
-            _buildOptionCard(
-              icon: CupertinoIcons.question_circle,
-              title: 'Ajuda',
-              subtitle: 'Central de suporte',
-              color: CupertinoColors.systemYellow,
-              isDark: isDark,
-              onTap: () {
-                // Navegar para ajuda
-              },
-            ),
-            SizedBox(height: 12),
-            _buildOptionCard(
-              icon: CupertinoIcons.info_circle,
-              title: 'Sobre',
-              subtitle: 'Informações do aplicativo',
-              color: CupertinoColors.systemGrey,
-              isDark: isDark,
-              onTap: () {
-                // Navegar para sobre
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOptionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onTap,
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 26,
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
+    return Scaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  SizedBox(height: 50),
+                  
+                  // Warning Icon
+                  Icon(
+                    Icons.warning_rounded,
+                    color: Color(0xFFFF444F),
+                    size: 64,
+                  ),
+                  
+                  SizedBox(height: 40),
+                  
+                  // Title
                   Text(
-                    title,
+                    'Aviso Importante',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      fontSize: 38,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black,
+                      letterSpacing: -1,
+                      height: 1.1,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  
+                  SizedBox(height: 20),
+                  
+                  // Main warning text
                   Text(
-                    subtitle,
+                    'Operações em qualquer corretora podem garantir ganhos ou perdas. Por tanto, apelamos que use as ferramentas do app para controlar os riscos e não ganhar emoção ao ponto de perder todos os seus fundos.',
                     style: TextStyle(
-                      fontSize: 13,
-                      color: CupertinoColors.systemGrey,
+                      fontSize: 18,
+                      height: 1.6,
+                      color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.8),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  
+                  SizedBox(height: 44),
+                  
+                  // Information sections
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildInfoSection(
+                            icon: Icons.shield_outlined,
+                            title: 'Gestão de Risco',
+                            description: 'Nunca invista mais do que pode perder. Defina stop-loss e take-profit para proteger seu capital e minimizar perdas potenciais.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: Icons.psychology_outlined,
+                            title: 'Controle Emocional',
+                            description: 'Decisões emocionais levam a perdas significativas. Mantenha-se disciplinado, siga sua estratégia e não deixe o medo ou ganância controlar suas operações.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: Icons.school_outlined,
+                            title: 'Educação Contínua',
+                            description: 'Aprenda constantemente sobre análise técnica, gestão de risco e psicologia do trading. O conhecimento é sua melhor ferramenta.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: Icons.account_balance_outlined,
+                            title: 'Diversificação',
+                            description: 'Não coloque todos os seus fundos em uma única operação. Diversifique seu portfólio para reduzir riscos e aumentar oportunidades.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: Icons.access_time_outlined,
+                            title: 'Paciência e Disciplina',
+                            description: 'O trading bem-sucedido requer tempo e paciência. Não force operações e espere as melhores oportunidades conforme sua estratégia.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: Icons.trending_up_outlined,
+                            title: 'Expectativas Realistas',
+                            description: 'Lucros consistentes levam tempo. Evite promessas de ganhos rápidos e foque em crescimento sustentável a longo prazo.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Continue Button
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 20, top: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _handleDismiss,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFFF444F),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'Entendi',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.systemGrey,
-              size: 20,
-            ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoSection({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: Color(0xFFFF444F),
+          size: 28,
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
