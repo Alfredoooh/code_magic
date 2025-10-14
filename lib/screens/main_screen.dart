@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import 'chats_screen.dart';
 import 'marketplace_screen.dart';
@@ -34,11 +35,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   // Track if each tab's navigator has pushed routes
   final List<bool> _hasNavigatedInTab = [false, false, false, false];
 
+  // Pulse animation controllers for each tab
+  final List<AnimationController> _pulseControllers = [];
+  final List<Animation<double>> _pulseAnimations = [];
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _updateUserStatus(true);
+    _checkAndShowWarningModal();
 
     // Initialize animation controller for smooth transitions
     _animationController = AnimationController(
@@ -49,6 +55,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       parent: _animationController,
       curve: Curves.easeInOut,
     );
+
+    // Initialize pulse animation controllers for each tab
+    for (int i = 0; i < 4; i++) {
+      final controller = AnimationController(
+        duration: Duration(milliseconds: 400),
+        vsync: this,
+      );
+      final animation = Tween<double>(begin: 1.0, end: 1.3).animate(
+        CurvedAnimation(
+          parent: controller,
+          curve: Curves.easeOut,
+        ),
+      );
+      _pulseControllers.add(controller);
+      _pulseAnimations.add(animation);
+    }
 
     // Initialize navigator keys for each tab to maintain state
     _navigatorKeys = List.generate(
@@ -88,10 +110,37 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _checkAndShowWarningModal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenWarning = prefs.getBool('has_seen_trading_warning') ?? false;
+
+    if (!hasSeenWarning) {
+      // Delay to ensure the screen is built
+      await Future.delayed(Duration(milliseconds: 500));
+      _showTradingWarningModal();
+    }
+  }
+
+  void _showTradingWarningModal() {
+    showCupertinoModalPopup(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => _TradingWarningSheet(
+        onDismiss: () async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('has_seen_trading_warning', true);
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _updateUserStatus(false);
     _animationController.dispose();
+    for (var controller in _pulseControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -115,6 +164,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _onTabTapped(int index) {
+    // Trigger pulse animation
+    _pulseControllers[index].forward().then((_) {
+      _pulseControllers[index].reverse();
+    });
+
     if (_currentIndex == index) {
       // If tapping the same tab, pop to first route
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
@@ -173,51 +227,109 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             );
           }),
         ),
-        bottomNavigationBar: showBottomBar
-            ? Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: NavigationBar(
-                  selectedIndex: _currentIndex,
-                  onDestinationSelected: _onTabTapped,
+        bottomNavigationBar: AnimatedSlide(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+          offset: showBottomBar ? Offset.zero : Offset(0, 1),
+          child: AnimatedOpacity(
+            duration: Duration(milliseconds: 200),
+            opacity: showBottomBar ? 1.0 : 0.0,
+            curve: Curves.easeOut,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xFF0A0A0A) : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                    blurRadius: 10,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Container(
                   height: 62,
-                  backgroundColor: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                  indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                  elevation: 0,
-                  animationDuration: Duration(milliseconds: 400),
-                  destinations: [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_rounded, size: 24),
-                      selectedIcon: Icon(Icons.home_rounded, color: Color(0xFFFF444F), size: 26),
-                      label: 'Home',
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(4, (index) {
+                      return _buildNavItem(index, isDark);
+                    }),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, bool isDark) {
+    final isSelected = _currentIndex == index;
+    final icons = [
+      Icons.home_outlined,
+      Icons.currency_bitcoin,
+      Icons.layers_rounded,
+      Icons.chat_bubble_rounded,
+    ];
+    final selectedIcons = [
+      Icons.home,
+      Icons.currency_bitcoin,
+      Icons.layers_rounded,
+      Icons.chat_bubble,
+    ];
+    final labels = ['Início', 'Dados', 'Atualidade', 'Conversas'];
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabTapped(index),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedBuilder(
+          animation: _pulseAnimations[index],
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _pulseAnimations[index].value,
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Color(0xFFFF444F).withOpacity(isDark ? 0.12 : 0.08)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isSelected ? selectedIcons[index] : icons[index],
+                      color: isSelected
+                          ? Color(0xFFFF444F)
+                          : isDark
+                              ? Colors.grey[500]
+                              : Colors.grey[600],
+                      size: isSelected ? 26 : 24,
                     ),
-                    NavigationDestination(
-                      icon: Icon(Icons.shopping_bag_rounded, size: 24),
-                      selectedIcon: Icon(Icons.shopping_bag_rounded, color: Color(0xFFFF444F), size: 26),
-                      label: 'Mercado',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.article_rounded, size: 24),
-                      selectedIcon: Icon(Icons.article_rounded, color: Color(0xFFFF444F), size: 26),
-                      label: 'Notícias',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.chat_rounded, size: 24),
-                      selectedIcon: Icon(Icons.chat_rounded, color: Color(0xFFFF444F), size: 26),
-                      label: 'Chat',
+                    SizedBox(height: 2),
+                    Text(
+                      labels[index],
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected
+                            ? Color(0xFFFF444F)
+                            : isDark
+                                ? Colors.grey[500]
+                                : Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
-              )
-            : null,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -259,5 +371,268 @@ class _NavigatorObserver extends NavigatorObserver {
     if (oldRoute != null && newRoute != null) {
       onPush();
     }
+  }
+}
+
+// iOS-style Trading Warning Modal Sheet
+class _TradingWarningSheet extends StatefulWidget {
+  final VoidCallback onDismiss;
+
+  const _TradingWarningSheet({required this.onDismiss});
+
+  @override
+  State<_TradingWarningSheet> createState() => _TradingWarningSheetState();
+}
+
+class _TradingWarningSheetState extends State<_TradingWarningSheet>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _dismiss() async {
+    await _controller.reverse();
+    widget.onDismiss();
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Stack(
+          children: [
+            // Background overlay
+            GestureDetector(
+              onTap: () {}, // Prevent dismissal by tapping outside
+              child: Container(
+                color: Colors.black.withOpacity(0.4 * _animation.value),
+              ),
+            ),
+            // Sheet
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Transform.translate(
+                offset: Offset(0, (1 - _animation.value) * 400),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Handle bar
+                        SizedBox(height: 12),
+                        Container(
+                          width: 36,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey[700] : Colors.grey[300],
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        
+                        // Warning icon with animation
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: Duration(milliseconds: 600),
+                          curve: Curves.elasticOut,
+                          builder: (context, value, child) {
+                            return Transform.scale(
+                              scale: value,
+                              child: Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFFF444F).withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.warning_rounded,
+                                  size: 45,
+                                  color: Color(0xFFFF444F),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        SizedBox(height: 24),
+                        
+                        // Title
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'Aviso Importante sobre Trading',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Content
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24),
+                          child: Container(
+                            padding: EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: isDark ? Color(0xFF2C2C2E) : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildWarningPoint(
+                                  icon: Icons.trending_down,
+                                  text: 'Operações em qualquer corretora podem garantir ganhos ou perdas. Por tanto, apelamos em usar as ferramentas do app para controlar os riscos.',
+                                  isDark: isDark,
+                                ),
+                                SizedBox(height: 16),
+                                _buildWarningPoint(
+                                  icon: Icons.psychology_outlined,
+                                  text: 'Não deixe a emoção controlar suas decisões. Trading emocional é uma das principais causas de perdas significativas.',
+                                  isDark: isDark,
+                                ),
+                                SizedBox(height: 16),
+                                _buildWarningPoint(
+                                  icon: Icons.shield_outlined,
+                                  text: 'Nunca invista mais do que pode perder. Use stop loss e gerencie seu risco adequadamente.',
+                                  isDark: isDark,
+                                ),
+                                SizedBox(height: 16),
+                                _buildWarningPoint(
+                                  icon: Icons.school_outlined,
+                                  text: 'Educação contínua é essencial. Utilize nossos recursos educacionais antes de operar com capital real.',
+                                  isDark: isDark,
+                                ),
+                                SizedBox(height: 16),
+                                _buildWarningPoint(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  text: 'Diversifique seus investimentos e nunca coloque todos os seus fundos em uma única operação.',
+                                  isDark: isDark,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        SizedBox(height: 24),
+                        
+                        // Disclaimer
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'Ao continuar, você reconhece ter lido e compreendido os riscos associados ao trading de criptomoedas e outros ativos.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        
+                        SizedBox(height: 24),
+                        
+                        // Button
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: CupertinoButton(
+                              color: Color(0xFFFF444F),
+                              borderRadius: BorderRadius.circular(14),
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              onPressed: _dismiss,
+                              child: Text(
+                                'Entendi',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildWarningPoint({
+    required IconData icon,
+    required String text,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Color(0xFFFF444F).withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: Color(0xFFFF444F),
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: isDark ? Colors.grey[300] : Colors.grey[800],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
