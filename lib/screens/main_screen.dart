@@ -7,7 +7,7 @@ import 'home_screen.dart';
 import 'chats_screen.dart';
 import 'marketplace_screen.dart';
 import 'news_screen.dart';
-import 'trading_warning_screen.dart';
+import 'more_screen.dart';
 import '../services/language_service.dart';
 
 class MainScreen extends StatefulWidget {
