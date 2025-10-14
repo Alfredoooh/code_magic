@@ -1,10 +1,12 @@
-// admin_panel_screen.dart
+// lib/screens/admin_panel_screen.dart
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 class AdminPanelScreen extends StatefulWidget {
+  const AdminPanelScreen({Key? key}) : super(key: key);
+
   @override
   _AdminPanelScreenState createState() => _AdminPanelScreenState();
 }
@@ -70,25 +72,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
       _updateChartsFromFirestore();
     });
 
-    _usersSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .snapshots()
-        .listen((snapshot) {
+    _usersSubscription =
+        FirebaseFirestore.instance.collection('users').snapshots().listen((snapshot) {
       _loadStatistics();
       _updateChartsFromFirestore();
     });
 
-    _postsSubscription = FirebaseFirestore.instance
-        .collection('posts')
-        .snapshots()
-        .listen((snapshot) {
+    _postsSubscription =
+        FirebaseFirestore.instance.collection('posts').snapshots().listen((snapshot) {
       _loadStatistics();
     });
 
-    _messagesSubscription = FirebaseFirestore.instance
-        .collection('messages')
-        .snapshots()
-        .listen((snapshot) {
+    _messagesSubscription =
+        FirebaseFirestore.instance.collection('messages').snapshots().listen((snapshot) {
       if (mounted) {
         setState(() {
           _stats['totalMessages'] = snapshot.docs.length;
@@ -100,8 +96,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   Future<void> _updateChartsFromFirestore() async {
     try {
       final now = DateTime.now();
-      int days = _selectedPeriod == '7d' ? 7 : (_selectedPeriod == '30d' ? 30 : 90);
-
+      final days = _selectedPeriod == '7d' ? 7 : (_selectedPeriod == '30d' ? 30 : 90);
       final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days - 1));
 
       final usersSnap = await FirebaseFirestore.instance.collection('users').get();
@@ -146,7 +141,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
         });
       }
     } catch (e) {
-      print('Erro ao atualizar gráficos: $e');
+      debugPrint('Erro ao atualizar gráficos: $e');
     }
   }
 
@@ -160,6 +155,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
       if (value is DateTime) return value;
       if (value is int) {
         try {
+          if (value.toString().length == 10) {
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
           return DateTime.fromMillisecondsSinceEpoch(value);
         } catch (_) {}
       }
@@ -180,9 +178,25 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
       final bannedUsers = users.where((u) => (u['banned'] == true)).length;
       final totalPosts = postsSnapshot.docs.length;
       final totalMessages = messagesSnapshot.docs.length;
-      final totalTokens = users.fold<int>(0, (sum, u) => sum + (((u['tokens'] ?? 0) is int ? (u['tokens'] ?? 0) : int.tryParse((u['tokens'] ?? 0).toString()) ?? 0) as int));
-      final totalLikes = postsSnapshot.docs.fold<int>(0, (sum, doc) => sum + (((doc.data()['likes'] ?? 0) is int ? (doc.data()['likes'] ?? 0) : int.tryParse((doc.data()['likes'] ?? 0).toString()) ?? 0) as int));
-      final totalComments = postsSnapshot.docs.fold<int>(0, (sum, doc) => sum + (((doc.data()['comments'] ?? 0) is int ? (doc.data()['comments'] ?? 0) : int.tryParse((doc.data()['comments'] ?? 0).toString()) ?? 0) as int));
+
+      final totalTokens = users.fold<int>(0, (sum, u) {
+        final raw = u['tokens'] ?? 0;
+        if (raw is int) return sum + raw;
+        final parsed = int.tryParse(raw.toString()) ?? 0;
+        return sum + parsed;
+      });
+
+      final totalLikes = postsSnapshot.docs.fold<int>(0, (sum, doc) {
+        final likes = doc.data()['likes'] ?? 0;
+        if (likes is int) return sum + likes;
+        return sum + (int.tryParse(likes.toString()) ?? 0);
+      });
+
+      final totalComments = postsSnapshot.docs.fold<int>(0, (sum, doc) {
+        final comments = doc.data()['comments'] ?? 0;
+        if (comments is int) return sum + comments;
+        return sum + (int.tryParse(comments.toString()) ?? 0);
+      });
 
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
@@ -209,27 +223,30 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
         });
       }
     } catch (e) {
-      print('Erro ao carregar estatísticas: $e');
+      debugPrint('Erro ao carregar estatísticas: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+    final isDark = theme.brightness == Brightness.dark;
+    final scaffoldBg = isDark ? Colors.black : Colors.grey[50];
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
         backgroundColor: primaryColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: theme.appBarTheme.iconTheme?.color ?? Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Painel Admin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Painel Admin', style: theme.textTheme.headline6?.copyWith(color: theme.appBarTheme.titleTextStyle?.color ?? Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh, color: theme.appBarTheme.iconTheme?.color ?? Colors.white),
             onPressed: () {
               _loadStatistics();
               _updateChartsFromFirestore();
@@ -248,8 +265,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
               indicatorWeight: 3,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              tabs: [
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              tabs: const [
                 Tab(text: 'Dashboard'),
                 Tab(text: 'Usuários'),
                 Tab(text: 'Posts'),
@@ -262,11 +279,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildDashboardTab(primaryColor),
-                _buildUsersTab(primaryColor),
-                _buildPostsTab(primaryColor),
-                _buildActivitiesTab(primaryColor),
-                _buildAnalyticsTab(primaryColor),
+                _buildDashboardTab(theme),
+                _buildUsersTab(theme),
+                _buildPostsTab(theme),
+                _buildActivitiesTab(theme),
+                _buildAnalyticsTab(theme),
               ],
             ),
           ),
@@ -275,46 +292,63 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
     );
   }
 
-  Widget _buildDashboardTab(Color primaryColor) {
+  Widget _buildDashboardTab(ThemeData theme) {
     return RefreshIndicator(
       onRefresh: () async {
         await _loadStatistics();
         await _updateChartsFromFirestore();
       },
       child: ListView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         children: [
-          Text('Visão Geral em Tempo Real', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          SizedBox(height: 20),
-          _buildStatsGrid(primaryColor),
-          SizedBox(height: 24),
-          _buildOnlineUsersSection(primaryColor),
-          SizedBox(height: 24),
-          _buildChartCard(title: 'Crescimento de Usuários', data: _userGrowthData, color: primaryColor),
-          SizedBox(height: 16),
-          _buildChartCard(title: 'Atividade da Plataforma', data: _activityData, color: Colors.purple),
+          Text('Visão Geral em Tempo Real', style: theme.textTheme.headline6?.copyWith(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          _buildStatsGrid(theme),
+          const SizedBox(height: 24),
+          _buildOnlineUsersSection(theme.primaryColor),
+          const SizedBox(height: 24),
+          _buildChartCard(title: 'Crescimento de Usuários', data: _userGrowthData, color: theme.primaryColor, theme: theme),
+          const SizedBox(height: 16),
+          _buildChartCard(title: 'Atividade da Plataforma', data: _activityData, color: Colors.purple, theme: theme),
         ],
       ),
     );
   }
 
-  Widget _buildStatsGrid(Color primaryColor) {
+  Widget _buildStatsGrid(ThemeData theme) {
+    final primaryColor = theme.primaryColor;
     return GridView.count(
       shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
+      physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 1.5,
       children: [
-        _buildStatCard(icon: Icons.people, title: 'Total Usuários', value: '${_stats['totalUsers']}', color: primaryColor),
-        _buildStatCard(icon: Icons.circle, title: 'Online Agora', value: '${_stats['activeUsers']}', color: Colors.green, isLive: true),
-        _buildStatCard(icon: Icons.star, title: 'Contas PRO', value: '${_stats['proUsers']}', color: Colors.amber),
-        _buildStatCard(icon: Icons.article, title: 'Posts Totais', value: '${_stats['totalPosts']}', color: Colors.purple),
-        _buildStatCard(icon: Icons.chat, title: 'Mensagens', value: '${_stats['totalMessages']}', color: Colors.orange),
-        _buildStatCard(icon: Icons.person_add, title: 'Novos Hoje', value: '${_stats['newUsersToday']}', color: Colors.teal),
-        _buildStatCard(icon: Icons.favorite, title: 'Total Likes', value: '${_stats['totalLikes']}', color: Colors.red),
-        _buildStatCard(icon: Icons.block, title: 'Banidos', value: '${_stats['bannedUsers']}', color: Colors.grey),
+        _buildStatCard(
+          icon: Icons.people,
+          title: 'Total Usuários',
+          value: '${_stats['totalUsers']}',
+          color: primaryColor,
+          trendData: _userGrowthData,
+          theme: theme,
+        ),
+        _buildStatCard(
+          icon: Icons.circle,
+          title: 'Online Agora',
+          value: '${_stats['activeUsers']}',
+          color: Colors.green,
+          isLive: true,
+          showBar: true,
+          trendData: _activityData,
+          theme: theme,
+        ),
+        _buildStatCard(icon: Icons.star, title: 'Contas PRO', value: '${_stats['proUsers']}', color: Colors.amber, theme: theme),
+        _buildStatCard(icon: Icons.article, title: 'Posts Totais', value: '${_stats['totalPosts']}', color: Colors.purple, theme: theme),
+        _buildStatCard(icon: Icons.chat, title: 'Mensagens', value: '${_stats['totalMessages']}', color: Colors.orange, theme: theme),
+        _buildStatCard(icon: Icons.person_add, title: 'Novos Hoje', value: '${_stats['newUsersToday']}', color: Colors.teal, theme: theme),
+        _buildStatCard(icon: Icons.favorite, title: 'Total Likes', value: '${_stats['totalLikes']}', color: Colors.red, theme: theme),
+        _buildStatCard(icon: Icons.block, title: 'Banidos', value: '${_stats['bannedUsers']}', color: Colors.grey, theme: theme),
       ],
     );
   }
@@ -325,13 +359,65 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
     required String value,
     required Color color,
     bool isLive = false,
+    bool showBar = false,
+    List<FlSpot>? trendData,
+    required ThemeData theme,
   }) {
+    Widget chart = const SizedBox.shrink();
+    final data = trendData ?? [];
+    if (data.length >= 2 && !showBar) {
+      chart = SizedBox(
+        height: 36,
+        width: 80,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(show: false),
+            titlesData: FlTitlesData(show: false),
+            borderData: FlBorderData(show: false),
+            lineBarsData: [
+              LineChartBarData(
+                spots: data,
+                isCurved: true,
+                color: color,
+                barWidth: 2,
+                dotData: FlDotData(show: false),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (data.isNotEmpty && showBar) {
+      final bars = <BarChartGroupData>[];
+      for (var s in data) {
+        bars.add(BarChartGroupData(
+          x: s.x.toInt(),
+          barRods: [BarChartRodData(toY: s.y, width: 6, color: color)],
+        ));
+      }
+      chart = SizedBox(
+        height: 40,
+        width: 80,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceBetween,
+            titlesData: FlTitlesData(show: false),
+            borderData: FlBorderData(show: false),
+            barGroups: bars,
+            gridData: FlGridData(show: false),
+          ),
+        ),
+      );
+    }
+
+    final cardBg = theme.cardColor;
+    final textColor = theme.textTheme.bodyText1?.color ?? Colors.black;
+
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: [BoxShadow(color: theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,24 +429,37 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
               Icon(icon, color: color, size: 28),
               if (isLive)
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
-                    children: [
-                      Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-                      SizedBox(width: 4),
+                    children: const [
+                      CircleAvatar(radius: 4, backgroundColor: Colors.green),
+                      SizedBox(width: 6),
                       Text('LIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
                     ],
                   ),
                 ),
             ],
           ),
-          SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(value, style: theme.textTheme.headline6?.copyWith(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
+                    const SizedBox(height: 4),
+                    Text(title, style: TextStyle(fontSize: 12, color: theme.textTheme.caption?.color ?? Colors.grey[600])),
+                  ],
+                ),
+              ),
+              chart,
+            ],
+          ),
         ],
       ),
     );
@@ -370,35 +469,34 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('users').where('isOnline', isEqualTo: true).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return SizedBox.shrink();
-
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
         final onlineUsers = snapshot.data!.docs;
-
+        final theme = Theme.of(context);
         return Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            boxShadow: [BoxShadow(color: theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Container(width: 10, height: 10, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-                  SizedBox(width: 8),
-                  Text('Usuários Online (${onlineUsers.length})', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                  const SizedBox(width: 8),
+                  Text('Usuários Online (${onlineUsers.length})', style: theme.textTheme.subtitle1?.copyWith(fontWeight: FontWeight.bold)),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: onlineUsers.map((doc) {
                   final userData = doc.data();
-                  final username = userData['username'] ?? 'Usuário';
-                  final profile = userData['profile_image'] ?? '';
+                  final username = (userData['username'] ?? 'Usuário').toString();
+                  final profile = (userData['profile_image'] ?? '').toString();
                   return Column(
                     children: [
                       Stack(
@@ -424,8 +522,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                           ),
                         ],
                       ),
-                      SizedBox(height: 4),
-                      SizedBox(width: 56, child: Text(username, style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center)),
+                      const SizedBox(height: 4),
+                      SizedBox(width: 56, child: Text(username, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center)),
                     ],
                   );
                 }).toList(),
@@ -437,21 +535,21 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
     );
   }
 
-  Widget _buildChartCard({required String title, required List<FlSpot> data, required Color color}) {
+  Widget _buildChartCard({required String title, required List<FlSpot> data, required Color color, required ThemeData theme}) {
     final spots = data.isEmpty ? [FlSpot(0, 0)] : data;
-
+    final cardBg = theme.cardColor;
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: [BoxShadow(color: theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          SizedBox(height: 16),
+          Text(title, style: theme.textTheme.subtitle1?.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
           SizedBox(
             height: 200,
             child: LineChart(
@@ -482,23 +580,26 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
     );
   }
 
-  Widget _buildUsersTab(Color primaryColor) {
+  Widget _buildUsersTab(ThemeData theme) {
+    final primaryColor = theme.primaryColor;
     return Column(
       children: [
         Container(
-          padding: EdgeInsets.all(16),
-          color: Colors.white,
+          padding: const EdgeInsets.all(16),
+          color: theme.cardColor,
           child: Column(
             children: [
               TextField(
                 decoration: InputDecoration(
                   hintText: 'Buscar usuários...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.search),
+                  border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  filled: true,
+                  fillColor: theme.canvasColor,
                 ),
                 onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -517,7 +618,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance.collection('users').snapshots(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
               var users = snapshot.data!.docs.where((doc) {
                 final data = doc.data();
@@ -532,11 +633,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
               }).toList();
 
               if (users.isEmpty) {
-                return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.people_outline, size: 64, color: Colors.grey), SizedBox(height: 12), Text('Nenhum usuário encontrado')]));
+                return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.people_outline, size: 64, color: Colors.grey), SizedBox(height: 12), Text('Nenhum usuário encontrado')]));
               }
 
               return ListView.builder(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 itemCount: users.length,
                 itemBuilder: (context, index) {
                   final userDoc = users[index];
@@ -555,7 +656,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   Widget _buildFilterChip(String label, String value, Color primaryColor) {
     final isSelected = _userFilter == value;
     return Padding(
-      padding: EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
         label: Text(label),
         selected: isSelected,
@@ -567,20 +668,23 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   }
 
   Widget _buildUserCard(Map<String, dynamic> userData, String userId, Color primaryColor) {
-    final profile = userData['profile_image'] ?? '';
-    final username = userData['username'] ?? 'Usuário';
-    final email = userData['email'] ?? '';
+    final profile = (userData['profile_image'] ?? '').toString();
+    final username = (userData['username'] ?? 'Usuário').toString();
+    final email = (userData['email'] ?? '').toString();
     final tokens = userData['tokens'] ?? 0;
     final isOnline = userData['isOnline'] == true;
     final isPro = userData['pro'] == true;
     final isAdmin = userData['admin'] == true;
+    final isBanned = userData['banned'] == true;
+    final theme = Theme.of(context);
 
     return Card(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding: EdgeInsets.all(12),
+        contentPadding: const EdgeInsets.all(12),
         leading: Stack(
           children: [
             CircleAvatar(
@@ -593,44 +697,48 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
               Positioned(
                 right: 0,
                 bottom: 0,
-                child: Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
+                child: Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: theme.cardColor == Colors.white ? Colors.white : Colors.black, width: 2))),
               ),
           ],
         ),
         title: Row(
           children: [
-            Flexible(child: Text(username, style: TextStyle(fontWeight: FontWeight.bold))),
+            Flexible(child: Text(username, style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.bodyText1?.color))),
             if (isPro) ...[
-              SizedBox(width: 8),
-              Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(12)), child: Text('PRO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white))),
+              const SizedBox(width: 8),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(12)), child: const Text('PRO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white))),
             ],
             if (isAdmin) ...[
-              SizedBox(width: 8),
-              Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)), child: Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white))),
+              const SizedBox(width: 8),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)), child: const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white))),
             ],
           ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(email, style: TextStyle(fontSize: 12)),
-            SizedBox(height: 4),
-            Text('$tokens tokens', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(email, style: TextStyle(fontSize: 12, color: theme.textTheme.caption?.color)),
+            const SizedBox(height: 4),
+            Text('$tokens tokens', style: TextStyle(fontSize: 12, color: theme.textTheme.caption?.color)),
+            if (isBanned) const SizedBox(height: 4),
+            if (isBanned) const Text('Usuário banido', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
         trailing: PopupMenuButton(
-          icon: Icon(Icons.more_vert),
+          icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
           itemBuilder: (context) => [
-            PopupMenuItem(child: Text('Editar Dados'), value: 'edit'),
+            const PopupMenuItem(child: Text('Editar Dados'), value: 'edit'),
             PopupMenuItem(child: Text(isPro ? 'Remover PRO' : 'Promover a PRO'), value: 'pro'),
             PopupMenuItem(child: Text(isAdmin ? 'Remover Admin' : 'Tornar Admin'), value: 'admin'),
-            PopupMenuItem(child: Text('Banir Usuário'), value: 'ban'),
+            PopupMenuItem(child: Text(isBanned ? 'Desbanir Usuário' : 'Banir Usuário'), value: 'ban'),
+            const PopupMenuItem(child: Text('Excluir Usuário (Firestore)'), value: 'delete'),
           ],
           onSelected: (value) {
             if (value == 'edit') _editUser(userId, userData, primaryColor);
             if (value == 'pro') _togglePro(userId, isPro);
             if (value == 'admin') _toggleAdmin(userId, isAdmin);
-            if (value == 'ban') _banUser(userId, username);
+            if (value == 'ban') _banOrUnbanUser(userId, username, isBanned);
+            if (value == 'delete') _confirmDeleteUser(userId, username);
           },
         ),
       ),
@@ -640,21 +748,23 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   void _editUser(String userId, Map<String, dynamic> userData, Color primaryColor) {
     final tokensController = TextEditingController(text: '${userData['tokens'] ?? 0}');
     final usernameController = TextEditingController(text: userData['username'] ?? '');
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar Usuário'),
+        backgroundColor: theme.dialogBackgroundColor,
+        title: const Text('Editar Usuário'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: usernameController, decoration: InputDecoration(labelText: 'Nome de usuário', prefixIcon: Icon(Icons.person))),
-            SizedBox(height: 16),
-            TextField(controller: tokensController, decoration: InputDecoration(labelText: 'Tokens', prefixIcon: Icon(Icons.monetization_on)), keyboardType: TextInputType.number),
+            TextField(controller: usernameController, decoration: const InputDecoration(labelText: 'Nome de usuário', prefixIcon: Icon(Icons.person))),
+            const SizedBox(height: 16),
+            TextField(controller: tokensController, decoration: const InputDecoration(labelText: 'Tokens', prefixIcon: Icon(Icons.monetization_on)), keyboardType: TextInputType.number),
           ],
         ),
         actions: [
-          TextButton(child: Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
             onPressed: () async {
@@ -663,9 +773,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                 'tokens': int.tryParse(tokensController.text) ?? 0,
               });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Usuário atualizado com sucesso')));
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuário atualizado com sucesso')));
             },
-            child: Text('Salvar'),
+            child: const Text('Salvar'),
           ),
         ],
       ),
@@ -674,51 +784,113 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
 
   Future<void> _togglePro(String userId, bool isPro) async {
     await FirebaseFirestore.instance.collection('users').doc(userId).update({'pro': !isPro});
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPro ? 'PRO removido' : 'PRO ativado')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPro ? 'PRO removido' : 'PRO ativado')));
   }
 
   Future<void> _toggleAdmin(String userId, bool isAdmin) async {
     await FirebaseFirestore.instance.collection('users').doc(userId).update({'admin': !isAdmin});
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isAdmin ? 'Admin removido' : 'Admin ativado')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isAdmin ? 'Admin removido' : 'Admin ativado')));
   }
 
-  void _banUser(String userId, String username) {
+  Future<void> _banOrUnbanUser(String userId, String username, bool isCurrentlyBanned) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({'banned': !isCurrentlyBanned, 'isOnline': false});
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isCurrentlyBanned ? '$username desbanido' : '$username foi banido')));
+  }
+
+  void _confirmDeleteUser(String userId, String username) {
+    bool alsoDeleteContent = true;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirmar Banimento'),
-        content: Text('Tem certeza que deseja banir $username?'),
-        actions: [
-          TextButton(child: Text('Cancelar'), onPressed: () => Navigator.pop(context)),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('users').doc(userId).update({'banned': true, 'isOnline': false});
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$username foi banido')));
-            },
-            child: Text('Banir'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return StatefulBuilder(builder: (context, setStateSB) {
+          return AlertDialog(
+            backgroundColor: theme.dialogBackgroundColor,
+            title: const Text('Excluir Usuário'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Irás apagar o documento do utilizador em Firestore para "$username". Isto NÃO remove a conta do Firebase Auth. Deseja continuar?'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Checkbox(value: alsoDeleteContent, onChanged: (v) => setStateSB(() => alsoDeleteContent = v ?? true)),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Remover também posts e mensagens deste usuário')),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Excluir'),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _deleteUser(userId, alsoDeleteContent);
+                },
+              ),
+            ],
+          );
+        });
+      },
     );
   }
 
-  Widget _buildPostsTab(Color primaryColor) {
+  Future<void> _deleteUser(String userId, bool removeContent) async {
+    try {
+      // Delete user document
+      await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+
+      // Optionally delete posts and messages
+      if (removeContent) {
+        await _deleteUserPostsAndMessages(userId);
+      }
+
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuário excluído do Firestore')));
+      _loadStatistics();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao excluir usuário: $e')));
+    }
+  }
+
+  Future<void> _deleteUserPostsAndMessages(String userId) async {
+    try {
+      // Delete posts by user
+      final postsSnap = await FirebaseFirestore.instance.collection('posts').where('userId', isEqualTo: userId).get();
+      for (var p in postsSnap.docs) {
+        try {
+          await FirebaseFirestore.instance.collection('posts').doc(p.id).delete();
+        } catch (_) {}
+      }
+      // Delete messages by user
+      final messagesSnap = await FirebaseFirestore.instance.collection('messages').where('senderId', isEqualTo: userId).get();
+      for (var m in messagesSnap.docs) {
+        try {
+          await FirebaseFirestore.instance.collection('messages').doc(m.id).delete();
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('Erro ao apagar conteúdo do usuário: $e');
+    }
+  }
+
+  Widget _buildPostsTab(ThemeData theme) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final posts = snapshot.data!.docs;
-        if (posts.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.article, size: 64, color: Colors.grey), SizedBox(height: 12), Text('Nenhuma publicação encontrada')]));
-        
+        if (posts.isEmpty) return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.article, size: 64, color: Colors.grey), SizedBox(height: 12), Text('Nenhuma publicação encontrada')]));
+
         return ListView.builder(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           itemCount: posts.length,
           itemBuilder: (context, index) {
             final post = posts[index].data();
             final postId = posts[index].id;
-            return _buildPostCard(post, postId, primaryColor);
+            return _buildPostCard(post, postId, theme.primaryColor);
           },
         );
       },
@@ -726,70 +898,61 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   }
 
   Widget _buildPostCard(Map<String, dynamic> postData, String postId, Color primaryColor) {
-    final image = postData['image'] ?? '';
-    final userName = postData['userName'] ?? 'Usuário';
-    final content = postData['content'] ?? '';
+    final image = (postData['image'] ?? '').toString();
+    final userName = (postData['userName'] ?? 'Usuário').toString();
+    final content = (postData['content'] ?? '').toString();
     final likes = postData['likes'] ?? 0;
     final comments = postData['comments'] ?? 0;
+    final theme = Theme.of(context);
 
     return Card(
-      margin: EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (image.isNotEmpty)
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.network(
                 image,
                 width: double.infinity,
                 height: 200,
                 fit: BoxFit.cover,
-                errorBuilder: (c, e, st) => Container(
-                  height: 200,
-                  color: Colors.grey[200],
-                  child: Icon(Icons.image, size: 50, color: Colors.grey),
-                ),
+                errorBuilder: (c, e, st) => Container(height: 200, color: Colors.grey[200], child: const Icon(Icons.image, size: 50, color: Colors.grey)),
               ),
             ),
           Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: primaryColor.withOpacity(0.3),
-                      child: Text(userName[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(child: Text(userName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                    IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deletePost(postId),
-                    ),
+                    CircleAvatar(radius: 20, backgroundColor: primaryColor.withOpacity(0.3), child: Text(userName[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor))),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deletePost(postId)),
                   ],
                 ),
-                SizedBox(height: 12),
-                Text(content, maxLines: 3, overflow: TextOverflow.ellipsis),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
+                Text(content, maxLines: 3, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyText2),
+                const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.favorite, size: 18, color: Colors.red),
-                    SizedBox(width: 4),
-                    Text('$likes', style: TextStyle(color: Colors.grey)),
-                    SizedBox(width: 16),
-                    Icon(Icons.comment, size: 18, color: Colors.blue),
-                    SizedBox(width: 4),
-                    Text('$comments', style: TextStyle(color: Colors.grey)),
-                    SizedBox(width: 16),
-                    Icon(Icons.access_time, size: 18, color: Colors.grey),
-                    SizedBox(width: 4),
-                    Text(_formatTimestamp(postData['timestamp']), style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    const Icon(Icons.favorite, size: 18, color: Colors.red),
+                    const SizedBox(width: 4),
+                    Text('$likes', style: TextStyle(color: theme.textTheme.caption?.color)),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.comment, size: 18, color: Colors.blue),
+                    const SizedBox(width: 4),
+                    Text('$comments', style: TextStyle(color: theme.textTheme.caption?.color)),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(_formatTimestamp(postData['timestamp']), style: TextStyle(color: theme.textTheme.caption?.color, fontSize: 12)),
                   ],
                 ),
               ],
@@ -801,57 +964,53 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   }
 
   Future<void> _deletePost(String postId) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('Confirmar Exclusão'),
-        content: Text('Tem certeza que deseja excluir esta publicação?'),
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Tem certeza que deseja excluir esta publicação?'),
         actions: [
-          TextButton(child: Text('Cancelar'), onPressed: () => Navigator.pop(c, false)),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Excluir'),
-            onPressed: () => Navigator.pop(c, true),
-          ),
+          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(c, false)),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Excluir'), onPressed: () => Navigator.pop(c, true)),
         ],
       ),
     );
 
     if (confirmed == true) {
       await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Post deletado com sucesso')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post deletado com sucesso')));
     }
   }
 
-  Widget _buildActivitiesTab(Color primaryColor) {
+  Widget _buildActivitiesTab(ThemeData theme) {
     return Column(
       children: [
         Container(
-          padding: EdgeInsets.all(16),
-          color: Colors.white,
+          padding: const EdgeInsets.all(16),
+          color: theme.cardColor,
           child: Row(
             children: [
-              Icon(Icons.access_time, color: primaryColor),
-              SizedBox(width: 10),
-              Text('Atividades em Tempo Real', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Icon(Icons.access_time, color: theme.primaryColor),
+              const SizedBox(width: 10),
+              Text('Atividades em Tempo Real', style: theme.textTheme.subtitle1?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
         ),
         Expanded(
           child: _realtimeActivities.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.history, size: 64, color: Colors.grey), SizedBox(height: 12), Text('Nenhuma atividade recente')]))
+              ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.history, size: 64, color: Colors.grey), SizedBox(height: 12), Text('Nenhuma atividade recente')]))
               : ListView.builder(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   itemCount: _realtimeActivities.length,
                   itemBuilder: (context, index) {
                     final activity = _realtimeActivities[index];
                     return Card(
-                      margin: EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: _getActivityIcon(activity['icon'] ?? 'info', primaryColor),
-                        title: Text(activity['type'] ?? 'Atividade', style: TextStyle(fontWeight: FontWeight.bold)),
+                        leading: _getActivityIcon(activity['icon'] ?? 'info', theme.primaryColor),
+                        title: Text(activity['type'] ?? 'Atividade', style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(activity['description'] ?? ''),
-                        trailing: Text(_formatTimestamp(activity['timestamp']), style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        trailing: Text(_formatTimestamp(activity['timestamp']), style: const TextStyle(fontSize: 11, color: Colors.grey)),
                       ),
                     );
                   },
@@ -864,7 +1023,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   Widget _getActivityIcon(String type, Color primaryColor) {
     IconData iconData;
     Color color;
-
     switch (type) {
       case 'user_add':
         iconData = Icons.person_add;
@@ -886,75 +1044,61 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
         iconData = Icons.info;
         color = Colors.grey;
     }
-
     return CircleAvatar(backgroundColor: color.withOpacity(0.2), child: Icon(iconData, color: color, size: 20));
   }
 
-  Widget _buildAnalyticsTab(Color primaryColor) {
+  Widget _buildAnalyticsTab(ThemeData theme) {
+    final primaryColor = theme.primaryColor;
     return ListView(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       children: [
-        Text('Analytics Avançado', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        SizedBox(height: 16),
+        Text('Analytics Avançado', style: theme.textTheme.headline6?.copyWith(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(child: _buildPeriodButton('7 Dias', '7d', primaryColor)),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(child: _buildPeriodButton('30 Dias', '30d', primaryColor)),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(child: _buildPeriodButton('90 Dias', '90d', primaryColor)),
           ],
         ),
-        SizedBox(height: 24),
+        const SizedBox(height: 24),
         Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            boxShadow: [BoxShadow(color: theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Taxa de Conversão PRO', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Conversão', style: TextStyle(color: Colors.grey)),
-                  Text('${_calculateConversionRate()}%', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor)),
-                ],
-              ),
-              SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: _calculateConversionRate() / 100,
-                  backgroundColor: Colors.grey[200],
-                  color: primaryColor,
-                  minHeight: 8,
-                ),
-              ),
+              const Text('Taxa de Conversão PRO', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Conversão', style: TextStyle(color: Colors.grey)), Text('${_calculateConversionRate()}%', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor))]),
+              const SizedBox(height: 12),
+              ClipRRect(borderRadius: BorderRadius.circular(8), child: LinearProgressIndicator(value: _calculateConversionRate() / 100, backgroundColor: Colors.grey[200], color: primaryColor, minHeight: 8)),
             ],
           ),
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            boxShadow: [BoxShadow(color: theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Engajamento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
+              const Text('Engajamento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
               _buildEngagementRow('Likes Totais', _stats['totalLikes'] ?? 0, Icons.favorite, Colors.red),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _buildEngagementRow('Comentários', _stats['totalComments'] ?? 0, Icons.comment, Colors.blue),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _buildEngagementRow('Mensagens', _stats['totalMessages'] ?? 0, Icons.message, Colors.orange),
             ],
           ),
@@ -976,22 +1120,17 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
         setState(() => _selectedPeriod = value);
         _updateChartsFromFirestore();
       },
-      child: Text(label, style: TextStyle(fontSize: 12)),
+      child: Text(label, style: const TextStyle(fontSize: 12)),
     );
   }
 
   Widget _buildEngagementRow(String label, int value, IconData icon, Color color) {
     return Row(
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        SizedBox(width: 12),
-        Expanded(child: Text(label, style: TextStyle(fontSize: 15))),
-        Text(value.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Container(width: 48, height: 48, decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 24)),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
+        Text(value.toString(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -1009,7 +1148,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
       } else {
         return 'Agora';
       }
-
       final now = DateTime.now();
       final diff = now.difference(date);
 
@@ -1026,7 +1164,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
     if ((_stats['totalUsers'] ?? 0) == 0) return 0;
     final totalUsers = (_stats['totalUsers'] ?? 0) as int;
     final pro = (_stats['proUsers'] ?? 0) as int;
-    return ((pro / totalUsers) * 100).roundToDouble();
+    return double.parse(((pro / totalUsers) * 100).toStringAsFixed(0));
   }
 
   @override
