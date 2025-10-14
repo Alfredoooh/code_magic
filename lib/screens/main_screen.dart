@@ -7,6 +7,7 @@ import 'home_screen.dart';
 import 'chats_screen.dart';
 import 'marketplace_screen.dart';
 import 'news_screen.dart';
+import 'trading_warning_screen.dart';
 import '../services/language_service.dart';
 
 class MainScreen extends StatefulWidget {
@@ -29,24 +30,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late List<Widget> _screens;
   late List<GlobalKey<NavigatorState>> _navigatorKeys;
   late AnimationController _animationController;
+  late AnimationController _bottomBarAnimationController;
+  late AnimationController _pulseController;
   late Animation<double> _animation;
+  late Animation<Offset> _bottomBarSlideAnimation;
   Map<String, dynamic>? _userData;
+  int _pulsedIndex = -1;
 
-  // Track if each tab's navigator has pushed routes
   final List<bool> _hasNavigatedInTab = [false, false, false, false];
-
-  // Pulse animation controllers for each tab
-  final List<AnimationController> _pulseControllers = [];
-  final List<Animation<double>> _pulseAnimations = [];
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _updateUserStatus(true);
-    _checkAndShowWarningModal();
+    _checkFirstTimeUser();
 
-    // Initialize animation controller for smooth transitions
     _animationController = AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
@@ -56,23 +55,25 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
 
-    // Initialize pulse animation controllers for each tab
-    for (int i = 0; i < 4; i++) {
-      final controller = AnimationController(
-        duration: Duration(milliseconds: 400),
-        vsync: this,
-      );
-      final animation = Tween<double>(begin: 1.0, end: 1.3).animate(
-        CurvedAnimation(
-          parent: controller,
-          curve: Curves.easeOut,
-        ),
-      );
-      _pulseControllers.add(controller);
-      _pulseAnimations.add(animation);
-    }
+    // Bottom bar slide animation (iOS style)
+    _bottomBarAnimationController = AnimationController(
+      duration: Duration(milliseconds: 320),
+      vsync: this,
+    );
+    _bottomBarSlideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset(0, 1),
+    ).animate(CurvedAnimation(
+      parent: _bottomBarAnimationController,
+      curve: Curves.easeInOutCubic,
+    ));
 
-    // Initialize navigator keys for each tab to maintain state
+    // Pulse animation for tab icons
+    _pulseController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    );
+
     _navigatorKeys = List.generate(
       4,
       (index) => GlobalKey<NavigatorState>(),
@@ -110,67 +111,60 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _checkAndShowWarningModal() async {
+  Future<void> _checkFirstTimeUser() async {
     final prefs = await SharedPreferences.getInstance();
-    final hasSeenWarning = prefs.getBool('has_seen_trading_warning') ?? false;
-
+    final hasSeenWarning = prefs.getBool('hasSeenTradingWarning') ?? false;
+    
     if (!hasSeenWarning) {
-      // Delay to ensure the screen is built
-      await Future.delayed(Duration(milliseconds: 500));
-      _showTradingWarningModal();
+      Future.delayed(Duration(milliseconds: 800), () {
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => TradingWarningScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+              return SlideTransition(position: offsetAnimation, child: child);
+            },
+            transitionDuration: Duration(milliseconds: 400),
+          ),
+        );
+      });
     }
-  }
-
-  void _showTradingWarningModal() {
-    showCupertinoModalPopup(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) => _TradingWarningSheet(
-        onDismiss: () async {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('has_seen_trading_warning', true);
-        },
-      ),
-    );
   }
 
   @override
   void dispose() {
     _updateUserStatus(false);
     _animationController.dispose();
-    for (var controller in _pulseControllers) {
-      controller.dispose();
-    }
+    _bottomBarAnimationController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   Future<bool> _onWillPop() async {
-    // Try to pop the current tab's navigator
     final isFirstRouteInCurrentTab = !await _navigatorKeys[_currentIndex].currentState!.maybePop();
 
     if (isFirstRouteInCurrentTab) {
-      // If we're on the first route of the current tab
       if (_currentIndex != 0) {
-        // If not on Home tab, go to Home
         _onTabTapped(0);
         return false;
       }
-      // If on Home tab, allow back button to exit
       return true;
     }
-
-    // Navigator popped a route, don't exit
     return false;
   }
 
   void _onTabTapped(int index) {
-    // Trigger pulse animation
-    _pulseControllers[index].forward().then((_) {
-      _pulseControllers[index].reverse();
+    // Trigger pulse animation on tapped icon
+    setState(() => _pulsedIndex = index);
+    _pulseController.forward(from: 0).then((_) {
+      setState(() => _pulsedIndex = -1);
     });
 
     if (_currentIndex == index) {
-      // If tapping the same tab, pop to first route
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
       setState(() => _hasNavigatedInTab[index] = false);
     } else {
@@ -180,10 +174,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   bool _shouldShowBottomBar() {
-    // Check if current tab has navigated to another screen
     final navigatorState = _navigatorKeys[_currentIndex].currentState;
     if (navigatorState != null) {
       final canPop = navigatorState.canPop();
+      
+      // Animate bottom bar with iOS-style slide
+      if (canPop) {
+        _bottomBarAnimationController.forward();
+      } else {
+        _bottomBarAnimationController.reverse();
+      }
+      
       return !canPop;
     }
     return true;
@@ -209,7 +210,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       setState(() => _hasNavigatedInTab[index] = true);
                     },
                     onPop: () {
-                      // Check if we're back to the root
                       Future.microtask(() {
                         if (_navigatorKeys[index].currentState?.canPop() == false) {
                           setState(() => _hasNavigatedInTab[index] = false);
@@ -227,37 +227,49 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             );
           }),
         ),
-        bottomNavigationBar: AnimatedSlide(
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOutCubic,
-          offset: showBottomBar ? Offset.zero : Offset(0, 1),
-          child: AnimatedOpacity(
-            duration: Duration(milliseconds: 200),
-            opacity: showBottomBar ? 1.0 : 0.0,
-            curve: Curves.easeOut,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xFF0A0A0A) : Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                    blurRadius: 10,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Container(
-                  height: 62,
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(4, (index) {
-                      return _buildNavItem(index, isDark);
-                    }),
-                  ),
+        bottomNavigationBar: SlideTransition(
+          position: _bottomBarSlideAnimation,
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: Offset(0, -2),
                 ),
-              ),
+              ],
+            ),
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: _onTabTapped,
+              height: 62,
+              backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
+              indicatorColor: Color(0xFFFF444F).withOpacity(0.12),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              elevation: 0,
+              animationDuration: Duration(milliseconds: 220),
+              destinations: [
+                _buildNavDestination(
+                  index: 0,
+                  icon: Icons.house_rounded,
+                  label: 'Início',
+                ),
+                _buildNavDestination(
+                  index: 1,
+                  icon: Icons.currency_bitcoin,
+                  label: 'Dados',
+                ),
+                _buildNavDestination(
+                  index: 2,
+                  icon: Icons.layers_rounded,
+                  label: 'Atualidade',
+                ),
+                _buildNavDestination(
+                  index: 3,
+                  icon: Icons.chat_bubble_rounded,
+                  label: 'Conversas',
+                ),
+              ],
             ),
           ),
         ),
@@ -265,72 +277,42 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(int index, bool isDark) {
+  NavigationDestination _buildNavDestination({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
     final isSelected = _currentIndex == index;
-    final icons = [
-      Icons.home_outlined,
-      Icons.currency_bitcoin,
-      Icons.layers_rounded,
-      Icons.chat_bubble_rounded,
-    ];
-    final selectedIcons = [
-      Icons.home,
-      Icons.currency_bitcoin,
-      Icons.layers_rounded,
-      Icons.chat_bubble,
-    ];
-    final labels = ['Início', 'Dados', 'Atualidade', 'Conversas'];
+    final isPulsing = _pulsedIndex == index;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onTabTapped(index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedBuilder(
-          animation: _pulseAnimations[index],
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _pulseAnimations[index].value,
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Color(0xFFFF444F).withOpacity(isDark ? 0.12 : 0.08)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isSelected ? selectedIcons[index] : icons[index],
-                      color: isSelected
-                          ? Color(0xFFFF444F)
-                          : isDark
-                              ? Colors.grey[500]
-                              : Colors.grey[600],
-                      size: isSelected ? 26 : 24,
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      labels[index],
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected
-                            ? Color(0xFFFF444F)
-                            : isDark
-                                ? Colors.grey[500]
-                                : Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+    return NavigationDestination(
+      icon: AnimatedBuilder(
+        animation: _pulseController,
+        builder: (context, child) {
+          final scale = isPulsing
+              ? 1.0 + (Curves.easeOut.transform(_pulseController.value) * 0.25)
+              : 1.0;
+          
+          return Transform.scale(
+            scale: scale,
+            child: Icon(icon, size: 24),
+          );
+        },
       ),
+      selectedIcon: AnimatedBuilder(
+        animation: _pulseController,
+        builder: (context, child) {
+          final scale = isPulsing
+              ? 1.0 + (Curves.easeOut.transform(_pulseController.value) * 0.25)
+              : 1.0;
+          
+          return Transform.scale(
+            scale: scale,
+            child: Icon(icon, color: Color(0xFFFF444F), size: 26),
+          );
+        },
+      ),
+      label: label,
     );
   }
 }
@@ -371,268 +353,5 @@ class _NavigatorObserver extends NavigatorObserver {
     if (oldRoute != null && newRoute != null) {
       onPush();
     }
-  }
-}
-
-// iOS-style Trading Warning Modal Sheet
-class _TradingWarningSheet extends StatefulWidget {
-  final VoidCallback onDismiss;
-
-  const _TradingWarningSheet({required this.onDismiss});
-
-  @override
-  State<_TradingWarningSheet> createState() => _TradingWarningSheetState();
-}
-
-class _TradingWarningSheetState extends State<_TradingWarningSheet>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    );
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _dismiss() async {
-    await _controller.reverse();
-    widget.onDismiss();
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            // Background overlay
-            GestureDetector(
-              onTap: () {}, // Prevent dismissal by tapping outside
-              child: Container(
-                color: Colors.black.withOpacity(0.4 * _animation.value),
-              ),
-            ),
-            // Sheet
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Transform.translate(
-                offset: Offset(0, (1 - _animation.value) * 400),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Handle bar
-                        SizedBox(height: 12),
-                        Container(
-                          width: 36,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.grey[700] : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        SizedBox(height: 24),
-                        
-                        // Warning icon with animation
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: Duration(milliseconds: 600),
-                          curve: Curves.elasticOut,
-                          builder: (context, value, child) {
-                            return Transform.scale(
-                              scale: value,
-                              child: Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFFF444F).withOpacity(0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.warning_rounded,
-                                  size: 45,
-                                  color: Color(0xFFFF444F),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        
-                        SizedBox(height: 24),
-                        
-                        // Title
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            'Aviso Importante sobre Trading',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        
-                        SizedBox(height: 16),
-                        
-                        // Content
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24),
-                          child: Container(
-                            padding: EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: isDark ? Color(0xFF2C2C2E) : Colors.grey[100],
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildWarningPoint(
-                                  icon: Icons.trending_down,
-                                  text: 'Operações em qualquer corretora podem garantir ganhos ou perdas. Por tanto, apelamos em usar as ferramentas do app para controlar os riscos.',
-                                  isDark: isDark,
-                                ),
-                                SizedBox(height: 16),
-                                _buildWarningPoint(
-                                  icon: Icons.psychology_outlined,
-                                  text: 'Não deixe a emoção controlar suas decisões. Trading emocional é uma das principais causas de perdas significativas.',
-                                  isDark: isDark,
-                                ),
-                                SizedBox(height: 16),
-                                _buildWarningPoint(
-                                  icon: Icons.shield_outlined,
-                                  text: 'Nunca invista mais do que pode perder. Use stop loss e gerencie seu risco adequadamente.',
-                                  isDark: isDark,
-                                ),
-                                SizedBox(height: 16),
-                                _buildWarningPoint(
-                                  icon: Icons.school_outlined,
-                                  text: 'Educação contínua é essencial. Utilize nossos recursos educacionais antes de operar com capital real.',
-                                  isDark: isDark,
-                                ),
-                                SizedBox(height: 16),
-                                _buildWarningPoint(
-                                  icon: Icons.account_balance_wallet_outlined,
-                                  text: 'Diversifique seus investimentos e nunca coloque todos os seus fundos em uma única operação.',
-                                  isDark: isDark,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        
-                        SizedBox(height: 24),
-                        
-                        // Disclaimer
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            'Ao continuar, você reconhece ter lido e compreendido os riscos associados ao trading de criptomoedas e outros ativos.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                              height: 1.4,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        
-                        SizedBox(height: 24),
-                        
-                        // Button
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: CupertinoButton(
-                              color: Color(0xFFFF444F),
-                              borderRadius: BorderRadius.circular(14),
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              onPressed: _dismiss,
-                              child: Text(
-                                'Entendi',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        
-                        SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildWarningPoint({
-    required IconData icon,
-    required String text,
-    required bool isDark,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: Color(0xFFFF444F).withOpacity(0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: Color(0xFFFF444F),
-          ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: isDark ? Colors.grey[300] : Colors.grey[800],
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
