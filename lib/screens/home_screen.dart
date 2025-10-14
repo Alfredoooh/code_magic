@@ -13,11 +13,14 @@ import 'admin_panel_screen.dart';
 import 'news_detail_screen.dart';
 import 'create_post_screen.dart';
 import 'user_drawer.dart';
+import 'search_screen.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import '../widgets/post_card.dart';
 import 'crypto_list_screen.dart';
 import 'more_screen.dart';
+import 'home_widgets.dart';
+import 'home_crypto_section.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -47,6 +50,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _loadingCrypto = true;
   Timer? _cryptoTimer;
   final PageController _newsPageController = PageController();
+  final PageController _cryptoPageController = PageController();
+  int _currentNewsPage = 0;
+  int _currentCryptoPage = 0;
+  final ScrollController _scrollController = ScrollController();
+  String _headerTitle = '';
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSubscription;
 
@@ -60,6 +68,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadStats();
     _loadCryptoData();
     _cryptoTimer = Timer.periodic(Duration(seconds: 10), (_) => _loadCryptoData());
+    
+    _scrollController.addListener(_onScroll);
+    _newsPageController.addListener(() {
+      setState(() {
+        _currentNewsPage = _newsPageController.page?.round() ?? 0;
+      });
+    });
+    _cryptoPageController.addListener(() {
+      setState(() {
+        _currentCryptoPage = _cryptoPageController.page?.round() ?? 0;
+      });
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final offset = _scrollController.offset;
+      if (offset > 600) {
+        if (_headerTitle != 'Sheets') {
+          setState(() => _headerTitle = 'Sheets');
+        }
+      } else {
+        if (_headerTitle != '') {
+          setState(() => _headerTitle = '');
+        }
+      }
+    }
   }
 
   @override
@@ -177,6 +212,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     _cryptoTimer?.cancel();
     _newsPageController.dispose();
+    _cryptoPageController.dispose();
+    _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _userSubscription?.cancel();
     _safeSetUserOnline(false);
@@ -256,12 +293,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .get();
         
         if (userDoc.exists) {
-          final currentTokens = userDoc.data()?['tokens'] ?? 0;
-          if (currentTokens > 0) {
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .update({'tokens': currentTokens - 1});
+          final isPro = userDoc.data()?['pro'] == true;
+          if (!isPro) {
+            final currentTokens = userDoc.data()?['tokens'] ?? 0;
+            if (currentTokens > 0) {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .update({'tokens': currentTokens - 1});
+            }
           }
         }
       } catch (e) {}
@@ -308,13 +348,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _showOptionsBottomSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showCupertinoModalPopup(
       context: context,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Color(0xFF1A1A1A)
-              : CupertinoColors.white,
+          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
@@ -332,35 +372,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               SizedBox(height: 20),
-              CupertinoButton(
+              _buildModalOption(
+                icon: CupertinoIcons.arrow_up_circle_fill,
+                label: 'Enviar',
+                isDark: isDark,
+                onPressed: () => Navigator.pop(context),
+              ),
+              _buildModalOption(
+                icon: CupertinoIcons.add_circled_solid,
+                label: 'Criar Publicação',
+                isDark: isDark,
                 onPressed: () {
                   Navigator.pop(context);
                   _handleCreatePost();
                 },
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(CupertinoIcons.add_circled_solid, color: Color(0xFFFF444F)),
-                      SizedBox(width: 12),
-                      Text(
-                        'Criar Publicação',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? CupertinoColors.white
-                              : CupertinoColors.black,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
-              Divider(height: 1),
-              CupertinoButton(
+              _buildModalOption(
+                icon: CupertinoIcons.arrow_down_circle_fill,
+                label: 'Receber',
+                isDark: isDark,
+                onPressed: () => Navigator.pop(context),
+              ),
+              _buildModalOption(
+                icon: CupertinoIcons.ellipsis_circle_fill,
+                label: 'Mais Opções',
+                isDark: isDark,
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -368,27 +404,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     CupertinoPageRoute(builder: (context) => MoreScreen()),
                   );
                 },
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(CupertinoIcons.ellipsis_circle_fill, color: CupertinoColors.activeBlue),
-                      SizedBox(width: 12),
-                      Text(
-                        'Mais Opções',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? CupertinoColors.white
-                              : CupertinoColors.black,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
               SizedBox(height: 12),
             ],
@@ -398,9 +413,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Widget _buildModalOption({
+    required IconData icon,
+    required String label,
+    required bool isDark,
+    required VoidCallback onPressed,
+  }) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        child: Row(
+          children: [
+            Icon(icon, color: CupertinoColors.systemBlue, size: 24),
+            SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w500,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final username = _userData?['username'] ?? 'Usuário';
 
     return WillPopScope(
       onWillPop: () async => false,
@@ -413,41 +459,62 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Cashing',
+                _headerTitle.isEmpty ? username : _headerTitle,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 32,
+                  fontSize: 28,
                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
             ),
           ),
-          trailing: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: Color(0xFFFF444F),
-              backgroundImage: (_userData?['profile_image'] != null &&
-                      (_userData!['profile_image'] as String).isNotEmpty)
-                  ? NetworkImage(_userData!['profile_image'])
-                  : null,
-              child: (_userData?['profile_image'] == null ||
-                      (_userData!['profile_image'] as String).isEmpty)
-                  ? Text(
-                      (_userData?['username'] ?? 'U')[0].toUpperCase(),
-                      style: TextStyle(
-                          fontSize: 14,
-                          color: CupertinoColors.white,
-                          fontWeight: FontWeight.bold),
-                    )
-                  : null,
-            ),
-            onPressed: _showUserDrawer,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: Icon(
+                  CupertinoIcons.search,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  size: 22,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(builder: (context) => SearchScreen()),
+                  );
+                },
+              ),
+              SizedBox(width: 8),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Color(0xFFFF444F),
+                  backgroundImage: (_userData?['profile_image'] != null &&
+                          (_userData!['profile_image'] as String).isNotEmpty)
+                      ? NetworkImage(_userData!['profile_image'])
+                      : null,
+                  child: (_userData?['profile_image'] == null ||
+                          (_userData!['profile_image'] as String).isEmpty)
+                      ? Text(
+                          username[0].toUpperCase(),
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: CupertinoColors.white,
+                              fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+                onPressed: _showUserDrawer,
+              ),
+            ],
           ),
           border: null,
         ),
         child: SafeArea(
           child: CustomScrollView(
+            controller: _scrollController,
             physics: BouncingScrollPhysics(),
             slivers: [
               CupertinoSliverRefreshControl(
@@ -473,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildStatCard(
+                          child: HomeWidgets.buildStatCard(
                             icon: CupertinoIcons.chat_bubble_2_fill,
                             title: 'Mensagens',
                             value: '$_messageCount',
@@ -483,7 +550,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                         SizedBox(width: 12),
                         Expanded(
-                          child: _buildStatCard(
+                          child: HomeWidgets.buildStatCard(
                             icon: CupertinoIcons.group_solid,
                             title: 'Grupos',
                             value: '$_groupCount',
@@ -494,7 +561,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ),
                     SizedBox(height: 24),
-                    _buildCryptoSection(isDark),
+                    HomeCryptoSection(
+                      cryptoData: _cryptoData,
+                      loadingCrypto: _loadingCrypto,
+                      isDark: isDark,
+                      pageController: _cryptoPageController,
+                      currentPage: _currentCryptoPage,
+                      onViewMore: () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (context) => CryptoListScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     if (_showNews) ...[
                       SizedBox(height: 32),
                       Text(
@@ -507,23 +588,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       SizedBox(height: 16),
                       _loadingNews
-                          ? Center(
-                              child: CupertinoActivityIndicator(radius: 16),
-                            )
-                          : Container(
-                              height: 140,
-                              child: PageView.builder(
-                                controller: _newsPageController,
-                                physics: BouncingScrollPhysics(),
-                                itemCount: _newsArticles.length,
-                                itemBuilder: (context, index) {
-                                  final article = _newsArticles[index];
-                                  return Padding(
-                                    padding: EdgeInsets.only(right: 12),
-                                    child: _buildNewsCard(article, index, isDark),
-                                  );
-                                },
-                              ),
+                          ? Center(child: CupertinoActivityIndicator(radius: 16))
+                          : Column(
+                              children: [
+                                Container(
+                                  height: 140,
+                                  child: PageView.builder(
+                                    controller: _newsPageController,
+                                    physics: BouncingScrollPhysics(),
+                                    itemCount: _newsArticles.length,
+                                    itemBuilder: (context, index) {
+                                      final article = _newsArticles[index];
+                                      return Padding(
+                                        padding: EdgeInsets.only(right: 12),
+                                        child: HomeWidgets.buildNewsCard(
+                                          article: article,
+                                          index: index,
+                                          isDark: isDark,
+                                          context: context,
+                                          allArticles: _newsArticles,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                SizedBox(height: 12),
+                                HomeWidgets.buildPageIndicator(
+                                  count: _newsArticles.length,
+                                  currentPage: _currentNewsPage,
+                                  isDark: isDark,
+                                ),
+                              ],
                             ),
                     ],
                   ]),
@@ -636,15 +731,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         onPressed: _showOptionsBottomSheet,
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: CupertinoColors.activeBlue,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Color(0xFF6366F1).withOpacity(0.3),
+                color: CupertinoColors.activeBlue.withOpacity(0.3),
                 blurRadius: 12,
                 offset: Offset(0, 4),
               ),
@@ -661,378 +752,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildCryptoSection(bool isDark) {
-    final cryptoIcons = {
-      'BTC': 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-      'ETH': 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-      'BNB': 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-      'SOL': 'https://cryptologos.cc/logos/solana-sol-logo.png',
-      'XRP': 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
-      'ADA': 'https://cryptologos.cc/logos/cardano-ada-logo.png',
-      'DOGE': 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
-      'MATIC': 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-      'DOT': 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
-      'AVAX': 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
-    };
-
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Criptomoedas',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                ),
-              ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFFBBF24).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Color(0xFFFBBF24), width: 1.5),
-                  ),
-                  child: Text(
-                    'Ver mais',
-                    style: TextStyle(
-                      color: Color(0xFFFBBF24),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (context) => CryptoListScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          _loadingCrypto
-              ? Center(child: CupertinoActivityIndicator())
-              : Column(
-                  children: _cryptoData.map((crypto) {
-                    final iconUrl = cryptoIcons[crypto.symbol] ?? '';
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: 12),
-                      child: _buildCryptoCard(crypto, isDark, iconUrl),
-                    );
-                  }).toList(),
-                ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCryptoCard(CryptoData crypto, bool isDark, String iconUrl) {
-    final isPositive = crypto.priceChange >= 0;
-    
-    return Container(
-      padding: EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark 
-              ? [Color(0xFF1F1F1F), Color(0xFF2A2A2A)]
-              : [Color(0xFFFAFAFA), Color(0xFFFFFFFF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Color(0xFF2A2A2A) : Color(0xFFE5E5E5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.white,
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: iconUrl.isNotEmpty
-                  ? Image.network(
-                      iconUrl,
-                      width: 44,
-                      height: 44,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) => Icon(
-                        CupertinoIcons.money_dollar_circle_fill,
-                        color: Color(0xFFFF444F),
-                        size: 24,
-                      ),
-                    )
-                  : Icon(
-                      CupertinoIcons.money_dollar_circle_fill,
-                      color: Color(0xFFFF444F),
-                      size: 24,
-                    ),
-            ),
-          ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  crypto.symbol,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  '\$${crypto.price.toStringAsFixed(crypto.price < 1 ? 4 : 2)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: CupertinoColors.systemGrey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isPositive 
-                  ? CupertinoColors.systemGreen.withOpacity(0.15)
-                  : CupertinoColors.systemRed.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isPositive 
-                    ? CupertinoColors.systemGreen.withOpacity(0.3)
-                    : CupertinoColors.systemRed.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
-              style: TextStyle(
-                color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 28),
-          SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 13,
-              color: CupertinoColors.systemGrey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNewsCard(NewsArticle article, int index, bool isDark) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            builder: (context) => NewsDetailScreen(
-              article: article,
-              allArticles: _newsArticles,
-              currentIndex: index,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      article.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                        height: 1.3,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      article.description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: CupertinoColors.systemGrey,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (article.imageUrl.isNotEmpty)
-              Container(
-                width: 120,
-                height: 140,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  child: Image.network(
-                    article.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => Container(
-                      color: CupertinoColors.systemGrey5,
-                      child: Icon(
-                        CupertinoIcons.photo,
-                        color: CupertinoColors.systemGrey,
-                        size: 40,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class CryptoData {
-  final String symbol;
-  final double price;
-  final double priceChange;
-  final List<double> sparkline;
-
-  CryptoData({
-    required this.symbol,
-    required this.price,
-    required this.priceChange,
-    required this.sparkline,
-  });
-
-  factory CryptoData.fromBinance(Map<String, dynamic> json) {
-    final symbol = json['symbol'].toString().replaceAll('USDT', '');
-    final price = double.parse(json['lastPrice'].toString());
-    final priceChange = double.parse(json['priceChangePercent'].toString());
-    
-    List<double> sparkline = [];
-    for (int i = 0; i < 20; i++) {
-      sparkline.add(price * (1 + (priceChange / 100) * (i / 20)));
-    }
-    
-    return CryptoData(
-      symbol: symbol,
-      price: price,
-      priceChange: priceChange,
-      sparkline: sparkline,
     );
   }
 }
