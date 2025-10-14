@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'admin_panel_widgets.dart';
 import 'admin_panel_utils.dart';
@@ -268,6 +269,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
               controller: _tabController,
               children: [
                 AdminPanelWidgets.buildDashboardTab(
+                  context,
                   theme, 
                   _stats, 
                   _userGrowthData, 
@@ -276,15 +278,18 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                   _updateChartsFromFirestore
                 ),
                 AdminPanelWidgets.buildUsersTab(
+                  context,
                   theme, 
                   _searchQuery, 
                   _userFilter,
                   (value) => setState(() => _searchQuery = value),
                   (value) => setState(() => _userFilter = value),
+                  _loadStatistics,
                 ),
-                AdminPanelWidgets.buildPostsTab(theme),
-                AdminPanelWidgets.buildActivitiesTab(theme, _realtimeActivities),
+                AdminPanelWidgets.buildPostsTab(context, theme),
+                AdminPanelWidgets.buildActivitiesTab(context, theme, _realtimeActivities),
                 AdminPanelWidgets.buildAnalyticsTab(
+                  context,
                   theme, 
                   _selectedPeriod, 
                   _stats,
@@ -299,44 +304,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
         ],
       ),
     );
-  }
-
-  // Métodos de gestão de usuários
-  void _editUser(String userId, Map<String, dynamic> userData) {
-    AdminPanelUtils.editUser(context, userId, userData, _loadStatistics);
-  }
-
-  Future<void> _togglePro(String userId, bool isPro) async {
-    await AdminPanelUtils.togglePro(userId, isPro);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(isPro ? 'PRO removido' : 'PRO ativado'))
-    );
-    _loadStatistics();
-  }
-
-  Future<void> _toggleAdmin(String userId, bool isAdmin) async {
-    await AdminPanelUtils.toggleAdmin(userId, isAdmin);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(isAdmin ? 'Admin removido' : 'Admin ativado'))
-    );
-    _loadStatistics();
-  }
-
-  Future<void> _banOrUnbanUser(String userId, String username, bool isCurrentlyBanned) async {
-    await AdminPanelUtils.banOrUnbanUser(userId, username, isCurrentlyBanned);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(isCurrentlyBanned ? '$username desbanido' : '$username foi banido'))
-    );
-    _loadStatistics();
-  }
-
-  void _confirmDeleteUser(String userId, String username) {
-    AdminPanelUtils.confirmDeleteUser(context, userId, username, _loadStatistics);
-  }
-
-  Future<void> _deletePost(String postId) async {
-    await AdminPanelUtils.deletePost(context, postId);
-    _loadStatistics();
   }
 
   @override
