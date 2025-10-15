@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'change_password_screen.dart'; // IMPORT ADICIONADO
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -400,6 +401,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     value: (_userData?['pro'] == true) ? 'PRO' : 'FREEMIUM',
                     valueColor: Color(0xFFFF444F),
                     isDark: isDark,
+                  ),
+
+                  SizedBox(height: 24),
+
+                  // NOVA SEÇÃO: Segurança
+                  _buildSectionHeader('Segurança', isDark),
+                  
+                  // BOTÃO PARA ALTERAR SENHA
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (context) => ChangePasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFFF444F).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                CupertinoIcons.lock_shield_fill,
+                                color: Color(0xFFFF444F),
+                                size: 20,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Alterar Senha',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark 
+                                        ? CupertinoColors.white 
+                                        : CupertinoColors.black,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Mantenha sua conta segura',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: CupertinoColors.systemGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              CupertinoIcons.chevron_right,
+                              color: CupertinoColors.systemGrey,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
 
                   SizedBox(height: 24),
