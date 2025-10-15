@@ -401,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    CupertinoPageRoute(builder: (context) => MoreScreen()),
+                    CupertinoPageRoute(builder: (context) => TradingWarningScreen()),
                   );
                 },
               ),
