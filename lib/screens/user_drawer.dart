@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_panel_screen.dart';
-import 'profile_screen.dart'; // Certifique-se de que este import existe
+import 'profile_screen.dart';
 
 class UserDrawer extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -107,12 +107,14 @@ class _UserDrawerState extends State<UserDrawer> {
     if (uid == null) return;
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).update(payload);
-    } catch (e) {}
+    } catch (e) {
+      // opcional: print('Falha ao atualizar usuário: $e');
+    }
   }
 
   void _debouncedWrite(Map<String, dynamic> payload) {
     _debounceWrite?.cancel();
-    _debounceWrite = Timer(Duration(milliseconds: 250), () {
+    _debounceWrite = Timer(const Duration(milliseconds: 250), () {
       _writeUserField(payload);
     });
   }
@@ -151,14 +153,12 @@ class _UserDrawerState extends State<UserDrawer> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Agora ocupa a largura total da tela e não tem transparências.
     return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.85,
-        height: MediaQuery.of(context).size.height,
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-        ),
+      color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width, // full width
+        height: MediaQuery.of(context).size.height, // full height
         child: SafeArea(
           child: Column(
             children: [
@@ -179,12 +179,12 @@ class _UserDrawerState extends State<UserDrawer> {
     final isPro = (_userDoc?['pro'] == true);
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
         border: Border(
           bottom: BorderSide(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
             width: 0.5,
           ),
         ),
@@ -215,13 +215,13 @@ class _UserDrawerState extends State<UserDrawer> {
               ),
             ],
           ),
-          SizedBox(height: 24),
+          const SizedBox(height: 24),
           Row(
             children: [
               Container(
                 width: 60,
                 height: 60,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xFFFF444F),
                 ),
@@ -233,7 +233,7 @@ class _UserDrawerState extends State<UserDrawer> {
                           errorBuilder: (context, error, stack) => Center(
                             child: Text(
                               displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 24,
                                 color: CupertinoColors.white,
                                 fontWeight: FontWeight.w600,
@@ -245,7 +245,7 @@ class _UserDrawerState extends State<UserDrawer> {
                     : Center(
                         child: Text(
                           displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             color: CupertinoColors.white,
                             fontWeight: FontWeight.w600,
@@ -253,7 +253,7 @@ class _UserDrawerState extends State<UserDrawer> {
                         ),
                       ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,10 +268,10 @@ class _UserDrawerState extends State<UserDrawer> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       email,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         color: CupertinoColors.systemGrey,
                       ),
@@ -283,15 +283,15 @@ class _UserDrawerState extends State<UserDrawer> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isPro ? Color(0xFFFF444F) : CupertinoColors.systemGrey3,
+              color: isPro ? const Color(0xFFFF444F) : CupertinoColors.systemGrey3,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              isPro ? 'FREEMIUM' : 'FREEMIUM',
+            child: const Text(
+              'FREEMIUM',
               style: TextStyle(
                 color: CupertinoColors.white,
                 fontSize: 11,
@@ -307,7 +307,7 @@ class _UserDrawerState extends State<UserDrawer> {
 
   Widget _buildBody(bool isDark) {
     if (_loading) {
-      return Center(child: CupertinoActivityIndicator());
+      return const Center(child: CupertinoActivityIndicator());
     }
 
     final isAdmin = _userDoc?['admin'] == true;
@@ -315,26 +315,29 @@ class _UserDrawerState extends State<UserDrawer> {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        if (isAdmin) _buildMenuItem(
-          icon: CupertinoIcons.shield_fill,
-          title: 'Painel Admin',
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              CupertinoPageRoute(builder: (_) => AdminPanelScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
+        if (isAdmin)
+          _buildMenuItem(
+            icon: CupertinoIcons.shield_fill,
+            title: 'Painel Admin',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                CupertinoPageRoute(builder: (_) => const AdminPanelScreen()),
+              );
+            },
+            isDark: isDark,
+          ),
         _buildMenuItem(
           icon: CupertinoIcons.person_fill,
           title: 'Perfil',
           subtitle: 'Ver perfil',
           onTap: () {
             Navigator.pop(context);
-            // Navegue para a tela de perfil se existir
-            // Navigator.push(context, CupertinoPageRoute(builder: (_) => ProfileScreen()));
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (_) => const ProfileScreen()),
+            );
           },
           isDark: isDark,
         ),
@@ -346,10 +349,10 @@ class _UserDrawerState extends State<UserDrawer> {
           isDark: isDark,
         ),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          padding: EdgeInsets.all(16),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
+            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -362,7 +365,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 onChanged: (v) => _safeSetUserOnline(v),
                 isDark: isDark,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               _buildSwitchRow(
                 icon: CupertinoIcons.news_solid,
                 title: 'Mostrar Notícias',
@@ -389,13 +392,13 @@ class _UserDrawerState extends State<UserDrawer> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
             width: 0.5,
           ),
         ),
       ),
       child: CupertinoButton(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         onPressed: onTap,
         child: Row(
           children: [
@@ -403,16 +406,16 @@ class _UserDrawerState extends State<UserDrawer> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Color(0xFFFF444F).withOpacity(0.1),
+                color: const Color(0xFFFF444F).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: Color(0xFFFF444F),
+                color: const Color(0xFFFF444F),
                 size: 18,
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,10 +429,10 @@ class _UserDrawerState extends State<UserDrawer> {
                     ),
                   ),
                   if (subtitle != null) ...[
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         color: CupertinoColors.systemGrey,
                       ),
@@ -438,11 +441,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 ],
               ),
             ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.systemGrey,
-              size: 20,
-            ),
+            const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
           ],
         ),
       ),
@@ -459,12 +458,8 @@ class _UserDrawerState extends State<UserDrawer> {
   }) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: Color(0xFFFF444F),
-          size: 22,
-        ),
-        SizedBox(width: 12),
+        Icon(icon, color: const Color(0xFFFF444F), size: 22),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,10 +472,10 @@ class _UserDrawerState extends State<UserDrawer> {
                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   color: CupertinoColors.systemGrey,
                 ),
@@ -490,7 +485,7 @@ class _UserDrawerState extends State<UserDrawer> {
         ),
         CupertinoSwitch(
           value: value,
-          activeColor: Color(0xFFFF444F),
+          activeColor: const Color(0xFFFF444F),
           onChanged: onChanged,
         ),
       ],
@@ -499,42 +494,39 @@ class _UserDrawerState extends State<UserDrawer> {
 
   Widget _buildLogout(bool isDark) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
             width: 0.5,
           ),
         ),
       ),
       child: CupertinoButton(
-        padding: EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         color: CupertinoColors.destructiveRed,
         borderRadius: BorderRadius.circular(12),
         onPressed: () async {
           showCupertinoDialog(
             context: context,
             builder: (context) => CupertinoAlertDialog(
-              title: Text('Confirmar Saída'),
-              content: Text('Tem certeza de que deseja sair?'),
+              title: const Text('Confirmar Saída'),
+              content: const Text('Tem certeza de que deseja sair?'),
               actions: [
                 CupertinoDialogAction(
-                  child: Text('Cancelar'),
+                  child: const Text('Cancelar'),
                   onPressed: () => Navigator.pop(context),
                 ),
                 CupertinoDialogAction(
                   isDestructiveAction: true,
-                  child: Text('Sair'),
+                  child: const Text('Sair'),
                   onPressed: () async {
                     Navigator.pop(context);
                     try {
                       final uid = FirebaseAuth.instance.currentUser?.uid;
                       if (uid != null) {
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(uid)
-                            .update({'isOnline': false});
+                        await FirebaseFirestore.instance.collection('users').doc(uid).update({'isOnline': false});
                       }
                     } catch (_) {}
                     await FirebaseAuth.instance.signOut();
@@ -547,15 +539,12 @@ class _UserDrawerState extends State<UserDrawer> {
         },
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: const [
             Icon(CupertinoIcons.square_arrow_right, size: 20),
             SizedBox(width: 8),
             Text(
               'Sair',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -569,25 +558,25 @@ class _UserDrawerState extends State<UserDrawer> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoPageScaffold(
-        backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
         navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+          backgroundColor: isDark ? const Color(0xFF000000) : CupertinoColors.white,
           border: Border(
             bottom: BorderSide(
-              color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
               width: 0.5,
             ),
           ),
-          middle: Text('Configurações'),
+          middle: const Text('Configurações'),
           trailing: CupertinoButton(
             padding: EdgeInsets.zero,
-            child: Icon(CupertinoIcons.xmark),
+            child: const Icon(CupertinoIcons.xmark),
             onPressed: () => Navigator.pop(context),
           ),
         ),
         child: SafeArea(
           child: ListView(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             children: [
               _buildSettingCard(
                 icon: CupertinoIcons.moon_fill,
@@ -596,7 +585,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 onTap: () => _showThemeDialog(context),
                 isDark: isDark,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _buildSettingCard(
                 icon: CupertinoIcons.globe,
                 title: 'Idioma',
@@ -604,7 +593,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 onTap: () => _showLanguageDialog(context),
                 isDark: isDark,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _buildSettingCard(
                 icon: CupertinoIcons.paintbrush_fill,
                 title: 'Estilo do Cartão',
@@ -630,9 +619,9 @@ class _UserDrawerState extends State<UserDrawer> {
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Container(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+          color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -641,12 +630,12 @@ class _UserDrawerState extends State<UserDrawer> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Color(0xFFFF444F).withOpacity(0.1),
+                color: const Color(0xFFFF444F).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: Color(0xFFFF444F), size: 20),
+              child: Icon(icon, color: const Color(0xFFFF444F), size: 20),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,22 +648,15 @@ class _UserDrawerState extends State<UserDrawer> {
                       color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: CupertinoColors.systemGrey,
-                    ),
+                    style: const TextStyle(fontSize: 13, color: CupertinoColors.systemGrey),
                   ),
                 ],
               ),
             ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.systemGrey,
-              size: 20,
-            ),
+            const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
           ],
         ),
       ),
@@ -685,17 +667,17 @@ class _UserDrawerState extends State<UserDrawer> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: Text('Escolha o tema'),
+        title: const Text('Escolha o tema'),
         actions: [
           CupertinoActionSheetAction(
-            child: Text('Claro'),
+            child: const Text('Claro'),
             onPressed: () {
               _safeUpdateTheme('light');
               Navigator.pop(context);
             },
           ),
           CupertinoActionSheetAction(
-            child: Text('Escuro'),
+            child: const Text('Escuro'),
             onPressed: () {
               _safeUpdateTheme('dark');
               Navigator.pop(context);
@@ -703,7 +685,7 @@ class _UserDrawerState extends State<UserDrawer> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          child: Text('Cancelar'),
+          child: const Text('Cancelar'),
           isDestructiveAction: true,
           onPressed: () => Navigator.pop(context),
         ),
@@ -715,24 +697,24 @@ class _UserDrawerState extends State<UserDrawer> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: Text('Escolha o idioma'),
+        title: const Text('Escolha o idioma'),
         actions: [
           CupertinoActionSheetAction(
-            child: Text('Português'),
+            child: const Text('Português'),
             onPressed: () {
               _safeUpdateLanguage('pt');
               Navigator.pop(context);
             },
           ),
           CupertinoActionSheetAction(
-            child: Text('English'),
+            child: const Text('English'),
             onPressed: () {
               _safeUpdateLanguage('en');
               Navigator.pop(context);
             },
           ),
           CupertinoActionSheetAction(
-            child: Text('Español'),
+            child: const Text('Español'),
             onPressed: () {
               _safeUpdateLanguage('es');
               Navigator.pop(context);
@@ -740,7 +722,7 @@ class _UserDrawerState extends State<UserDrawer> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          child: Text('Cancelar'),
+          child: const Text('Cancelar'),
           isDestructiveAction: true,
           onPressed: () => Navigator.pop(context),
         ),
@@ -756,15 +738,15 @@ class _UserDrawerState extends State<UserDrawer> {
       builder: (context) => Container(
         height: 420,
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: BorderRadius.only(
+          color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
           ),
         ),
         child: Column(
           children: [
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Container(
               width: 36,
               height: 5,
@@ -773,7 +755,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Estilo do Cartão',
               style: TextStyle(
@@ -782,10 +764,10 @@ class _UserDrawerState extends State<UserDrawer> {
                 color: isDark ? CupertinoColors.white : CupertinoColors.black,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Expanded(
               child: GridView.count(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
@@ -812,32 +794,24 @@ class _UserDrawerState extends State<UserDrawer> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: selected
-              ? Color(0xFFFF444F).withOpacity(0.1)
-              : (isDark ? Color(0xFF000000) : Color(0xFFF2F2F7)),
+          color: selected ? const Color(0xFFFF444F).withOpacity(0.1) : (isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? Color(0xFFFF444F) : Colors.transparent,
+            color: selected ? const Color(0xFFFF444F) : Colors.transparent,
             width: 2,
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 40,
-              color: selected ? Color(0xFFFF444F) : CupertinoColors.systemGrey,
-            ),
-            SizedBox(height: 12),
+            Icon(icon, size: 40, color: selected ? const Color(0xFFFF444F) : CupertinoColors.systemGrey),
+            const SizedBox(height: 12),
             Text(
               name,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
-                color: selected
-                    ? Color(0xFFFF444F)
-                    : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                color: selected ? const Color(0xFFFF444F) : (isDark ? CupertinoColors.white : CupertinoColors.black),
               ),
             ),
           ],
