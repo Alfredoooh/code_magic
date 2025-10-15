@@ -257,8 +257,6 @@ class HomeCryptoSection extends StatelessWidget {
       ),
     );
   }
-}
-
 
   Widget _buildPageIndicator() {
     return Row(
@@ -279,3 +277,4 @@ class HomeCryptoSection extends StatelessWidget {
       ),
     );
   }
+}
