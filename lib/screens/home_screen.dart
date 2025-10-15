@@ -20,7 +20,7 @@ import '../widgets/post_card.dart';
 import 'crypto_list_screen.dart';
 import 'more_screen.dart';
 import 'home_widgets.dart';
-import 'home_crypto_section.dart';
+import 'home_crypto_section.dart' as crypto_section;
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _cardStyle = 'modern';
   int _messageCount = 0;
   int _groupCount = 0;
-  List<CryptoData> _cryptoData = [];
+  List<crypto_section.CryptoData> _cryptoData = [];
   bool _loadingCrypto = true;
   Timer? _cryptoTimer;
   final PageController _newsPageController = PageController();
@@ -125,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         
         if (mounted) {
           setState(() {
-            _cryptoData = usdtPairs.take(3).map((coin) => CryptoData.fromBinance(coin)).toList();
+            _cryptoData = usdtPairs.take(3).map((coin) => crypto_section.CryptoData.fromBinance(coin)).toList();
             _loadingCrypto = false;
           });
         }
@@ -561,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ),
                     SizedBox(height: 24),
-                    HomeCryptoSection(
+                    crypto_section.HomeCryptoSection(
                       cryptoData: _cryptoData,
                       loadingCrypto: _loadingCrypto,
                       isDark: isDark,
