@@ -10,6 +10,7 @@ import 'news_screen.dart';
 import 'more_screen.dart';
 import '../services/language_service.dart';
 
+// ---------- MainScreen atualizado ----------
 class MainScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
   final Function(String) onLocaleChanged;
@@ -55,7 +56,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
 
-    // Bottom bar slide animation (iOS style)
+    // Bottom bar slide animation
     _bottomBarAnimationController = AnimationController(
       duration: Duration(milliseconds: 320),
       vsync: this,
@@ -173,21 +174,32 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// IMPORTANT: aqui ampliamos a condição para esconder o bottom bar:
+  /// - se o navigator da tab atual puder pop -> escondemos (rota interna)
+  /// - OU se o root navigator puder pop -> escondemos (modal/rota global)
   bool _shouldShowBottomBar() {
     final navigatorState = _navigatorKeys[_currentIndex].currentState;
-    if (navigatorState != null) {
-      final canPop = navigatorState.canPop();
-      
-      // Animate bottom bar with iOS-style slide
-      if (canPop) {
-        _bottomBarAnimationController.forward();
-      } else {
-        _bottomBarAnimationController.reverse();
-      }
-      
-      return !canPop;
+    bool currentCanPop = false;
+    try {
+      if (navigatorState != null) currentCanPop = navigatorState.canPop();
+    } catch (_) { currentCanPop = false; }
+
+    bool rootCanPop = false;
+    try {
+      rootCanPop = Navigator.of(context, rootNavigator: true).canPop();
+    } catch (_) { rootCanPop = false; }
+
+    // Se qualquer um pode pop (rota sobreposta), ocultamos o bottom bar.
+    final shouldShow = !(currentCanPop || rootCanPop);
+
+    // animação de slide: quando não mostrar animamos para esconder
+    if (!shouldShow) {
+      _bottomBarAnimationController.forward();
+    } else {
+      _bottomBarAnimationController.reverse();
     }
-    return true;
+
+    return shouldShow;
   }
 
   @override
@@ -227,49 +239,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             );
           }),
         ),
+        // Bottom bar customizado
         bottomNavigationBar: SlideTransition(
           position: _bottomBarSlideAnimation,
-          child: Container(
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
-            ),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: _onTabTapped,
-              height: 62,
-              backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
-              indicatorColor: Color(0xFFFF444F).withOpacity(0.12),
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              elevation: 0,
-              animationDuration: Duration(milliseconds: 220),
-              destinations: [
-                _buildNavDestination(
-                  index: 0,
-                  icon: Icons.house_rounded,
-                  label: 'Início',
-                ),
-                _buildNavDestination(
-                  index: 1,
-                  icon: Icons.currency_bitcoin,
-                  label: 'Dados',
-                ),
-                _buildNavDestination(
-                  index: 2,
-                  icon: Icons.layers_rounded,
-                  label: 'Atualidade',
-                ),
-                _buildNavDestination(
-                  index: 3,
-                  icon: Icons.chat_bubble_rounded,
-                  label: 'Conversas',
-                ),
-              ],
+          child: SafeArea(
+            top: false,
+            child: AnimatedContainer(
+              duration: Duration(milliseconds: 260),
+              curve: Curves.easeInOut,
+              height: showBottomBar ? 72.0 : 0.0, // desaparece totalmente quando hidden
+              child: showBottomBar ? _buildBottomBar(context, isDark) : SizedBox.shrink(),
             ),
           ),
         ),
@@ -277,47 +256,117 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  NavigationDestination _buildNavDestination({
-    required int index,
-    required IconData icon,
-    required String label,
-  }) {
-    final isSelected = _currentIndex == index;
-    final isPulsing = _pulsedIndex == index;
+  Widget _buildBottomBar(BuildContext context, bool isDark) {
+    final activeColor = Color(0xFFFF444F);
+    final inactiveColor = isDark ? Colors.white70 : Colors.black54;
+    final bgColor = isDark ? Color(0xFF000000) : Colors.white;
+    final itemCount = 4;
 
-    return NavigationDestination(
-      icon: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, child) {
-          final scale = isPulsing
-              ? 1.0 + (Curves.easeOut.transform(_pulseController.value) * 0.25)
-              : 1.0;
-          
-          return Transform.scale(
-            scale: scale,
-            child: Icon(icon, size: 24),
+    final icons = [
+      CupertinoIcons.home, // Início
+      CupertinoIcons.chart_bar, // Dados (sem crypto)
+      CupertinoIcons.news_solid, // Atualidade
+      CupertinoIcons.bubble_left_bubble_right, // Conversas
+    ];
+
+    final labels = ['Início', 'Dados', 'Atualidade', 'Conversas'];
+
+    return Material(
+      elevation: 0,
+      color: bgColor,
+      child: Container(
+        decoration: BoxDecoration(
+          color: bgColor,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: Offset(0, -2)),
+          ],
+        ),
+        padding: EdgeInsets.only(top: 8, bottom: 8),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final itemWidth = width / itemCount;
+          final indicatorWidth = 36.0;
+          final leftForIndex = (int index) => itemWidth * index + (itemWidth / 2) - (indicatorWidth / 2);
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // indicator (traço curvado) posicionado no topo do bar, animado
+              AnimatedPositioned(
+                duration: Duration(milliseconds: 280),
+                curve: Curves.easeInOutCubic,
+                left: leftForIndex(_currentIndex),
+                top: -6, // colado à borda superior do bottom bar
+                child: Visibility(
+                  visible: true,
+                  child: Container(
+                    width: indicatorWidth,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: activeColor,
+                      borderRadius: BorderRadius.circular(12), // bordas curvas
+                      boxShadow: [
+                        BoxShadow(
+                          color: activeColor.withOpacity(0.16),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Row de itens
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(itemCount, (index) {
+                  final isSelected = _currentIndex == index;
+                  final isPulsing = _pulsedIndex == index;
+                  final scale = isPulsing ? 1.12 : 1.0;
+
+                  return SizedBox(
+                    width: itemWidth,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _onTabTapped(index),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedScale(
+                            scale: scale,
+                            duration: Duration(milliseconds: 220),
+                            curve: Curves.easeOut,
+                            child: Icon(
+                              icons[index],
+                              size: isSelected ? 26 : 22,
+                              color: isSelected ? activeColor : inactiveColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            labels[index],
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700, // mais bold
+                              color: isSelected ? activeColor : inactiveColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
           );
-        },
+        }),
       ),
-      selectedIcon: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, child) {
-          final scale = isPulsing
-              ? 1.0 + (Curves.easeOut.transform(_pulseController.value) * 0.25)
-              : 1.0;
-          
-          return Transform.scale(
-            scale: scale,
-            child: Icon(icon, color: Color(0xFFFF444F), size: 26),
-          );
-        },
-      ),
-      label: label,
     );
   }
 }
 
-// Custom Navigator Observer to track navigation
+// Custom Navigator Observer to track navigation (mantido)
 class _NavigatorObserver extends NavigatorObserver {
   final VoidCallback onPush;
   final VoidCallback onPop;
