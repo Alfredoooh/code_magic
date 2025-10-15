@@ -407,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         builder: (context) => NewsDetailScreen(
           article: article,
           allArticles: _newsArticles,
-          initialIndex: index,
+          currentIndex: index,  // CORREÇÃO: mudado de initialIndex para currentIndex
         ),
       ),
     );
