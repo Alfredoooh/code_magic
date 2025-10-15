@@ -8,7 +8,8 @@ import 'group_detail_screen.dart';
 class ChatsScreen extends StatefulWidget {
   final User? currentUser;
 
-  const ChatsScreen({Key? key, required this.currentUser}) : super(key: key);
+  // ALTERAÇÃO: currentUser agora é opcional no construtor para evitar o erro de parâmetro requerido
+  const ChatsScreen({Key? key, this.currentUser}) : super(key: key);
 
   @override
   _ChatsScreenState createState() => _ChatsScreenState();
