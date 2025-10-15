@@ -63,6 +63,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _pickImage() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
@@ -73,7 +75,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               children: [
                 Icon(CupertinoIcons.camera, color: Color(0xFFFF444F)),
                 SizedBox(width: 8),
-                Text('Câmera'),
+                Text(
+                  'Câmera',
+                  style: TextStyle(
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
               ],
             ),
             onPressed: () {
@@ -87,7 +94,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               children: [
                 Icon(CupertinoIcons.photo, color: Color(0xFFFF444F)),
                 SizedBox(width: 8),
-                Text('Galeria'),
+                Text(
+                  'Galeria',
+                  style: TextStyle(
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
               ],
             ),
             onPressed: () {
@@ -149,7 +161,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      _showErrorDialog('Usuário não autenticado.');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -209,6 +224,7 @@ INSTRUÇÕES:
       }
     } catch (e) {
       _showErrorDialog('Erro ao processar publicação: $e');
+      print('Erro detalhado: $e');
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -218,7 +234,7 @@ INSTRUÇÕES:
 
   Future<void> _createPendingPost(String postId) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) throw Exception('Usuário não autenticado');
 
     final postData = {
       'userId': user.uid,
@@ -234,6 +250,7 @@ INSTRUÇÕES:
       'comments': 0,
       'likedBy': [],
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     await FirebaseFirestore.instance
@@ -271,6 +288,7 @@ INSTRUÇÕES:
         'comments': 0,
         'likedBy': [],
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       await FirebaseFirestore.instance
@@ -298,6 +316,7 @@ INSTRUÇÕES:
       }
     } catch (e) {
       _showErrorDialog('Erro ao criar publicação: $e');
+      print('Erro detalhado: $e');
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -306,6 +325,8 @@ INSTRUÇÕES:
   }
 
   void _showErrorDialog(String message) {
+    if (!mounted) return;
+    
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
@@ -361,6 +382,7 @@ INSTRUÇÕES:
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
           ),
         ),
         trailing: CupertinoButton(
@@ -407,6 +429,16 @@ INSTRUÇÕES:
                                   child: Image.network(
                                     widget.userData['profile_image'],
                                     fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        (widget.userData['username'] ?? 'U')[0].toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: CupertinoColors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 )
                               : Center(
@@ -426,6 +458,7 @@ INSTRUÇÕES:
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                           ),
                         ),
                       ],
@@ -450,6 +483,7 @@ INSTRUÇÕES:
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.transparent,
@@ -468,6 +502,7 @@ INSTRUÇÕES:
                           placeholder: 'No que você está pensando?',
                           style: TextStyle(
                             fontSize: 16,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.transparent,
