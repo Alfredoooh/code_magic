@@ -18,7 +18,7 @@ import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import '../widgets/post_card.dart';
 import 'crypto_list_screen.dart';
-import 'more_screen.dart';
+import 'more_options_screen.dart';
 import 'home_widgets.dart';
 import 'home_crypto_section.dart' as crypto_section;
 import 'plans_screen.dart';
@@ -467,7 +467,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    CupertinoPageRoute(builder: (context) => TradingWarningScreen()),
+                    CupertinoPageRoute(builder: (context) => MoreOptionsScreen()),
                   );
                 },
               ),
