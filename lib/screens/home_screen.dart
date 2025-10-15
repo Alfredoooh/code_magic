@@ -17,7 +17,7 @@ import 'search_screen.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import '../widgets/post_card.dart';
-import 'crypto_list_screen.dart';
+import 'crypto_list_screen.dart' hide SearchScreen;
 import 'more_options_screen.dart';
 import 'home_widgets.dart';
 import 'home_crypto_section.dart' as crypto_section;
