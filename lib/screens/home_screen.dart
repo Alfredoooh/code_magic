@@ -21,6 +21,7 @@ import 'crypto_list_screen.dart';
 import 'more_screen.dart';
 import 'home_widgets.dart';
 import 'home_crypto_section.dart' as crypto_section;
+import 'plans_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -283,32 +284,75 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _decrementToken() async {
+  Future<bool> _checkAndDecrementToken(String action) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final userDoc = await FirebaseFirestore.instance
+    if (user == null) return false;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final isPro = userDoc.data()?['pro'] == true;
+        if (isPro) return true;
+
+        final currentTokens = userDoc.data()?['tokens'] ?? 0;
+        
+        if (currentTokens <= 0) {
+          _showNoTokensDialog();
+          return false;
+        }
+
+        await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .get();
+            .update({'tokens': currentTokens - 1});
         
-        if (userDoc.exists) {
-          final isPro = userDoc.data()?['pro'] == true;
-          if (!isPro) {
-            final currentTokens = userDoc.data()?['tokens'] ?? 0;
-            if (currentTokens > 0) {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .update({'tokens': currentTokens - 1});
-            }
-          }
-        }
-      } catch (e) {}
-    }
+        return true;
+      }
+    } catch (e) {}
+    return false;
   }
 
-  void _handleCreatePost() {
+  void _showNoTokensDialog() {
+    final username = _userData?['username'] ?? 'Usuário';
+    
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Olá, $username!'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 12),
+          child: Text(
+            'Os seus tokens estão esgotados. Adquira saldo para obter mais tokens e continuar usando todos os recursos do aplicativo.',
+            style: TextStyle(fontSize: 15),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: Text('Continuar'),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                CupertinoPageRoute(builder: (context) => PlansScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleCreatePost() async {
     final isPro = _userData?['pro'] == true;
 
     if (!isPro) {
@@ -328,6 +372,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               isDefaultAction: true,
               onPressed: () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(builder: (context) => PlansScreen()),
+                );
               },
             ),
           ],
@@ -336,12 +384,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    _decrementToken();
+    final canProceed = await _checkAndDecrementToken('create_post');
+    if (!canProceed) return;
+
     Navigator.push(
       context,
       CupertinoPageRoute(
         builder: (context) => CreatePostScreen(
           userData: _userData ?? {},
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleNewsClick(NewsArticle article, int index) async {
+    final canProceed = await _checkAndDecrementToken('view_news');
+    if (!canProceed) return;
+
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => NewsDetailScreen(
+          article: article,
+          allArticles: _newsArticles,
+          initialIndex: index,
         ),
       ),
     );
@@ -451,9 +517,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return WillPopScope(
       onWillPop: () async => false,
       child: CupertinoPageScaffold(
-        backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+        backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
         navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
           leading: Padding(
             padding: EdgeInsets.only(left: 8),
             child: Align(
@@ -601,12 +667,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       final article = _newsArticles[index];
                                       return Padding(
                                         padding: EdgeInsets.only(right: 12),
-                                        child: HomeWidgets.buildNewsCard(
-                                          article: article,
-                                          index: index,
-                                          isDark: isDark,
-                                          context: context,
-                                          allArticles: _newsArticles,
+                                        child: GestureDetector(
+                                          onTap: () => _handleNewsClick(article, index),
+                                          child: HomeWidgets.buildNewsCard(
+                                            article: article,
+                                            index: index,
+                                            isDark: isDark,
+                                            context: context,
+                                            allArticles: _newsArticles,
+                                          ),
                                         ),
                                       );
                                     },
@@ -631,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   minHeight: 60,
                   maxHeight: 60,
                   child: Container(
-                    color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
+                    color: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Text(
                       'Sheets',
