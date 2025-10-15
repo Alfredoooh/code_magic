@@ -87,7 +87,7 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.bitcoin_circle, size: 22),
+                Icon(CupertinoIcons.                Icon(CupertinoIcons.bitcoin_circle_fill, size: 22),, size: 22),
                 SizedBox(width: 8),
                 Text('Criptomoedas'),
               ],
@@ -357,7 +357,7 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                     width: 32,
                     height: 32,
                     errorBuilder: (context, error, stack) => Icon(
-                      CupertinoIcons.bitcoinsign_circle,
+                      CupertinoIcons.bitcoin_circle_fill,
                       color: Color(0xFFFF444F),
                       size: 32,
                     ),
@@ -544,7 +544,7 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Image.network(
                 'https://cryptologos.cc/logos/${crypto.symbol.toLowerCase()}-${crypto.symbol.toLowerCase()}-logo.png',
                 errorBuilder: (context, error, stack) => Icon(
-                  CupertinoIcons.bitcoinsign_circle,
+                  CupertinoIcons.bitcoin_circle_fill,
                   color: Color(0xFFFF444F),
                   size: 28,
                 ),
@@ -749,7 +749,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
                 child: Image.network(
                   'https://cryptologos.cc/logos/${widget.crypto.symbol.toLowerCase()}-${widget.crypto.symbol.toLowerCase()}-logo.png',
                   errorBuilder: (context, error, stack) => Icon(
-                    CupertinoIcons.bitcoinsign_circle,
+                    CupertinoIcons.bitcoin_circle_fill,
                     color: Color(0xFFFF444F),
                     size: 24,
                   ),
