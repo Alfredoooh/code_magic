@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_panel_screen.dart';
 import 'profile_screen.dart';
+import 'user_drawer_settings.dart';
 
 class UserDrawer extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -153,12 +154,11 @@ class _UserDrawerState extends State<UserDrawer> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Agora ocupa a largura total da tela e não tem transparências.
     return Material(
       color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
       child: SizedBox(
-        width: MediaQuery.of(context).size.width, // full width
-        height: MediaQuery.of(context).size.height, // full height
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
         child: SafeArea(
           child: Column(
             children: [
@@ -176,7 +176,6 @@ class _UserDrawerState extends State<UserDrawer> {
     final displayName = (_userDoc?['username'] ?? 'Usuário') as String;
     final email = (_userDoc?['email'] ?? '') as String;
     final profileImage = (_userDoc?['profile_image'] ?? '') as String;
-    final isPro = (_userDoc?['pro'] == true);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -196,7 +195,7 @@ class _UserDrawerState extends State<UserDrawer> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Menu',
+                'Ajustes',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -283,23 +282,6 @@ class _UserDrawerState extends State<UserDrawer> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isPro ? const Color(0xFFFF444F) : CupertinoColors.systemGrey3,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              'FREEMIUM',
-              style: TextStyle(
-                color: CupertinoColors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -345,7 +327,15 @@ class _UserDrawerState extends State<UserDrawer> {
           icon: CupertinoIcons.settings,
           title: 'Configurações',
           subtitle: 'Tema, idioma e estilo',
-          onTap: () => _showSettingsModal(context),
+          onTap: () => UserDrawerSettings.showSettingsModal(
+            context,
+            isDark: isDark,
+            currentLocale: _currentLocale,
+            cardStyle: _cardStyle,
+            onThemeChanged: _safeUpdateTheme,
+            onLanguageChanged: _safeUpdateLanguage,
+            onCardStyleChanged: _safeSetCardStyle,
+          ),
           isDark: isDark,
         ),
         Container(
@@ -550,301 +540,5 @@ class _UserDrawerState extends State<UserDrawer> {
         ),
       ),
     );
-  }
-
-  void _showSettingsModal(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoPageScaffold(
-        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark ? const Color(0xFF000000) : CupertinoColors.white,
-          border: Border(
-            bottom: BorderSide(
-              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
-              width: 0.5,
-            ),
-          ),
-          middle: const Text('Configurações'),
-          trailing: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: const Icon(CupertinoIcons.xmark),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildSettingCard(
-                icon: CupertinoIcons.moon_fill,
-                title: 'Tema',
-                subtitle: Theme.of(context).brightness == Brightness.dark ? 'Escuro' : 'Claro',
-                onTap: () => _showThemeDialog(context),
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _buildSettingCard(
-                icon: CupertinoIcons.globe,
-                title: 'Idioma',
-                subtitle: _getLanguageName(_currentLocale),
-                onTap: () => _showLanguageDialog(context),
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _buildSettingCard(
-                icon: CupertinoIcons.paintbrush_fill,
-                title: 'Estilo do Cartão',
-                subtitle: _getCardStyleName(_cardStyle),
-                onTap: () => _showCardStylePicker(context),
-                isDark: isDark,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF444F).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: const Color(0xFFFF444F), size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 13, color: CupertinoColors.systemGrey),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showThemeDialog(BuildContext context) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('Escolha o tema'),
-        actions: [
-          CupertinoActionSheetAction(
-            child: const Text('Claro'),
-            onPressed: () {
-              _safeUpdateTheme('light');
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Escuro'),
-            onPressed: () {
-              _safeUpdateTheme('dark');
-              Navigator.pop(context);
-            },
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          child: const Text('Cancelar'),
-          isDestructiveAction: true,
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-    );
-  }
-
-  void _showLanguageDialog(BuildContext context) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('Escolha o idioma'),
-        actions: [
-          CupertinoActionSheetAction(
-            child: const Text('Português'),
-            onPressed: () {
-              _safeUpdateLanguage('pt');
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('English'),
-            onPressed: () {
-              _safeUpdateLanguage('en');
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Español'),
-            onPressed: () {
-              _safeUpdateLanguage('es');
-              Navigator.pop(context);
-            },
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          child: const Text('Cancelar'),
-          isDestructiveAction: true,
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-    );
-  }
-
-  void _showCardStylePicker(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => Container(
-        height: 420,
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 36,
-              height: 5,
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey3,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Estilo do Cartão',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.count(
-                padding: const EdgeInsets.all(16),
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                children: [
-                  _buildStyleOption('modern', 'Moderno', CupertinoIcons.creditcard_fill, isDark),
-                  _buildStyleOption('gradient', 'Gradiente', CupertinoIcons.color_filter, isDark),
-                  _buildStyleOption('minimal', 'Minimalista', CupertinoIcons.rectangle, isDark),
-                  _buildStyleOption('glass', 'Vidro', CupertinoIcons.sparkles, isDark),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStyleOption(String style, String name, IconData icon, bool isDark) {
-    final selected = _cardStyle == style;
-    return GestureDetector(
-      onTap: () {
-        _safeSetCardStyle(style);
-        Navigator.pop(context);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFF444F).withOpacity(0.1) : (isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7)),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? const Color(0xFFFF444F) : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: selected ? const Color(0xFFFF444F) : CupertinoColors.systemGrey),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: selected ? const Color(0xFFFF444F) : (isDark ? CupertinoColors.white : CupertinoColors.black),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getLanguageName(String code) {
-    switch (code) {
-      case 'pt':
-        return 'Português';
-      case 'en':
-        return 'English';
-      case 'es':
-        return 'Español';
-      default:
-        return 'Português';
-    }
-  }
-
-  String _getCardStyleName(String style) {
-    switch (style) {
-      case 'modern':
-        return 'Moderno';
-      case 'gradient':
-        return 'Gradiente';
-      case 'minimal':
-        return 'Minimalista';
-      case 'glass':
-        return 'Vidro';
-      default:
-        return 'Moderno';
-    }
   }
 }
