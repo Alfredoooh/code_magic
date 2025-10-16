@@ -2,10 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -25,41 +23,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _titleController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
-  String? _uploadEmail;
-  bool _loadingEmail = true;
   File? _selectedImage;
-  String? _imageFileName;
+  String? _imageBase64;
 
   @override
   void initState() {
     super.initState();
-    _loadUploadEmail();
-  }
-
-  Future<void> _loadUploadEmail() async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://alfredoooh.github.io/database/data/EMAILS/emails.json'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (mounted) {
-          setState(() {
-            _uploadEmail = data['upload_email'];
-            _loadingEmail = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() => _loadingEmail = false);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loadingEmail = false);
-      }
-    }
   }
 
   Future<void> _pickImage() async {
@@ -127,139 +96,90 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       );
 
       if (image != null) {
+        // Mostrar loading
+        showCupertinoDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: CupertinoColors.black.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CupertinoActivityIndicator(color: CupertinoColors.white),
+                  SizedBox(height: 12),
+                  Text(
+                    'Processando imagem...',
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        // Converter para Base64
+        final bytes = await File(image.path).readAsBytes();
+        final base64Image = base64Encode(bytes);
+        
+        // Determinar tipo MIME
+        String mimeType = 'image/jpeg';
+        if (image.path.toLowerCase().endsWith('.png')) {
+          mimeType = 'image/png';
+        } else if (image.path.toLowerCase().endsWith('.gif')) {
+          mimeType = 'image/gif';
+        } else if (image.path.toLowerCase().endsWith('.webp')) {
+          mimeType = 'image/webp';
+        }
+
+        // Criar Data URL completo
+        final dataUrl = 'data:$mimeType;base64,$base64Image';
+
+        // Fechar loading
+        Navigator.pop(context);
+
+        // Verificar tamanho
+        final sizeInMB = (dataUrl.length * 0.75) / (1024 * 1024);
+        
+        if (sizeInMB > 5) {
+          _showErrorDialog(
+            'Imagem muito grande!\n\n'
+            'Tamanho: ${sizeInMB.toStringAsFixed(2)} MB\n'
+            'Máximo permitido: 5 MB\n\n'
+            'Por favor, escolha uma imagem menor ou com menor qualidade.'
+          );
+          return;
+        }
+
         setState(() {
           _selectedImage = File(image.path);
-          _imageFileName = image.name;
+          _imageBase64 = dataUrl;
         });
+
+        // Mostrar informação sobre o tamanho
+        _showInfoDialog(
+          'Imagem processada com sucesso!\n\n'
+          'Tamanho: ${sizeInMB.toStringAsFixed(2)} MB'
+        );
       }
     } catch (e) {
-      _showErrorDialog('Erro ao selecionar imagem: $e');
+      Navigator.pop(context); // Fechar loading se houver erro
+      _showErrorDialog('Erro ao processar imagem: $e');
     }
   }
 
   void _removeImage() {
     setState(() {
       _selectedImage = null;
-      _imageFileName = null;
+      _imageBase64 = null;
     });
   }
 
-  Future<void> _sendImageViaEmail() async {
-    if (_uploadEmail == null) {
-      _showErrorDialog('Email de upload não disponível. Tente novamente mais tarde.');
-      return;
-    }
-
-    if (_selectedImage == null) {
-      _showErrorDialog('Por favor, selecione uma imagem primeiro.');
-      return;
-    }
-
-    if (_contentController.text.trim().isEmpty) {
-      _showErrorDialog('Por favor, escreva algo para publicar.');
-      return;
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _showErrorDialog('Usuário não autenticado.');
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    try {
-      final postId = FirebaseFirestore.instance.collection('publicacoes').doc().id;
-
-      final subject = Uri.encodeComponent('Nova Publicação - K Paga - $postId');
-      final body = Uri.encodeComponent('''
-Detalhes da Publicação:
-
-ID da Publicação: $postId
-Usuário: ${widget.userData['username']}
-User ID: ${user.uid}
-Título: ${_titleController.text}
-Conteúdo: ${_contentController.text}
-Nome do Arquivo: $_imageFileName
-
----
-INSTRUÇÕES:
-1. Faça upload da imagem anexada
-2. Crie um link público para a imagem
-3. Atualize o documento no Firestore:
-   - Coleção: publicacoes
-   - Documento ID: $postId
-   - Campo: image (com o link da imagem)
-   - Campo: status (de "pending" para "approved")
-''');
-
-      await _createPendingPost(postId);
-
-      final mailtoUrl = 'mailto:$_uploadEmail?subject=$subject&body=$body';
-
-      if (await canLaunch(mailtoUrl)) {
-        await launch(mailtoUrl);
-
-        if (mounted) {
-          showCupertinoDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => CupertinoAlertDialog(
-              title: Text('Email Aberto'),
-              content: Text('Anexe a imagem selecionada e envie o email. Sua publicação será processada em breve.'),
-              actions: [
-                CupertinoDialogAction(
-                  child: Text('Entendi', style: TextStyle(color: Color(0xFFFF444F))),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
-          );
-        }
-      } else {
-        _showErrorDialog('Não foi possível abrir o cliente de email.');
-      }
-    } catch (e) {
-      _showErrorDialog('Erro ao processar publicação: $e');
-      print('Erro detalhado: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
-
-  Future<void> _createPendingPost(String postId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('Usuário não autenticado');
-
-    final postData = {
-      'userId': user.uid,
-      'username': widget.userData['username'] ?? 'Usuário',
-      'displayName': widget.userData['username'] ?? 'Usuário',
-      'userProfileImage': widget.userData['profile_image'] ?? '',
-      'title': _titleController.text.trim(),
-      'content': _contentController.text.trim(),
-      'image': '',
-      'status': 'pending',
-      'timestamp': FieldValue.serverTimestamp(),
-      'likes': 0,
-      'comments': 0,
-      'likedBy': [],
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    await FirebaseFirestore.instance
-        .collection('publicacoes')
-        .doc(postId)
-        .set(postData);
-  }
-
-  Future<void> _submitPostWithoutImage() async {
+  Future<void> _submitPost() async {
     if (_contentController.text.trim().isEmpty) {
       _showErrorDialog('Por favor, escreva algo para publicar.');
       return;
@@ -281,7 +201,7 @@ INSTRUÇÕES:
         'userProfileImage': widget.userData['profile_image'] ?? '',
         'title': _titleController.text.trim(),
         'content': _contentController.text.trim(),
-        'image': '',
+        'image': _imageBase64 ?? '', // Base64 Data URL aqui
         'status': 'approved',
         'timestamp': FieldValue.serverTimestamp(),
         'likes': 0,
@@ -300,14 +220,28 @@ INSTRUÇÕES:
           context: context,
           barrierDismissible: false,
           builder: (context) => CupertinoAlertDialog(
-            title: Text('Sucesso!'),
-            content: Text('Sua publicação foi criada com sucesso.'),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.check_mark_circled_solid,
+                  color: CupertinoColors.systemGreen,
+                  size: 28,
+                ),
+                SizedBox(width: 8),
+                Text('Sucesso!'),
+              ],
+            ),
+            content: Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text('Sua publicação foi criada com sucesso.'),
+            ),
             actions: [
               CupertinoDialogAction(
                 child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
                 onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Fecha o diálogo
+                  Navigator.pop(context); // Volta para tela anterior
                 },
               ),
             ],
@@ -331,7 +265,10 @@ INSTRUÇÕES:
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Erro'),
-        content: Text(message),
+        content: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(message),
+        ),
         actions: [
           CupertinoDialogAction(
             child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
@@ -342,14 +279,36 @@ INSTRUÇÕES:
     );
   }
 
-  void _handlePublish() {
-    if (_isSubmitting) return;
-
-    if (_selectedImage != null) {
-      _sendImageViaEmail();
-    } else {
-      _submitPostWithoutImage();
-    }
+  void _showInfoDialog(String message) {
+    if (!mounted) return;
+    
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.info_circle,
+              color: Color(0xFF0095F6),
+              size: 24,
+            ),
+            SizedBox(width: 8),
+            Text('Informação'),
+          ],
+        ),
+        content: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(message),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('OK', style: TextStyle(color: Color(0xFF0095F6))),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -375,7 +334,7 @@ INSTRUÇÕES:
               fontSize: 17,
             ),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
         ),
         middle: Text(
           'Nova Publicação',
@@ -401,32 +360,46 @@ INSTRUÇÕES:
                 ),
           onPressed: _isSubmitting || _contentController.text.trim().isEmpty
               ? null
-              : _handlePublish,
+              : _submitPost,
         ),
       ),
       child: SafeArea(
-        child: _loadingEmail
-            ? Center(child: CupertinoActivityIndicator())
-            : ListView(
-                padding: EdgeInsets.zero,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // User Info
+            Container(
+              color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+              padding: EdgeInsets.all(16),
+              child: Row(
                 children: [
-                  // User Info
                   Container(
-                    color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-                    padding: EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFFFF444F),
-                          ),
-                          child: widget.userData['profile_image'] != null &&
-                                  widget.userData['profile_image'].isNotEmpty
-                              ? ClipOval(
-                                  child: Image.network(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFFFF444F),
+                    ),
+                    child: widget.userData['profile_image'] != null &&
+                            widget.userData['profile_image'].isNotEmpty
+                        ? ClipOval(
+                            child: widget.userData['profile_image'].startsWith('data:image')
+                                ? Image.memory(
+                                    base64Decode(widget.userData['profile_image']
+                                        .split(',')[1]),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        (widget.userData['username'] ?? 'U')[0].toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: CupertinoColors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Image.network(
                                     widget.userData['profile_image'],
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) => Center(
@@ -440,164 +413,195 @@ INSTRUÇÕES:
                                       ),
                                     ),
                                   ),
-                                )
-                              : Center(
-                                  child: Text(
-                                    (widget.userData['username'] ?? 'U')[0].toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: CupertinoColors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          widget.userData['username'] ?? 'Usuário',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Divider
-                  Container(
-                    height: 0.5,
-                    color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-                  ),
-
-                  // Content Input
-                  Container(
-                    color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        CupertinoTextField(
-                          controller: _titleController,
-                          placeholder: 'Título (opcional)',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                          ),
-                          padding: EdgeInsets.zero,
-                          maxLength: 100,
-                          placeholderStyle: TextStyle(
-                            color: CupertinoColors.systemGrey,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        CupertinoTextField(
-                          controller: _contentController,
-                          placeholder: 'No que você está pensando?',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                          ),
-                          padding: EdgeInsets.zero,
-                          maxLines: null,
-                          minLines: 5,
-                          maxLength: 1000,
-                          placeholderStyle: TextStyle(
-                            color: CupertinoColors.systemGrey,
-                            fontSize: 16,
-                          ),
-                          onChanged: (value) {
-                            setState(() {});
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 8),
-
-                  // Image Preview
-                  if (_selectedImage != null)
-                    Container(
-                      margin: EdgeInsets.symmetric(horizontal: 16),
-                      child: Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(
-                              _selectedImage!,
-                              width: double.infinity,
-                              height: 300,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: _removeImage,
-                              child: Container(
-                                padding: EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  CupertinoIcons.xmark,
-                                  color: CupertinoColors.white,
-                                  size: 18,
-                                ),
+                          )
+                        : Center(
+                            child: Text(
+                              (widget.userData['username'] ?? 'U')[0].toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: CupertinoColors.white,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-
-                  SizedBox(height: 8),
-
-                  // Action Button
-                  Container(
-                    margin: EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      onPressed: _pickImage,
-                      child: Row(
-                        children: [
-                          Icon(
-                            CupertinoIcons.photo,
-                            color: Color(0xFFFF444F),
-                            size: 24,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            _selectedImage != null ? 'Alterar Imagem' : 'Adicionar Imagem',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
-                          ),
-                        ],
-                      ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    widget.userData['username'] ?? 'Usuário',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
-                  
-                  SizedBox(height: 16),
                 ],
               ),
+            ),
+
+            // Divider
+            Container(
+              height: 0.5,
+              color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            ),
+
+            // Content Input
+            Container(
+              color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  CupertinoTextField(
+                    controller: _titleController,
+                    placeholder: 'Título (opcional)',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                    ),
+                    padding: EdgeInsets.zero,
+                    maxLength: 100,
+                    placeholderStyle: TextStyle(
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  CupertinoTextField(
+                    controller: _contentController,
+                    placeholder: 'No que você está pensando?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                    ),
+                    padding: EdgeInsets.zero,
+                    maxLines: null,
+                    minLines: 5,
+                    maxLength: 1000,
+                    placeholderStyle: TextStyle(
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 16,
+                    ),
+                    onChanged: (value) {
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 8),
+
+            // Image Preview
+            if (_selectedImage != null)
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 16),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        _selectedImage!,
+                        width: double.infinity,
+                        height: 300,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: _removeImage,
+                        child: Container(
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            CupertinoIcons.xmark,
+                            color: CupertinoColors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            SizedBox(height: 8),
+
+            // Action Button
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: CupertinoButton(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                onPressed: _isSubmitting ? null : _pickImage,
+                child: Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.photo,
+                      color: Color(0xFFFF444F),
+                      size: 24,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      _selectedImage != null ? 'Alterar Imagem' : 'Adicionar Imagem',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            if (_imageBase64 != null)
+              Container(
+                margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.info_circle,
+                      color: Color(0xFF0095F6),
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Imagem convertida em Base64 e pronta para upload',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark 
+                            ? CupertinoColors.systemGrey 
+                            : CupertinoColors.systemGrey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
