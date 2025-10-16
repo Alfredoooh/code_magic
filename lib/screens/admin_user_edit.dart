@@ -8,11 +8,86 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
   final TextEditingController tokensController = TextEditingController(text: user.tokens.toString());
   final TextEditingController expirationController = TextEditingController(text: user.expirationDate ?? '');
   final TextEditingController banUntilController = TextEditingController();
+  final primaryColor = Theme.of(context).primaryColor;
   
   bool isAdmin = user.admin;
   bool hasAccess = user.access;
   bool isPro = user.pro;
+  DateTime? selectedExpirationDate;
   DateTime? selectedBanDate;
+
+  // Parse existing expiration date if available
+  if (user.expirationDate != null && user.expirationDate!.isNotEmpty) {
+    try {
+      final parts = user.expirationDate!.split('-');
+      if (parts.length == 3) {
+        selectedExpirationDate = DateTime(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+          int.parse(parts[2]),
+        );
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+  }
+
+  void _showIOSDatePicker(BuildContext context, StateSetter setModalState, bool isExpiration) {
+    DateTime initialDate = isExpiration 
+        ? (selectedExpirationDate ?? DateTime.now().add(Duration(days: 30)))
+        : (selectedBanDate ?? DateTime.now().add(Duration(days: 7)));
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) => Container(
+        height: 300,
+        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+        child: Column(
+          children: [
+            Container(
+              height: 50,
+              color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    child: Text('Cancelar', style: TextStyle(color: primaryColor)),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  CupertinoButton(
+                    child: Text('Confirmar', style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600)),
+                    onPressed: () {
+                      setModalState(() {
+                        if (isExpiration) {
+                          selectedExpirationDate = initialDate;
+                          expirationController.text = '${initialDate.year}-${initialDate.month.toString().padLeft(2, '0')}-${initialDate.day.toString().padLeft(2, '0')}';
+                        } else {
+                          selectedBanDate = initialDate;
+                          banUntilController.text = '${initialDate.year}-${initialDate.month.toString().padLeft(2, '0')}-${initialDate.day.toString().padLeft(2, '0')}';
+                        }
+                      });
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: initialDate,
+                minimumDate: DateTime.now(),
+                maximumDate: DateTime.now().add(Duration(days: 365 * 5)),
+                onDateTimeChanged: (DateTime newDate) {
+                  initialDate = newDate;
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   showModalBottomSheet(
     context: context,
@@ -115,6 +190,7 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                           value: isAdmin,
                           onChanged: (value) => setModalState(() => isAdmin = value),
                           isDark: isDark,
+                          primaryColor: primaryColor,
                           isFirst: true,
                         ),
                         Divider(height: 1, thickness: 0.5, indent: 52, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
@@ -124,6 +200,7 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                           value: hasAccess,
                           onChanged: (value) => setModalState(() => hasAccess = value),
                           isDark: isDark,
+                          primaryColor: primaryColor,
                         ),
                         Divider(height: 1, thickness: 0.5, indent: 52, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
                         _buildIOSSwitchTile(
@@ -132,6 +209,7 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                           value: isPro,
                           onChanged: (value) => setModalState(() => isPro = value),
                           isDark: isDark,
+                          primaryColor: primaryColor,
                           isLast: true,
                         ),
                       ],
@@ -165,19 +243,42 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                   // Expiration Date
                   _buildInputSection(
                     label: 'DATA DE EXPIRAÇÃO',
-                    child: CupertinoTextField(
-                      controller: expirationController,
-                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                      placeholder: 'YYYY-MM-DD',
-                      placeholderStyle: TextStyle(color: Colors.grey),
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF2C2C2E) : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      prefix: Padding(
-                        padding: EdgeInsets.only(left: 12),
-                        child: Icon(CupertinoIcons.calendar, color: Colors.grey, size: 20),
+                    child: GestureDetector(
+                      onTap: () => _showIOSDatePicker(context, setModalState, true),
+                      child: Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Color(0xFF2C2C2E) : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(CupertinoIcons.calendar, color: Colors.grey, size: 20),
+                            SizedBox(width: 12),
+                            Text(
+                              selectedExpirationDate != null
+                                  ? expirationController.text
+                                  : 'Selecionar data',
+                              style: TextStyle(
+                                color: selectedExpirationDate != null
+                                    ? (isDark ? Colors.white : Colors.black87)
+                                    : Colors.grey,
+                                fontSize: 17,
+                              ),
+                            ),
+                            Spacer(),
+                            if (selectedExpirationDate != null)
+                              GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    selectedExpirationDate = null;
+                                    expirationController.clear();
+                                  });
+                                },
+                                child: Icon(CupertinoIcons.xmark_circle_fill, color: Colors.grey, size: 18),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                     isDark: isDark,
@@ -211,22 +312,8 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                           ],
                         ),
                         SizedBox(height: 12),
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now().add(Duration(days: 7)),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(Duration(days: 365)),
-                            );
-                            if (date != null) {
-                              setModalState(() {
-                                selectedBanDate = date;
-                                banUntilController.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                              });
-                            }
-                          },
+                        GestureDetector(
+                          onTap: () => _showIOSDatePicker(context, setModalState, false),
                           child: Container(
                             padding: EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -248,6 +335,17 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                                     fontSize: 15,
                                   ),
                                 ),
+                                Spacer(),
+                                if (selectedBanDate != null)
+                                  GestureDetector(
+                                    onTap: () {
+                                      setModalState(() {
+                                        selectedBanDate = null;
+                                        banUntilController.clear();
+                                      });
+                                    },
+                                    child: Icon(CupertinoIcons.xmark_circle_fill, color: Colors.grey, size: 18),
+                                  ),
                               ],
                             ),
                           ),
@@ -281,7 +379,7 @@ void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
                   SizedBox(height: 30),
                   // Save Button
                   CupertinoButton(
-                    color: CupertinoColors.systemBlue,
+                    color: primaryColor,
                     borderRadius: BorderRadius.circular(10),
                     padding: EdgeInsets.symmetric(vertical: 14),
                     onPressed: () async {
@@ -370,6 +468,7 @@ Widget _buildIOSSwitchTile({
   required bool value,
   required Function(bool) onChanged,
   required bool isDark,
+  required Color primaryColor,
   bool isFirst = false,
   bool isLast = false,
 }) {
@@ -390,7 +489,7 @@ Widget _buildIOSSwitchTile({
         ),
         CupertinoSwitch(
           value: value,
-          activeColor: CupertinoColors.systemBlue,
+          activeColor: primaryColor,
           onChanged: onChanged,
         ),
       ],
