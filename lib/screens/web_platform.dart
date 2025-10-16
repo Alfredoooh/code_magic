@@ -7,10 +7,10 @@ import 'package:flutter/rendering.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'web_tab.dart';
-import 'tabs_overview_screen.dart';
-import 'pattern_analysis_screen.dart';
-import 'features_bottom_sheet.dart';
+import 'web_widgets/web_tab.dart';
+import 'web_widgets/tabs_overview_screen.dart';
+import 'web_widgets/pattern_analysis_screen.dart';
+import 'web_widgets/features_bottom_sheet.dart';
 
 class WebPlatformScreen extends StatefulWidget {
   final String url;
