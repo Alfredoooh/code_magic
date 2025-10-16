@@ -135,7 +135,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(CupertinoIcons.ellipsis_vertical, color: isDark ? Colors.white : Colors.black87),
+            icon: Icon(CupertinoIcons.ellipsis_circle, color: isDark ? Colors.white : Colors.black87),
             onPressed: _showStatsPopup,
           ),
         ],
