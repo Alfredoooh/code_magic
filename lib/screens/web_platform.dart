@@ -6,22 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
-
-class WebTab {
-  final String id;
-  String url;
-  String title;
-  WebViewController? controller;
-
-  WebTab({
-    required this.id,
-    required this.url,
-    this.title = 'Nova Aba',
-    this.controller,
-  });
-}
+import 'web_tab.dart';
+import 'tabs_overview_screen.dart';
+import 'pattern_analysis_screen.dart';
+import 'features_bottom_sheet.dart';
 
 class WebPlatformScreen extends StatefulWidget {
   final String url;
@@ -41,6 +30,7 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
   bool _isLoading = true;
   double _progress = 0.0;
   bool _isDarkMode = false;
+  bool _adaptColors = false;
   final GlobalKey _webViewKey = GlobalKey();
 
   @override
@@ -74,24 +64,27 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
             if (_tabs[_currentTabIndex].id == tab.id) {
               setState(() {
                 _isLoading = true;
+                tab.url = url;
               });
             }
           },
-          onPageFinished: (String url) {
+          onPageFinished: (String url) async {
             if (_tabs[_currentTabIndex].id == tab.id) {
               setState(() {
                 _isLoading = false;
               });
             }
-            tab.controller?.getTitle().then((title) {
-              if (title != null) {
-                setState(() {
-                  tab.title = title;
-                });
-              }
-            });
             
-            // Apply dark mode if enabled
+            final title = await tab.controller?.getTitle();
+            if (title != null) {
+              setState(() {
+                tab.title = title;
+              });
+            }
+            
+            // Captura screenshot do tab
+            await _captureTabScreenshot(tab);
+            
             if (_isDarkMode) {
               _applyDarkMode(tab.controller!);
             }
@@ -101,27 +94,69 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
       ..loadRequest(Uri.parse(tab.url));
   }
 
-  void _applyDarkMode(WebViewController controller) {
-    controller.runJavaScript('''
-      (function() {
-        var style = document.createElement('style');
-        style.id = 'dark-mode-style';
-        style.innerHTML = `
-          html {
-            filter: invert(1) hue-rotate(180deg) !important;
-            background-color: #000 !important;
-          }
-          img, video, iframe, [style*="background-image"] {
-            filter: invert(1) hue-rotate(180deg) !important;
-          }
-        `;
-        var existing = document.getElementById('dark-mode-style');
-        if (existing) {
-          existing.remove();
+  Future<void> _captureTabScreenshot(WebTab tab) async {
+    try {
+      await Future.delayed(Duration(milliseconds: 500));
+      if (_webViewKey.currentContext != null) {
+        RenderRepaintBoundary boundary = _webViewKey.currentContext!
+            .findRenderObject() as RenderRepaintBoundary;
+        ui.Image image = await boundary.toImage(pixelRatio: 0.5);
+        ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null) {
+          setState(() {
+            tab.screenshot = byteData.buffer.asUint8List();
+          });
         }
-        document.head.appendChild(style);
-      })();
-    ''');
+      }
+    } catch (e) {
+      print('Erro ao capturar screenshot: $e');
+    }
+  }
+
+  void _applyDarkMode(WebViewController controller) {
+    if (_adaptColors) {
+      controller.runJavaScript('''
+        (function() {
+          var style = document.createElement('style');
+          style.id = 'dark-mode-style';
+          style.innerHTML = `
+            html {
+              filter: invert(1) hue-rotate(180deg) !important;
+              background-color: #000 !important;
+            }
+            img, video, iframe, [style*="background-image"] {
+              filter: invert(1) hue-rotate(180deg) !important;
+            }
+          `;
+          var existing = document.getElementById('dark-mode-style');
+          if (existing) {
+            existing.remove();
+          }
+          document.head.appendChild(style);
+        })();
+      ''');
+    } else {
+      controller.runJavaScript('''
+        (function() {
+          var style = document.createElement('style');
+          style.id = 'dark-mode-style';
+          style.innerHTML = `
+            html {
+              filter: invert(0.9) !important;
+              background-color: #000 !important;
+            }
+            img, video, iframe, [style*="background-image"] {
+              filter: invert(1) !important;
+            }
+          `;
+          var existing = document.getElementById('dark-mode-style');
+          if (existing) {
+            existing.remove();
+          }
+          document.head.appendChild(style);
+        })();
+      ''');
+    }
   }
 
   void _removeDarkMode(WebViewController controller) {
@@ -150,31 +185,27 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
     }
   }
 
-  Future<void> _takeScreenshot() async {
+  Future<void> _shareScreenshot() async {
     try {
-      // Captura o screenshot
       RenderRepaintBoundary boundary = _webViewKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
-      // Adiciona marca d'água
       final watermarkedImage = await _addWatermark(pngBytes);
 
-      // Salva o arquivo
       final directory = await getTemporaryDirectory();
       final imagePath = '${directory.path}/screenshot_${DateTime.now().millisecondsSinceEpoch}.png';
       final imageFile = File(imagePath);
       await imageFile.writeAsBytes(watermarkedImage);
 
-      // Compartilha
       await Share.shareXFiles([XFile(imagePath)], text: 'Screenshot from LevelUp');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Screenshot capturado com sucesso!'),
+            content: Text('Screenshot compartilhado com sucesso!'),
             backgroundColor: CupertinoColors.systemGreen,
           ),
         );
@@ -183,7 +214,7 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao capturar screenshot'),
+            content: Text('Erro ao compartilhar screenshot'),
             backgroundColor: CupertinoColors.systemRed,
           ),
         );
@@ -199,10 +230,8 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // Desenha a imagem original
     canvas.drawImage(image, Offset.zero, Paint());
 
-    // Adiciona marca d'água
     final textPainter = TextPainter(
       text: TextSpan(
         text: 'from LevelUp',
@@ -217,11 +246,9 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
 
     textPainter.layout();
     
-    // Posiciona no canto inferior direito
     final xPosition = image.width - textPainter.width - 20;
     final yPosition = image.height - textPainter.height - 20;
 
-    // Desenha fundo semi-transparente
     canvas.drawRect(
       Rect.fromLTWH(
         xPosition - 10,
@@ -241,50 +268,50 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
     return byteData!.buffer.asUint8List();
   }
 
-  void _showTabsOverview() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => _TabsOverviewSheet(
-        tabs: _tabs,
-        currentIndex: _currentTabIndex,
-        onTabSelected: (index) {
-          setState(() {
-            _currentTabIndex = index;
-          });
-          Navigator.pop(context);
-        },
-        onTabClosed: (index) {
-          setState(() {
-            _tabs.removeAt(index);
-            if (_currentTabIndex >= _tabs.length) {
+  void _showTabsOverview() async {
+    final result = await Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => TabsOverviewScreen(
+          tabs: _tabs,
+          currentIndex: _currentTabIndex,
+          onTabSelected: (index) {
+            setState(() {
+              _currentTabIndex = index;
+            });
+          },
+          onTabClosed: (index) {
+            setState(() {
+              _tabs.removeAt(index);
+              if (_currentTabIndex >= _tabs.length) {
+                _currentTabIndex = _tabs.length - 1;
+              }
+            });
+          },
+          onNewTab: () {
+            setState(() {
+              final newTab = WebTab(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                url: 'https://www.google.com',
+                title: 'Nova Aba',
+              );
+              _tabs.add(newTab);
               _currentTabIndex = _tabs.length - 1;
-            }
-            if (_tabs.isEmpty) {
-              Navigator.of(context).pop();
-            }
-          });
-        },
-        onNewTab: () {
-          setState(() {
-            final newTab = WebTab(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              url: 'https://www.google.com',
-              title: 'Nova Aba',
-            );
-            _tabs.add(newTab);
-            _currentTabIndex = _tabs.length - 1;
-            _initWebView(newTab);
-          });
-          Navigator.pop(context);
-        },
+              _initWebView(newTab);
+            });
+          },
+        ),
       ),
     );
+
+    if (_tabs.isEmpty) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _showOptions() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
     
     showCupertinoModalPopup(
       context: context,
@@ -298,9 +325,9 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.refresh, size: 20),
+                Icon(CupertinoIcons.refresh, size: 20, color: primaryColor),
                 SizedBox(width: 8),
-                Text('Recarregar'),
+                Text('Recarregar', style: TextStyle(color: primaryColor)),
               ],
             ),
           ),
@@ -312,55 +339,78 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(_isDarkMode ? CupertinoIcons.sun_max : CupertinoIcons.moon, size: 20),
+                Icon(_isDarkMode ? CupertinoIcons.sun_max : CupertinoIcons.moon, 
+                     size: 20, color: primaryColor),
                 SizedBox(width: 8),
-                Text(_isDarkMode ? 'Modo Claro' : 'Modo Escuro'),
+                Text(_isDarkMode ? 'Modo Claro' : 'Modo Escuro',
+                     style: TextStyle(color: primaryColor)),
               ],
             ),
           ),
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(context);
-              _takeScreenshot();
+              showCupertinoDialog(
+                context: context,
+                builder: (context) => CupertinoAlertDialog(
+                  title: Text('Adaptação de Cor'),
+                  content: Column(
+                    children: [
+                      SizedBox(height: 16),
+                      Text('Adaptar cores do site ao modo escuro'),
+                      SizedBox(height: 16),
+                      CupertinoSwitch(
+                        value: _adaptColors,
+                        activeColor: primaryColor,
+                        onChanged: (value) {
+                          setState(() {
+                            _adaptColors = value;
+                          });
+                          if (_isDarkMode) {
+                            _applyDarkMode(_tabs[_currentTabIndex].controller!);
+                          }
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.camera, size: 20),
+                Icon(CupertinoIcons.color_filter, size: 20, color: primaryColor),
                 SizedBox(width: 8),
-                Text('Capturar Tela'),
+                Text('Adaptação de Cor', style: TextStyle(color: primaryColor)),
               ],
             ),
           ),
           CupertinoActionSheetAction(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              final url = _tabs[_currentTabIndex].url;
-              await Share.share(url, subject: _tabs[_currentTabIndex].title);
+              _shareScreenshot();
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.share, size: 20),
+                Icon(CupertinoIcons.photo, size: 20, color: primaryColor),
                 SizedBox(width: 8),
-                Text('Compartilhar'),
+                Text('Partilhar Conteúdo', style: TextStyle(color: primaryColor)),
               ],
             ),
           ),
           CupertinoActionSheetAction(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              final url = _tabs[_currentTabIndex].url;
-              if (await canLaunchUrl(Uri.parse(url))) {
-                await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-              }
+              Navigator.pop(context);
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.compass, size: 20),
+                Icon(CupertinoIcons.xmark_circle, size: 20, color: CupertinoColors.systemRed),
                 SizedBox(width: 8),
-                Text('Abrir no Navegador'),
+                Text('Fechar Atividade', style: TextStyle(color: CupertinoColors.systemRed)),
               ],
             ),
           ),
@@ -369,6 +419,38 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
           onPressed: () => Navigator.pop(context),
           child: Text('Cancelar'),
         ),
+      ),
+    );
+  }
+
+  void _showFeatures() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => FeaturesBottomSheet(
+        onPatternAnalysis: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => 
+                PatternAnalysisScreen(webViewKey: _webViewKey),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
+                var tween = Tween(begin: begin, end: end).chain(
+                  CurveTween(curve: curve),
+                );
+                return SlideTransition(
+                  position: animation.drive(tween),
+                  child: child,
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -392,7 +474,6 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
           bottom: false,
           child: Column(
             children: [
-              // WebView
               Expanded(
                 child: RepaintBoundary(
                   key: _webViewKey,
@@ -401,7 +482,6 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
                       : Center(child: CupertinoActivityIndicator()),
                 ),
               ),
-              // Bottom Bar
               Container(
                 height: 52,
                 decoration: BoxDecoration(
@@ -417,49 +497,45 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
                     children: [
-                      // Tabs Button
                       CupertinoButton(
                         padding: EdgeInsets.symmetric(horizontal: 8),
                         minSize: 0,
                         onPressed: _showTabsOverview,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Icon(
-                              CupertinoIcons.square_on_square,
-                              color: isDark ? Colors.white : Colors.black87,
-                              size: 24,
-                            ),
-                            if (_tabs.length > 1)
-                              Positioned(
-                                top: -2,
-                                right: -6,
-                                child: Container(
-                                  padding: EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFFFF444F),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
-                                  ),
-                                  child: Text(
-                                    '${_tabs.length}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                CupertinoIcons.square_on_square,
+                                color: isDark ? Colors.white : Colors.black87,
+                                size: 24,
+                              ),
+                              if (_tabs.length > 1)
+                                Positioned(
+                                  bottom: 2,
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.white : Colors.black87,
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
-                                    textAlign: TextAlign.center,
+                                    child: Text(
+                                      '${_tabs.length}',
+                                      style: TextStyle(
+                                        color: isDark ? Colors.black : Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       SizedBox(width: 4),
-                      // Title Container
                       Expanded(
                         child: Container(
                           height: 36,
@@ -481,7 +557,7 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFFFF444F),
+                                      Theme.of(context).primaryColor,
                                     ),
                                   ),
                                 )
@@ -508,7 +584,26 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
                         ),
                       ),
                       SizedBox(width: 4),
-                      // Options Button
+                      CupertinoButton(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        minSize: 0,
+                        onPressed: _showFeatures,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Funcionalidades',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
                       CupertinoButton(
                         padding: EdgeInsets.symmetric(horizontal: 8),
                         minSize: 0,
@@ -526,167 +621,6 @@ class _WebPlatformScreenState extends State<WebPlatformScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Tabs Overview Sheet
-class _TabsOverviewSheet extends StatelessWidget {
-  final List<WebTab> tabs;
-  final int currentIndex;
-  final Function(int) onTabSelected;
-  final Function(int) onTabClosed;
-  final VoidCallback onNewTab;
-
-  const _TabsOverviewSheet({
-    required this.tabs,
-    required this.currentIndex,
-    required this.onTabSelected,
-    required this.onTabClosed,
-    required this.onNewTab,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            margin: EdgeInsets.only(top: 8),
-            width: 36,
-            height: 5,
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF48484A) : Color(0xFFD1D1D6),
-              borderRadius: BorderRadius.circular(2.5),
-            ),
-          ),
-          SizedBox(height: 20),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${tabs.length} ${tabs.length == 1 ? "Aba" : "Abas"}',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: onNewTab,
-                  child: Icon(
-                    CupertinoIcons.plus_circle_fill,
-                    color: CupertinoColors.systemBlue,
-                    size: 32,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 16),
-          Expanded(
-            child: GridView.builder(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.75,
-              ),
-              itemCount: tabs.length,
-              itemBuilder: (context, index) {
-                final tab = tabs[index];
-                final isActive = index == currentIndex;
-
-                return GestureDetector(
-                  onTap: () => onTabSelected(index),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF2C2C2E) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: isActive
-                          ? Border.all(color: CupertinoColors.systemBlue, width: 2)
-                          : null,
-                    ),
-                    child: Stack(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                margin: EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    CupertinoIcons.doc_text,
-                                    size: 48,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Text(
-                                tab.title,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: CupertinoButton(
-                            padding: EdgeInsets.all(4),
-                            minSize: 0,
-                            onPressed: () => onTabClosed(index),
-                            child: Container(
-                              padding: EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                CupertinoIcons.xmark,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }
