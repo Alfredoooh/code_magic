@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'dart:ui'; // ADICIONAR IMPORT
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -220,67 +221,87 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomBar(BuildContext context, bool isDark) {
-    // Cor de fundo iOS dark (~90% escuro)
-    final bgColor = isDark ? Color(0xFF1C1C1E) : Colors.white;
+    // Cor de fundo iOS dark (~90% escuro) com transparência para o blur funcionar
+    final bgColor = isDark 
+        ? Color(0xFF1C1C1E).withOpacity(0.85) 
+        : Colors.white.withOpacity(0.85);
 
-    return Theme(
-      data: Theme.of(context).copyWith(
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: bgColor,
-          indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
-          labelTextStyle: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFFF444F),
-              );
-            }
-            return TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white70 : Colors.black54,
-            );
-          }),
-          iconTheme: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return IconThemeData(
-                size: 24,
-                color: Color(0xFFFF444F),
-              );
-            }
-            return IconThemeData(
-              size: 24,
-              color: isDark ? Colors.white70 : Colors.black54,
-            );
-          }),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border(
+              top: BorderSide(
+                color: isDark 
+                    ? Colors.white.withOpacity(0.1) 
+                    : Colors.black.withOpacity(0.1),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              navigationBarTheme: NavigationBarThemeData(
+                backgroundColor: Colors.transparent,
+                indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
+                labelTextStyle: MaterialStateProperty.resolveWith((states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFFF444F),
+                    );
+                  }
+                  return TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  );
+                }),
+                iconTheme: MaterialStateProperty.resolveWith((states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return IconThemeData(
+                      size: 24,
+                      color: Color(0xFFFF444F),
+                    );
+                  }
+                  return IconThemeData(
+                    size: 24,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  );
+                }),
+              ),
+            ),
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: _onTabTapped,
+              destinations: [
+                NavigationDestination(
+                  icon: Icon(Icons.home_rounded),
+                  label: 'Início',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.bar_chart_rounded),
+                  label: 'Dados',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.newspaper_rounded),
+                  label: 'Atualidade',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.track_changes_rounded),
+                  label: 'Metas',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.chat_bubble_rounded),
+                  label: 'Conversas',
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-      child: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: _onTabTapped,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.home_rounded),
-            label: 'Início',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_rounded),
-            label: 'Dados',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.newspaper_rounded),
-            label: 'Atualidade',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.track_changes_rounded),
-            label: 'Metas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_rounded),
-            label: 'Conversas',
-          ),
-        ],
       ),
     );
   }
