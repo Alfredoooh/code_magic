@@ -1,4 +1,5 @@
 // lib/screens/home_widgets.dart
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../models/news_article.dart';
@@ -68,81 +69,88 @@ class HomeWidgets {
               allArticles: allArticles,
               currentIndex: index,
             ),
+            fullscreenDialog: true,
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      article.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                        height: 1.3,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      article.description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: CupertinoColors.systemGrey,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white).withOpacity(0.7),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
                 ),
-              ),
+              ],
             ),
-            if (article.imageUrl.isNotEmpty)
-              Container(
-                width: 120,
-                height: 140,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  child: Image.network(
-                    article.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => Container(
-                      color: CupertinoColors.systemGrey5,
-                      child: Icon(
-                        CupertinoIcons.photo,
-                        color: CupertinoColors.systemGrey,
-                        size: 40,
-                      ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          article.title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            height: 1.3,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          article.description,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: CupertinoColors.systemGrey,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-          ],
+                if (article.imageUrl.isNotEmpty)
+                  Container(
+                    width: 120,
+                    height: 140,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                      child: Image.network(
+                        article.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) => Container(
+                          color: CupertinoColors.systemGrey5,
+                          child: Icon(
+                            CupertinoIcons.photo,
+                            color: CupertinoColors.systemGrey,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
