@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'dart:convert';
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -24,7 +25,6 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool _isLiked = false;
   int _likesCount = 0;
-  bool _isBookmarked = false;
 
   @override
   void initState() {
@@ -43,7 +43,7 @@ class _PostCardState extends State<PostCard> {
   Future<void> _toggleLike() async {
     try {
       final postRef = FirebaseFirestore.instance.collection('publicacoes').doc(widget.postId);
-      
+
       if (_isLiked) {
         await postRef.update({
           'likes': FieldValue.increment(-1),
@@ -75,6 +75,18 @@ class _PostCardState extends State<PostCard> {
         postId: widget.postId,
         isDark: widget.isDark,
         currentUserId: widget.currentUserId,
+      ),
+    );
+  }
+
+  void _showFullScreenImage() {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => FullScreenImageViewer(
+          imageUrl: widget.post['image'],
+          isDark: widget.isDark,
+        ),
       ),
     );
   }
@@ -209,25 +221,89 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
+  Widget _buildImage() {
+    final imageData = widget.post['image'];
+    if (imageData == null || imageData.isEmpty) return SizedBox.shrink();
+
+    // Verifica se é Base64
+    if (imageData.startsWith('data:image')) {
+      try {
+        final base64String = imageData.split(',')[1];
+        final bytes = base64Decode(base64String);
+        return GestureDetector(
+          onDoubleTap: _toggleLike,
+          onTap: _showFullScreenImage,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              bytes,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildImageError(),
+            ),
+          ),
+        );
+      } catch (e) {
+        return _buildImageError();
+      }
+    }
+
+    // Imagem URL normal
+    return GestureDetector(
+      onDoubleTap: _toggleLike,
+      onTap: _showFullScreenImage,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          imageData,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildImageError(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageError() {
+    return Container(
+      height: 400,
+      decoration: BoxDecoration(
+        color: widget.isDark ? Color(0xFF262626) : Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Icon(
+          CupertinoIcons.photo,
+          size: 60,
+          color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFFDBDBDB),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: 1),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: widget.isDark ? Color(0xFF262626) : Color(0xFFDBDBDB),
-            width: 0.5,
+        color: widget.isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: widget.isDark 
+              ? Colors.black.withOpacity(0.3)
+              : Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
-        ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.all(12),
             child: Row(
               children: [
                 Container(
@@ -243,14 +319,14 @@ class _PostCardState extends State<PostCard> {
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+                      color: widget.isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                       border: Border.all(
-                        color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+                        color: widget.isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                         width: 2,
                       ),
                     ),
                     child: CircleAvatar(
-                      radius: 14,
+                      radius: 16,
                       backgroundColor: Color(0xFFFF444F),
                       backgroundImage: widget.post['userProfileImage'] != null &&
                               widget.post['userProfileImage'].isNotEmpty
@@ -262,7 +338,7 @@ class _PostCardState extends State<PostCard> {
                               (widget.post['userName'] ?? 'U')[0].toUpperCase(),
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
                             )
@@ -279,7 +355,7 @@ class _PostCardState extends State<PostCard> {
                         widget.post['userName'] ?? 'Usuário',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                          fontSize: 14,
                           color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
                         ),
                       ),
@@ -287,8 +363,8 @@ class _PostCardState extends State<PostCard> {
                         Text(
                           widget.post['location'],
                           style: TextStyle(
-                            fontSize: 11,
-                            color: widget.isDark ? Color(0xFFA8A8A8) : Color(0xFF262626),
+                            fontSize: 12,
+                            color: widget.isDark ? Color(0xFFA8A8A8) : Color(0xFF8E8E8E),
                           ),
                         ),
                     ],
@@ -308,29 +384,14 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
 
-          // Image
+          // Image with rounded corners
           if (widget.post['image'] != null && widget.post['image'].isNotEmpty)
-            GestureDetector(
-              onDoubleTap: _toggleLike,
-              child: Image.network(
-                widget.post['image'],
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 400,
-                  color: widget.isDark ? Color(0xFF262626) : Color(0xFFFAFAFA),
-                  child: Center(
-                    child: Icon(
-                      CupertinoIcons.photo,
-                      size: 60,
-                      color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFFDBDBDB),
-                    ),
-                  ),
-                ),
-              ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: _buildImage(),
             ),
 
-          // Actions
+          // Actions (sem bookmark)
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
@@ -366,19 +427,6 @@ class _PostCardState extends State<PostCard> {
                     size: 26,
                   ),
                   onPressed: () {},
-                ),
-                Spacer(),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  minSize: 24,
-                  child: Icon(
-                    _isBookmarked ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-                    color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                    size: 26,
-                  ),
-                  onPressed: () {
-                    setState(() => _isBookmarked = !_isBookmarked);
-                  },
                 ),
               ],
             ),
@@ -428,22 +476,33 @@ class _PostCardState extends State<PostCard> {
             ),
 
           // View comments
-          if (widget.post['comments'] != null && widget.post['comments'] > 0)
-            Padding(
-              padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: GestureDetector(
-                onTap: _showCommentsSheet,
-                child: Text(
-                  widget.post['comments'] == 1
-                      ? 'Ver 1 comentário'
-                      : 'Ver todos os ${widget.post['comments']} comentários',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('publicacoes')
+                .doc(widget.postId)
+                .collection('comentarios')
+                .snapshots(),
+            builder: (context, snapshot) {
+              final commentsCount = snapshot.data?.docs.length ?? 0;
+              if (commentsCount == 0) return SizedBox.shrink();
+              
+              return Padding(
+                padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+                child: GestureDetector(
+                  onTap: _showCommentsSheet,
+                  child: Text(
+                    commentsCount == 1
+                        ? 'Ver 1 comentário'
+                        : 'Ver todos os $commentsCount comentários',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
 
           // Timestamp
           Padding(
@@ -463,6 +522,54 @@ class _PostCardState extends State<PostCard> {
   }
 }
 
+// Tela de visualização em tela cheia
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+  final bool isDark;
+
+  const FullScreenImageViewer({
+    required this.imageUrl,
+    required this.isDark,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: Colors.black,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: Colors.black,
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(
+            CupertinoIcons.xmark,
+            color: CupertinoColors.white,
+            size: 28,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      child: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: imageUrl.startsWith('data:image')
+              ? Image.memory(
+                  base64Decode(imageUrl.split(',')[1]),
+                  fit: BoxFit.contain,
+                )
+              : Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// Sheet de comentários com tempo real
 class CommentsSheet extends StatefulWidget {
   final String postId;
   final bool isDark;
@@ -481,7 +588,16 @@ class CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<CommentsSheet> {
   final TextEditingController _commentController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController.addListener(() {
+      setState(() {});
+    });
+  }
 
   Future<void> _submitComment() async {
     if (_commentController.text.trim().isEmpty) return;
@@ -499,14 +615,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      await FirebaseFirestore.instance
-          .collection('publicacoes')
-          .doc(widget.postId)
-          .update({
-        'comments': FieldValue.increment(1),
-      });
-
       _commentController.clear();
+      _focusNode.unfocus();
     } catch (e) {
       print('Error submitting comment: $e');
     } finally {
@@ -528,256 +638,261 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      child: Column(
-        children: [
-          // Handle bar
-          SizedBox(height: 8),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
-              borderRadius: BorderRadius.circular(2),
+    return GestureDetector(
+      onTap: () => _focusNode.unfocus(),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          SizedBox(height: 8),
-          
-          // Header
-          Container(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: widget.isDark ? Color(0xFF262626) : Color(0xFFDBDBDB),
-                  width: 0.5,
+            SizedBox(height: 8),
+
+            // Header
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: widget.isDark ? Color(0xFF262626) : Color(0xFFDBDBDB),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  'Comentários',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
                 ),
               ),
             ),
-            child: Center(
-              child: Text(
-                'Comentários',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                ),
-              ),
-            ),
-          ),
 
-          // Comments list
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('publicacoes')
-                  .doc(widget.postId)
-                  .collection('comentarios')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CupertinoActivityIndicator());
-                }
+            // Comments list (tempo real)
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('publicacoes')
+                    .doc(widget.postId)
+                    .collection('comentarios')
+                    .orderBy('timestamp', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return Center(child: CupertinoActivityIndicator());
+                  }
 
-                final comments = snapshot.data!.docs;
+                  final comments = snapshot.data!.docs;
 
-                if (comments.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.chat_bubble,
-                          size: 64,
-                          color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Nenhum comentário ainda',
-                          style: TextStyle(
-                            color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Inicie a conversa.',
-                          style: TextStyle(
-                            color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: EdgeInsets.all(12),
-                  itemCount: comments.length,
-                  itemBuilder: (context, index) {
-                    final comment = comments[index].data() as Map<String, dynamic>;
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  if (comments.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Color(0xFFFF444F),
-                            child: Text(
-                              'U',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          Icon(
+                            CupertinoIcons.chat_bubble,
+                            size: 64,
+                            color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Nenhum comentário ainda',
+                            style: TextStyle(
+                              color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                RichText(
-                                  text: TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: 'Usuário ',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: comment['content'] ?? '',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Text(
-                                      _getTimeAgo(comment['timestamp']),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
-                                      ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Text(
-                                      'Responder',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                          SizedBox(height: 8),
+                          Text(
+                            'Inicie a conversa.',
+                            style: TextStyle(
+                              color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+                              fontSize: 14,
                             ),
-                          ),
-                          CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            minSize: 24,
-                            child: Icon(
-                              CupertinoIcons.heart,
-                              size: 12,
-                              color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
-                            onPressed: () {},
                           ),
                         ],
                       ),
                     );
-                  },
-                );
-              },
-            ),
-          ),
+                  }
 
-          // Input
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
-              border: Border(
-                top: BorderSide(
-                  color: widget.isDark ? Color(0xFF262626) : Color(0xFFDBDBDB),
-                  width: 0.5,
+                  return ListView.builder(
+                    padding: EdgeInsets.all(12),
+                    itemCount: comments.length,
+                    itemBuilder: (context, index) {
+                      final comment = comments[index].data() as Map<String, dynamic>;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Color(0xFFFF444F),
+                              child: Text(
+                                'U',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: 'Usuário ',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                            color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: comment['content'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _getTimeAgo(comment['timestamp']),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+                                        ),
+                                      ),
+                                      SizedBox(width: 16),
+                                      Text(
+                                        'Responder',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            CupertinoButton(
+                              padding: EdgeInsets.zero,
+                              minSize: 24,
+                              child: Icon(
+                                CupertinoIcons.heart,
+                                size: 12,
+                                color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                              ),
+                              onPressed: () {},
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+
+            // Input (sem overlay)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+                border: Border(
+                  top: BorderSide(
+                    color: widget.isDark ? Color(0xFF262626) : Color(0xFFDBDBDB),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Color(0xFFFF444F),
+                      child: Text(
+                        'U',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: CupertinoTextField(
+                        controller: _commentController,
+                        focusNode: _focusNode,
+                        placeholder: 'Adicione um comentário...',
+                        placeholderStyle: TextStyle(
+                          color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
+                          fontSize: 14,
+                        ),
+                        style: TextStyle(
+                          color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                          fontSize: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        maxLines: null,
+                      ),
+                    ),
+                    if (_commentController.text.trim().isNotEmpty)
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minSize: 30,
+                        onPressed: _isSubmitting ? null : _submitComment,
+                        child: _isSubmitting
+                            ? CupertinoActivityIndicator(radius: 8)
+                            : Text(
+                                'Publicar',
+                                style: TextStyle(
+                                  color: Color(0xFF0095F6),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                  ],
                 ),
               ),
             ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Color(0xFFFF444F),
-                    child: Text(
-                      'U',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: CupertinoTextField(
-                      controller: _commentController,
-                      placeholder: 'Adicione um comentário...',
-                      placeholderStyle: TextStyle(
-                        color: widget.isDark ? Color(0xFF8E8E8E) : Color(0xFF8E8E8E),
-                        fontSize: 14,
-                      ),
-                      style: TextStyle(
-                        color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                        fontSize: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                      ),
-                      padding: EdgeInsets.zero,
-                      maxLines: null,
-                    ),
-                  ),
-                  if (_commentController.text.isNotEmpty || _isSubmitting)
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minSize: 30,
-                      onPressed: _isSubmitting ? null : _submitComment,
-                      child: _isSubmitting
-                          ? CupertinoActivityIndicator(radius: 8)
-                          : Text(
-                              'Publicar',
-                              style: TextStyle(
-                                color: Color(0xFF0095F6),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -785,6 +900,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
   @override
   void dispose() {
     _commentController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 }
