@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 // Statistics Modal
 class StatisticsModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
     
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -33,7 +35,7 @@ class StatisticsModal extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Icon(CupertinoIcons.chart_bar_alt_fill, color: CupertinoColors.systemBlue, size: 28),
+                Icon(CupertinoIcons.chart_bar_alt_fill, color: primaryColor, size: 28),
                 SizedBox(width: 12),
                 Text(
                   'Estatísticas',
@@ -94,15 +96,188 @@ class StatisticsModal extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   children: [
                     _buildStatCard(
-                      icon: CupertinoIcons.person_2_fill,
                       title: 'Total de Usuários',
                       value: totalUsers.toString(),
                       color: CupertinoColors.systemBlue,
                       isDark: isDark,
                     ),
                     SizedBox(height: 12),
+                    
+                    // Gráfico de Usuários Ativos
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: isDark ? Color(0xFF2C2C2E) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Usuários Ativos',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          Container(
+                            height: 250,
+                            child: BarChart(
+                              BarChartData(
+                                alignment: BarChartAlignment.spaceAround,
+                                maxY: totalUsers.toDouble() * 1.2,
+                                barTouchData: BarTouchData(
+                                  enabled: true,
+                                  touchTooltipData: BarTouchTooltipData(
+                                    tooltipBgColor: isDark ? Color(0xFF3C3C3E) : Colors.grey[800],
+                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                      String label;
+                                      switch (group.x.toInt()) {
+                                        case 0:
+                                          label = 'Diário';
+                                          break;
+                                        case 1:
+                                          label = 'Semanal';
+                                          break;
+                                        case 2:
+                                          label = 'Mensal';
+                                          break;
+                                        default:
+                                          label = '';
+                                      }
+                                      return BarTooltipItem(
+                                        '$label\n${rod.toY.toInt()}',
+                                        TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                titlesData: FlTitlesData(
+                                  show: true,
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      getTitlesWidget: (value, meta) {
+                                        String text;
+                                        switch (value.toInt()) {
+                                          case 0:
+                                            text = 'Diário';
+                                            break;
+                                          case 1:
+                                            text = 'Semanal';
+                                            break;
+                                          case 2:
+                                            text = 'Mensal';
+                                            break;
+                                          default:
+                                            text = '';
+                                        }
+                                        return Padding(
+                                          padding: EdgeInsets.only(top: 8),
+                                          child: Text(
+                                            text,
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 40,
+                                      getTitlesWidget: (value, meta) {
+                                        return Text(
+                                          value.toInt().toString(),
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  topTitles: AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  rightTitles: AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                ),
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  horizontalInterval: (totalUsers / 4).ceilToDouble(),
+                                  getDrawingHorizontalLine: (value) {
+                                    return FlLine(
+                                      color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA),
+                                      strokeWidth: 1,
+                                    );
+                                  },
+                                ),
+                                borderData: FlBorderData(show: false),
+                                barGroups: [
+                                  BarChartGroupData(
+                                    x: 0,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: dailyActive.toDouble(),
+                                        color: CupertinoColors.systemGreen,
+                                        width: 40,
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+                                      ),
+                                    ],
+                                  ),
+                                  BarChartGroupData(
+                                    x: 1,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: weeklyActive.toDouble(),
+                                        color: CupertinoColors.systemBlue,
+                                        width: 40,
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+                                      ),
+                                    ],
+                                  ),
+                                  BarChartGroupData(
+                                    x: 2,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: monthlyActive.toDouble(),
+                                        color: CupertinoColors.systemOrange,
+                                        width: 40,
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildLegendItem('Diário', dailyActive, CupertinoColors.systemGreen, isDark),
+                              _buildLegendItem('Semanal', weeklyActive, CupertinoColors.systemBlue, isDark),
+                              _buildLegendItem('Mensal', monthlyActive, CupertinoColors.systemOrange, isDark),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    SizedBox(height: 12),
                     _buildStatCard(
-                      icon: CupertinoIcons.time,
                       title: 'Ativos Hoje',
                       value: dailyActive.toString(),
                       subtitle: '${((dailyActive / (totalUsers > 0 ? totalUsers : 1)) * 100).toStringAsFixed(1)}% do total',
@@ -111,7 +286,6 @@ class StatisticsModal extends StatelessWidget {
                     ),
                     SizedBox(height: 12),
                     _buildStatCard(
-                      icon: CupertinoIcons.calendar,
                       title: 'Ativos Esta Semana',
                       value: weeklyActive.toString(),
                       subtitle: '${((weeklyActive / (totalUsers > 0 ? totalUsers : 1)) * 100).toStringAsFixed(1)}% do total',
@@ -120,7 +294,6 @@ class StatisticsModal extends StatelessWidget {
                     ),
                     SizedBox(height: 12),
                     _buildStatCard(
-                      icon: CupertinoIcons.calendar_today,
                       title: 'Ativos Este Mês',
                       value: monthlyActive.toString(),
                       subtitle: '${((monthlyActive / (totalUsers > 0 ? totalUsers : 1)) * 100).toStringAsFixed(1)}% do total',
@@ -129,7 +302,6 @@ class StatisticsModal extends StatelessWidget {
                     ),
                     SizedBox(height: 12),
                     _buildStatCard(
-                      icon: CupertinoIcons.star_fill,
                       title: 'Usuários PRO',
                       value: proUsers.toString(),
                       subtitle: '${((proUsers / (totalUsers > 0 ? totalUsers : 1)) * 100).toStringAsFixed(1)}% do total',
@@ -138,7 +310,6 @@ class StatisticsModal extends StatelessWidget {
                     ),
                     SizedBox(height: 12),
                     _buildStatCard(
-                      icon: CupertinoIcons.lock_fill,
                       title: 'Usuários Bloqueados',
                       value: blockedUsers.toString(),
                       subtitle: '${((blockedUsers / (totalUsers > 0 ? totalUsers : 1)) * 100).toStringAsFixed(1)}% do total',
@@ -156,8 +327,45 @@ class StatisticsModal extends StatelessWidget {
     );
   }
 
+  static Widget _buildLegendItem(String label, int value, Color color, bool isDark) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 4),
+        Text(
+          value.toString(),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
   static Widget _buildStatCard({
-    required IconData icon,
     required String title,
     required String value,
     String? subtitle,
@@ -173,12 +381,12 @@ class StatisticsModal extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(12),
+            width: 4,
+            height: 50,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+              color: color,
+              borderRadius: BorderRadius.circular(2),
             ),
-            child: Icon(icon, color: color, size: 24),
           ),
           SizedBox(width: 16),
           Expanded(
@@ -229,17 +437,14 @@ class SettingsModal extends StatefulWidget {
 
 class _SettingsModalState extends State<SettingsModal> {
   bool autoDeleteInactiveUsers = false;
-  bool requireEmailVerification = true;
   bool enableUserRegistration = true;
-  bool allowGuestAccess = false;
-  bool enableNotifications = true;
-  bool enableAnalytics = true;
   int maxTokensPerUser = 1000;
   int inactivityDays = 90;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
     
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -266,7 +471,7 @@ class _SettingsModalState extends State<SettingsModal> {
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Icon(CupertinoIcons.settings_solid, color: CupertinoColors.systemBlue, size: 28),
+                Icon(CupertinoIcons.settings_solid, color: primaryColor, size: 28),
                 SizedBox(width: 12),
                 Text(
                   'Configurações',
@@ -302,74 +507,20 @@ class _SettingsModalState extends State<SettingsModal> {
                   child: Column(
                     children: [
                       _buildIOSSettingTile(
-                        icon: CupertinoIcons.person_badge_plus,
                         title: 'Permitir Novos Registros',
                         value: enableUserRegistration,
                         onChanged: (val) => setState(() => enableUserRegistration = val),
                         isDark: isDark,
+                        primaryColor: primaryColor,
                         isFirst: true,
                       ),
-                      Divider(height: 1, thickness: 0.5, indent: 52, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
+                      Divider(height: 1, thickness: 0.5, indent: 16, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
                       _buildIOSSettingTile(
-                        icon: CupertinoIcons.mail_solid,
-                        title: 'Verificação de Email',
-                        value: requireEmailVerification,
-                        onChanged: (val) => setState(() => requireEmailVerification = val),
-                        isDark: isDark,
-                      ),
-                      Divider(height: 1, thickness: 0.5, indent: 52, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
-                      _buildIOSSettingTile(
-                        icon: CupertinoIcons.person_crop_circle_badge_xmark,
                         title: 'Excluir Usuários Inativos',
                         value: autoDeleteInactiveUsers,
                         onChanged: (val) => setState(() => autoDeleteInactiveUsers = val),
                         isDark: isDark,
-                      ),
-                      Divider(height: 1, thickness: 0.5, indent: 52, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
-                      _buildIOSSettingTile(
-                        icon: CupertinoIcons.person_badge_minus,
-                        title: 'Acesso de Visitante',
-                        value: allowGuestAccess,
-                        onChanged: (val) => setState(() => allowGuestAccess = val),
-                        isDark: isDark,
-                        isLast: true,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 32),
-                Text(
-                  'SISTEMA',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey,
-                    letterSpacing: -0.08,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF2C2C2E) : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildIOSSettingTile(
-                        icon: CupertinoIcons.bell_fill,
-                        title: 'Notificações Push',
-                        value: enableNotifications,
-                        onChanged: (val) => setState(() => enableNotifications = val),
-                        isDark: isDark,
-                        isFirst: true,
-                      ),
-                      Divider(height: 1, thickness: 0.5, indent: 52, color: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA)),
-                      _buildIOSSettingTile(
-                        icon: CupertinoIcons.graph_circle_fill,
-                        title: 'Analytics',
-                        value: enableAnalytics,
-                        onChanged: (val) => setState(() => enableAnalytics = val),
-                        isDark: isDark,
+                        primaryColor: primaryColor,
                         isLast: true,
                       ),
                     ],
@@ -410,19 +561,26 @@ class _SettingsModalState extends State<SettingsModal> {
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
-                              color: CupertinoColors.systemBlue,
+                              color: primaryColor,
                             ),
                           ),
                         ],
                       ),
                       SizedBox(height: 8),
-                      CupertinoSlider(
-                        value: maxTokensPerUser.toDouble(),
-                        min: 100,
-                        max: 10000,
-                        divisions: 99,
-                        activeColor: CupertinoColors.systemBlue,
-                        onChanged: (val) => setState(() => maxTokensPerUser = val.toInt()),
+                      SliderTheme(
+                        data: SliderThemeData(
+                          activeTrackColor: primaryColor,
+                          inactiveTrackColor: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA),
+                          thumbColor: primaryColor,
+                          overlayColor: primaryColor.withOpacity(0.2),
+                        ),
+                        child: Slider(
+                          value: maxTokensPerUser.toDouble(),
+                          min: 100,
+                          max: 10000,
+                          divisions: 99,
+                          onChanged: (val) => setState(() => maxTokensPerUser = val.toInt()),
+                        ),
                       ),
                     ],
                   ),
@@ -452,26 +610,33 @@ class _SettingsModalState extends State<SettingsModal> {
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
-                              color: CupertinoColors.systemBlue,
+                              color: primaryColor,
                             ),
                           ),
                         ],
                       ),
                       SizedBox(height: 8),
-                      CupertinoSlider(
-                        value: inactivityDays.toDouble(),
-                        min: 30,
-                        max: 365,
-                        divisions: 67,
-                        activeColor: CupertinoColors.systemBlue,
-                        onChanged: (val) => setState(() => inactivityDays = val.toInt()),
+                      SliderTheme(
+                        data: SliderThemeData(
+                          activeTrackColor: primaryColor,
+                          inactiveTrackColor: isDark ? Color(0xFF48484A) : Color(0xFFE5E5EA),
+                          thumbColor: primaryColor,
+                          overlayColor: primaryColor.withOpacity(0.2),
+                        ),
+                        child: Slider(
+                          value: inactivityDays.toDouble(),
+                          min: 30,
+                          max: 365,
+                          divisions: 67,
+                          onChanged: (val) => setState(() => inactivityDays = val.toInt()),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 SizedBox(height: 32),
                 CupertinoButton(
-                  color: CupertinoColors.systemBlue,
+                  color: primaryColor,
                   borderRadius: BorderRadius.circular(10),
                   padding: EdgeInsets.symmetric(vertical: 14),
                   onPressed: () {
@@ -502,11 +667,11 @@ class _SettingsModalState extends State<SettingsModal> {
   }
 
   Widget _buildIOSSettingTile({
-    required IconData icon,
     required String title,
     required bool value,
     required Function(bool) onChanged,
     required bool isDark,
+    required Color primaryColor,
     bool isFirst = false,
     bool isLast = false,
   }) {
@@ -514,8 +679,6 @@ class _SettingsModalState extends State<SettingsModal> {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey, size: 22),
-          SizedBox(width: 12),
           Expanded(
             child: Text(
               title,
@@ -527,7 +690,7 @@ class _SettingsModalState extends State<SettingsModal> {
           ),
           CupertinoSwitch(
             value: value,
-            activeColor: CupertinoColors.systemBlue,
+            activeColor: primaryColor,
             onChanged: onChanged,
           ),
         ],
@@ -541,6 +704,7 @@ class ReportsModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
     
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -567,7 +731,7 @@ class ReportsModal extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Icon(CupertinoIcons.doc_text_fill, color: CupertinoColors.systemBlue, size: 28),
+                Icon(CupertinoIcons.doc_text_fill, color: primaryColor, size: 28),
                 SizedBox(width: 12),
                 Text(
                   'Relatórios',
@@ -587,7 +751,6 @@ class ReportsModal extends StatelessWidget {
               children: [
                 _buildReportCard(
                   context: context,
-                  icon: CupertinoIcons.person_2_alt,
                   title: 'Relatório de Usuários',
                   description: 'Lista completa de todos os usuários cadastrados',
                   color: CupertinoColors.systemBlue,
@@ -596,7 +759,6 @@ class ReportsModal extends StatelessWidget {
                 SizedBox(height: 12),
                 _buildReportCard(
                   context: context,
-                  icon: CupertinoIcons.graph_circle,
                   title: 'Relatório de Atividade',
                   description: 'Análise de atividade dos usuários por período',
                   color: CupertinoColors.systemGreen,
@@ -605,7 +767,6 @@ class ReportsModal extends StatelessWidget {
                 SizedBox(height: 12),
                 _buildReportCard(
                   context: context,
-                  icon: CupertinoIcons.money_dollar_circle,
                   title: 'Relatório de Tokens',
                   description: 'Uso e distribuição de tokens no sistema',
                   color: CupertinoColors.systemOrange,
@@ -614,7 +775,6 @@ class ReportsModal extends StatelessWidget {
                 SizedBox(height: 12),
                 _buildReportCard(
                   context: context,
-                  icon: CupertinoIcons.exclamationmark_shield,
                   title: 'Relatório de Segurança',
                   description: 'Tentativas de acesso e usuários bloqueados',
                   color: CupertinoColors.systemRed,
@@ -623,7 +783,6 @@ class ReportsModal extends StatelessWidget {
                 SizedBox(height: 12),
                 _buildReportCard(
                   context: context,
-                  icon: CupertinoIcons.star,
                   title: 'Relatório PRO',
                   description: 'Assinaturas PRO ativas e expiradas',
                   color: Color(0xFFFF444F),
@@ -640,7 +799,6 @@ class ReportsModal extends StatelessWidget {
 
   static Widget _buildReportCard({
     required BuildContext context,
-    required IconData icon,
     required String title,
     required String description,
     required Color color,
@@ -659,12 +817,12 @@ class ReportsModal extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(12),
+              width: 4,
+              height: 50,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: color,
+                borderRadius: BorderRadius.circular(2),
               ),
-              child: Icon(icon, color: color, size: 24),
             ),
             SizedBox(width: 16),
             Expanded(
