@@ -7,10 +7,10 @@ import 'home_screen.dart';
 import 'chats_screen.dart';
 import 'marketplace_screen.dart';
 import 'news_screen.dart';
+import 'goals_screen.dart';
 import 'more_screen.dart';
 import '../services/language_service.dart';
 
-// ---------- MainScreen atualizado ----------
 class MainScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
   final Function(String) onLocaleChanged;
@@ -30,15 +30,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late List<Widget> _screens;
   late List<GlobalKey<NavigatorState>> _navigatorKeys;
-  late AnimationController _animationController;
   late AnimationController _bottomBarAnimationController;
-  late AnimationController _pulseController;
-  late Animation<double> _animation;
   late Animation<Offset> _bottomBarSlideAnimation;
   Map<String, dynamic>? _userData;
-  int _pulsedIndex = -1;
 
-  final List<bool> _hasNavigatedInTab = [false, false, false, false];
+  final List<bool> _hasNavigatedInTab = [false, false, false, false, false];
 
   @override
   void initState() {
@@ -47,16 +43,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _updateUserStatus(true);
     _checkFirstTimeUser();
 
-    _animationController = AnimationController(
-      duration: Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-
-    // Bottom bar slide animation
     _bottomBarAnimationController = AnimationController(
       duration: Duration(milliseconds: 320),
       vsync: this,
@@ -69,14 +55,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       curve: Curves.easeInOutCubic,
     ));
 
-    // Pulse animation for tab icons
-    _pulseController = AnimationController(
-      duration: Duration(milliseconds: 300),
-      vsync: this,
-    );
-
     _navigatorKeys = List.generate(
-      4,
+      5,
       (index) => GlobalKey<NavigatorState>(),
     );
 
@@ -88,6 +68,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       ),
       MarketplaceScreen(),
       NewsScreen(),
+      GoalsScreen(),
       ChatsScreen(),
     ];
   }
@@ -139,9 +120,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _updateUserStatus(false);
-    _animationController.dispose();
     _bottomBarAnimationController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -159,24 +138,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _onTabTapped(int index) {
-    // Trigger pulse animation on tapped icon
-    setState(() => _pulsedIndex = index);
-    _pulseController.forward(from: 0).then((_) {
-      setState(() => _pulsedIndex = -1);
-    });
-
     if (_currentIndex == index) {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
       setState(() => _hasNavigatedInTab[index] = false);
     } else {
       setState(() => _currentIndex = index);
-      _animationController.forward(from: 0);
     }
   }
 
-  /// IMPORTANT: aqui ampliamos a condição para esconder o bottom bar:
-  /// - se o navigator da tab atual puder pop -> escondemos (rota interna)
-  /// - OU se o root navigator puder pop -> escondemos (modal/rota global)
   bool _shouldShowBottomBar() {
     final navigatorState = _navigatorKeys[_currentIndex].currentState;
     bool currentCanPop = false;
@@ -189,10 +158,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       rootCanPop = Navigator.of(context, rootNavigator: true).canPop();
     } catch (_) { rootCanPop = false; }
 
-    // Se qualquer um pode pop (rota sobreposta), ocultamos o bottom bar.
     final shouldShow = !(currentCanPop || rootCanPop);
 
-    // animação de slide: quando não mostrar animamos para esconder
     if (!shouldShow) {
       _bottomBarAnimationController.forward();
     } else {
@@ -239,17 +206,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             );
           }),
         ),
-        // Bottom bar customizado
         bottomNavigationBar: SlideTransition(
           position: _bottomBarSlideAnimation,
-          child: SafeArea(
-            top: false,
-            child: AnimatedContainer(
-              duration: Duration(milliseconds: 260),
-              curve: Curves.easeInOut,
-              height: showBottomBar ? 72.0 : 0.0, // desaparece totalmente quando hidden
-              child: showBottomBar ? _buildBottomBar(context, isDark) : SizedBox.shrink(),
-            ),
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 260),
+            curve: Curves.easeInOut,
+            height: showBottomBar ? null : 0.0,
+            child: showBottomBar ? _buildBottomBar(context, isDark) : SizedBox.shrink(),
           ),
         ),
       ),
@@ -257,116 +220,72 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomBar(BuildContext context, bool isDark) {
-    final activeColor = Color(0xFFFF444F);
-    final inactiveColor = isDark ? Colors.white70 : Colors.black54;
-    final bgColor = isDark ? Color(0xFF000000) : Colors.white;
-    final itemCount = 4;
+    // Cor de fundo iOS dark (~90% escuro)
+    final bgColor = isDark ? Color(0xFF1C1C1E) : Colors.white;
 
-    final icons = [
-      CupertinoIcons.home, // Início
-      CupertinoIcons.chart_bar, // Dados (sem crypto)
-      CupertinoIcons.news_solid, // Atualidade
-      CupertinoIcons.bubble_left_bubble_right, // Conversas
-    ];
-
-    final labels = ['Início', 'Dados', 'Atualidade', 'Conversas'];
-
-    return Material(
-      elevation: 0,
-      color: bgColor,
-      child: Container(
-        decoration: BoxDecoration(
-          color: bgColor,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: Offset(0, -2)),
-          ],
+    return Theme(
+      data: Theme.of(context).copyWith(
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: bgColor,
+          indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
+          labelTextStyle: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFFF444F),
+              );
+            }
+            return TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.black54,
+            );
+          }),
+          iconTheme: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return IconThemeData(
+                size: 24,
+                color: Color(0xFFFF444F),
+              );
+            }
+            return IconThemeData(
+              size: 24,
+              color: isDark ? Colors.white70 : Colors.black54,
+            );
+          }),
         ),
-        padding: EdgeInsets.only(top: 8, bottom: 8),
-        child: LayoutBuilder(builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final itemWidth = width / itemCount;
-          final indicatorWidth = 36.0;
-          final leftForIndex = (int index) => itemWidth * index + (itemWidth / 2) - (indicatorWidth / 2);
-
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // indicator (traço curvado) posicionado no topo do bar, animado
-              AnimatedPositioned(
-                duration: Duration(milliseconds: 280),
-                curve: Curves.easeInOutCubic,
-                left: leftForIndex(_currentIndex),
-                top: -6, // colado à borda superior do bottom bar
-                child: Visibility(
-                  visible: true,
-                  child: Container(
-                    width: indicatorWidth,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: activeColor,
-                      borderRadius: BorderRadius.circular(12), // bordas curvas
-                      boxShadow: [
-                        BoxShadow(
-                          color: activeColor.withOpacity(0.16),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Row de itens
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(itemCount, (index) {
-                  final isSelected = _currentIndex == index;
-                  final isPulsing = _pulsedIndex == index;
-                  final scale = isPulsing ? 1.12 : 1.0;
-
-                  return SizedBox(
-                    width: itemWidth,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _onTabTapped(index),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AnimatedScale(
-                            scale: scale,
-                            duration: Duration(milliseconds: 220),
-                            curve: Curves.easeOut,
-                            child: Icon(
-                              icons[index],
-                              size: isSelected ? 26 : 22,
-                              color: isSelected ? activeColor : inactiveColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            labels[index],
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700, // mais bold
-                              color: isSelected ? activeColor : inactiveColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          );
-        }),
+      ),
+      child: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: _onTabTapped,
+        destinations: [
+          NavigationDestination(
+            icon: Icon(Icons.home_rounded),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_rounded),
+            label: 'Dados',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.newspaper_rounded),
+            label: 'Atualidade',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.track_changes_rounded),
+            label: 'Metas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_rounded),
+            label: 'Conversas',
+          ),
+        ],
       ),
     );
   }
 }
 
-// Custom Navigator Observer to track navigation (mantido)
 class _NavigatorObserver extends NavigatorObserver {
   final VoidCallback onPush;
   final VoidCallback onPop;
@@ -402,5 +321,35 @@ class _NavigatorObserver extends NavigatorObserver {
     if (oldRoute != null && newRoute != null) {
       onPush();
     }
+  }
+}
+
+// Placeholder para GoalsScreen - você pode criar o arquivo goals_screen.dart
+class GoalsScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Metas'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.track_changes_rounded, size: 80, color: Color(0xFFFF444F)),
+            SizedBox(height: 16),
+            Text(
+              'Suas Metas',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Defina e acompanhe seus objetivos',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
