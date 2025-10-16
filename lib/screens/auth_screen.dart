@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'forgot_password_screen.dart'; // Import da tela existente
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -11,12 +13,20 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+      _showErrorDialog('Erro', 'Por favor, preencha todos os campos');
+      return;
+    }
+
+    if (!_isLogin && _nameController.text.trim().isEmpty) {
+      _showErrorDialog('Erro', 'Por favor, digite seu nome');
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -27,7 +37,6 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text.trim(),
         );
 
-        // Check access
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(credential.user!.uid)
@@ -56,7 +65,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
         await userCredential.user?.updateDisplayName(_nameController.text.trim());
 
-        // Create user document
         await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
           'id': userCredential.user!.uid,
           'username': _nameController.text.trim(),
@@ -90,327 +98,313 @@ class _AuthScreenState extends State<AuthScreen> {
       } else if (e.code == 'invalid-email') {
         message = 'Email inválido';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
+      _showErrorDialog('Erro', message);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
+      _showErrorDialog('Erro', e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _showErrorDialog(String title, String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(message),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _navigateToForgotPassword() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
+      CupertinoPageRoute(builder: (context) => ForgotPasswordScreen()),
     );
   }
 
   void _navigateToLearn() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => LearnScreen()),
+      CupertinoPageRoute(builder: (context) => LearnScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Column(
-          children: [
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      child: SafeArea(
+        child: CustomScrollView(
+          slivers: [
             // Top bar with Learn button
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Align(
-                alignment: Alignment.topRight,
-                child: TextButton(
-                  onPressed: _navigateToLearn,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  child: Text(
-                    'Aprender',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFFF444F),
-                      letterSpacing: 0.1,
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      onPressed: _navigateToLearn,
+                      child: Text(
+                        'Aprender',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF444F),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
+            
             // Main content
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // App icon without colored background
-                      Icon(
-                        Icons.chat_rounded,
-                        size: 80,
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Spacer(),
+                    
+                    // App icon
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
                         color: Color(0xFFFF444F),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFFFF444F).withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 48),
-                      // Title with Material 3 Expressive typography
-                      Text(
-                        _isLogin ? 'Entrar' : 'Criar Conta',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : Colors.black87,
-                          letterSpacing: -0.5,
-                          height: 1.1,
-                        ),
+                      child: Icon(
+                        CupertinoIcons.chat_bubble_fill,
+                        size: 50,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                    
+                    SizedBox(height: 32),
+                    
+                    // Title
+                    Text(
+                      _isLogin ? 'Entrar' : 'Criar Conta',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    
+                    SizedBox(height: 8),
+                    
+                    Text(
+                      _isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta para começar',
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+                      ),
+                    ),
+                    
+                    SizedBox(height: 40),
+                    
+                    // Form fields
+                    if (!_isLogin) ...[
+                      _buildInputField(
+                        controller: _nameController,
+                        placeholder: 'Nome',
+                        icon: CupertinoIcons.person_fill,
+                        isDark: isDark,
                       ),
                       SizedBox(height: 12),
-                      Text(
-                        _isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta para começar',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.grey[600],
-                          letterSpacing: 0.15,
+                    ],
+                    
+                    _buildInputField(
+                      controller: _emailController,
+                      placeholder: 'Email',
+                      icon: CupertinoIcons.mail_solid,
+                      keyboardType: TextInputType.emailAddress,
+                      isDark: isDark,
+                    ),
+                    
+                    SizedBox(height: 12),
+                    
+                    _buildInputField(
+                      controller: _passwordController,
+                      placeholder: 'Senha',
+                      icon: CupertinoIcons.lock_fill,
+                      obscureText: _obscurePassword,
+                      isDark: isDark,
+                      suffixIcon: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minSize: 0,
+                        onPressed: () {
+                          setState(() => _obscurePassword = !_obscurePassword);
+                        },
+                        child: Icon(
+                          _obscurePassword 
+                            ? CupertinoIcons.eye_fill 
+                            : CupertinoIcons.eye_slash_fill,
+                          color: CupertinoColors.systemGrey,
+                          size: 22,
                         ),
                       ),
-                      SizedBox(height: 48),
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            if (!_isLogin)
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 10,
-                                      offset: Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: TextFormField(
-                                  controller: _nameController,
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white : Colors.black87,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  decoration: InputDecoration(
-                                    labelText: 'Nome',
-                                    labelStyle: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    prefixIcon: Icon(Icons.person_rounded, color: Color(0xFFFF444F)),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.transparent,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) return 'Digite seu nome';
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            if (!_isLogin) SizedBox(height: 16),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: TextFormField(
-                                controller: _emailController,
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'Email',
-                                  labelStyle: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  prefixIcon: Icon(Icons.email_rounded, color: Color(0xFFFF444F)),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.transparent,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) return 'Digite seu email';
-                                  if (!value.contains('@')) return 'Email inválido';
-                                  return null;
-                                },
-                              ),
+                    ),
+                    
+                    if (_isLogin) ...[
+                      SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: CupertinoButton(
+                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          onPressed: _navigateToForgotPassword,
+                          child: Text(
+                            'Esqueceu a palavra-passe?',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFFF444F),
                             ),
-                            SizedBox(height: 16),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: TextFormField(
-                                controller: _passwordController,
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'Senha',
-                                  labelStyle: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  prefixIcon: Icon(Icons.lock_rounded, color: Color(0xFFFF444F)),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.transparent,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                                ),
-                                obscureText: true,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Digite sua senha';
-                                  if (value.length < 6) return 'Senha deve ter no mínimo 6 caracteres';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            if (_isLogin) SizedBox(height: 8),
-                            if (_isLogin)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: _navigateToForgotPassword,
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  ),
-                                  child: Text(
-                                    'Esqueceu a palavra-passe?',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFFFF444F),
-                                      letterSpacing: 0.1,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            SizedBox(height: 24),
-                            // Filled button (Material 3 primary style)
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: FilledButton(
-                                onPressed: _isLoading ? null : _submit,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Color(0xFFFF444F),
-                                  disabledBackgroundColor: Color(0xFFFF444F).withOpacity(0.38),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                child: _isLoading
-                                    ? SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2.5,
-                                        ),
-                                      )
-                                    : Text(
-                                        _isLogin ? 'Entrar' : 'Criar Conta',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                            // Text button for toggle
-                            TextButton(
-                              onPressed: () => setState(() => _isLogin = !_isLogin),
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              ),
-                              child: Text(
-                                _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFFF444F),
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ),
-            ),
-            // Footer text
-            Padding(
-              padding: EdgeInsets.only(bottom: 20),
-              child: Text(
-                'form nexa',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[500],
-                  letterSpacing: 0.4,
+                    
+                    SizedBox(height: 24),
+                    
+                    // Submit button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        color: Color(0xFFFF444F),
+                        borderRadius: BorderRadius.circular(14),
+                        onPressed: _isLoading ? null : _submit,
+                        child: _isLoading
+                            ? CupertinoActivityIndicator(color: CupertinoColors.white)
+                            : Text(
+                                _isLogin ? 'Entrar' : 'Criar Conta',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  color: CupertinoColors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                    
+                    SizedBox(height: 16),
+                    
+                    // Toggle button
+                    CupertinoButton(
+                      onPressed: () => setState(() => _isLogin = !_isLogin),
+                      child: Text(
+                        _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF444F),
+                        ),
+                      ),
+                    ),
+                    
+                    Spacer(),
+                    
+                    // Footer
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 20),
+                      child: Text(
+                        'from nexa',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: CupertinoColors.systemGrey,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String placeholder,
+    required IconData icon,
+    required bool isDark,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    Widget? suffixIcon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: CupertinoTextField(
+        controller: controller,
+        placeholder: placeholder,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        style: TextStyle(
+          fontSize: 17,
+          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+        ),
+        placeholderStyle: TextStyle(
+          fontSize: 17,
+          color: CupertinoColors.systemGrey,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+        ),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        prefix: Padding(
+          padding: EdgeInsets.only(left: 12, right: 12),
+          child: Icon(
+            icon,
+            color: Color(0xFFFF444F),
+            size: 22,
+          ),
+        ),
+        suffix: suffixIcon != null
+            ? Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: suffixIcon,
+              )
+            : null,
       ),
     );
   }
@@ -424,127 +418,86 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// Forgot Password Screen
-class ForgotPasswordScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 20),
-              Text(
-                'Recuperar Palavra-Passe',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black87,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Em breve você poderá recuperar sua senha aqui.',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey[600],
-                  letterSpacing: 0.15,
-                ),
-              ),
-              Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton.tonal(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    'Voltar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // Learn Screen
 class LearnScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            width: 0.5,
+          ),
+        ),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(height: 20),
+              Icon(
+                CupertinoIcons.back,
+                color: Color(0xFFFF444F),
+                size: 28,
+              ),
+              SizedBox(width: 4),
               Text(
-                'Aprender',
+                'Voltar',
                 style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black87,
-                  letterSpacing: -0.5,
+                  color: Color(0xFFFF444F),
+                  fontSize: 17,
                 ),
               ),
-              SizedBox(height: 12),
-              Text(
-                'Conteúdo educacional em breve.',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey[600],
-                  letterSpacing: 0.15,
-                ),
-              ),
-              Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton.tonal(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    'Voltar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
             ],
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        middle: Text(
+          'Aprender',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.book_fill,
+                  size: 80,
+                  color: Color(0xFFFF444F).withOpacity(0.5),
+                ),
+                SizedBox(height: 24),
+                Text(
+                  'Conteúdo Educacional',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Em breve você terá acesso a conteúdos educacionais exclusivos.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
