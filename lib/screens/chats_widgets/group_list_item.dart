@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../group_detail_screen.dart';
+import '../group_detail_screen.dart';
 
 class GroupListItem extends StatelessWidget {
   final QueryDocumentSnapshot group;
