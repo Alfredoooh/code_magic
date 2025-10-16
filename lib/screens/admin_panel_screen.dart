@@ -7,6 +7,8 @@ import 'admin_modals.dart';
 import 'admin_user_edit.dart';
 
 class AdminPanelScreen extends StatefulWidget {
+  const AdminPanelScreen({Key? key}) : super(key: key);
+
   @override
   _AdminPanelScreenState createState() => _AdminPanelScreenState();
 }
@@ -214,7 +216,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   final username = (data['username'] ?? '').toString().toLowerCase();
                   final email = (data['email'] ?? '').toString().toLowerCase();
                   final fullName = (data['full_name'] ?? '').toString().toLowerCase();
-                  
+
                   return _searchQuery.isEmpty ||
                       username.contains(_searchQuery) ||
                       email.contains(_searchQuery) ||
@@ -332,24 +334,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                             ),
                             child: Text(
                               'ADMIN',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (user.pro) ...[
-                          SizedBox(width: 4),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFF444F),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'PRO',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 9,
