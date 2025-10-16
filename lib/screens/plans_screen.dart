@@ -1,4 +1,3 @@
-// lib/screens/plans_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,10 +12,7 @@ class PlansScreen extends StatefulWidget {
   _PlansScreenState createState() => _PlansScreenState();
 }
 
-class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _PlansScreenState extends State<PlansScreen> {
   int _selectedPlanIndex = 1;
   
   List<PlanModel> _plans = [];
@@ -28,22 +24,7 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
     _loadPlans();
-    _controller.forward();
   }
 
   Future<void> _loadPlans() async {
@@ -62,111 +43,51 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E27),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: _isLoading
-                  ? _buildLoadingState()
-                  : _errorMessage != null
-                      ? _buildErrorState()
-                      : _buildPlansContent(),
-            ),
-          ],
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      appBar: AppBar(
+        backgroundColor: isDark ? Color(0xFF1C1C1E) : Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: Icon(
+            CupertinoIcons.chevron_back,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
+        title: Text(
+          'Planos',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
+      body: _isLoading
+          ? _buildLoadingState(isDark)
+          : _errorMessage != null
+              ? _buildErrorState(isDark)
+              : _buildPlansContent(isDark),
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.back,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'Planos',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              const SizedBox(width: 40),
-            ],
-          ),
-          const SizedBox(height: 20),
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                Text(
-                  'Escolha seu plano',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Desbloqueie todo o potencial da plataforma',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF444F)),
-          ),
-          const SizedBox(height: 20),
+          CupertinoActivityIndicator(radius: 16),
+          SizedBox(height: 20),
           Text(
             'Carregando planos...',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: isDark ? Colors.white70 : Colors.black54,
               fontSize: 16,
             ),
           ),
@@ -175,7 +96,7 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(bool isDark) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -185,18 +106,18 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
             Icon(
               CupertinoIcons.exclamationmark_triangle,
               size: 64,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.grey,
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text(
               _errorMessage ?? 'Erro desconhecido',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: isDark ? Colors.white70 : Colors.black54,
                 fontSize: 16,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             CupertinoButton(
               color: Color(0xFFFF444F),
               onPressed: _loadPlans,
@@ -208,23 +129,44 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildPlansContent() {
-    return SlideTransition(
-      position: _slideAnimation,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          itemCount: _plans.length,
-          itemBuilder: (context, index) {
-            return _buildPlanCard(_plans[index], index);
-          },
+  Widget _buildPlansContent(bool isDark) {
+    return ListView(
+      padding: EdgeInsets.all(16),
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            children: [
+              Text(
+                'Escolha seu plano',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Desbloqueie todo o potencial da plataforma',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontSize: 15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
-      ),
+        ..._plans.asMap().entries.map((entry) {
+          final index = entry.key;
+          final plan = entry.value;
+          return _buildPlanCard(plan, index, isDark);
+        }).toList(),
+      ],
     );
   }
 
-  Widget _buildPlanCard(PlanModel plan, int index) {
+  Widget _buildPlanCard(PlanModel plan, int index, bool isDark) {
     final isSelected = _selectedPlanIndex == index;
     
     return GestureDetector(
@@ -233,32 +175,23 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
           _selectedPlanIndex = index;
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        margin: const EdgeInsets.only(bottom: 20),
-        padding: const EdgeInsets.all(24),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isSelected
-                ? [plan.color.withOpacity(0.3), plan.color.withOpacity(0.1)]
-                : [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)],
-          ),
-          borderRadius: BorderRadius.circular(24),
+          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? plan.color : Colors.white.withOpacity(0.1),
-            width: isSelected ? 2 : 1,
+            color: isSelected ? Color(0xFFFF444F) : Colors.transparent,
+            width: 2,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: plan.color.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ]
-              : [],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,27 +205,27 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
                     Text(
                       plan.name,
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
+                        color: isDark ? Colors.white : Colors.black,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Row(
                       children: [
                         Text(
                           plan.price,
                           style: TextStyle(
-                            color: plan.color,
-                            fontSize: 32,
+                            color: Color(0xFFFF444F),
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 6),
                         Text(
                           plan.period,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: isDark ? Colors.white70 : Colors.black54,
                             fontSize: 14,
                           ),
                         ),
@@ -302,75 +235,75 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
                 ),
                 if (plan.popular)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Color(0xFFFF444F),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       'POPULAR',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: plan.color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
+                color: Color(0xFFFF444F).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${plan.tokens} tokens',
                 style: TextStyle(
-                  color: plan.color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFFF444F),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 16),
             ...plan.features.map((feature) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
                   Icon(
-                    CupertinoIcons.check_mark_circled_solid,
-                    color: plan.color,
-                    size: 20,
+                    CupertinoIcons.checkmark_circle_fill,
+                    color: Color(0xFFFF444F),
+                    size: 18,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       feature,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 15,
+                        color: isDark ? Colors.white : Colors.black,
+                        fontSize: 14,
                       ),
                     ),
                   ),
                 ],
               ),
             )).toList(),
-            const SizedBox(height: 20),
+            SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: CupertinoButton(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                color: isSelected ? plan.color : Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                padding: EdgeInsets.symmetric(vertical: 14),
+                color: isSelected ? Color(0xFFFF444F) : (isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7)),
+                borderRadius: BorderRadius.circular(12),
                 onPressed: () => _subscribeToPlan(plan),
                 child: Text(
-                  isSelected ? 'Selecionar ${plan.name}' : 'Escolher',
+                  'Adquirir',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -382,81 +315,209 @@ class _PlansScreenState extends State<PlansScreen> with SingleTickerProviderStat
   }
 
   Future<void> _subscribeToPlan(PlanModel plan) async {
-    // Mostrar diálogo de confirmação
-    final confirmed = await showCupertinoDialog<bool>(
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorDialog('Erro', 'Você precisa estar logado para adquirir um plano.');
+      return;
+    }
+
+    // Buscar dados do usuário
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final userData = userDoc.data() ?? {};
+    final userEmail = userData['email'] ?? user.email ?? 'Email não disponível';
+    final userName = userData['username'] ?? 'Usuário';
+
+    // Mostrar opções de pagamento
+    _showPaymentMethodsDialog(plan, user.uid, userEmail, userName);
+  }
+
+  void _showPaymentMethodsDialog(PlanModel plan, String userId, String userEmail, String userName) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text('Escolha o método de pagamento'),
+        message: Text('Selecione como deseja pagar pelo plano ${plan.name}'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendPurchaseRequest(plan, userId, userEmail, userName, 'Cartão de Crédito');
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.creditcard, color: CupertinoColors.activeBlue),
+                SizedBox(width: 8),
+                Text('Cartão de Crédito'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendPurchaseRequest(plan, userId, userEmail, userName, 'PIX');
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.money_dollar_circle, color: CupertinoColors.activeBlue),
+                SizedBox(width: 8),
+                Text('PIX'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendPurchaseRequest(plan, userId, userEmail, userName, 'Boleto Bancário');
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.barcode, color: CupertinoColors.activeBlue),
+                SizedBox(width: 8),
+                Text('Boleto Bancário'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendPurchaseRequest(plan, userId, userEmail, userName, 'Transferência Bancária');
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.activeBlue),
+                SizedBox(width: 8),
+                Text('Transferência Bancária'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendPurchaseRequest(plan, userId, userEmail, userName, 'PayPal');
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.globe, color: CupertinoColors.activeBlue),
+                SizedBox(width: 8),
+                Text('PayPal'),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          child: Text('Cancelar'),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendPurchaseRequest(
+    PlanModel plan,
+    String userId,
+    String userEmail,
+    String userName,
+    String paymentMethod,
+  ) async {
+    // Mostrar loading
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CupertinoActivityIndicator(radius: 16),
+              SizedBox(height: 16),
+              Text(
+                'Enviando solicitação...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Criar solicitação de compra para os administradores
+      await FirebaseFirestore.instance.collection('purchase_requests').add({
+        'userId': userId,
+        'userEmail': userEmail,
+        'userName': userName,
+        'planName': plan.name,
+        'planPrice': plan.price,
+        'planPeriod': plan.period,
+        'planTokens': plan.tokens,
+        'paymentMethod': paymentMethod,
+        'status': 'pending',
+        'requestedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Fechar loading
+      Navigator.pop(context);
+
+      // Mostrar mensagem de sucesso
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Row(
+            children: [
+              Icon(CupertinoIcons.check_mark_circled_solid, color: Color(0xFFFF444F)),
+              SizedBox(width: 8),
+              Text('Solicitação Enviada!'),
+            ],
+          ),
+          content: Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Sua solicitação de compra do plano ${plan.name} foi enviada aos administradores.\n\nVocê receberá um email com as instruções de pagamento em breve.\n\nPor favor, aguarde o contato.',
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              child: Text('Entendido'),
+              onPressed: () {
+                Navigator.pop(context); // Fechar dialog
+                Navigator.pop(context); // Voltar para tela anterior
+              },
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      // Fechar loading
+      Navigator.pop(context);
+      
+      // Mostrar erro
+      _showErrorDialog('Erro', 'Ocorreu um erro ao enviar a solicitação: $e');
+    }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: Text('Confirmar assinatura'),
-        content: Text('Deseja assinar o plano ${plan.name} por ${plan.price}?'),
+        title: Text(title),
+        content: Text(message),
         actions: [
           CupertinoDialogAction(
-            child: Text('Cancelar'),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            child: Text('Confirmar'),
-            onPressed: () => Navigator.pop(context, true),
+            child: Text('OK'),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
     );
-
-    if (confirmed == true) {
-      try {
-        // Aqui você implementaria a lógica de pagamento
-        // Por exemplo, integração com Stripe, RevenueCat, etc.
-        
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .update({
-            'subscription': {
-              'plan': plan.name,
-              'price': plan.price,
-              'tokens': plan.tokens,
-              'subscribedAt': FieldValue.serverTimestamp(),
-            }
-          });
-
-          if (mounted) {
-            showCupertinoDialog(
-              context: context,
-              builder: (context) => CupertinoAlertDialog(
-                title: Text('Sucesso!'),
-                content: Text('Plano ${plan.name} ativado com sucesso!'),
-                actions: [
-                  CupertinoDialogAction(
-                    child: Text('OK'),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ],
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          showCupertinoDialog(
-            context: context,
-            builder: (context) => CupertinoAlertDialog(
-              title: Text('Erro'),
-              content: Text('Ocorreu um erro ao processar a assinatura: $e'),
-              actions: [
-                CupertinoDialogAction(
-                  child: Text('OK'),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          );
-        }
-      }
-    }
   }
 }
