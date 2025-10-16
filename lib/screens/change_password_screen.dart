@@ -2,6 +2,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'forgot_password_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({Key? key}) : super(key: key);
@@ -124,7 +125,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
         actions: [
           CupertinoDialogAction(
-            child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
+            child: Text('OK', style: TextStyle(color: Color(0xFF0095F6))),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -158,8 +159,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             isDefaultAction: true,
             child: Text('OK'),
             onPressed: () {
-              Navigator.pop(context); // Fecha o diálogo
-              Navigator.pop(context); // Volta para tela anterior
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
           ),
         ],
@@ -167,47 +168,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  void _sendPasswordResetEmail() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.email == null) {
-      _showErrorDialog('Erro', 'Email não encontrado');
-      return;
-    }
-
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
-      
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text('Email Enviado'),
-          content: Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Text(
-              'Um email de recuperação foi enviado para ${user.email}',
-            ),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: Text('OK'),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      _showErrorDialog('Erro', 'Não foi possível enviar o email: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFFAFAFA),
       navigationBar: CupertinoNavigationBar(
         backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFDBDBDB),
+            width: 0.5,
+          ),
+        ),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           child: Icon(
@@ -224,7 +198,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        border: null,
       ),
       child: SafeArea(
         child: GestureDetector(
@@ -237,39 +210,40 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               children: [
                 SizedBox(height: 20),
                 
-                // Ícone de segurança
                 Center(
                   child: Container(
                     padding: EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Color(0xFFFF444F).withOpacity(0.1),
+                      color: isDark 
+                        ? Color(0xFF1C1C1E) 
+                        : Color(0xFFF2F2F7),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      CupertinoIcons.lock_shield_fill,
+                      CupertinoIcons.lock_shield,
                       size: 60,
-                      color: Color(0xFFFF444F),
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
                 ),
                 
                 SizedBox(height: 32),
                 
-                // Informação de segurança
                 Container(
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: CupertinoColors.systemBlue.withOpacity(0.1),
+                    color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: CupertinoColors.systemBlue.withOpacity(0.3),
+                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
+                      width: 0.5,
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        CupertinoIcons.info_circle_fill,
-                        color: CupertinoColors.systemBlue,
+                        CupertinoIcons.info_circle,
+                        color: Color(0xFF0095F6),
                         size: 24,
                       ),
                       SizedBox(width: 12),
@@ -290,7 +264,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 
                 SizedBox(height: 32),
                 
-                // Senha Atual
                 Text(
                   'Senha Atual',
                   style: TextStyle(
@@ -304,13 +277,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   decoration: BoxDecoration(
                     color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: CupertinoColors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
+                      width: 0.5,
+                    ),
                   ),
                   child: CupertinoTextField(
                     controller: _currentPasswordController,
@@ -331,8 +301,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       minSize: 0,
                       child: Icon(
                         _obscureCurrentPassword
-                            ? CupertinoIcons.eye_slash_fill
-                            : CupertinoIcons.eye_fill,
+                            ? CupertinoIcons.eye_slash
+                            : CupertinoIcons.eye,
                         color: CupertinoColors.systemGrey,
                         size: 20,
                       ),
@@ -345,7 +315,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 
                 SizedBox(height: 24),
                 
-                // Nova Senha
                 Text(
                   'Nova Senha',
                   style: TextStyle(
@@ -359,17 +328,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   decoration: BoxDecoration(
                     color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: CupertinoColors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
+                      width: 0.5,
+                    ),
                   ),
                   child: CupertinoTextField(
                     controller: _newPasswordController,
-                    placeholder: 'Digite a nova senha (mín. 6 caracteres)',
+                    placeholder: 'Mínimo 6 caracteres',
                     obscureText: _obscureNewPassword,
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -386,8 +352,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       minSize: 0,
                       child: Icon(
                         _obscureNewPassword
-                            ? CupertinoIcons.eye_slash_fill
-                            : CupertinoIcons.eye_fill,
+                            ? CupertinoIcons.eye_slash
+                            : CupertinoIcons.eye,
                         color: CupertinoColors.systemGrey,
                         size: 20,
                       ),
@@ -400,7 +366,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 
                 SizedBox(height: 24),
                 
-                // Confirmar Nova Senha
                 Text(
                   'Confirmar Nova Senha',
                   style: TextStyle(
@@ -414,13 +379,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   decoration: BoxDecoration(
                     color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: CupertinoColors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
+                      width: 0.5,
+                    ),
                   ),
                   child: CupertinoTextField(
                     controller: _confirmPasswordController,
@@ -441,8 +403,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       minSize: 0,
                       child: Icon(
                         _obscureConfirmPassword
-                            ? CupertinoIcons.eye_slash_fill
-                            : CupertinoIcons.eye_fill,
+                            ? CupertinoIcons.eye_slash
+                            : CupertinoIcons.eye,
                         color: CupertinoColors.systemGrey,
                         size: 20,
                       ),
@@ -455,49 +417,29 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 
                 SizedBox(height: 40),
                 
-                // Botão Alterar Senha
                 Container(
                   width: double.infinity,
-                  height: 56,
+                  height: 50,
                   child: CupertinoButton(
                     padding: EdgeInsets.zero,
                     onPressed: _isLoading ? null : _changePassword,
                     child: Container(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: _isLoading
-                              ? [Colors.grey, Colors.grey]
-                              : [Color(0xFFFF444F), Color(0xFFFF6B6B)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: _isLoading
-                            ? []
-                            : [
-                                BoxShadow(
-                                  color: Color(0xFFFF444F).withOpacity(0.4),
-                                  blurRadius: 12,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
+                        color: _isLoading 
+                          ? CupertinoColors.systemGrey 
+                          : Color(0xFF0095F6),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
                       child: _isLoading
                           ? CupertinoActivityIndicator(color: CupertinoColors.white)
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(CupertinoIcons.lock_rotation,
-                                    color: CupertinoColors.white, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Alterar Senha',
-                                  style: TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                          : Text(
+                              'Alterar Senha',
+                              style: TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                     ),
                   ),
@@ -505,15 +447,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 
                 SizedBox(height: 24),
                 
-                // Link para recuperar senha
                 Center(
                   child: CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: _sendPasswordResetEmail,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (context) => ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
                     child: Text(
                       'Esqueceu sua senha?',
                       style: TextStyle(
-                        color: CupertinoColors.systemBlue,
+                        color: Color(0xFF0095F6),
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
