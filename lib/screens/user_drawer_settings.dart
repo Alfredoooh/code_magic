@@ -11,57 +11,112 @@ class UserDrawerSettings {
     required Function(String) onLanguageChanged,
     required Function(String) onCardStyleChanged,
   }) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoPageScaffold(
-        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark ? const Color(0xFF000000) : CupertinoColors.white,
-          border: Border(
-            bottom: BorderSide(
-              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
-              width: 0.5,
-            ),
-          ),
-          middle: const Text('Configurações'),
-          trailing: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: const Icon(CupertinoIcons.xmark),
-            onPressed: () => Navigator.pop(context),
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => _SettingsScreen(
+          isDark: isDark,
+          currentLocale: currentLocale,
+          cardStyle: cardStyle,
+          onThemeChanged: onThemeChanged,
+          onLanguageChanged: onLanguageChanged,
+          onCardStyleChanged: onCardStyleChanged,
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsScreen extends StatelessWidget {
+  final bool isDark;
+  final String currentLocale;
+  final String cardStyle;
+  final Function(String) onThemeChanged;
+  final Function(String) onLanguageChanged;
+  final Function(String) onCardStyleChanged;
+
+  const _SettingsScreen({
+    required this.isDark,
+    required this.currentLocale,
+    required this.cardStyle,
+    required this.onThemeChanged,
+    required this.onLanguageChanged,
+    required this.onCardStyleChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
+            width: 0.5,
           ),
         ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSettingCard(
-                context: context,
-                icon: CupertinoIcons.moon_fill,
-                title: 'Tema',
-                subtitle: Theme.of(context).brightness == Brightness.dark ? 'Escuro' : 'Claro',
-                onTap: () => _showThemeDialog(context, onThemeChanged),
-                isDark: isDark,
+              Icon(
+                CupertinoIcons.back,
+                color: Color(0xFFFF444F),
+                size: 24,
               ),
-              const SizedBox(height: 12),
-              _buildSettingCard(
-                context: context,
-                icon: CupertinoIcons.globe,
-                title: 'Idioma',
-                subtitle: _getLanguageName(currentLocale),
-                onTap: () => _showLanguageDialog(context, onLanguageChanged),
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _buildSettingCard(
-                context: context,
-                icon: CupertinoIcons.paintbrush_fill,
-                title: 'Estilo do Cartão',
-                subtitle: _getCardStyleName(cardStyle),
-                onTap: () => _showCardStylePicker(context, cardStyle, onCardStyleChanged, isDark),
-                isDark: isDark,
+              SizedBox(width: 4),
+              Text(
+                'Voltar',
+                style: TextStyle(
+                  color: Color(0xFFFF444F),
+                  fontSize: 17,
+                ),
               ),
             ],
           ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        middle: Text(
+          'Configurações',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildSettingCard(
+              context: context,
+              icon: CupertinoIcons.moon_fill,
+              title: 'Tema',
+              subtitle: Theme.of(context).brightness == Brightness.dark ? 'Escuro' : 'Claro',
+              onTap: () => _showThemeDialog(context, onThemeChanged),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildSettingCard(
+              context: context,
+              icon: CupertinoIcons.globe,
+              title: 'Idioma',
+              subtitle: _getLanguageName(currentLocale),
+              onTap: () => _showLanguageDialog(context, onLanguageChanged),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildSettingCard(
+              context: context,
+              icon: CupertinoIcons.paintbrush_fill,
+              title: 'Estilo do Cartão',
+              subtitle: _getCardStyleName(cardStyle),
+              onTap: () => _showCardStylePicker(context, cardStyle, onCardStyleChanged, isDark),
+              isDark: isDark,
+            ),
+          ],
         ),
       ),
     );
@@ -86,16 +141,12 @@ class UserDrawerSettings {
         ),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF444F).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: const Color(0xFFFF444F), size: 20),
+            Icon(
+              icon,
+              color: const Color(0xFFFF444F),
+              size: 24,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,19 +155,26 @@ class UserDrawerSettings {
                     title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 13, color: CupertinoColors.systemGrey),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: CupertinoColors.systemGrey,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
+            const Icon(
+              CupertinoIcons.chevron_right,
+              color: CupertinoColors.systemGrey,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -146,7 +204,6 @@ class UserDrawerSettings {
         ],
         cancelButton: CupertinoActionSheetAction(
           child: const Text('Cancelar'),
-          isDestructiveAction: true,
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -183,7 +240,6 @@ class UserDrawerSettings {
         ],
         cancelButton: CupertinoActionSheetAction(
           child: const Text('Cancelar'),
-          isDestructiveAction: true,
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -227,13 +283,14 @@ class UserDrawerSettings {
                 color: isDark ? CupertinoColors.white : CupertinoColors.black,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Expanded(
               child: GridView.count(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
+                childAspectRatio: 1.1,
                 children: [
                   _buildStyleOption(
                     context: context,
@@ -274,6 +331,7 @@ class UserDrawerSettings {
                 ],
               ),
             ),
+            SizedBox(height: 16),
           ],
         ),
       ),
@@ -298,8 +356,8 @@ class UserDrawerSettings {
       child: Container(
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFFFF444F).withOpacity(0.1)
-              : (isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7)),
+              ? const Color(0xFFFF444F).withOpacity(0.15)
+              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? const Color(0xFFFF444F) : Colors.transparent,
@@ -311,10 +369,10 @@ class UserDrawerSettings {
           children: [
             Icon(
               icon,
-              size: 40,
+              size: 36,
               color: selected ? const Color(0xFFFF444F) : CupertinoColors.systemGrey,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               name,
               style: TextStyle(
