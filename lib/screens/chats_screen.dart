@@ -1,9 +1,13 @@
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'chat_detail_screen.dart';
 import 'group_detail_screen.dart';
+import 'users_list_screen.dart';
+import 'chats_widgets/conversation_list_item.dart';
+import 'chats_widgets/group_list_item.dart';
 
 class ChatsScreen extends StatefulWidget {
   final User? currentUser;
@@ -15,6 +19,8 @@ class ChatsScreen extends StatefulWidget {
 }
 
 class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStateMixin {
+  static const Color primaryColor = Color(0xFFFF444F);
+  
   int _activeUsers = 0;
   Map<String, dynamic>? _userData;
   int _selectedTab = 0;
@@ -84,7 +90,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           'Novas Conversas',
           style: TextStyle(
             fontSize: 13,
-            color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+            color: CupertinoColors.systemGrey,
           ),
         ),
         actions: [
@@ -96,9 +102,9 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.person_add, color: Color(0xFFFF444F)),
+                Icon(CupertinoIcons.person_add, color: primaryColor),
                 const SizedBox(width: 8),
-                Text('Nova Conversa', style: TextStyle(color: Color(0xFFFF444F))),
+                Text('Nova Conversa', style: TextStyle(color: primaryColor)),
               ],
             ),
           ),
@@ -111,9 +117,9 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.group, color: Color(0xFFFF444F)),
+                  Icon(CupertinoIcons.group, color: primaryColor),
                   const SizedBox(width: 8),
-                  Text('Criar Grupo', style: TextStyle(color: Color(0xFFFF444F))),
+                  Text('Criar Grupo', style: TextStyle(color: primaryColor)),
                 ],
               ),
             ),
@@ -243,7 +249,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF444F),
+                            color: primaryColor,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: isDark ? CupertinoColors.black : CupertinoColors.white,
@@ -276,7 +282,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
               onPressed: _showOptionsMenu,
               child: const Icon(
                 CupertinoIcons.plus_circle_fill,
-                color: Color(0xFFFF444F),
+                color: primaryColor,
                 size: 28,
               ),
             ),
@@ -310,103 +316,108 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   }
 
   Widget _buildSegmentedControl(bool isDark) {
-    return Container(
-      color: isDark ? CupertinoColors.black : CupertinoColors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() => _selectedTab = 0);
-                  _pageController.animateToPage(
-                    0,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _selectedTab == 0
-                        ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
-                    boxShadow: _selectedTab == 0
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    'Chats',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _selectedTab == 0
-                          ? (isDark ? CupertinoColors.white : CupertinoColors.black)
-                          : (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey),
-                      fontWeight: _selectedTab == 0 ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 13,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(0.85),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedTab = 0);
+                      _pageController.animateToPage(
+                        0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 0
+                            ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(7),
+                        boxShadow: _selectedTab == 0
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        'Chats',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _selectedTab == 0
+                              ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                              : CupertinoColors.systemGrey,
+                          fontWeight: _selectedTab == 0 ? FontWeight.w600 : FontWeight.normal,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() => _selectedTab = 1);
-                  _pageController.animateToPage(
-                    1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _selectedTab == 1
-                        ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
-                    boxShadow: _selectedTab == 1
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    'Grupos',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _selectedTab == 1
-                          ? (isDark ? CupertinoColors.white : CupertinoColors.black)
-                          : (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey),
-                      fontWeight: _selectedTab == 1 ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 13,
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedTab = 1);
+                      _pageController.animateToPage(
+                        1,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 1
+                            ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(7),
+                        boxShadow: _selectedTab == 1
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        'Grupos',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _selectedTab == 1
+                              ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                              : CupertinoColors.systemGrey,
+                          fontWeight: _selectedTab == 1 ? FontWeight.w600 : FontWeight.normal,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -419,60 +430,79 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
       {'label': 'Não Enviadas', 'icon': CupertinoIcons.exclamationmark_circle},
     ];
 
-    return Container(
-      color: isDark ? CupertinoColors.black : CupertinoColors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(filters.length, (index) {
-            final isSelected = _selectedFilter == index;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedFilter = index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA))
-                        : (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7)),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? (isDark ? const Color(0xFF48484A) : const Color(0xFFD1D1D6))
-                          : (isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA)),
-                      width: 1,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(0.85),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(filters.length, (index) {
+                final isSelected = _selectedFilter == index;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedFilter = index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: isSelected
+                            ? LinearGradient(
+                                colors: [
+                                  primaryColor,
+                                  primaryColor.withOpacity(0.8),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : null,
+                        color: isSelected
+                            ? null
+                            : (isDark ? const Color(0xFF1C1C1E) : CupertinoColors.systemGrey6),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: primaryColor.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            filters[index]['icon'] as IconData,
+                            size: 16,
+                            color: isSelected
+                                ? CupertinoColors.white
+                                : CupertinoColors.systemGrey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            filters[index]['label'] as String,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                              color: isSelected
+                                  ? CupertinoColors.white
+                                  : CupertinoColors.systemGrey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        filters[index]['icon'] as IconData,
-                        size: 16,
-                        color: isSelected
-                            ? (isDark ? CupertinoColors.white : CupertinoColors.black)
-                            : CupertinoColors.systemGrey,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        filters[index]['label'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected
-                              ? (isDark ? CupertinoColors.white : CupertinoColors.black)
-                              : CupertinoColors.systemGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
+                );
+              }),
+            ),
+          ),
         ),
       ),
     );
@@ -533,139 +563,10 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
           ),
           itemBuilder: (context, index) {
-            final conversation = conversations[index].data() as Map<String, dynamic>;
-            final participants = List<String>.from(conversation['participants'] ?? []);
-            final otherUserId = participants.firstWhere(
-              (id) => id != currentUser.uid,
-              orElse: () => '',
-            );
-
-            if (otherUserId.isEmpty) return const SizedBox.shrink();
-
-            return StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').doc(otherUserId).snapshots(),
-              builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                  return const SizedBox.shrink();
-                }
-
-                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                final isOnline = userData['isOnline'] == true;
-                final lastMessage = conversation['lastMessage'] ?? '';
-                final unreadCount = conversation['unreadCount_${currentUser.uid}'] ?? 0;
-
-                return Container(
-                  color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                  child: CupertinoListTile(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    leading: Stack(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFFFF444F),
-                          ),
-                          child: userData['profile_image'] != null &&
-                                  userData['profile_image'].isNotEmpty
-                              ? ClipOval(
-                                  child: Image.network(
-                                    userData['profile_image'],
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Center(
-                                      child: Text(
-                                        (userData['username'] ?? 'U')[0].toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          color: CupertinoColors.white,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Center(
-                                  child: Text(
-                                    (userData['username'] ?? 'U')[0].toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      color: CupertinoColors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                        if (isOnline)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.activeGreen,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                                  width: 2.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    title: Text(
-                      userData['username'] ?? 'Usuário',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 17,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                      ),
-                    ),
-                    subtitle: Text(
-                      lastMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: CupertinoColors.systemGrey,
-                        fontSize: 15,
-                      ),
-                    ),
-                    trailing: unreadCount > 0
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            constraints: const BoxConstraints(minWidth: 24),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF444F),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
-                              style: const TextStyle(
-                                color: CupertinoColors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                          builder: (context) => ChatDetailScreen(
-                            recipientId: otherUserId,
-                            recipientName: userData['username'] ?? 'Usuário',
-                            recipientImage: userData['profile_image'] ?? '',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+            return ConversationListItem(
+              conversation: conversations[index],
+              currentUser: currentUser,
+              isDark: isDark,
             );
           },
         );
@@ -706,57 +607,9 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
           ),
           itemBuilder: (context, index) {
-            final groupData = groups[index].data() as Map<String, dynamic>;
-            final members = List.from(groupData['members'] ?? []);
-
-            return Container(
-              color: isDark ? CupertinoColors.black : CupertinoColors.white,
-              child: CupertinoListTile(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                leading: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF34C759), Color(0xFF30D158)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.group_solid,
-                    color: CupertinoColors.white,
-                    size: 28,
-                  ),
-                ),
-                title: Text(
-                  groupData['name'] ?? 'Grupo',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 17,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
-                ),
-                subtitle: Text(
-                  '${members.length} ${members.length == 1 ? 'membro' : 'membros'}',
-                  style: const TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 15,
-                  ),
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (context) => GroupDetailScreen(
-                        groupId: groups[index].id,
-                        groupName: groupData['name'] ?? 'Grupo',
-                      ),
-                    ),
-                  );
-                },
-              ),
+            return GroupListItem(
+              group: groups[index],
+              isDark: isDark,
             );
           },
         );
@@ -796,253 +649,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
               style: const TextStyle(
                 color: CupertinoColors.systemGrey,
                 fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class UsersListScreen extends StatefulWidget {
-  final User? currentUser;
-  final Map<String, dynamic>? userData;
-
-  const UsersListScreen({
-    Key? key,
-    required this.currentUser,
-    this.userData,
-  }) : super(key: key);
-
-  @override
-  _UsersListScreenState createState() => _UsersListScreenState();
-}
-
-class _UsersListScreenState extends State<UsersListScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Cancelar',
-            style: TextStyle(color: Color(0xFFFF444F)),
-          ),
-        ),
-        middle: Text(
-          'Novo Chat',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              color: isDark ? CupertinoColors.black : CupertinoColors.white,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: CupertinoSearchTextField(
-                controller: _searchController,
-                placeholder: 'Buscar',
-                style: TextStyle(
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                ),
-                onChanged: (value) {
-                  setState(() => _searchQuery = value.toLowerCase());
-                },
-              ),
-            ),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CupertinoActivityIndicator(radius: 15));
-                  }
-
-                  final allUsers = snapshot.data!.docs.where((doc) {
-                    if (doc.id == widget.currentUser?.uid) return false;
-                    if (_searchQuery.isNotEmpty) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final username = (data['username'] ?? '').toString().toLowerCase();
-                      final email = (data['email'] ?? '').toString().toLowerCase();
-                      return username.contains(_searchQuery) || email.contains(_searchQuery);
-                    }
-                    return true;
-                  }).toList();
-
-                  if (allUsers.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.person_2,
-                            size: 64,
-                            color: CupertinoColors.systemGrey,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _searchQuery.isEmpty ? 'Nenhum usuário disponível' : 'Nenhum resultado',
-                            style: const TextStyle(
-                              color: CupertinoColors.systemGrey,
-                              fontSize: 17,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: allUsers.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      thickness: 0.5,
-                      indent: 88,
-                      color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
-                    ),
-                    itemBuilder: (context, index) {
-                      final userDoc = allUsers[index];
-                      final userData = userDoc.data() as Map<String, dynamic>;
-                      final isOnline = userData['isOnline'] == true;
-
-                      return Container(
-                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                        child: CupertinoListTile(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          leading: Stack(
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFFFF444F),
-                                ),
-                                child: userData['profile_image'] != null &&
-                                        userData['profile_image'].isNotEmpty
-                                    ? ClipOval(
-                                        child: Image.network(
-                                          userData['profile_image'],
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Center(
-                                            child: Text(
-                                              (userData['username'] ?? 'U')[0].toUpperCase(),
-                                              style: const TextStyle(
-                                                fontSize: 22,
-                                                color: CupertinoColors.white,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          (userData['username'] ?? 'U')[0].toUpperCase(),
-                                          style: const TextStyle(
-                                            fontSize: 22,
-                                            color: CupertinoColors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                              if (isOnline)
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: CupertinoColors.activeGreen,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                                        width: 2.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          title: Text(
-                            userData['username'] ?? 'Usuário',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 17,
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
-                          ),
-                          subtitle: Text(
-                            isOnline ? 'Online' : 'Offline',
-                            style: TextStyle(
-                              color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
-                              fontSize: 15,
-                            ),
-                          ),
-                          trailing: CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            minSize: 32,
-                            child: const Icon(
-                              CupertinoIcons.chat_bubble_fill,
-                              color: Color(0xFFFF444F),
-                              size: 24,
-                            ),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                CupertinoPageRoute(
-                                  builder: (context) => ChatDetailScreen(
-                                    recipientId: userDoc.id,
-                                    recipientName: userData['username'] ?? 'Usuário',
-                                    recipientImage: userData['profile_image'] ?? '',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          onTap: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => ChatDetailScreen(
-                                  recipientId: userDoc.id,
-                                  recipientName: userData['username'] ?? 'Usuário',
-                                  recipientImage: userData['profile_image'] ?? '',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
               ),
             ),
           ],
