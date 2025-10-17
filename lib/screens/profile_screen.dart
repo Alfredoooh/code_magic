@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +22,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   bool _saving = false;
   String? _profileImageBase64;
+
+  static const Color primaryColor = Color(0xFFFF444F);
 
   @override
   void initState() {
@@ -57,54 +58,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        actions: [
-          CupertinoActionSheetAction(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.camera, color: Color(0xFFFF444F)),
-                SizedBox(width: 12),
-                Text(
-                  'Câmera',
-                  style: TextStyle(
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              _getImage(ImageSource.camera);
-            },
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Color(0xFF1C1C1E)
+              : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          CupertinoActionSheetAction(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.photo, color: Color(0xFFFF444F)),
-                SizedBox(width: 12),
-                Text(
-                  'Galeria',
-                  style: TextStyle(
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(3),
                 ),
-              ],
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              _getImage(ImageSource.gallery);
-            },
+              ),
+              SizedBox(height: 20),
+              ListTile(
+                leading: Icon(Icons.camera_alt, color: primaryColor),
+                title: Text('Câmera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _getImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library, color: primaryColor),
+                title: Text('Galeria'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _getImage(ImageSource.gallery);
+                },
+              ),
+              SizedBox(height: 8),
+            ],
           ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          child: Text('Cancelar'),
-          onPressed: () => Navigator.pop(context),
         ),
       ),
     );
@@ -120,25 +119,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (image != null) {
-        // Mostrar loading
-        showCupertinoDialog(
+        showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => Center(
             child: Container(
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: CupertinoColors.black.withOpacity(0.8),
+                color: Colors.black.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CupertinoActivityIndicator(color: CupertinoColors.white),
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
                   SizedBox(height: 16),
                   Text(
                     'Processando imagem...',
-                    style: TextStyle(color: CupertinoColors.white),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ],
               ),
@@ -146,11 +146,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
 
-        // Converter para Base64
         final bytes = await File(image.path).readAsBytes();
         final base64Image = base64Encode(bytes);
-        
-        // Determinar tipo MIME
+
         String mimeType = 'image/jpeg';
         if (image.path.toLowerCase().endsWith('.png')) {
           mimeType = 'image/png';
@@ -158,12 +156,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final dataUrl = 'data:$mimeType;base64,$base64Image';
 
-        // Fechar loading
         Navigator.pop(context);
 
-        // Verificar tamanho (máx 2MB)
         final sizeInMB = (dataUrl.length * 0.75) / (1024 * 1024);
-        
+
         if (sizeInMB > 2) {
           _showErrorDialog('Imagem muito grande! Tamanho máximo: 2 MB');
           return;
@@ -198,28 +194,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       if (mounted) {
-        showCupertinoDialog(
+        showDialog(
           context: context,
-          builder: (context) => CupertinoAlertDialog(
+          builder: (context) => AlertDialog(
             title: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  CupertinoIcons.check_mark_circled_solid,
-                  color: CupertinoColors.systemGreen,
-                  size: 28,
-                ),
+                Icon(Icons.check_circle, color: Colors.green, size: 28),
                 SizedBox(width: 8),
                 Text('Sucesso!'),
               ],
             ),
-            content: Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Text('Perfil atualizado com sucesso'),
-            ),
+            content: Text('Perfil atualizado com sucesso'),
             actions: [
-              CupertinoDialogAction(
-                child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
+              TextButton(
+                child: Text('OK', style: TextStyle(color: primaryColor)),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pop(context);
@@ -239,17 +227,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showErrorDialog(String message) {
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: Text('Erro'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(message),
-        ),
+        content: Text(message),
         actions: [
-          CupertinoDialogAction(
-            child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
+          TextButton(
+            child: Text('OK', style: TextStyle(color: primaryColor)),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -258,43 +243,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _startAccountDeletion() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              CupertinoIcons.exclamationmark_triangle_fill,
-              color: CupertinoColors.destructiveRed,
-              size: 28,
-            ),
+            Icon(Icons.warning, color: Colors.red, size: 28),
             SizedBox(width: 8),
             Text('Excluir Conta?'),
           ],
         ),
-        content: Padding(
-          padding: EdgeInsets.only(top: 12),
-          child: Text(
-            'Esta ação é permanente e irreversível.\n\n'
-            'Todos os seus dados serão perdidos:\n'
-            '• Publicações\n'
-            '• Tokens\n'
-            '• Configurações\n\n'
-            'Deseja continuar?',
-            style: TextStyle(height: 1.4),
-          ),
+        content: Text(
+          'Esta ação é permanente e irreversível.\n\n'
+          'Todos os seus dados serão perdidos:\n'
+          '• Publicações\n'
+          '• Tokens\n'
+          '• Configurações\n\n'
+          'Deseja continuar?',
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: Text('Cancelar'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: Text('Excluir'),
+          TextButton(
+            child: Text('Excluir', style: TextStyle(color: Colors.red)),
             onPressed: () {
               Navigator.pop(context);
               _deleteAccount();
@@ -306,24 +279,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _deleteAccount() async {
-    showCupertinoDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
         child: Container(
           padding: EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: CupertinoColors.black.withOpacity(0.8),
+            color: Colors.black.withOpacity(0.8),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CupertinoActivityIndicator(color: CupertinoColors.white),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Colors.white),
+              ),
               SizedBox(height: 16),
               Text(
                 'Excluindo conta...',
-                style: TextStyle(color: CupertinoColors.white),
+                style: TextStyle(color: Colors.white),
               ),
             ],
           ),
@@ -344,18 +319,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       Navigator.pop(context);
 
-      showCupertinoDialog(
+      showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => CupertinoAlertDialog(
+        builder: (context) => AlertDialog(
           title: Text('Conta Excluída'),
-          content: Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Text('Sua conta foi excluída permanentemente'),
-          ),
+          content: Text('Sua conta foi excluída permanentemente'),
           actions: [
-            CupertinoDialogAction(
-              child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
+            TextButton(
+              child: Text('OK', style: TextStyle(color: primaryColor)),
               onPressed: () {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
@@ -365,7 +337,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       Navigator.pop(context);
-      
+
       if (e.toString().contains('requires-recent-login')) {
         _showErrorDialog('Sua sessão expirou. Faça login novamente.');
       } else {
@@ -390,9 +362,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         } catch (e) {
           imageWidget = Icon(
-            CupertinoIcons.person_fill,
+            Icons.person,
             size: 50,
-            color: CupertinoColors.white,
+            color: Colors.white,
           );
         }
       } else {
@@ -402,17 +374,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           width: 100,
           height: 100,
           errorBuilder: (context, error, stack) => Icon(
-            CupertinoIcons.person_fill,
+            Icons.person,
             size: 50,
-            color: CupertinoColors.white,
+            color: Colors.white,
           ),
         );
       }
     } else {
       imageWidget = Icon(
-        CupertinoIcons.person_fill,
+        Icons.person,
         size: 50,
-        color: CupertinoColors.white,
+        color: Colors.white,
       );
     }
 
@@ -421,7 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       height: 100,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFFFF444F).withOpacity(0.2),
+        color: primaryColor.withOpacity(0.2),
       ),
       clipBehavior: Clip.hardEdge,
       child: imageWidget,
@@ -432,64 +404,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
+    return Scaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-            width: 0.5,
-          ),
-        ),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                CupertinoIcons.back,
-                color: Color(0xFFFF444F),
-                size: 24,
-              ),
-              SizedBox(width: 4),
-              Text(
-                'Voltar',
-                style: TextStyle(
-                  color: Color(0xFFFF444F),
-                  fontSize: 17,
-                ),
-              ),
-            ],
-          ),
+      appBar: AppBar(
+        backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: primaryColor, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
-        middle: Text(
+        title: Text(
           'Editar Perfil',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            color: isDark ? Colors.white : Colors.black,
           ),
         ),
-        trailing: _saving
-            ? CupertinoActivityIndicator()
-            : CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: Text(
-                  'Salvar',
-                  style: TextStyle(
-                    color: Color(0xFFFF444F),
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+        actions: [
+          if (_saving)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(primaryColor),
                   ),
                 ),
-                onPressed: _saveProfile,
               ),
+            )
+          else
+            TextButton(
+              onPressed: _saveProfile,
+              child: Text(
+                'Salvar',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Container(
+            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            height: 0.5,
+          ),
+        ),
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: _loading
-            ? Center(child: CupertinoActivityIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(primaryColor),
+                ),
+              )
             : ListView(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 children: [
@@ -508,17 +482,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Container(
                                   padding: EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Color(0xFFFF444F),
+                                    color: primaryColor,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                                      color: isDark ? Color(0xFF000000) : Colors.white,
                                       width: 3,
                                     ),
                                   ),
                                   child: Icon(
-                                    CupertinoIcons.camera_fill,
+                                    Icons.camera_alt,
                                     size: 16,
-                                    color: CupertinoColors.white,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
@@ -529,7 +503,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           'Alterar foto',
                           style: TextStyle(
-                            color: Color(0xFFFF444F),
+                            color: primaryColor,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -549,23 +523,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Container(
                             padding: EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                              color: isDark ? Color(0xFF1C1C1E) : Colors.white,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Column(
                               children: [
-                                Icon(
-                                  CupertinoIcons.square_grid_2x2_fill,
-                                  color: Color(0xFFFF444F),
-                                  size: 28,
-                                ),
+                                Icon(Icons.grid_on, color: primaryColor, size: 28),
                                 SizedBox(height: 12),
                                 Text(
                                   '0',
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    color: isDark ? Colors.white : Colors.black,
                                   ),
                                 ),
                                 SizedBox(height: 4),
@@ -573,7 +543,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   'Publicações',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: CupertinoColors.systemGrey,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ],
@@ -585,23 +555,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Container(
                             padding: EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                              color: isDark ? Color(0xFF1C1C1E) : Colors.white,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Column(
                               children: [
-                                Icon(
-                                  CupertinoIcons.money_dollar_circle_fill,
-                                  color: Color(0xFFFF444F),
-                                  size: 28,
-                                ),
+                                Icon(Icons.monetization_on, color: primaryColor, size: 28),
                                 SizedBox(height: 12),
                                 Text(
                                   '${_userData?['tokens'] ?? 0}',
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    color: isDark ? Colors.white : Colors.black,
                                   ),
                                 ),
                                 SizedBox(height: 4),
@@ -609,7 +575,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   'Tokens',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: CupertinoColors.systemGrey,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ],
@@ -627,7 +593,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -642,24 +608,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: CupertinoColors.systemGrey,
+                                    color: Colors.grey,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
                                 SizedBox(height: 8),
-                                CupertinoTextField(
+                                TextField(
                                   controller: _usernameController,
-                                  placeholder: 'Nome de usuário',
+                                  maxLength: 30,
                                   style: TextStyle(
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    color: isDark ? Colors.white : Colors.black,
                                     fontSize: 17,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                                    borderRadius: BorderRadius.circular(12),
+                                  decoration: InputDecoration(
+                                    hintText: 'Nome de usuário',
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                    filled: true,
+                                    fillColor: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: EdgeInsets.all(12),
                                   ),
-                                  padding: EdgeInsets.all(12),
-                                  maxLength: 30,
                                 ),
                               ],
                             ),
@@ -678,25 +649,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: CupertinoColors.systemGrey,
+                                    color: Colors.grey,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
                                 SizedBox(height: 8),
-                                CupertinoTextField(
+                                TextField(
                                   controller: _bioController,
-                                  placeholder: 'Escreva algo sobre você',
-                                  style: TextStyle(
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                    fontSize: 17,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: EdgeInsets.all(12),
                                   maxLines: 3,
                                   maxLength: 150,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : Colors.black,
+                                    fontSize: 17,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Escreva algo sobre você',
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                    filled: true,
+                                    fillColor: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: EdgeInsets.all(12),
+                                  ),
                                 ),
                               ],
                             ),
@@ -714,7 +690,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Container(
                       padding: EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -722,11 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(
-                                CupertinoIcons.mail_solid,
-                                color: Color(0xFFFF444F),
-                                size: 20,
-                              ),
+                              Icon(Icons.mail, color: primaryColor, size: 20),
                               SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -737,7 +709,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: CupertinoColors.systemGrey,
+                                        color: Colors.grey,
                                       ),
                                     ),
                                     SizedBox(height: 4),
@@ -745,7 +717,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       _userData?['email'] ?? 'Não informado',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                        color: isDark ? Colors.white : Colors.black,
                                       ),
                                     ),
                                   ],
@@ -761,11 +733,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           SizedBox(height: 16),
                           Row(
                             children: [
-                              Icon(
-                                CupertinoIcons.star_fill,
-                                color: Color(0xFFFF444F),
-                                size: 20,
-                              ),
+                              Icon(Icons.star, color: primaryColor, size: 20),
                               SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -776,7 +744,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: CupertinoColors.systemGrey,
+                                        color: Colors.grey,
                                       ),
                                     ),
                                     SizedBox(height: 4),
@@ -787,7 +755,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fontWeight: FontWeight.w600,
                                         color: (_userData?['pro'] == true)
                                             ? Color(0xFFFCAF45)
-                                            : CupertinoColors.systemGrey,
+                                            : Colors.grey,
                                       ),
                                     ),
                                   ],
@@ -805,12 +773,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Change Password
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () {
+                    child: InkWell(
+                      onTap: () {
                         Navigator.push(
                           context,
-                          CupertinoPageRoute(
+                          MaterialPageRoute(
                             builder: (context) => ChangePasswordScreen(),
                           ),
                         );
@@ -818,16 +785,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Container(
                         padding: EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              CupertinoIcons.lock_shield_fill,
-                              color: Color(0xFFFF444F),
-                              size: 20,
-                            ),
+                            Icon(Icons.lock_outline, color: primaryColor, size: 20),
                             SizedBox(width: 12),
                             Expanded(
                               child: Text(
@@ -835,15 +798,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                  color: isDark ? Colors.white : Colors.black,
                                 ),
                               ),
                             ),
-                            Icon(
-                              CupertinoIcons.chevron_right,
-                              color: CupertinoColors.systemGrey,
-                              size: 20,
-                            ),
+                            Icon(Icons.chevron_right, color: Colors.grey, size: 20),
                           ],
                         ),
                       ),
@@ -855,20 +814,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Delete Account
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
+                    child: TextButton(
                       onPressed: _startAccountDeletion,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Center(
-                          child: Text(
-                            'Excluir Conta',
-                            style: TextStyle(
-                              color: CupertinoColors.destructiveRed,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      child: Text(
+                        'Excluir Conta',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
