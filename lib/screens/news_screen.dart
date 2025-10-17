@@ -1,3 +1,4 @@
+// lib/screens/news_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:convert';
@@ -70,7 +71,9 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _onScroll() {
-    if (_scroll_controller.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    // usar sempre _scrollController (corrigido)
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!isLoadingMore) {
         _loadMoreNews();
       }
@@ -89,10 +92,11 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  Future<void> _checkProStatus() async {
+  Future _checkProStatus() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (mounted) {
         setState(() {
           isPro = doc.data()?['pro'] == true;
@@ -101,15 +105,12 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  Future<void> _loadMoreNews() async {
+  Future _loadMoreNews() async {
     if (isLoadingMore) return;
-
     setState(() => isLoadingMore = true);
     currentPage++;
-
     await Future.delayed(Duration(milliseconds: 500));
     List<NewsArticle> moreNews = await _newsService.loadAdditionalNews();
-
     if (mounted) {
       setState(() {
         allNews.addAll(moreNews);
@@ -119,7 +120,7 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  Future<void> loadAllContent() async {
+  Future loadAllContent() async {
     setState(() {
       isLoading = true;
       isLoadingSheets = true;
@@ -137,19 +138,17 @@ class _NewsScreenState extends State<NewsScreen> {
     });
   }
 
-  Future<void> loadSheets() async {
+  Future loadSheets() async {
     try {
-      final response = await http.get(
-        Uri.parse('https://alfredoooh.github.io/database/data/SHEETS/sheets.json'),
-      ).timeout(Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse('https://alfredoooh.github.io/database/data/SHEETS/sheets.json'))
+          .timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['sheets'] != null) {
-          final sheetsList = (data['sheets'] as List)
-              .map((sheet) => SheetStory.fromJson(sheet))
-              .toList();
-
+          final sheetsList =
+              (data['sheets'] as List).map((s) => SheetStory.fromJson(s)).toList();
           setState(() {
             sheets = sheetsList;
             hasSheets = sheets.isNotEmpty;
@@ -166,7 +165,7 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  Future<void> loadAllNews() async {
+  Future loadAllNews() async {
     List<NewsArticle> newsFromSources = [];
 
     await Future.wait([
@@ -191,7 +190,8 @@ class _NewsScreenState extends State<NewsScreen> {
           article = NewsArticle(
             title: article.title,
             description: article.description,
-            imageUrl: 'https://alfredoooh.github.io/database/gallery/no_image.png',
+            imageUrl:
+                'https://alfredoooh.github.io/database/gallery/no_image.png',
             url: article.url,
             source: article.source,
             publishedAt: article.publishedAt,
@@ -214,25 +214,38 @@ class _NewsScreenState extends State<NewsScreen> {
 
   void _categorizeNews() {
     final featuredKeywords = [
-      'trump', 'elon musk', 'apple', 'bitcoin', 'tesla', 'microsoft',
-      'google', 'amazon', 'meta', 'nvidia', 'fed', 'wall street',
-      'criptomoeda', 'bolsa', 'dólar', 'inflação'
+      'trump',
+      'elon musk',
+      'apple',
+      'bitcoin',
+      'tesla',
+      'microsoft',
+      'google',
+      'amazon',
+      'meta',
+      'nvidia',
+      'fed',
+      'wall street',
+      'criptomoeda',
+      'bolsa',
+      'dólar',
+      'inflação'
     ];
 
     featuredNews = allNews.where((article) {
       final titleLower = article.title.toLowerCase();
       final descLower = article.description.toLowerCase();
-      return featuredKeywords.any((keyword) => 
-        titleLower.contains(keyword) || descLower.contains(keyword));
+      return featuredKeywords.any(
+          (keyword) => titleLower.contains(keyword) || descLower.contains(keyword));
     }).take(5).toList();
 
     final remaining = allNews.where((article) => !featuredNews.contains(article)).toList();
 
-    noImageNews = remaining.where((article) => 
-      article.imageUrl.contains('no_image.png')).toList();
+    noImageNews =
+        remaining.where((article) => article.imageUrl.contains('no_image.png')).toList();
 
-    final withImages = remaining.where((article) => 
-      !article.imageUrl.contains('no_image.png')).toList();
+    final withImages =
+        remaining.where((article) => !article.imageUrl.contains('no_image.png')).toList();
 
     mediumNews = withImages.take((withImages.length * 0.4).round()).toList();
     lowNews = withImages.skip(mediumNews.length).toList();
@@ -243,9 +256,10 @@ class _NewsScreenState extends State<NewsScreen> {
     if (selectedCategory == 'all') {
       filtered = allNews;
     } else {
-      filtered = allNews.where((news) => 
-        news.category.toLowerCase() == selectedCategory.toLowerCase()
-      ).toList();
+      filtered = allNews
+          .where((news) =>
+              news.category.toLowerCase() == selectedCategory.toLowerCase())
+          .toList();
     }
 
     if (selectedFilter == 'trending') {
@@ -264,25 +278,39 @@ class _NewsScreenState extends State<NewsScreen> {
 
   void _categorizeFilteredNews() {
     final featuredKeywords = [
-      'trump', 'elon musk', 'apple', 'bitcoin', 'tesla', 'microsoft',
-      'google', 'amazon', 'meta', 'nvidia', 'fed', 'wall street',
-      'criptomoeda', 'bolsa', 'dólar', 'inflação'
+      'trump',
+      'elon musk',
+      'apple',
+      'bitcoin',
+      'tesla',
+      'microsoft',
+      'google',
+      'amazon',
+      'meta',
+      'nvidia',
+      'fed',
+      'wall street',
+      'criptomoeda',
+      'bolsa',
+      'dólar',
+      'inflação'
     ];
 
     featuredNews = filteredNews.where((article) {
       final titleLower = article.title.toLowerCase();
       final descLower = article.description.toLowerCase();
-      return featuredKeywords.any((keyword) => 
-        titleLower.contains(keyword) || descLower.contains(keyword));
+      return featuredKeywords.any(
+          (keyword) => titleLower.contains(keyword) || descLower.contains(keyword));
     }).take(5).toList();
 
-    final remaining = filteredNews.where((article) => !featuredNews.contains(article)).toList();
+    final remaining =
+        filteredNews.where((article) => !featuredNews.contains(article)).toList();
 
-    noImageNews = remaining.where((article) => 
-      article.imageUrl.contains('no_image.png')).toList();
+    noImageNews =
+        remaining.where((article) => article.imageUrl.contains('no_image.png')).toList();
 
-    final withImages = remaining.where((article) => 
-      !article.imageUrl.contains('no_image.png')).toList();
+    final withImages =
+        remaining.where((article) => !article.imageUrl.contains('no_image.png')).toList();
 
     mediumNews = withImages.take((withImages.length * 0.4).round()).toList();
     lowNews = withImages.skip(mediumNews.length).toList();
@@ -306,14 +334,14 @@ class _NewsScreenState extends State<NewsScreen> {
             physics: BouncingScrollPhysics(),
             slivers: [
               CupertinoSliverNavigationBar(
-                backgroundColor: isPro 
+                backgroundColor: isPro
                     ? (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white)
                     : Colors.transparent,
                 largeTitle: Text(
                   'Atualidade',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: isPro 
+                    color: isPro
                         ? (isDark ? CupertinoColors.white : CupertinoColors.black)
                         : CupertinoColors.white.withOpacity(0.9),
                   ),
@@ -323,7 +351,8 @@ class _NewsScreenState extends State<NewsScreen> {
                   children: [
                     if (!isPro)
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Color(0xFFFF444F),
                           borderRadius: BorderRadius.circular(12),
@@ -345,14 +374,13 @@ class _NewsScreenState extends State<NewsScreen> {
                     else if (hasSheets)
                       Padding(
                         padding: EdgeInsets.only(left: 8),
-                        child: Icon(CupertinoIcons.checkmark_circle_fill, 
+                        child: Icon(CupertinoIcons.checkmark_circle_fill,
                             color: CupertinoColors.systemGreen, size: 20),
                       ),
                   ],
                 ),
                 border: isPro ? null : Border.all(width: 0, color: Colors.transparent),
               ),
-
               if (!isPro)
                 SliverToBoxAdapter(
                   child: ClipRect(
@@ -362,7 +390,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         color: Colors.black.withOpacity(0.01),
                         child: Column(
                           children: [
-                            if (hasSheets && sheets.isNotEmpty) 
+                            if (hasSheets && sheets.isNotEmpty)
                               _buildSheetsSection(isDark, blurred: true),
                             _buildCategoriesSection(isDark, blurred: true),
                             _buildFiltersSection(isDark, blurred: true),
@@ -378,33 +406,27 @@ class _NewsScreenState extends State<NewsScreen> {
                 SliverToBoxAdapter(child: _buildCategoriesSection(isDark)),
                 SliverToBoxAdapter(child: _buildFiltersSection(isDark)),
               ],
-
               if (isPro)
                 CupertinoSliverRefreshControl(
                   onRefresh: loadAllContent,
                 )
               else
                 SliverToBoxAdapter(child: SizedBox.shrink()),
-
               if (isPro)
                 SliverPadding(
                   padding: EdgeInsets.all(16),
-                  sliver: isLoading
-                      ? SliverFillRemaining(
-                          child: Center(
-                            child: CupertinoActivityIndicator(
-                              radius: 15,
-                              color: Color(0xFFFF444F),
-                            ),
-                          ),
-                        )
-                      : _buildNewsList(isDark),
+                  sliver: isLoading ? SliverFillRemaining(
+                    child: Center(
+                      child: CupertinoActivityIndicator(
+                        radius: 15,
+                        color: Color(0xFFFF444F),
+                      ),
+                    ),
+                  ) : _buildNewsList(isDark),
                 ),
             ],
           ),
-
           if (!isPro) _buildBlurOverlay(isDark),
-
           if (showScrollToTop && isPro)
             Positioned(
               bottom: 90,
@@ -549,9 +571,7 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildSheetsSection(bool isDark, {bool blurred = false}) {
     return Container(
       height: 110,
-      color: blurred 
-          ? Colors.transparent 
-          : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
+      color: blurred ? Colors.transparent : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -559,16 +579,18 @@ class _NewsScreenState extends State<NewsScreen> {
         itemBuilder: (context, index) {
           final sheet = sheets[index];
           return GestureDetector(
-            onTap: blurred ? null : () {
-              Navigator.of(context).push(
-                CupertinoPageRoute(
-                  builder: (context) => SheetsViewerScreen(
-                    sheets: sheets,
-                    initialIndex: index,
-                  ),
-                ),
-              );
-            },
+            onTap: blurred
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => SheetsViewerScreen(
+                          sheets: sheets,
+                          initialIndex: index,
+                        ),
+                      ),
+                    );
+                  },
             child: Container(
               margin: EdgeInsets.only(right: 12),
               child: Column(
@@ -597,18 +619,11 @@ class _NewsScreenState extends State<NewsScreen> {
                             child: Image.network(
                               sheet.imageUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stack) => Icon(
-                                CupertinoIcons.photo,
-                                color: CupertinoColors.white,
-                                size: 30,
-                              ),
+                              errorBuilder: (context, error, stack) =>
+                                  Icon(CupertinoIcons.photo, color: CupertinoColors.white, size: 30),
                             ),
                           )
-                        : Icon(
-                            CupertinoIcons.photo,
-                            color: CupertinoColors.white,
-                            size: 30,
-                          ),
+                        : Icon(CupertinoIcons.photo, color: CupertinoColors.white, size: 30),
                   ),
                   SizedBox(height: 6),
                   SizedBox(
@@ -621,9 +636,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: blurred 
-                            ? Colors.white.withOpacity(0.8)
-                            : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                        color: blurred ? Colors.white.withOpacity(0.8) : (isDark ? CupertinoColors.white : CupertinoColors.black),
                       ),
                     ),
                   ),
@@ -639,9 +652,7 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildCategoriesSection(bool isDark, {bool blurred = false}) {
     return Container(
       height: 50,
-      color: blurred 
-          ? Colors.transparent 
-          : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
+      color: blurred ? Colors.transparent : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -649,21 +660,22 @@ class _NewsScreenState extends State<NewsScreen> {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = selectedCategory == category['id'];
-
           return Padding(
             padding: EdgeInsets.only(right: 8),
             child: GestureDetector(
-              onTap: blurred ? null : () {
-                setState(() {
-                  selectedCategory = category['id']!;
-                  filterNewsByCategory();
-                });
-              },
+              onTap: blurred
+                  ? null
+                  : () {
+                      setState(() {
+                        selectedCategory = category['id']!;
+                        filterNewsByCategory();
+                      });
+                    },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? Color(0xFFFF444F) 
+                  color: isSelected
+                      ? Color(0xFFFF444F)
                       : (isDark ? Color(0xFF2C2C2C) : Color(0xFFF0F0F0)),
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -671,9 +683,9 @@ class _NewsScreenState extends State<NewsScreen> {
                   child: Text(
                     category['name']!,
                     style: TextStyle(
-                      color: isSelected 
-                          ? CupertinoColors.white 
-                          : (blurred 
+                      color: isSelected
+                          ? CupertinoColors.white
+                          : (blurred
                               ? Colors.white.withOpacity(0.7)
                               : (isDark ? CupertinoColors.white : CupertinoColors.black)),
                       fontSize: 14,
@@ -692,9 +704,7 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildFiltersSection(bool isDark, {bool blurred = false}) {
     return Container(
       height: 50,
-      color: blurred 
-          ? Colors.transparent 
-          : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
+      color: blurred ? Colors.transparent : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -705,18 +715,18 @@ class _NewsScreenState extends State<NewsScreen> {
           return Padding(
             padding: EdgeInsets.only(right: 8),
             child: GestureDetector(
-              onTap: blurred ? null : () {
-                setState(() {
-                  selectedFilter = filter['id']!;
-                  filterNewsByCategory();
-                });
-              },
+              onTap: blurred
+                  ? null
+                  : () {
+                      setState(() {
+                        selectedFilter = filter['id']!;
+                        filterNewsByCategory();
+                      });
+                    },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? Color(0xFFFF444F).withOpacity(0.2)
-                      : Colors.transparent,
+                  color: isSelected ? Color(0xFFFF444F).withOpacity(0.2) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected ? Color(0xFFFF444F) : CupertinoColors.systemGrey4,
@@ -729,21 +739,13 @@ class _NewsScreenState extends State<NewsScreen> {
                     Icon(
                       _getFilterIcon(filter['icon']!),
                       size: 16,
-                      color: isSelected 
-                          ? Color(0xFFFF444F)
-                          : (blurred 
-                              ? Colors.white.withOpacity(0.6)
-                              : CupertinoColors.systemGrey),
+                      color: isSelected ? Color(0xFFFF444F) : (blurred ? Colors.white.withOpacity(0.6) : CupertinoColors.systemGrey),
                     ),
                     SizedBox(width: 6),
                     Text(
                       filter['name']!,
                       style: TextStyle(
-                        color: isSelected 
-                            ? Color(0xFFFF444F)
-                            : (blurred 
-                                ? Colors.white.withOpacity(0.6)
-                                : CupertinoColors.systemGrey),
+                        color: isSelected ? Color(0xFFFF444F) : (blurred ? Colors.white.withOpacity(0.6) : CupertinoColors.systemGrey),
                         fontSize: 13,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
@@ -760,10 +762,14 @@ class _NewsScreenState extends State<NewsScreen> {
 
   IconData _getFilterIcon(String icon) {
     switch (icon) {
-      case 'flame': return CupertinoIcons.flame_fill;
-      case 'clock': return CupertinoIcons.clock_fill;
-      case 'star': return CupertinoIcons.star_fill;
-      default: return CupertinoIcons.globe;
+      case 'flame':
+        return CupertinoIcons.flame_fill;
+      case 'clock':
+        return CupertinoIcons.clock_fill;
+      case 'star':
+        return CupertinoIcons.star_fill;
+      default:
+        return CupertinoIcons.globe;
     }
   }
 
@@ -936,11 +942,8 @@ class _NewsScreenState extends State<NewsScreen> {
                         _getFaviconUrl(article.source),
                         width: 14,
                         height: 14,
-                        errorBuilder: (context, error, stack) => Icon(
-                          CupertinoIcons.news,
-                          size: 14,
-                          color: CupertinoColors.systemGrey,
-                        ),
+                        errorBuilder: (context, error, stack) =>
+                            Icon(CupertinoIcons.news, size: 14, color: CupertinoColors.systemGrey),
                       ),
                     ),
                     SizedBox(width: 6),
@@ -1026,10 +1029,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      CupertinoColors.black.withOpacity(0),
-                      CupertinoColors.black.withOpacity(0.9),
-                    ],
+                    colors: [CupertinoColors.black.withOpacity(0), CupertinoColors.black.withOpacity(0.9)],
                   ),
                 ),
               ),
@@ -1049,11 +1049,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       SizedBox(width: 6),
                       Text(
                         'DESTAQUE',
-                        style: TextStyle(
-                          color: CupertinoColors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.bold, fontSize: 11),
                       ),
                     ],
                   ),
@@ -1075,44 +1071,27 @@ class _NewsScreenState extends State<NewsScreen> {
                             _getFaviconUrl(article.source),
                             width: 20,
                             height: 20,
-                            errorBuilder: (context, error, stack) => Icon(
-                              CupertinoIcons.news,
-                              color: Colors.white,
-                              size: 20,
-                            ),
+                            errorBuilder: (context, error, stack) => Icon(CupertinoIcons.news, color: Colors.white, size: 20),
                           ),
                         ),
                         SizedBox(width: 8),
                         Text(
                           article.source,
-                          style: TextStyle(
-                            color: CupertinoColors.white.withOpacity(0.9),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(color: CupertinoColors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                     SizedBox(height: 12),
                     Text(
                       article.title,
-                      style: TextStyle(
-                        color: CupertinoColors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        height: 1.3,
-                      ),
+                      style: TextStyle(color: CupertinoColors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.3),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 8),
                     Text(
                       article.description,
-                      style: TextStyle(
-                        color: CupertinoColors.white.withOpacity(0.8),
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
+                      style: TextStyle(color: CupertinoColors.white.withOpacity(0.8), fontSize: 14, height: 1.4),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1121,10 +1100,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       children: [
                         Icon(CupertinoIcons.time, color: CupertinoColors.white.withOpacity(0.7), size: 14),
                         SizedBox(width: 4),
-                        Text(
-                          article.timeAgo,
-                          style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12),
-                        ),
+                        Text(article.timeAgo, style: TextStyle(color: CupertinoColors.white.withOpacity(0.7), fontSize: 12)),
                       ],
                     ),
                   ],
@@ -1184,22 +1160,14 @@ class _NewsScreenState extends State<NewsScreen> {
                           _getFaviconUrl(article.source),
                           width: 18,
                           height: 18,
-                          errorBuilder: (context, error, stack) => Icon(
-                            CupertinoIcons.news,
-                            size: 18,
-                            color: CupertinoColors.systemGrey,
-                          ),
+                          errorBuilder: (context, error, stack) => Icon(CupertinoIcons.news, size: 18, color: CupertinoColors.systemGrey),
                         ),
                       ),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           article.source,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFFF444F),
-                          ),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFFF444F)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1209,23 +1177,14 @@ class _NewsScreenState extends State<NewsScreen> {
                   SizedBox(height: 12),
                   Text(
                     article.title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                      height: 1.3,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? CupertinoColors.white : CupertinoColors.black, height: 1.3),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   SizedBox(height: 8),
                   Text(
                     article.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: CupertinoColors.systemGrey,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey, height: 1.4),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1234,10 +1193,7 @@ class _NewsScreenState extends State<NewsScreen> {
                     children: [
                       Icon(CupertinoIcons.time, size: 14, color: CupertinoColors.systemGrey),
                       SizedBox(width: 4),
-                      Text(
-                        article.timeAgo,
-                        style: TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
-                      ),
+                      Text(article.timeAgo, style: TextStyle(fontSize: 12, color: CupertinoColors.systemGrey)),
                     ],
                   ),
                 ],
@@ -1270,10 +1226,7 @@ class _NewsScreenState extends State<NewsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-              ),
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
               child: Image.network(
                 article.imageUrl,
                 width: 100,
@@ -1305,22 +1258,14 @@ class _NewsScreenState extends State<NewsScreen> {
                                 _getFaviconUrl(article.source),
                                 width: 16,
                                 height: 16,
-                                errorBuilder: (context, error, stack) => Icon(
-                                  CupertinoIcons.news,
-                                  size: 16,
-                                  color: CupertinoColors.systemGrey,
-                                ),
+                                errorBuilder: (context, error, stack) => Icon(CupertinoIcons.news, size: 16, color: CupertinoColors.systemGrey),
                               ),
                             ),
                             SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 article.source,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFFF444F),
-                                ),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFFF444F)),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1330,12 +1275,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         SizedBox(height: 8),
                         Text(
                           article.title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            height: 1.3,
-                          ),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? CupertinoColors.white : CupertinoColors.black, height: 1.3),
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1346,12 +1286,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         Icon(CupertinoIcons.time, size: 12, color: CupertinoColors.systemGrey),
                         SizedBox(width: 4),
                         Flexible(
-                          child: Text(
-                            article.timeAgo,
-                            style: TextStyle(fontSize: 11, color: CupertinoColors.systemGrey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          child: Text(article.timeAgo, style: TextStyle(fontSize: 11, color: CupertinoColors.systemGrey), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ],
                     ),
@@ -1366,12 +1301,15 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _openArticleDetail(NewsArticle article) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     Navigator.of(context).push(
       CupertinoPageRoute(
         builder: (context) => NewsDetailScreen(
           article: article,
           allArticles: filteredNews,
           currentIndex: filteredNews.indexOf(article),
+          isDark: isDark, // <-- required param passado aqui
         ),
       ),
     );
