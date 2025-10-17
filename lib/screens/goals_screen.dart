@@ -1,18 +1,31 @@
+// lib/screens/goals_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'goals_widgets/goals_add_task_screen.dart';
+import 'goals_widgets/goals_add_strategy_screen.dart';
+import 'goals_widgets/goals_add_note_screen.dart';
+import 'goals_widgets/goals_journal_screen.dart';
+import 'goals_widgets/goals_checklist_screen.dart';
+import 'goals_widgets/goals_pro_overlay.dart';
+import 'plans_screen.dart';
 
 class GoalsScreen extends StatefulWidget {
   @override
   _GoalsScreenState createState() => _GoalsScreenState();
 }
 
-class _GoalsScreenState extends State<GoalsScreen> {
+class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _targetController = TextEditingController();
   String _selectedCategory = 'Financeiro';
-  
+  bool _isPro = false;
+  bool _isAdmin = false;
+  bool _isLoading = true;
+  late TabController _tabController;
+
   final List<String> _categories = [
     'Financeiro',
     'Saúde',
@@ -21,6 +34,29 @@ class _GoalsScreenState extends State<GoalsScreen> {
     'Pessoal',
     'Outro',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 5, vsync: this);
+    _checkUserStatus();
+  }
+
+  Future<void> _checkUserStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _isPro = doc.data()?['pro'] == true;
+          _isAdmin = doc.data()?['admin'] == true;
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
 
   void _showAddGoalModal() {
     showModalBottomSheet(
@@ -33,7 +69,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   Widget _buildAddGoalModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return StatefulBuilder(
       builder: (context, setModalState) {
         return Container(
@@ -237,9 +273,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
       _titleController.clear();
       _targetController.clear();
       setState(() => _selectedCategory = 'Financeiro');
-      
+
       Navigator.pop(context);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Meta criada com sucesso!')),
       );
@@ -263,16 +299,6 @@ class _GoalsScreenState extends State<GoalsScreen> {
     }
   }
 
-  Future<void> _updateProgress(String goalId, double currentValue) async {
-    try {
-      await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
-        'current': currentValue,
-      });
-    } catch (e) {
-      print('Erro ao atualizar progresso: $e');
-    }
-  }
-
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'Financeiro':
@@ -290,47 +316,247 @@ class _GoalsScreenState extends State<GoalsScreen> {
     }
   }
 
+  void _showOptionsMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 20),
+              _buildMenuOption(
+                icon: Icons.task_alt_rounded,
+                label: 'Adicionar Tarefa',
+                color: Colors.blue,
+                isDark: isDark,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => GoalsAddTaskScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+              _buildMenuOption(
+                icon: Icons.lightbulb_rounded,
+                label: 'Criar Estratégia',
+                color: Colors.orange,
+                isDark: isDark,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => GoalsAddStrategyScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+              _buildMenuOption(
+                icon: Icons.note_add_rounded,
+                label: 'Anotar Nota',
+                color: Colors.green,
+                isDark: isDark,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => GoalsAddNoteScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+              _buildMenuOption(
+                icon: Icons.book_rounded,
+                label: 'Diário de Trading',
+                color: Colors.purple,
+                isDark: isDark,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => GoalsJournalScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+              _buildMenuOption(
+                icon: Icons.checklist_rounded,
+                label: 'Checklist Diário',
+                color: Colors.teal,
+                isDark: isDark,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => GoalsChecklistScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1C1C1E) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Metas',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black,
-            fontSize: 17,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add_rounded, color: Color(0xFFFF444F)),
-            onPressed: _showAddGoalModal,
-          ),
-        ],
-      ),
-      body: user == null
-          ? Center(child: Text('Faça login para ver suas metas'))
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('goals')
-                  .where('userId', isEqualTo: user.uid)
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
+    bool hasAccess = _isPro || _isAdmin;
+
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+          body: CustomScrollView(
+            physics: BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : Color(0xFFF2F2F7).withOpacity(0.9),
+                flexibleSpace: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? Color(0xFF000000).withOpacity(0.75) : Color(0xFFF2F2F7).withOpacity(0.75),
+                      ),
+                      child: FlexibleSpaceBar(
+                        centerTitle: false,
+                        titlePadding: EdgeInsets.only(left: 20, bottom: 16),
+                        title: Text(
+                          'Metas',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                            fontSize: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.add_rounded, color: Color(0xFFFF444F)),
+                    onPressed: hasAccess ? _showAddGoalModal : null,
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.more_vert_rounded, color: isDark ? Colors.white : Colors.black),
+                    onPressed: hasAccess ? _showOptionsMenu : null,
+                  ),
+                ],
+              ),
+              if (hasAccess)
+                SliverToBoxAdapter(
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    labelColor: Color(0xFFFF444F),
+                    unselectedLabelColor: isDark ? Colors.white70 : Colors.black54,
+                    indicatorColor: Color(0xFFFF444F),
+                    tabs: [
+                      Tab(text: 'Metas'),
+                      Tab(text: 'Tarefas'),
+                      Tab(text: 'Estratégias'),
+                      Tab(text: 'Notas'),
+                      Tab(text: 'Diário'),
+                    ],
+                  ),
+                ),
+              if (hasAccess)
+                SliverFillRemaining(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildGoalsList(isDark, user),
+                      Center(child: Text('Tarefas em desenvolvimento')),
+                      Center(child: Text('Estratégias em desenvolvimento')),
+                      Center(child: Text('Notas em desenvolvimento')),
+                      Center(child: Text('Diário em desenvolvimento')),
+                    ],
+                  ),
+                )
+              else
+                SliverFillRemaining(
+                  child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -348,143 +574,189 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             color: isDark ? Colors.white : Colors.black,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Toque no + para criar sua primeira meta',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
                       ],
                     ),
-                  );
-                }
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (!hasAccess) GoalsProOverlay(),
+      ],
+    );
+  }
 
-                final goals = snapshot.data!.docs;
+  Widget _buildGoalsList(bool isDark, User? user) {
+    if (user == null) {
+      return Center(child: Text('Faça login para ver suas metas'));
+    }
 
-                return ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: goals.length,
-                  itemBuilder: (context, index) {
-                    final goal = goals[index].data() as Map<String, dynamic>;
-                    final goalId = goals[index].id;
-                    final title = goal['title'] ?? '';
-                    final category = goal['category'] ?? 'Outro';
-                    final target = (goal['target'] ?? 0).toDouble();
-                    final current = (goal['current'] ?? 0).toDouble();
-                    final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('goals')
+          .where('userId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
 
-                    return Container(
-                      margin: EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.track_changes_rounded,
+                  size: 80,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Nenhuma meta ainda',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Toque no + para criar sua primeira meta',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final goals = snapshot.data!.docs;
+
+        return ListView.builder(
+          padding: EdgeInsets.all(16),
+          itemCount: goals.length,
+          itemBuilder: (context, index) {
+            final goal = goals[index].data() as Map<String, dynamic>;
+            final goalId = goals[index].id;
+            final title = goal['title'] ?? '';
+            final category = goal['category'] ?? 'Outro';
+            final target = (goal['target'] ?? 0).toDouble();
+            final current = (goal['current'] ?? 0).toDouble();
+            final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
+
+            return Container(
+              margin: EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFF444F).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFFFF444F).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    _getCategoryIcon(category),
-                                    color: Color(0xFFFF444F),
-                                    size: 24,
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        title,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : Colors.black,
-                                        ),
-                                      ),
-                                      Text(
-                                        category,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.delete_rounded, color: Colors.red),
-                                  onPressed: () => _deleteGoal(goalId),
-                                ),
-                              ],
-                            ),
-                            if (target > 0) ...[
-                              SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'R\$ ${current.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white : Colors.black,
-                                    ),
-                                  ),
-                                  Text(
-                                    'R\$ ${target.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  minHeight: 8,
-                                  backgroundColor: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF444F)),
-                                ),
-                              ),
-                              SizedBox(height: 8),
+                          child: Icon(
+                            _getCategoryIcon(category),
+                            color: Color(0xFFFF444F),
+                            size: 24,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                '${(progress * 100).toStringAsFixed(0)}% completo',
+                                title,
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              Text(
+                                category,
+                                style: TextStyle(
+                                  fontSize: 13,
                                   color: Colors.grey,
                                 ),
                               ),
                             ],
-                          ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete_rounded, color: Colors.red),
+                          onPressed: () => _deleteGoal(goalId),
+                        ),
+                      ],
+                    ),
+                    if (target > 0) ...[
+                      SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'R\$ ${current.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          Text(
+                            'R\$ ${target.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          backgroundColor: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF444F)),
                         ),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
+                      SizedBox(height: 8),
+                      Text(
+                        '${(progress * 100).toStringAsFixed(0)}% completo',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -492,6 +764,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   void dispose() {
     _titleController.dispose();
     _targetController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 }
