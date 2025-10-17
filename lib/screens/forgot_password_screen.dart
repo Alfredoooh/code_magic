@@ -37,8 +37,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      // Configuração adicional para garantir o envio do email
+      await FirebaseAuth.instance.setLanguageCode('pt');
       
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email,
+        actionCodeSettings: ActionCodeSettings(
+          url: 'https://your-app.firebaseapp.com',
+          handleCodeInApp: false,
+          androidMinimumVersion: '12',
+          androidPackageName: 'com.nexa.madeeasy',
+          iOSBundleId: 'com.yourapp.ios',
+        ),
+      );
+
       setState(() {
         _isLoading = false;
         _emailSent = true;
@@ -47,9 +59,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _showSuccessDialog();
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
-      
+
       String errorMessage = 'Erro ao enviar email';
-      
+
       switch (e.code) {
         case 'user-not-found':
           errorMessage = 'Não existe conta cadastrada com este email';
@@ -66,7 +78,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         default:
           errorMessage = 'Erro: ${e.message}';
       }
-      
+
       _showErrorDialog('Erro', errorMessage);
     } catch (e) {
       setState(() => _isLoading = false);
@@ -80,6 +92,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _showErrorDialog(String title, String message) {
+    final primaryColor = Theme.of(context).primaryColor;
+    
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
@@ -90,7 +104,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         actions: [
           CupertinoDialogAction(
-            child: Text('OK', style: TextStyle(color: Color(0xFF0095F6))),
+            child: Text('OK', style: TextStyle(color: primaryColor)),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -99,6 +113,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _showSuccessDialog() {
+    final primaryColor = Theme.of(context).primaryColor;
+    
     showCupertinoDialog(
       context: context,
       barrierDismissible: false,
@@ -107,7 +123,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(CupertinoIcons.mail_solid,
-                color: Color(0xFF0095F6), size: 28),
+                color: primaryColor, size: 28),
             SizedBox(width: 8),
             Text('Email Enviado!'),
           ],
@@ -136,17 +152,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _resendEmail() async {
     if (_emailController.text.trim().isEmpty) return;
-    
+
     setState(() {
       _emailSent = false;
       _isLoading = true;
     });
 
     try {
+      await FirebaseAuth.instance.setLanguageCode('pt');
+      
       await FirebaseAuth.instance.sendPasswordResetEmail(
         email: _emailController.text.trim(),
       );
-      
+
       setState(() {
         _isLoading = false;
         _emailSent = true;
@@ -177,17 +195,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFFAFAFA),
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFDBDBDB),
-            width: 0.5,
-          ),
-        ),
+        backgroundColor: (isDark ? Color(0xFF000000) : CupertinoColors.white).withOpacity(0.95),
+        border: null,
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           child: Icon(
@@ -215,24 +229,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(height: 40),
-                
+
                 Container(
                   padding: EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: isDark 
                       ? Color(0xFF1C1C1E) 
-                      : Color(0xFFF2F2F7),
+                      : CupertinoColors.white,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     CupertinoIcons.lock_rotation,
                     size: 60,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    color: primaryColor,
                   ),
                 ),
-                
+
                 SizedBox(height: 24),
-                
+
                 Text(
                   'Problemas para entrar?',
                   style: TextStyle(
@@ -241,9 +255,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     color: isDark ? CupertinoColors.white : CupertinoColors.black,
                   ),
                 ),
-                
+
                 SizedBox(height: 12),
-                
+
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
@@ -256,18 +270,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: 32),
-                
+
                 if (!_emailSent) ...[
                   Container(
                     decoration: BoxDecoration(
                       color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
-                        width: 0.5,
-                      ),
                     ),
                     child: CupertinoTextField(
                       controller: _emailController,
@@ -297,9 +307,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 24),
-                  
+
                   Container(
                     width: double.infinity,
                     height: 50,
@@ -310,7 +320,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         decoration: BoxDecoration(
                           color: _isLoading 
                             ? CupertinoColors.systemGrey 
-                            : Color(0xFF0095F6),
+                            : primaryColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
@@ -333,10 +343,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     decoration: BoxDecoration(
                       color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
-                        width: 0.5,
-                      ),
                     ),
                     child: Column(
                       children: [
@@ -372,7 +378,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             onPressed: _isLoading ? null : _resendEmail,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Color(0xFF0095F6),
+                                color: primaryColor,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               alignment: Alignment.center,
@@ -393,25 +399,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                 ],
-                
+
                 SizedBox(height: 32),
-                
+
                 Container(
                   height: 0.5,
-                  color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
+                  color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
                 ),
-                
+
                 SizedBox(height: 32),
-                
+
                 Container(
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFDBDBDB),
-                      width: 0.5,
-                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,12 +422,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         children: [
                           Icon(
                             CupertinoIcons.info_circle,
-                            color: Color(0xFF0095F6),
+                            color: primaryColor,
                             size: 20,
                           ),
                           SizedBox(width: 8),
                           Text(
-                            'Dicas',
+                            'Dicas Importantes',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -436,27 +438,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       SizedBox(height: 12),
                       _buildTipItem(
-                        '• Verifique sua caixa de spam',
+                        '• Verifique sua caixa de spam/lixo eletrônico',
                         isDark,
                       ),
                       _buildTipItem(
-                        '• O link expira em 1 hora',
+                        '• O link expira em 1 hora após o envio',
                         isDark,
                       ),
                       _buildTipItem(
-                        '• Use o mesmo dispositivo do email',
+                        '• Use o mesmo navegador para abrir o link',
                         isDark,
                       ),
                       _buildTipItem(
-                        '• Verifique se o email está correto',
+                        '• Verifique se digitou o email corretamente',
+                        isDark,
+                      ),
+                      _buildTipItem(
+                        '• Aguarde alguns minutos para o email chegar',
                         isDark,
                       ),
                     ],
                   ),
                 ),
-                
+
                 SizedBox(height: 32),
-                
+
                 Center(
                   child: CupertinoButton(
                     padding: EdgeInsets.zero,
@@ -466,14 +472,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       children: [
                         Icon(
                           CupertinoIcons.arrow_left,
-                          color: Color(0xFF0095F6),
+                          color: primaryColor,
                           size: 18,
                         ),
                         SizedBox(width: 8),
                         Text(
                           'Voltar para Login',
                           style: TextStyle(
-                            color: Color(0xFF0095F6),
+                            color: primaryColor,
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -482,7 +488,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: 40),
               ],
             ),
@@ -499,7 +505,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         text,
         style: TextStyle(
           fontSize: 14,
-          color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+          color: CupertinoColors.systemGrey,
           height: 1.4,
         ),
       ),
