@@ -60,9 +60,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _newPostsCount = 0;
   List<String> _newPostsUserImages = [];
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSubscription;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _postsSubscription;
   String? _lastSeenPostId;
   bool _hasShownWelcomeBack = false;
+  
+  // Infinite scrolling
+  List<QueryDocumentSnapshot> _posts = [];
+  bool _loadingMorePosts = false;
+  bool _hasMorePosts = true;
+  DocumentSnapshot? _lastDocument;
 
   @override
   void initState() {
@@ -115,14 +120,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     });
 
-    _listenToNewPosts();
+    _loadInitialPosts();
+    _listenToNewPostsNotification();
   }
 
-  void _listenToNewPosts() {
-    _postsSubscription = FirebaseFirestore.instance
+  Future<void> _loadInitialPosts() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('publicacoes')
+          .orderBy('timestamp', descending: true)
+          .limit(10)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _posts = snapshot.docs;
+          _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+          _hasMorePosts = snapshot.docs.length == 10;
+        });
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        _lastSeenPostId = snapshot.docs.first.id;
+      }
+    } catch (e) {
+      print('Error loading posts: $e');
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_loadingMorePosts || !_hasMorePosts || _lastDocument == null) return;
+
+    setState(() => _loadingMorePosts = true);
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('publicacoes')
+          .orderBy('timestamp', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(10)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _posts.addAll(snapshot.docs);
+          _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : _lastDocument;
+          _hasMorePosts = snapshot.docs.length == 10;
+          _loadingMorePosts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingMorePosts = false);
+      }
+    }
+  }
+
+  void _listenToNewPostsNotification() {
+    FirebaseFirestore.instance
         .collection('publicacoes')
         .orderBy('timestamp', descending: true)
-        .limit(5)
+        .limit(1)
         .snapshots()
         .listen((snapshot) {
       if (_lastSeenPostId == null && snapshot.docs.isNotEmpty) {
@@ -132,27 +190,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       if (snapshot.docs.isNotEmpty) {
         final latestPostId = snapshot.docs.first.id;
-        if (latestPostId != _lastSeenPostId) {
-          final newPosts = snapshot.docs.takeWhile((doc) => doc.id != _lastSeenPostId).toList();
-          if (newPosts.isNotEmpty) {
-            final userImages = newPosts
-                .map((doc) => doc.data()['profile_image'] as String?)
-                .where((img) => img != null && img.isNotEmpty)
-                .take(3)
-                .cast<String>()
-                .toList();
-
-            if (mounted && _scrollController.offset > 100) {
-              setState(() {
-                _newPostsCount = newPosts.length;
-                _newPostsUserImages = userImages;
-                _showNewPostsBanner = true;
-              });
-            }
-          }
+        if (latestPostId != _lastSeenPostId && _scrollController.hasClients && _scrollController.offset > 100) {
+          // Apenas mostra o banner, não atualiza automaticamente
+          setState(() {
+            _newPostsCount = (_newPostsCount + 1);
+            _showNewPostsBanner = true;
+          });
         }
       }
     });
+  }
+
+  void _listenToNewPosts() {
+    // Removido - não atualiza automaticamente
   }
 
   void _scrollToTop() {
@@ -162,16 +212,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       curve: Curves.easeInOut,
     );
 
-    FirebaseFirestore.instance
-        .collection('publicacoes')
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get()
-        .then((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        _lastSeenPostId = snapshot.docs.first.id;
-      }
-    });
+    // Recarrega os posts quando clica no banner
+    _loadInitialPosts();
 
     setState(() {
       _showNewPostsBanner = false;
@@ -181,7 +223,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _onScroll() {
-    // Removido o botão scroll to top
+    if (_scrollController.hasClients) {
+      final offset = _scrollController.offset;
+      final maxScroll = _scrollController.position.maxScrollExtent;
+
+      // Carrega mais posts quando chega perto do fim
+      if (offset >= maxScroll - 200 && !_loadingMorePosts && _hasMorePosts) {
+        _loadMorePosts();
+      }
+    }
   }
 
   @override
@@ -200,7 +250,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _userSubscription?.cancel();
-    _postsSubscription?.cancel();
     _safeSetUserOnline(false);
     super.dispose();
   }
@@ -554,29 +603,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return WillPopScope(
       onWillPop: () async {
-        // Volta ao topo e atualiza ao pressionar voltar
-        _scrollToTop();
-        await Future.wait([
-          _loadUserData(),
-          HomeScreenHelper.loadNews((articles, loading) {
-            if (mounted) setState(() {
-              _newsArticles = articles;
-              _loadingNews = loading;
-            });
-          }),
-          HomeScreenHelper.loadStats((messages, groups) {
-            if (mounted) setState(() {
-              _messageCount = messages;
-              _groupCount = groups;
-            });
-          }),
-          HomeScreenHelper.loadCryptoData((data, loading) {
-            if (mounted) setState(() {
-              _cryptoData = data;
-              _loadingCrypto = loading;
-            });
-          }),
-        ]);
+        // Apenas volta ao topo, não recarrega
+        if (_scrollController.hasClients && _scrollController.offset > 0) {
+          _scrollController.animateTo(
+            0,
+            duration: Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
         return false;
       },
       child: CupertinoPageScaffold(
@@ -634,6 +668,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onRefresh: () async {
                     await Future.wait([
                       _loadUserData(),
+                      _loadInitialPosts(),
                       HomeScreenHelper.loadNews((articles, loading) {
                         if (mounted) setState(() {
                           _newsArticles = articles;
@@ -756,7 +791,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
                 SliverPersistentHeader(
-                  pinned: true,
+                  pinned: false,
+                  floating: true,
                   delegate: _SliverAppBarDelegate(
                     minHeight: 60,
                     maxHeight: 60,
@@ -774,58 +810,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance.collection('publicacoes').orderBy('timestamp', descending: true).limit(20).snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      if (index < _posts.length) {
+                        final post = _posts[index].data() as Map<String, dynamic>;
+                        final postId = _posts[index].id;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 0),
+                          child: PostCard(
+                            post: post,
+                            postId: postId,
+                            isDark: isDark,
+                            currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                          ),
+                        );
+                      } else if (_loadingMorePosts) {
                         return Padding(
                           padding: EdgeInsets.all(32),
                           child: Center(child: CupertinoActivityIndicator(radius: 16)),
                         );
-                      }
-
-                      if (!snapshot.hasData || snapshot.data == null) {
-                        return _buildEmptyState(isDark);
-                      }
-
-                      final posts = snapshot.data!.docs;
-
-                      if (posts.isEmpty) {
-                        return _buildEmptyState(isDark);
-                      }
-
-                      return Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: [
-                            ...posts.map((docSnap) {
-                              final post = docSnap.data() as Map<String, dynamic>;
-                              final postId = docSnap.id;
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 12),
-                                child: PostCard(
-                                  post: post,
-                                  postId: postId,
-                                  isDark: isDark,
-                                  currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                                ),
-                              );
-                            }).toList(),
-                            Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: Text(
-                                'Não há mais nada para ver',
-                                style: TextStyle(
-                                  color: CupertinoColors.systemGrey,
-                                  fontSize: 15,
-                                ),
+                      } else if (!_hasMorePosts) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Center(
+                            child: Text(
+                              'Não há mais publicações',
+                              style: TextStyle(
+                                color: CupertinoColors.systemGrey,
+                                fontSize: 15,
                               ),
                             ),
-                          ],
-                        ),
-                      );
+                          ),
+                        );
+                      }
+                      return SizedBox.shrink();
                     },
+                    childCount: _posts.length + 1,
                   ),
                 ),
                 SliverPadding(padding: EdgeInsets.only(bottom: 100)),
