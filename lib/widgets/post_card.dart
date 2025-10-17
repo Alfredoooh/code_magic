@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'dart:convert';
+import 'dart:ui';
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -25,6 +26,7 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool _isLiked = false;
   int _likesCount = 0;
+  bool _showFullDescription = false;
 
   @override
   void initState() {
@@ -74,6 +76,31 @@ class _PostCardState extends State<PostCard> {
         fullscreenDialog: true,
         builder: (context) => FullScreenImageViewer(
           imageUrl: widget.post['image'],
+          isDark: widget.isDark,
+        ),
+      ),
+    );
+  }
+
+  void _showUserProfile() {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => UserProfileScreen(
+          userId: widget.post['userId'],
+          isDark: widget.isDark,
+          currentUserId: widget.currentUserId,
+        ),
+      ),
+    );
+  }
+
+  void _showFullDescription() {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => FullDescriptionScreen(
+          content: widget.post['content'] ?? '',
+          userName: widget.post['userName'] ?? 'Usuário',
           isDark: widget.isDark,
         ),
       ),
@@ -180,19 +207,34 @@ class _PostCardState extends State<PostCard> {
     return GestureDetector(
       onDoubleTap: _toggleLike,
       onTap: _showFullScreenImage,
-      child: imageData.startsWith('data:image')
-          ? Image.memory(
-              base64Decode(imageData.split(',')[1]),
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildImageError(),
-            )
-          : Image.network(
-              imageData,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildImageError(),
+      child: Stack(
+        children: [
+          imageData.startsWith('data:image')
+              ? Image.memory(
+                  base64Decode(imageData.split(',')[1]),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildImageError(),
+                )
+              : Image.network(
+                  imageData,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildImageError(),
+                ),
+          // Blur effect overlay
+          Positioned.fill(
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 0.1, sigmaY: 0.1),
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -210,49 +252,97 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Widget _buildDescription() {
+    final content = widget.post['content'] ?? '';
+    if (content.isEmpty) return SizedBox.shrink();
+
+    final shouldTruncate = content.length > 100;
+    
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '${widget.post['userName'] ?? 'Usuário'} ',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+            ),
+            TextSpan(
+              text: shouldTruncate ? '${content.substring(0, 100)}... ' : content,
+              style: TextStyle(
+                fontSize: 13,
+                color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+            ),
+            if (shouldTruncate)
+              WidgetSpan(
+                child: GestureDetector(
+                  onTap: _showFullDescription,
+                  child: Text(
+                    'ver mais',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: CupertinoColors.activeBlue,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = widget.isDark ? Color(0xFF000000) : CupertinoColors.white;
-    
+
     return Container(
       color: bgColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Linha de separação superior
           Container(
             height: 0.5,
             color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
           ),
-          
-          // Header
           Padding(
             padding: EdgeInsets.all(12),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Color(0xFFFF444F),
-                  backgroundImage: widget.post['userProfileImage'] != null &&
-                          widget.post['userProfileImage'].isNotEmpty
-                      ? NetworkImage(widget.post['userProfileImage'])
-                      : null,
-                  child: widget.post['userProfileImage'] == null ||
-                          widget.post['userProfileImage'].isEmpty
-                      ? Text(
-                          (widget.post['userName'] ?? 'U')[0].toUpperCase(),
-                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                        )
-                      : null,
+                GestureDetector(
+                  onTap: _showUserProfile,
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Color(0xFFFF444F),
+                    backgroundImage: widget.post['userProfileImage'] != null &&
+                            widget.post['userProfileImage'].isNotEmpty
+                        ? NetworkImage(widget.post['userProfileImage'])
+                        : null,
+                    child: widget.post['userProfileImage'] == null ||
+                            widget.post['userProfileImage'].isEmpty
+                        ? Text(
+                            (widget.post['userName'] ?? 'U')[0].toUpperCase(),
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          )
+                        : null,
+                  ),
                 ),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    widget.post['userName'] ?? 'Usuário',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                  child: GestureDetector(
+                    onTap: _showUserProfile,
+                    child: Text(
+                      widget.post['userName'] ?? 'Usuário',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                      ),
                     ),
                   ),
                 ),
@@ -268,12 +358,8 @@ class _PostCardState extends State<PostCard> {
               ],
             ),
           ),
-
-          // Image
           if (widget.post['image'] != null && widget.post['image'].isNotEmpty)
             _buildImage(),
-
-          // Actions
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
@@ -313,8 +399,6 @@ class _PostCardState extends State<PostCard> {
               ],
             ),
           ),
-
-          // Likes
           if (_likesCount > 0)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
@@ -327,37 +411,7 @@ class _PostCardState extends State<PostCard> {
                 ),
               ),
             ),
-
-          // Content
-          if (widget.post['content'] != null && widget.post['content'].isNotEmpty)
-            Padding(
-              padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '${widget.post['userName'] ?? 'Usuário'} ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                      ),
-                    ),
-                    TextSpan(
-                      text: widget.post['content'],
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
-                      ),
-                    ),
-                  ],
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-          // Comments count
+          _buildDescription(),
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('publicacoes')
@@ -383,8 +437,6 @@ class _PostCardState extends State<PostCard> {
               );
             },
           ),
-
-          // Timestamp
           Padding(
             padding: EdgeInsets.fromLTRB(12, 4, 12, 12),
             child: Text(
@@ -396,13 +448,363 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
           ),
-
-          // Linha de separação inferior
           Container(
             height: 0.5,
             color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class FullDescriptionScreen extends StatelessWidget {
+  final String content;
+  final String userName;
+  final bool isDark;
+
+  const FullDescriptionScreen({
+    required this.content,
+    required this.userName,
+    required this.isDark,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(CupertinoIcons.back, color: isDark ? CupertinoColors.white : CupertinoColors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '$userName ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
+                TextSpan(
+                  text: content,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class UserProfileScreen extends StatefulWidget {
+  final String userId;
+  final bool isDark;
+  final String currentUserId;
+
+  const UserProfileScreen({
+    required this.userId,
+    required this.isDark,
+    required this.currentUserId,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  _UserProfileScreenState createState() => _UserProfileScreenState();
+}
+
+class _UserProfileScreenState extends State<UserProfileScreen> {
+  Map<String, dynamic>? _userData;
+  List<QueryDocumentSnapshot> _userPosts = [];
+  int _postsCount = 0;
+  int _totalLikes = 0;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+      
+      final postsQuery = await FirebaseFirestore.instance
+          .collection('publicacoes')
+          .where('userId', isEqualTo: widget.userId)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      int totalLikes = 0;
+      for (var post in postsQuery.docs) {
+        totalLikes += (post.data()['likes'] ?? 0) as int;
+      }
+
+      setState(() {
+        _userData = userDoc.data();
+        _userPosts = postsQuery.docs;
+        _postsCount = postsQuery.docs.length;
+        _totalLikes = totalLikes;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return CupertinoPageScaffold(
+        backgroundColor: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+        child: Center(child: CupertinoActivityIndicator()),
+      );
+    }
+
+    final username = _userData?['username'] ?? 'Usuário';
+    final profileImage = _userData?['profile_image'] as String?;
+    final coverImage = _userData?['cover_image'] as String?;
+    final isPro = _userData?['pro'] == true;
+    final isAdmin = _userData?['admin'] == true;
+
+    return CupertinoPageScaffold(
+      backgroundColor: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+      child: CustomScrollView(
+        slivers: [
+          CupertinoSliverNavigationBar(
+            backgroundColor: widget.isDark ? Color(0xFF000000).withOpacity(0.9) : CupertinoColors.white.withOpacity(0.9),
+            border: null,
+            largeTitle: Text(username),
+            leading: CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: Icon(CupertinoIcons.back, color: widget.isDark ? CupertinoColors.white : CupertinoColors.black),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                // Cover Image
+                if (coverImage != null && coverImage.isNotEmpty)
+                  Container(
+                    height: 150,
+                    width: double.infinity,
+                    child: Image.network(
+                      coverImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    height: 150,
+                    width: double.infinity,
+                    color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
+                  ),
+                
+                Transform.translate(
+                  offset: Offset(0, -40),
+                  child: Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: widget.isDark ? Color(0xFF000000) : CupertinoColors.white,
+                            width: 4,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Color(0xFFFF444F),
+                          backgroundImage: profileImage != null && profileImage.isNotEmpty
+                              ? NetworkImage(profileImage)
+                              : null,
+                          child: profileImage == null || profileImage.isEmpty
+                              ? Text(
+                                  username[0].toUpperCase(),
+                                  style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
+                                )
+                              : null,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            username,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                            ),
+                          ),
+                          if (isPro) ...[
+                            SizedBox(width: 6),
+                            Icon(CupertinoIcons.checkmark_seal_fill, color: CupertinoColors.activeBlue, size: 18),
+                          ],
+                          if (isAdmin) ...[
+                            SizedBox(width: 6),
+                            Icon(CupertinoIcons.shield_fill, color: CupertinoColors.systemRed, size: 18),
+                          ],
+                        ],
+                      ),
+                      SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildStatColumn('Publicações', _postsCount.toString()),
+                          _buildStatColumn('Curtidas', _totalLikes.toString()),
+                          _buildStatColumn('Status', isPro ? 'PRO' : 'Free'),
+                        ],
+                      ),
+                      SizedBox(height: 24),
+                      Container(
+                        height: 1,
+                        color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final post = _userPosts[index].data() as Map<String, dynamic>;
+                  final postId = _userPosts[index].id;
+                  final imageUrl = post['image'];
+
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (context) => PostDetailScreen(
+                            postId: postId,
+                            post: post,
+                            isDark: widget.isDark,
+                            currentUserId: widget.currentUserId,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
+                      child: imageUrl != null && imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                CupertinoIcons.photo,
+                                color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
+                              ),
+                            )
+                          : Icon(
+                              CupertinoIcons.photo,
+                              color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
+                            ),
+                    ),
+                  );
+                },
+                childCount: _userPosts.length,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: Color(0xFF8E8E8E),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class PostDetailScreen extends StatelessWidget {
+  final String postId;
+  final Map<String, dynamic> post;
+  final bool isDark;
+  final String currentUserId;
+
+  const PostDetailScreen({
+    required this.postId,
+    required this.post,
+    required this.isDark,
+    required this.currentUserId,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(CupertinoIcons.back, color: isDark ? CupertinoColors.white : CupertinoColors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: PostCard(
+            post: post,
+            postId: postId,
+            isDark: isDark,
+            currentUserId: currentUserId,
+          ),
+        ),
       ),
     );
   }
