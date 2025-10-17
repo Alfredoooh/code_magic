@@ -37,9 +37,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   void initState() {
     super.initState();
     articles = (widget.allArticles ?? [widget.article]).cast<NewsArticle>();
-    currentIndex = (widget.currentIndex != null && 
-                    widget.currentIndex! >= 0 && 
-                    widget.currentIndex! < articles.length)
+    currentIndex = (widget.currentIndex != null &&
+            widget.currentIndex! >= 0 &&
+            widget.currentIndex! < articles.length)
         ? widget.currentIndex!
         : 0;
     _pageController = PageController(initialPage: currentIndex);
@@ -135,8 +135,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         content: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(CupertinoIcons.check_mark_circled_solid, 
-                 color: CupertinoColors.systemGreen, size: 24),
+            Icon(CupertinoIcons.check_mark_circled_solid,
+                color: CupertinoColors.systemGreen, size: 24),
             SizedBox(width: 12),
             Flexible(
               child: Text(message, style: TextStyle(fontSize: 16)),
@@ -169,8 +169,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   void _goToPrevious() {
     if (currentIndex > 0) {
       _pageController.previousPage(
-        duration: Duration(milliseconds: 400), 
-        curve: Curves.easeInOutCubic
+        duration: Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
       );
     }
   }
@@ -178,8 +178,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   void _goToNext() {
     if (currentIndex < articles.length - 1) {
       _pageController.nextPage(
-        duration: Duration(milliseconds: 400), 
-        curve: Curves.easeInOutCubic
+        duration: Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
       );
     }
   }
@@ -189,10 +189,12 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     Share.share(text, subject: article.title);
   }
 
+  // <-- ALTERAÇÃO MÍNIMA: não passar isDark para BookmarksScreen,
+  // porque sua BookmarksScreen atual não tem esse parâmetro.
   void _showBookmarksScreen() {
     Navigator.push(
       context,
-      CupertinoPageRoute(builder: (context) => BookmarksScreen(isDark: widget.isDark)),
+      CupertinoPageRoute(builder: (context) => BookmarksScreen()),
     );
   }
 
@@ -208,13 +210,12 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   void _showActionSheet(BuildContext context, NewsArticle article) {
     final primaryColor = Color(0xFFFF444F);
-    
+
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
         return CupertinoActionSheet(
-          title: Text('Ações', 
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          title: Text('Ações', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           message: Text(
             article.title,
             maxLines: 2,
@@ -268,9 +269,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   List<NewsArticle> _getRelatedArticles(NewsArticle currentArticle) {
     return articles
-        .where((article) => 
-          article != currentArticle && 
-          article.category == currentArticle.category)
+        .where((article) =>
+            article != currentArticle && article.category == currentArticle.category)
         .take(6)
         .toList();
   }
@@ -284,9 +284,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark 
-          ? Color(0xFF1C1C1E).withOpacity(0.95) 
-          : CupertinoColors.white.withOpacity(0.95),
+        backgroundColor: isDark ? Color(0xFF1C1C1E).withOpacity(0.95) : CupertinoColors.white.withOpacity(0.95),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           child: Icon(
@@ -333,12 +331,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                 padding: EdgeInsets.zero,
                 minSize: 0,
                 child: Icon(
-                  _isBookmarked 
-                    ? CupertinoIcons.bookmark_solid 
-                    : CupertinoIcons.bookmark,
-                  color: _isBookmarked 
-                    ? primaryColor 
-                    : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                  _isBookmarked ? CupertinoIcons.bookmark_solid : CupertinoIcons.bookmark,
+                  color: _isBookmarked ? primaryColor : (isDark ? CupertinoColors.white : CupertinoColors.black),
                   size: 22,
                 ),
                 onPressed: _toggleBookmark,
@@ -404,11 +398,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             ),
                           ],
                         ),
-                        child: Icon(
-                          CupertinoIcons.chevron_left, 
-                          color: CupertinoColors.white, 
-                          size: 24
-                        ),
+                        child: Icon(CupertinoIcons.chevron_left, color: CupertinoColors.white, size: 24),
                       ),
                     ),
                   ),
@@ -439,11 +429,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             ),
                           ],
                         ),
-                        child: Icon(
-                          CupertinoIcons.chevron_right, 
-                          color: CupertinoColors.white, 
-                          size: 24
-                        ),
+                        child: Icon(CupertinoIcons.chevron_right, color: CupertinoColors.white, size: 24),
                       ),
                     ),
                   ),
@@ -485,8 +471,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stack) => Container(
                       color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.systemGrey6,
-                      child: Icon(CupertinoIcons.photo, size: 80, 
-                           color: CupertinoColors.systemGrey),
+                      child: Icon(CupertinoIcons.photo, size: 80, color: CupertinoColors.systemGrey),
                     ),
                   ),
                 ),
@@ -566,8 +551,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
                   Row(
                     children: [
-                      Icon(CupertinoIcons.time, size: 16, 
-                           color: CupertinoColors.systemGrey),
+                      Icon(CupertinoIcons.time, size: 16, color: CupertinoColors.systemGrey),
                       SizedBox(width: 6),
                       Text(
                         article.timeAgo,
@@ -578,8 +562,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                         ),
                       ),
                       SizedBox(width: 16),
-                      Icon(CupertinoIcons.eye, size: 16, 
-                           color: CupertinoColors.systemGrey),
+                      Icon(CupertinoIcons.eye, size: 16, color: CupertinoColors.systemGrey),
                       SizedBox(width: 6),
                       Text(
                         '${(article.title.length * 10)} leituras',
@@ -612,9 +595,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     article.description,
                     style: TextStyle(
                       fontSize: 18,
-                      color: isDark 
-                        ? CupertinoColors.white.withOpacity(0.95) 
-                        : CupertinoColors.black.withOpacity(0.9),
+                      color: isDark ? CupertinoColors.white.withOpacity(0.95) : CupertinoColors.black.withOpacity(0.9),
                       height: 1.75,
                       letterSpacing: 0.2,
                       fontWeight: FontWeight.w400,
@@ -664,9 +645,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: isDark 
-                                  ? CupertinoColors.white 
-                                  : CupertinoColors.black,
+                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
                               ),
                             ),
                           ],
@@ -721,8 +700,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(CupertinoIcons.share, size: 20, 
-                               color: Colors.white),
+                          Icon(CupertinoIcons.share, size: 20, color: Colors.white),
                           SizedBox(width: 12),
                           Text(
                             'Compartilhar Notícia',
@@ -756,9 +734,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color: isDark 
-                              ? CupertinoColors.white 
-                              : CupertinoColors.black,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -819,9 +795,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: isDark 
-              ? CupertinoColors.white.withOpacity(0.9) 
-              : CupertinoColors.black.withOpacity(0.8),
+            color: isDark ? CupertinoColors.white.withOpacity(0.9) : CupertinoColors.black.withOpacity(0.8),
           ),
         ),
         SizedBox(width: 6),
@@ -831,9 +805,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: isDark 
-                ? CupertinoColors.white.withOpacity(0.7) 
-                : CupertinoColors.black.withOpacity(0.6),
+              color: isDark ? CupertinoColors.white.withOpacity(0.7) : CupertinoColors.black.withOpacity(0.6),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
