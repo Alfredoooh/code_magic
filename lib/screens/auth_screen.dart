@@ -13,6 +13,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _scrollController = ScrollController();
   bool _isLogin = true;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -22,6 +23,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -40,11 +42,13 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_isLogin) {
+        // Login
         final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
+        // Verifica dados do usuário
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(credential.user!.uid)
@@ -76,7 +80,13 @@ class _AuthScreenState extends State<AuthScreen> {
             }
           }
         }
+
+        // Login bem-sucedido - NÃO reseta o estado de loading
+        // O StreamBuilder do main.dart vai detectar a mudança e navegar automaticamente
+        // Importante: não chamar setState aqui para evitar rebuild que pode causar logout
+
       } else {
+        // Registro
         final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
@@ -103,7 +113,13 @@ class _AuthScreenState extends State<AuthScreen> {
           'phone': '',
           'birth_date': '',
         });
+
+        // Registro bem-sucedido - mesmo comportamento do login
       }
+
+      // IMPORTANTE: Não fazer setState após login/registro bem-sucedido
+      // Deixar o Firebase Auth gerenciar o estado
+
     } on FirebaseAuthException catch (e) {
       String title = 'Erro de Autenticação';
       String message = '';
@@ -137,11 +153,15 @@ class _AuthScreenState extends State<AuthScreen> {
         message = 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.';
       }
 
-      _showErrorDialog(title, message);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog(title, message);
+      }
     } catch (e) {
-      _showErrorDialog('Erro', 'Ocorreu um erro inesperado. Por favor, tente novamente.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog('Erro', 'Ocorreu um erro inesperado. Por favor, tente novamente.');
+      }
     }
   }
 
@@ -200,184 +220,185 @@ class _AuthScreenState extends State<AuthScreen> {
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          physics: BouncingScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
-            ),
-            child: IntrinsicHeight(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    // Top bar com botão Aprender
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          CupertinoButton(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            onPressed: _navigateToLearn,
+      resizeToAvoidBottomInset: true,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: BouncingScrollPhysics(),
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            CupertinoButton(
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              onPressed: _navigateToLearn,
+                              child: Text(
+                                'Aprender',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFFF444F),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Spacer(),
+
+                      // Logo do app
+                      Image.asset(
+                        'assets/icon/icon.png',
+                        width: 100,
+                        height: 100,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            CupertinoIcons.app_fill,
+                            size: 100,
+                            color: Color(0xFFFF444F),
+                          );
+                        },
+                      ),
+
+                      SizedBox(height: 40),
+
+                      Text(
+                        _isLogin ? 'Entrar' : 'Criar Conta',
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+
+                      SizedBox(height: 40),
+
+                      if (!_isLogin) ...[
+                        _buildInputField(
+                          controller: _nameController,
+                          placeholder: 'Nome',
+                          isDark: isDark,
+                        ),
+                        SizedBox(height: 16),
+                      ],
+
+                      _buildInputField(
+                        controller: _emailController,
+                        placeholder: 'Email',
+                        keyboardType: TextInputType.emailAddress,
+                        isDark: isDark,
+                      ),
+
+                      SizedBox(height: 16),
+
+                      _buildInputField(
+                        controller: _passwordController,
+                        placeholder: 'Senha',
+                        obscureText: _obscurePassword,
+                        isDark: isDark,
+                        suffixIcon: CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          minSize: 0,
+                          onPressed: () {
+                            setState(() => _obscurePassword = !_obscurePassword);
+                          },
+                          child: Icon(
+                            _obscurePassword
+                                ? CupertinoIcons.eye_fill
+                                : CupertinoIcons.eye_slash_fill,
+                            color: CupertinoColors.systemGrey,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+
+                      if (_isLogin) ...[
+                        SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: CupertinoButton(
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            onPressed: _navigateToForgotPassword,
                             child: Text(
-                              'Aprender',
+                              'Esqueceu a palavra-passe?',
                               style: TextStyle(
-                                fontSize: 17,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: Color(0xFFFF444F),
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      ],
 
-                    Spacer(),
+                      SizedBox(height: 32),
 
-                    // Ícone do app (sem container)
-                    Icon(
-                      CupertinoIcons.chat_bubble_2_fill,
-                      size: 80,
-                      color: Color(0xFFFF444F),
-                    ),
-
-                    SizedBox(height: 32),
-
-                    // Título
-                    Text(
-                      _isLogin ? 'Entrar' : 'Criar Conta',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-
-                    SizedBox(height: 40),
-
-                    // Campos do formulário
-                    if (!_isLogin) ...[
-                      _buildInputField(
-                        controller: _nameController,
-                        placeholder: 'Nome',
-                        icon: CupertinoIcons.person_fill,
-                        isDark: isDark,
-                      ),
-                      SizedBox(height: 16),
-                    ],
-
-                    _buildInputField(
-                      controller: _emailController,
-                      placeholder: 'Email',
-                      icon: CupertinoIcons.mail_solid,
-                      keyboardType: TextInputType.emailAddress,
-                      isDark: isDark,
-                    ),
-
-                    SizedBox(height: 16),
-
-                    _buildInputField(
-                      controller: _passwordController,
-                      placeholder: 'Senha',
-                      icon: CupertinoIcons.lock_fill,
-                      obscureText: _obscurePassword,
-                      isDark: isDark,
-                      suffixIcon: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        minSize: 0,
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
-                        child: Icon(
-                          _obscurePassword
-                              ? CupertinoIcons.eye_fill
-                              : CupertinoIcons.eye_slash_fill,
-                          color: CupertinoColors.systemGrey,
-                          size: 22,
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          color: Color(0xFFFF444F),
+                          borderRadius: BorderRadius.circular(14),
+                          onPressed: _isLoading ? null : _submit,
+                          child: _isLoading
+                              ? CupertinoActivityIndicator(color: CupertinoColors.white)
+                              : Text(
+                                  _isLogin ? 'Entrar' : 'Criar Conta',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    color: CupertinoColors.white,
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
 
-                    if (_isLogin) ...[
-                      SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: CupertinoButton(
-                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                          onPressed: _navigateToForgotPassword,
-                          child: Text(
-                            'Esqueceu a palavra-passe?',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFFF444F),
-                            ),
+                      SizedBox(height: 20),
+
+                      CupertinoButton(
+                        onPressed: () => setState(() => _isLogin = !_isLogin),
+                        child: Text(
+                          _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFFF444F),
+                          ),
+                        ),
+                      ),
+
+                      Spacer(),
+
+                      Padding(
+                        padding: EdgeInsets.only(bottom: 24, top: 20),
+                        child: Text(
+                          'from nexa',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: CupertinoColors.systemGrey,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                     ],
-
-                    SizedBox(height: 32),
-
-                    // Botão de submit
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        color: Color(0xFFFF444F),
-                        borderRadius: BorderRadius.circular(14),
-                        onPressed: _isLoading ? null : _submit,
-                        child: _isLoading
-                            ? CupertinoActivityIndicator(color: CupertinoColors.white)
-                            : Text(
-                                _isLogin ? 'Entrar' : 'Criar Conta',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: CupertinoColors.white,
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    SizedBox(height: 20),
-
-                    // Botão de alternância
-                    CupertinoButton(
-                      onPressed: () => setState(() => _isLogin = !_isLogin),
-                      child: Text(
-                        _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFFF444F),
-                        ),
-                      ),
-                    ),
-
-                    Spacer(),
-
-                    // Footer
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 24, top: 20),
-                      child: Text(
-                        'from nexa',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: CupertinoColors.systemGrey,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -387,7 +408,6 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildInputField({
     required TextEditingController controller,
     required String placeholder,
-    required IconData icon,
     required bool isDark,
     TextInputType? keyboardType,
     bool obscureText = false,
@@ -418,15 +438,7 @@ class _AuthScreenState extends State<AuthScreen> {
         decoration: BoxDecoration(
           color: Colors.transparent,
         ),
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        prefix: Padding(
-          padding: EdgeInsets.only(left: 12, right: 12),
-          child: Icon(
-            icon,
-            color: Color(0xFFFF444F),
-            size: 22,
-          ),
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         suffix: suffixIcon != null
             ? Padding(
                 padding: EdgeInsets.only(right: 12),
@@ -438,7 +450,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// Learn Screen
 class LearnScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
