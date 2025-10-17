@@ -9,7 +9,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_web_auth/flutter_web_auth.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 /// MarketplaceScreen com OAuth (serverless) + WebSocket Deriv (app_id = 71954)
 /// Mantive TODO o design original, acrescentei apenas a lógica necessária.
@@ -280,7 +280,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     try {
       // flutter_web_auth abre o browser e espera o callback de volta ao app scheme
-      final result = await FlutterWebAuth.authenticate(
+      final result = await FlutterWebAuth2.authenticate(
         url: url,
         callbackUrlScheme: _customScheme, // com.nexa.madeeasy
       );
