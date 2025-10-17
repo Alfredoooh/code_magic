@@ -70,7 +70,7 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scroll_controller.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
       if (!isLoadingMore) {
         _loadMoreNews();
       }
@@ -103,13 +103,13 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<void> _loadMoreNews() async {
     if (isLoadingMore) return;
-    
+
     setState(() => isLoadingMore = true);
     currentPage++;
-    
+
     await Future.delayed(Duration(milliseconds: 500));
     List<NewsArticle> moreNews = await _newsService.loadAdditionalNews();
-    
+
     if (mounted) {
       setState(() {
         allNews.addAll(moreNews);
@@ -227,13 +227,13 @@ class _NewsScreenState extends State<NewsScreen> {
     }).take(5).toList();
 
     final remaining = allNews.where((article) => !featuredNews.contains(article)).toList();
-    
+
     noImageNews = remaining.where((article) => 
       article.imageUrl.contains('no_image.png')).toList();
-    
+
     final withImages = remaining.where((article) => 
       !article.imageUrl.contains('no_image.png')).toList();
-    
+
     mediumNews = withImages.take((withImages.length * 0.4).round()).toList();
     lowNews = withImages.skip(mediumNews.length).toList();
   }
@@ -277,13 +277,13 @@ class _NewsScreenState extends State<NewsScreen> {
     }).take(5).toList();
 
     final remaining = filteredNews.where((article) => !featuredNews.contains(article)).toList();
-    
+
     noImageNews = remaining.where((article) => 
       article.imageUrl.contains('no_image.png')).toList();
-    
+
     final withImages = remaining.where((article) => 
       !article.imageUrl.contains('no_image.png')).toList();
-    
+
     mediumNews = withImages.take((withImages.length * 0.4).round()).toList();
     lowNews = withImages.skip(mediumNews.length).toList();
   }
@@ -352,7 +352,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 ),
                 border: isPro ? null : Border.all(width: 0, color: Colors.transparent),
               ),
-              
+
               if (!isPro)
                 SliverToBoxAdapter(
                   child: ClipRect(
