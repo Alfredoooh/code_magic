@@ -75,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadStats();
     _loadCryptoData();
     _cryptoTimer = Timer.periodic(Duration(seconds: 10), (_) => _loadCryptoData());
-    
+
     _scrollController.addListener(_onScroll);
     _newsPageController.addListener(() {
       if (_newsPageController.page != null) {
@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
-    
+
     FirebaseFirestore.instance
         .collection('publicacoes')
         .orderBy('timestamp', descending: true)
@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _onScroll() {
     if (_scrollController.hasClients) {
       final offset = _scrollController.offset;
-      
+
       final shouldShowButton = offset > 400;
       if (_showScrollToTopButton != shouldShowButton) {
         setState(() {
@@ -192,16 +192,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        final usdtPairs = data.where((coin) => 
-          coin['symbol'].toString().endsWith('USDT') && 
-          !coin['symbol'].toString().contains('DOWN') &&
-          !coin['symbol'].toString().contains('UP') &&
-          !coin['symbol'].toString().contains('BEAR') &&
-          !coin['symbol'].toString().contains('BULL')
-        ).toList();
-        
+        final usdtPairs = data.where((coin) =>
+            coin['symbol'].toString().endsWith('USDT') &&
+            !coin['symbol'].toString().contains('DOWN') &&
+            !coin['symbol'].toString().contains('UP') &&
+            !coin['symbol'].toString().contains('BEAR') &&
+            !coin['symbol'].toString().contains('BULL')).toList();
+
         usdtPairs.sort((a, b) => double.parse(b['quoteVolume'].toString()).compareTo(double.parse(a['quoteVolume'].toString())));
-        
+
         if (mounted) {
           setState(() {
             _cryptoData = usdtPairs.take(3).map((coin) => crypto_section.CryptoData.fromBinance(coin)).toList();
@@ -304,10 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'isOnline': isOnline});
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'isOnline': isOnline});
       }
     } catch (e) {}
   }
@@ -317,14 +313,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (user != null) {
       await _userSubscription?.cancel();
 
-      _userSubscription = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots()
-          .listen((doc) {
+      _userSubscription = FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots().listen((doc) {
         if (doc.exists && mounted) {
           final data = doc.data();
-          
+
           final isAdmin = data?['admin'] == true;
           if (isAdmin && !_hasShownWelcomeBack) {
             _hasShownWelcomeBack = true;
@@ -389,10 +381,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
             try {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .update({'showNews': value});
+              await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'showNews': value});
             } catch (e) {}
           }
         },
@@ -408,27 +397,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (user == null) return false;
 
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
       if (userDoc.exists) {
         final isPro = userDoc.data()?['pro'] == true;
         if (isPro) return true;
 
         final currentTokens = userDoc.data()?['tokens'] ?? 0;
-        
+
         if (currentTokens <= 0) {
           _showNoTokensDialog();
           return false;
         }
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'tokens': currentTokens - 1});
-        
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'tokens': currentTokens - 1});
+
         return true;
       }
     } catch (e) {}
@@ -437,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _showNoTokensDialog() {
     final username = _userData?['username'] ?? 'Usuário';
-    
+
     showCupertinoDialog(
       context: context,
       barrierDismissible: false,
@@ -482,8 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         context: context,
         builder: (context) => CupertinoAlertDialog(
           title: Text('Recursos PRO'),
-          content: Text(
-              'Apenas usuários PRO podem criar publicações. Atualize sua conta para desbloquear este recurso.'),
+          content: Text('Apenas usuários PRO podem criar publicações. Atualize sua conta para desbloquear este recurso.'),
           actions: [
             CupertinoDialogAction(
               child: Text('Entendi'),
@@ -524,6 +506,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _handleNewsClick(NewsArticle article, int index) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final canProceed = await _checkAndDecrementToken('view_news');
     if (!canProceed) return;
 
@@ -534,6 +517,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           article: article,
           allArticles: _newsArticles,
           currentIndex: index,
+          isDark: isDark,
         ),
         fullscreenDialog: true,
       ),
@@ -542,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _showOptionsBottomSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     showCupertinoModalPopup(
       context: context,
       builder: (context) => ClipRRect(
@@ -698,10 +682,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   (_userData!['profile_image'] as String).isEmpty)
                               ? Text(
                                   username[0].toUpperCase(),
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      color: CupertinoColors.white,
-                                      fontWeight: FontWeight.bold),
+                                  style: TextStyle(fontSize: 14, color: CupertinoColors.white, fontWeight: FontWeight.bold),
                                 )
                               : null,
                         ),
@@ -848,11 +829,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                 SliverToBoxAdapter(
                   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance
-                        .collection('publicacoes')
-                        .orderBy('timestamp', descending: true)
-                        .limit(20)
-                        .snapshots(),
+                    stream: FirebaseFirestore.instance.collection('publicacoes').orderBy('timestamp', descending: true).limit(20).snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Padding(
@@ -1211,9 +1188,7 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight ||
-        minHeight != oldDelegate.minHeight ||
-        child != oldDelegate.child;
+    return maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
   }
 }
 
