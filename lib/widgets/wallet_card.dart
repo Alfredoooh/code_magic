@@ -728,11 +728,11 @@ class StarfieldPainter extends CustomPainter {
     for (int i = 0; i < 50; i++) {
       final x = random.nextDouble() * size.width;
       final y = random.nextDouble() * size.height;
-      final size = random.nextDouble() * 2 + 0.5;
+      final starSize = random.nextDouble() * 2 + 0.5;
       final opacity = random.nextDouble() * 0.5 + 0.3;
       
       paint.color = Colors.white.withOpacity(opacity);
-      canvas.drawCircle(Offset(x, y), size, paint);
+      canvas.drawCircle(Offset(x, y), starSize, paint);
     }
   }
 
