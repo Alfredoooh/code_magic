@@ -131,7 +131,10 @@ class StatisticsModal extends StatelessWidget {
                                 barTouchData: BarTouchData(
                                   enabled: true,
                                   touchTooltipData: BarTouchTooltipData(
-                                    tooltipBgColor: isDark ? Color(0xFF3C3C3E) : Colors.grey[800],
+                                    tooltipBorder: BorderSide(color: Colors.transparent),
+                                    tooltipPadding: EdgeInsets.all(8),
+                                    tooltipMargin: 8,
+                                    getTooltipColor: (group) => isDark ? Color(0xFF3C3C3E) : Colors.grey[800]!,
                                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                                       String label;
                                       switch (group.x.toInt()) {
