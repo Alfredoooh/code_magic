@@ -37,7 +37,7 @@ dependencies:
   # URL Launcher para abrir links
   url_launcher: ^6.3.1
   webview_flutter: ^4.4.2
-  flutter_web_auth: any
+  flutter_web_auth_2: ^4.1.0
 
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.2
