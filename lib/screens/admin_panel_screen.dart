@@ -1,6 +1,9 @@
+// admin_panel_screen.dart - Atualizado com conversão Base64
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../models/user_model.dart';
 import 'admin_modals.dart';
 import 'admin_user_edit.dart';
@@ -22,6 +25,32 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Função para converter Base64 em ImageProvider
+  ImageProvider? _getImageFromBase64(String? imageData) {
+    if (imageData == null || imageData.isEmpty) return null;
+
+    try {
+      // Se for data URL (data:image/...)
+      if (imageData.startsWith('data:image')) {
+        final base64String = imageData.split(',')[1];
+        final bytes = base64Decode(base64String);
+        return MemoryImage(bytes);
+      }
+      // Se for Base64 puro
+      else if (imageData.length > 100) {
+        final bytes = base64Decode(imageData);
+        return MemoryImage(bytes);
+      }
+      // Se for URL normal
+      else if (imageData.startsWith('http')) {
+        return NetworkImage(imageData);
+      }
+    } catch (e) {
+      print('Erro ao decodificar imagem: $e');
+    }
+    return null;
   }
 
   void _showStatsPopup() {
@@ -318,6 +347,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   }
 
   Widget _buildUserTile(UserModel user, bool isDark) {
+    final imageProvider = _getImageFromBase64(user.profileImage);
+
     return Material(
       color: isDark ? Color(0xFF000000) : Colors.white,
       child: InkWell(
@@ -326,16 +357,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Avatar
+              // Avatar com suporte a Base64
               Stack(
                 children: [
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: primaryColor,
-                    backgroundImage: user.profileImage != null && user.profileImage!.isNotEmpty
-                        ? NetworkImage(user.profileImage!)
-                        : null,
-                    child: user.profileImage == null || user.profileImage!.isEmpty
+                    backgroundImage: imageProvider,
+                    child: imageProvider == null
                         ? Text(
                             user.username[0].toUpperCase(),
                             style: TextStyle(
