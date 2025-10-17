@@ -82,16 +82,17 @@ class HomeWidgets {
     return GestureDetector(
       onTap: () {
         Navigator.push(
-          context,
-          CupertinoPageRoute(
-            builder: (context) => NewsDetailScreen(
-              article: article,
-              allArticles: allArticles,
-              currentIndex: index,
-            ),
-            fullscreenDialog: true,
-          ),
-        );
+  context,
+  CupertinoPageRoute(
+    builder: (context) => NewsDetailScreen(
+      article: article,
+      allArticles: allArticles,
+      currentIndex: index,
+      isDark: isDark,  // ← ADICIONE ESTA LINHA
+    ),
+    fullscreenDialog: true,
+  ),
+);
       },
       child: Container(
         decoration: BoxDecoration(
