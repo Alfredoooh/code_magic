@@ -34,6 +34,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late AnimationController _bottomBarAnimationController;
   late Animation<Offset> _bottomBarSlideAnimation;
   Map<String, dynamic>? _userData;
+  bool _showBottomBar = true;
 
   final List<bool> _hasNavigatedInTab = [false, false, false, false, false];
 
@@ -97,7 +98,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Future<void> _checkFirstTimeUser() async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeenWarning = prefs.getBool('hasSeenTradingWarning') ?? false;
-    
+
     if (!hasSeenWarning) {
       Future.delayed(Duration(milliseconds: 800), () {
         Navigator.of(context).push(
@@ -145,35 +146,45 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     } else {
       setState(() => _currentIndex = index);
     }
+    _updateBottomBarVisibility();
   }
 
-  bool _shouldShowBottomBar() {
-    final navigatorState = _navigatorKeys[_currentIndex].currentState;
-    bool currentCanPop = false;
-    try {
-      if (navigatorState != null) currentCanPop = navigatorState.canPop();
-    } catch (_) { currentCanPop = false; }
+  void _updateBottomBarVisibility() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      
+      final navigatorState = _navigatorKeys[_currentIndex].currentState;
+      bool currentCanPop = false;
+      try {
+        if (navigatorState != null) currentCanPop = navigatorState.canPop();
+      } catch (_) {
+        currentCanPop = false;
+      }
 
-    bool rootCanPop = false;
-    try {
-      rootCanPop = Navigator.of(context, rootNavigator: true).canPop();
-    } catch (_) { rootCanPop = false; }
+      bool rootCanPop = false;
+      try {
+        rootCanPop = Navigator.of(context, rootNavigator: true).canPop();
+      } catch (_) {
+        rootCanPop = false;
+      }
 
-    final shouldShow = !(currentCanPop || rootCanPop);
+      final shouldShow = !(currentCanPop || rootCanPop);
 
-    if (!shouldShow) {
-      _bottomBarAnimationController.forward();
-    } else {
-      _bottomBarAnimationController.reverse();
-    }
+      if (_showBottomBar != shouldShow) {
+        setState(() => _showBottomBar = shouldShow);
+      }
 
-    return shouldShow;
+      if (!shouldShow) {
+        _bottomBarAnimationController.forward();
+      } else {
+        _bottomBarAnimationController.reverse();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final showBottomBar = _shouldShowBottomBar();
 
     return WillPopScope(
       onWillPop: _onWillPop,
@@ -188,12 +199,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   _NavigatorObserver(
                     onPush: () {
                       setState(() => _hasNavigatedInTab[index] = true);
+                      _updateBottomBarVisibility();
                     },
                     onPop: () {
                       Future.microtask(() {
                         if (_navigatorKeys[index].currentState?.canPop() == false) {
                           setState(() => _hasNavigatedInTab[index] = false);
                         }
+                        _updateBottomBarVisibility();
                       });
                     },
                   ),
@@ -212,8 +225,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: AnimatedContainer(
             duration: Duration(milliseconds: 260),
             curve: Curves.easeInOut,
-            height: showBottomBar ? null : 0.0,
-            child: showBottomBar ? _buildBottomBar(context, isDark) : SizedBox.shrink(),
+            height: _showBottomBar ? null : 0.0,
+            child: _showBottomBar ? _buildBottomBar(context, isDark) : SizedBox.shrink(),
           ),
         ),
       ),
@@ -222,9 +235,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   Widget _buildBottomBar(BuildContext context, bool isDark) {
     // Cor de fundo iOS dark (~90% escuro) com transparência para o blur funcionar
-    final bgColor = isDark 
-        ? Color(0xFF1C1C1E).withOpacity(0.85) 
-        : Colors.white.withOpacity(0.85);
+    final bgColor = isDark ? Color(0xFF1C1C1E).withOpacity(0.85) : Colors.white.withOpacity(0.85);
 
     return ClipRect(
       child: BackdropFilter(
@@ -234,8 +245,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             color: bgColor,
             border: Border(
               top: BorderSide(
-                color: isDark 
-                    ? Colors.white.withOpacity(0.1) 
+                color: isDark
+                    ? Colors.white.withOpacity(0.1)
                     : Colors.black.withOpacity(0.1),
                 width: 0.5,
               ),
