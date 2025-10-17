@@ -9,7 +9,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:flutter_web_auth/flutter_web_auth.dart';
 
 /// MarketplaceScreen com OAuth (serverless) + WebSocket Deriv (app_id = 71954)
 /// Mantive TODO o design original, acrescentei apenas a lógica necessária.
@@ -34,9 +34,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   DerivWSClient? _wsClient;
   StreamSubscription<String?>? _wsSubscription;
 
-  // Uni-links subscription to capture deep links
-  StreamSubscription<Uri?>? _uniSub;
-
   // App ID
   static const int _derivAppId = 71954;
 
@@ -50,7 +47,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   @override
   void initState() {
     super.initState();
-    _initDeepLinkListener();
+    // NOTA: não usamos uni_links (causava erro de build). Usamos flutter_web_auth quando necessário.
     _loadSavedToken();
   }
 
@@ -59,47 +56,36 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     _apiTokenController.dispose();
     _wsSubscription?.cancel();
     _wsClient?.disconnect();
-    _uniSub?.cancel();
     super.dispose();
   }
 
   // ----------------------------
-  // Inicialização: deep links
+  // Handle received token / code from callback Uri
   // ----------------------------
-  void _initDeepLinkListener() async {
-    // 1) captura se app foi aberto cold-start com deep link
-    try {
-      final initialUri = await getInitialUri();
-      if (initialUri != null) {
-        _handleIncomingUri(initialUri);
-      }
-    } catch (_) {}
-
-    // 2) ouve stream de deep links (hot)
-    _uniSub = uriLinkStream.listen((Uri? uri) {
-      if (uri != null) _handleIncomingUri(uri);
-    }, onError: (err) {
-      // não bloquear a UI
-    });
-  }
-
   void _handleIncomingUri(Uri uri) {
     // Exemplo: com.nexa.madeeasy://oauth?token=XXX&state=...
     if (uri.scheme == _customScheme && uri.host == _customHost) {
       final params = uri.queryParameters;
-      // prioridade para token / access_token
       final token = params['token'] ?? params['access_token'];
       final code = params['code'];
       if (token != null && token.isNotEmpty) {
-        // guardamos e conectamos
         _onReceivedToken(token);
       } else if (code != null && code.isNotEmpty) {
-        // Se a Deriv devolveu authorization code, é necessário trocar por token
-        // num backend (não seguro fazer client-side se exigir client_secret).
         _showCodeReceivedDialog(code);
       } else {
-        // nenhum token/code -> informar
         _showErrorDialog('Callback recebido sem token (params: ${params.keys.join(',')})');
+      }
+    } else {
+      // caso o callback venha com query no esquema https (flutter_web_auth devolve a URI completa)
+      final params = uri.queryParameters;
+      final token = params['token'] ?? params['access_token'];
+      final code = params['code'];
+      if (token != null && token.isNotEmpty) {
+        _onReceivedToken(token);
+      } else if (code != null && code.isNotEmpty) {
+        _showCodeReceivedDialog(code);
+      } else {
+        _showErrorDialog('Callback recebido com esquema inesperado: ${uri.toString()}');
       }
     }
   }
@@ -107,7 +93,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Future<void> _onReceivedToken(String token) async {
     await _secureStorage.write(key: 'deriv_api_token', value: token);
     _apiTokenController.text = token;
-    // conecta via WS usando token
     await _connectToDerivAPI(token);
   }
 
@@ -163,10 +148,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         if (mounted) setState(() => _isConnected = false);
       });
 
-      // autoriza
       _wsClient!.authorizeWithToken(token);
 
-      // salva seguro (por precaução)
       await _secureStorage.write(key: 'deriv_api_token', value: token);
 
       setState(() {
@@ -183,9 +166,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
-  // ----------------------------
-  // Conexão manual via token colado
-  // ----------------------------
   Future<void> _connectToDerivAPI(String token) async {
     setState(() => _isLoading = true);
 
@@ -278,7 +258,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   // ----------------------------
-  // OAuth: abrir URL de autorização e esperar deep link
+  // OAuth: abrir URL de autorização e esperar callback com flutter_web_auth
   // ----------------------------
   String _generateRandomState([int length = 24]) {
     final rand = Random.secure();
@@ -288,24 +268,29 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Future<void> _startOAuthFlow() async {
     final state = _generateRandomState();
-    // monta URL de autorização Deriv
     final authUri = Uri.parse('https://oauth.deriv.com/oauth2/authorize').replace(queryParameters: {
       'app_id': _derivAppId.toString(),
       'redirect_uri': _redirectHttps,
       'state': state,
-      'scope': 'trade read', // podes ajustar scopes conforme necessário
-      // 'response_type': 'token' // Deriv decide o formato; mantemos padrão
+      'response_type': 'token', // pedir implicit token (se suportado)
+      'scope': 'trade read',
     });
 
     final url = authUri.toString();
 
-    // abre browser externo
-    if (await canLaunchUrl(Uri.parse(url))) {
-      // ouviremos deep link (uni_links) já configurado no initState
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      // a resposta chegará ao _handleIncomingUri através do uriLinkStream
-    } else {
-      _showErrorDialog('Não foi possível abrir o browser para autorizar.');
+    try {
+      // flutter_web_auth abre o browser e espera o callback de volta ao app scheme
+      final result = await FlutterWebAuth.authenticate(
+        url: url,
+        callbackUrlScheme: _customScheme, // com.nexa.madeeasy
+      );
+
+      // result é a URI completa da callback (p.ex.: com.nexa.madeeasy://oauth?access_token=...)
+      final callbackUri = Uri.parse(result);
+      _handleIncomingUri(callbackUri);
+    } catch (e) {
+      // Se o user cancelar ou houver erro
+      _showErrorDialog('Autenticação interrompida: $e');
     }
   }
 
@@ -454,7 +439,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   SizedBox(height: 8),
 
                   // === ADICIONADO: botão claro para iniciar OAuth via browser (serverless) ===
-                  // Isto é explicito para o utilizador: abre a página de autorização
                   Center(
                     child: CupertinoButton(
                       onPressed: () {
