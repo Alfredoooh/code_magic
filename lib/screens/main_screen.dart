@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:ui'; // ADICIONAR IMPORT
+import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -152,7 +152,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void _updateBottomBarVisibility() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      
+
       final navigatorState = _navigatorKeys[_currentIndex].currentState;
       bool currentCanPop = false;
       try {
@@ -234,12 +234,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomBar(BuildContext context, bool isDark) {
-    // Cor de fundo iOS dark (~90% escuro) com transparência para o blur funcionar
-    final bgColor = isDark ? Color(0xFF1C1C1E).withOpacity(0.85) : Colors.white.withOpacity(0.85);
+    final bgColor = isDark ? Color(0xFF1C1C1E).withOpacity(0.75) : Colors.white.withOpacity(0.75);
 
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
         child: Container(
           decoration: BoxDecoration(
             color: bgColor,
@@ -294,8 +293,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   label: 'Início',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.bar_chart_rounded),
-                  label: 'Dados',
+                  icon: Icon(Icons.shopping_bag_rounded),
+                  label: 'Negociar',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.newspaper_rounded),
@@ -353,35 +352,5 @@ class _NavigatorObserver extends NavigatorObserver {
     if (oldRoute != null && newRoute != null) {
       onPush();
     }
-  }
-}
-
-// Placeholder para GoalsScreen - você pode criar o arquivo goals_screen.dart
-class GoalsScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Metas'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.track_changes_rounded, size: 80, color: Color(0xFFFF444F)),
-            SizedBox(height: 16),
-            Text(
-              'Suas Metas',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Defina e acompanhe seus objetivos',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
