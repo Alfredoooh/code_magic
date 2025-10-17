@@ -1,3 +1,4 @@
+// lib/screens/bookmarks_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,9 +18,9 @@ class BookmarksScreen extends StatelessWidget {
       return CupertinoPageScaffold(
         backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
         navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark 
-            ? Color(0xFF1C1C1E).withOpacity(0.95) 
-            : CupertinoColors.white.withOpacity(0.95),
+          backgroundColor: isDark
+              ? Color(0xFF1C1C1E).withOpacity(0.95)
+              : CupertinoColors.white.withOpacity(0.95),
           leading: CupertinoButton(
             padding: EdgeInsets.zero,
             child: Icon(
@@ -67,9 +68,9 @@ class BookmarksScreen extends StatelessWidget {
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark 
-          ? Color(0xFF1C1C1E).withOpacity(0.95) 
-          : CupertinoColors.white.withOpacity(0.95),
+        backgroundColor: isDark
+            ? Color(0xFF1C1C1E).withOpacity(0.95)
+            : CupertinoColors.white.withOpacity(0.95),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           child: Icon(
@@ -90,7 +91,7 @@ class BookmarksScreen extends StatelessWidget {
         border: null,
       ),
       child: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
@@ -102,7 +103,6 @@ class BookmarksScreen extends StatelessWidget {
               return Center(
                 child: CupertinoActivityIndicator(
                   radius: 15,
-                  color: primaryColor,
                 ),
               );
             }
@@ -121,9 +121,9 @@ class BookmarksScreen extends StatelessWidget {
                     Text(
                       'Nenhum favorito ainda',
                       style: TextStyle(
-                        color: isDark 
-                          ? CupertinoColors.white.withOpacity(0.7) 
-                          : CupertinoColors.black.withOpacity(0.6),
+                        color: isDark
+                            ? CupertinoColors.white.withOpacity(0.7)
+                            : CupertinoColors.black.withOpacity(0.6),
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -170,9 +170,7 @@ class BookmarksScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: isDark 
-                              ? CupertinoColors.white 
-                              : CupertinoColors.black,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -187,7 +185,7 @@ class BookmarksScreen extends StatelessWidget {
                       (context, index) {
                         final doc = bookmarks[index];
                         final data = doc.data() as Map<String, dynamic>;
-                        
+
                         return Padding(
                           padding: EdgeInsets.only(bottom: 16),
                           child: _BookmarkCard(
@@ -235,7 +233,7 @@ class _BookmarkCard extends StatelessWidget {
 
   String _getTimeAgo(dynamic savedAt) {
     if (savedAt == null) return 'Recente';
-    
+
     try {
       final timestamp = savedAt as Timestamp;
       final date = timestamp.toDate();
@@ -382,15 +380,19 @@ class _BookmarkCard extends StatelessWidget {
             category: category,
           );
 
+          // <-- Chamada ajustada: passa isDark + allArticles + currentIndex
           Navigator.push(
-  context,
-  CupertinoPageRoute(
-    builder: (context) => NewsDetailScreen(
-      article: article,
-      isDark: isDark,  // ← ADICIONE ESTA LINHA
-    ),
-  ),
-);
+            context,
+            CupertinoPageRoute(
+              builder: (context) => NewsDetailScreen(
+                article: article,
+                allArticles: [article],
+                currentIndex: 0,
+                isDark: isDark,
+              ),
+              fullscreenDialog: true,
+            ),
+          );
         } catch (e) {
           print('Erro ao abrir notícia: $e');
         }
@@ -420,9 +422,7 @@ class _BookmarkCard extends StatelessWidget {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stack) => Container(
                     height: 180,
-                    color: isDark 
-                      ? Color(0xFF2C2C2E) 
-                      : CupertinoColors.systemGrey6,
+                    color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
                     child: Icon(
                       CupertinoIcons.photo,
                       size: 60,
@@ -461,9 +461,7 @@ class _BookmarkCard extends StatelessWidget {
                         onPressed: () => _showActionSheet(context),
                         child: Icon(
                           CupertinoIcons.ellipsis_circle,
-                          color: isDark 
-                            ? CupertinoColors.white 
-                            : CupertinoColors.black,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
                           size: 24,
                         ),
                       ),
@@ -475,9 +473,7 @@ class _BookmarkCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: isDark 
-                        ? CupertinoColors.white 
-                        : CupertinoColors.black,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
                       height: 1.3,
                       letterSpacing: -0.4,
                     ),
@@ -489,9 +485,7 @@ class _BookmarkCard extends StatelessWidget {
                     description,
                     style: TextStyle(
                       fontSize: 15,
-                      color: isDark 
-                        ? CupertinoColors.white.withOpacity(0.7) 
-                        : CupertinoColors.black.withOpacity(0.6),
+                      color: isDark ? CupertinoColors.white.withOpacity(0.7) : CupertinoColors.black.withOpacity(0.6),
                       height: 1.5,
                       fontWeight: FontWeight.w500,
                     ),
@@ -501,9 +495,7 @@ class _BookmarkCard extends StatelessWidget {
                   SizedBox(height: 16),
                   Container(
                     height: 1,
-                    color: isDark 
-                      ? CupertinoColors.white.withOpacity(0.1) 
-                      : CupertinoColors.black.withOpacity(0.05),
+                    color: isDark ? CupertinoColors.white.withOpacity(0.1) : CupertinoColors.black.withOpacity(0.05),
                   ),
                   SizedBox(height: 12),
                   Row(
