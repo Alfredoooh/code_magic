@@ -1,21 +1,37 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:ui';
-import 'package:flutter_deriv_api/api/api_initializer.dart';
-import 'package:flutter_deriv_api/basic_api/generated/api.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// MarketplaceScreen — UI mantida conforme pedido.
+/// Acrescentei integração WebSocket com Deriv (app_id 71954)
+/// e armazenamento seguro do token (flutter_secure_storage).
 class MarketplaceScreen extends StatefulWidget {
   @override
   _MarketplaceScreenState createState() => _MarketplaceScreenState();
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
+  // Estado UI (mantive os nomes originais)
   bool _isConnected = false;
   bool _isLoading = false;
   String? _accountInfo;
   double? _balance;
   final _apiTokenController = TextEditingController();
+
+  // Secure storage
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  // WebSocket client (Deriv)
+  DerivWSClient? _wsClient;
+  StreamSubscription<String?>? _wsSubscription;
+
+  // App ID informado por ti
+  static const int _derivAppId = 71954;
 
   @override
   void initState() {
@@ -26,40 +42,56 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   @override
   void dispose() {
     _apiTokenController.dispose();
+    _wsSubscription?.cancel();
+    _wsClient?.disconnect();
     super.dispose();
   }
 
   Future<void> _loadSavedToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('deriv_api_token');
-    if (token != null) {
-      _apiTokenController.text = token;
-      _connectToDerivAPI(token);
+    try {
+      final token = await _secureStorage.read(key: 'deriv_api_token');
+      if (token != null && token.isNotEmpty) {
+        _apiTokenController.text = token;
+        // tenta conectar automaticamente com token salvo
+        await _tryInitializeAndConnect(token);
+      }
+    } catch (e) {
+      // ignore read errors; UI permanece desconectada
     }
   }
 
-  Future<void> _connectToDerivAPI(String token) async {
+  Future<void> _tryInitializeAndConnect(String token) async {
     setState(() => _isLoading = true);
-
     try {
-      // CORREÇÃO: Remover parâmetro apiToken (não existe mais)
-      await APIInitializer().initialize(
-        isMock: false,
-      );
+      // Inicializa WebSocket client e conecta
+      _wsClient = DerivWSClient(appId: _derivAppId);
+      _wsClient!.connect();
 
-      // Obter informações da conta
-      final authorize = await AuthorizeRequest(authorize: token).fetchAuthorize();
-
-      setState(() {
-        _isConnected = true;
-        _accountInfo = authorize.authorize?.email ?? 'Conta conectada';
-        _balance = authorize.authorize?.balance;
-        _isLoading = false;
+      // escuta mensagens do WS
+      _wsSubscription = _wsClient!.messages.listen((msg) {
+        _handleWsMessage(msg);
+      }, onError: (err) {
+        // erro no stream
+      }, onDone: () {
+        // quando channel fecha
+        if (mounted) {
+          setState(() {
+            _isConnected = false;
+          });
+        }
       });
 
-      // Salvar token
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('deriv_api_token', token);
+      // envia authorize
+      _wsClient!.authorizeWithToken(token);
+
+      // grava token seguro
+      await _secureStorage.write(key: 'deriv_api_token', value: token);
+
+      // esperamos um pouco por resposta; mas não bloqueamos a UI — a resposta real virá via listener
+      setState(() {
+        _isConnected = true;
+        _isLoading = false;
+      });
 
       _showSuccessDialog();
     } catch (e) {
@@ -69,6 +101,118 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       });
       _showErrorDialog(e.toString());
     }
+  }
+
+  Future<void> _connectToDerivAPI(String token) async {
+    setState(() => _isLoading = true);
+
+    try {
+      // cria e conecta WebSocket
+      _wsClient?.disconnect();
+      _wsClient = DerivWSClient(appId: _derivAppId);
+      _wsClient!.connect();
+
+      // listen
+      _wsSubscription?.cancel();
+      _wsSubscription = _wsClient!.messages.listen((msg) {
+        _handleWsMessage(msg);
+      }, onError: (err) {
+        // fallback
+      }, onDone: () {
+        if (mounted) {
+          setState(() {
+            _isConnected = false;
+          });
+        }
+      });
+
+      // Autoriza via token
+      _wsClient!.authorizeWithToken(token);
+
+      // Salva token em armazenamento seguro
+      await _secureStorage.write(key: 'deriv_api_token', value: token);
+
+      setState(() {
+        _isConnected = true;
+        _isLoading = false;
+      });
+
+      _showSuccessDialog();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _isConnected = false;
+      });
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  // Handler genérico das mensagens WS para povoar account/balance
+  void _handleWsMessage(String? message) {
+    if (message == null) return;
+
+    // tenta decodificar JSON
+    dynamic data;
+    try {
+      data = jsonDecode(message);
+    } catch (e) {
+      data = null;
+    }
+
+    if (data is Map<String, dynamic>) {
+      // resposta authorize
+      if (data.containsKey('authorize')) {
+        final auth = data['authorize'];
+        String accountText = 'Conta conectada';
+        if (auth is Map<String, dynamic>) {
+          // pode conter loginid, email, client_id, etc
+          if (auth.containsKey('loginid')) {
+            accountText = auth['loginid'].toString();
+          } else if (auth.containsKey('client_id')) {
+            accountText = auth['client_id'].toString();
+          } else if (auth.containsKey('account_email')) {
+            accountText = auth['account_email'].toString();
+          }
+        } else if (auth is String) {
+          accountText = auth;
+        }
+
+        if (mounted) {
+          setState(() {
+            _accountInfo = accountText;
+            _isConnected = true;
+          });
+        }
+      }
+
+      // resposta balance (pode vir em diferentes formatos)
+      if (data.containsKey('balance')) {
+        // alguns endpoints retornam { "balance": "<value>" } ou { "balance": {..} }
+        final b = data['balance'];
+        double? parsed;
+        if (b is String) {
+          parsed = double.tryParse(b);
+        } else if (b is num) {
+          parsed = b.toDouble();
+        } else if (b is Map) {
+          // às vezes retorna { balance: "100", currency: "USD" ... }
+          final inner = b['balance'] ?? b['amount'] ?? b['balance_value'];
+          if (inner is String) parsed = double.tryParse(inner);
+          if (inner is num) parsed = inner.toDouble();
+        }
+
+        if (parsed != null && mounted) {
+          setState(() {
+            _balance = parsed;
+          });
+        }
+      }
+
+      // a API devolve mensagens de compra/contratos; podes logar
+      // Mantive apenas parse básico — podes adaptar para casos específicos.
+    }
+
+    // fallback: se não for JSON ou não contiver campos, apenas ignoramos
   }
 
   void _showSuccessDialog() {
@@ -121,7 +265,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             child: Container(
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white)
+                    .withOpacity(0.95),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
@@ -188,8 +333,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: EdgeInsets.symmetric(vertical: 16),
                       onPressed: () {
                         Navigator.pop(context);
-                        if (_apiTokenController.text.isNotEmpty) {
-                          _connectToDerivAPI(_apiTokenController.text);
+                        final token = _apiTokenController.text.trim();
+                        if (token.isNotEmpty) {
+                          _connectToDerivAPI(token);
+                        } else {
+                          _showErrorDialog('Token vazio');
                         }
                       },
                       child: _isLoading
@@ -245,7 +393,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white)
+                    .withOpacity(0.95),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
@@ -268,7 +417,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            color:
+                                isDark ? CupertinoColors.white : CupertinoColors.black,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -344,7 +494,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   'Mantenha seu token seguro e nunca o compartilhe',
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    color:
+                                        isDark ? CupertinoColors.white : CupertinoColors.black,
                                     fontWeight: FontWeight.w600,
                                     height: 1.4,
                                   ),
@@ -423,9 +574,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   description,
                   style: TextStyle(
                     fontSize: 15,
-                    color: isDark 
-                      ? CupertinoColors.white.withOpacity(0.7) 
-                      : CupertinoColors.black.withOpacity(0.6),
+                    color: isDark
+                        ? CupertinoColors.white.withOpacity(0.7)
+                        : CupertinoColors.black.withOpacity(0.6),
                     height: 1.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -439,8 +590,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _disconnect() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('deriv_api_token');
+    await _secureStorage.delete(key: 'deriv_api_token');
+    _wsSubscription?.cancel();
+    _wsClient?.disconnect();
     setState(() {
       _isConnected = false;
       _accountInfo = null;
@@ -459,7 +611,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         physics: BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
-            backgroundColor: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+            backgroundColor:
+                (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
             border: null,
             largeTitle: Text(
               'Trading',
@@ -791,7 +944,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   CupertinoIcons.arrow_up_circle_fill,
                   'Comprar',
                   CupertinoColors.systemGreen,
-                  () {},
+                  () {
+                    // Exemplo: pedir proposta -> buy
+                    // _wsClient?.requestProposal(...); // TODO: implementar UI de trade
+                  },
                 ),
               ),
               SizedBox(width: 12),
@@ -801,7 +957,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   CupertinoIcons.arrow_down_circle_fill,
                   'Vender',
                   Color(0xFFFF444F),
-                  () {},
+                  () {
+                    // Exemplo: vender (mesma nota que comprar)
+                  },
                 ),
               ),
             ],
@@ -911,5 +1069,64 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Cliente WebSocket mínimo para a Deriv
+/// - conecta a wss://ws.derivws.com/websockets/v3?app_id=APP_ID
+/// - envia {"authorize": "TOKEN"} para autorizar
+/// - expõe stream de mensagens (String)
+class DerivWSClient {
+  final int appId;
+  final String endpoint;
+  WebSocketChannel? _channel;
+  final StreamController<String?> _messagesController = StreamController.broadcast();
+
+  Stream<String?> get messages => _messagesController.stream;
+
+  DerivWSClient({required this.appId})
+      : endpoint = 'wss://ws.derivws.com/websockets/v3?app_id=$appId';
+
+  void connect() {
+    disconnect(); // garante que não há conexões anteriores
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse(endpoint));
+      _channel!.stream.listen((dynamic msg) {
+        // envia mensagem recebida ao stream
+        _messagesController.add(msg?.toString());
+      }, onError: (err) {
+        _messagesController.addError(err);
+      }, onDone: () {
+        _messagesController.close();
+      });
+    } catch (e) {
+      _messagesController.addError(e);
+    }
+  }
+
+  void authorizeWithToken(String token) {
+    if (_channel == null) return;
+    final payload = jsonEncode({'authorize': token});
+    _channel!.sink.add(payload);
+  }
+
+  void getBalance(String currency) {
+    if (_channel == null) return;
+    // balance request id = 1 (exemplo)
+    final payload = jsonEncode({'balance': 1, 'currency': currency});
+    _channel!.sink.add(payload);
+  }
+
+  void sendRaw(Map<String, dynamic> payload) {
+    if (_channel == null) return;
+    _channel!.sink.add(jsonEncode(payload));
+  }
+
+  void disconnect() {
+    try {
+      _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+    // não fechamos o controller se já está em uso; cancelar listeners é tarefa do caller
   }
 }
