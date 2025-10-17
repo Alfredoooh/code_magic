@@ -8,24 +8,29 @@ import '../models/news_article.dart';
 import 'news_detail_screen.dart';
 
 class BookmarksScreen extends StatelessWidget {
+  // Parâmetro opcional: se a tela chamadora passar isDark, usamos; caso contrário usamos MediaQuery.
+  final bool? isDark;
+
+  const BookmarksScreen({Key? key, this.isDark}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final bool _isDark = isDark ?? (MediaQuery.of(context).platformBrightness == Brightness.dark);
     final user = FirebaseAuth.instance.currentUser;
     final primaryColor = CupertinoTheme.of(context).primaryColor;
 
     if (user == null) {
       return CupertinoPageScaffold(
-        backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+        backgroundColor: _isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
         navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark
+          backgroundColor: _isDark
               ? Color(0xFF1C1C1E).withOpacity(0.95)
               : CupertinoColors.white.withOpacity(0.95),
           leading: CupertinoButton(
             padding: EdgeInsets.zero,
             child: Icon(
               CupertinoIcons.back,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              color: _isDark ? CupertinoColors.white : CupertinoColors.black,
               size: 24,
             ),
             onPressed: () => Navigator.pop(context),
@@ -35,7 +40,7 @@ class BookmarksScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              color: _isDark ? CupertinoColors.white : CupertinoColors.black,
             ),
           ),
           border: null,
@@ -66,16 +71,16 @@ class BookmarksScreen extends StatelessWidget {
     }
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      backgroundColor: _isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark
+        backgroundColor: _isDark
             ? Color(0xFF1C1C1E).withOpacity(0.95)
             : CupertinoColors.white.withOpacity(0.95),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           child: Icon(
             CupertinoIcons.back,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            color: _isDark ? CupertinoColors.white : CupertinoColors.black,
             size: 24,
           ),
           onPressed: () => Navigator.pop(context),
@@ -85,7 +90,7 @@ class BookmarksScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            color: _isDark ? CupertinoColors.white : CupertinoColors.black,
           ),
         ),
         border: null,
@@ -121,7 +126,7 @@ class BookmarksScreen extends StatelessWidget {
                     Text(
                       'Nenhum favorito ainda',
                       style: TextStyle(
-                        color: isDark
+                        color: _isDark
                             ? CupertinoColors.white.withOpacity(0.7)
                             : CupertinoColors.black.withOpacity(0.6),
                         fontSize: 20,
@@ -170,7 +175,7 @@ class BookmarksScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            color: _isDark ? CupertinoColors.white : CupertinoColors.black,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -192,7 +197,7 @@ class BookmarksScreen extends StatelessWidget {
                             data: data,
                             docId: doc.id,
                             userId: user.uid,
-                            isDark: isDark,
+                            isDark: _isDark,
                             primaryColor: primaryColor,
                           ),
                         );
@@ -287,9 +292,11 @@ class _BookmarkCard extends StatelessWidget {
         ),
       );
 
+      // Verificação segura para fechar o diálogo se ainda for possível
       Future.delayed(Duration(seconds: 1), () {
-        if (context.mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
+        final navigator = Navigator.of(context, rootNavigator: true);
+        if (navigator.canPop()) {
+          navigator.pop();
         }
       });
     } catch (e) {
@@ -376,11 +383,11 @@ class _BookmarkCard extends StatelessWidget {
             url: data['url'] ?? '',
             imageUrl: imageUrl,
             source: source,
-            publishedAt: DateTime.parse(data['publishedAt'] ?? DateTime.now().toIso8601String()),
+            publishedAt: DateTime.parse(
+                data['publishedAt'] ?? DateTime.now().toIso8601String()),
             category: category,
           );
 
-          // <-- Chamada ajustada: passa isDark + allArticles + currentIndex
           Navigator.push(
             context,
             CupertinoPageRoute(
