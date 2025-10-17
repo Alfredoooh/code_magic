@@ -9,15 +9,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:app_links/app_links.dart';
+import 'package:uni_links/uni_links.dart';
 
-/// MarketplaceScreen atualizado para usar `app_links`
-/// - OAuth serverless (redirect HTTPS -> custom scheme)
-/// - validação de `state`
-/// - armazenamento seguro do token
-/// - WebSocket mínimo para Deriv (app_id = 71954)
-///
-/// Mantive o design e layout originais — apenas acrescentei a lógica.
+/// MarketplaceScreen com OAuth (serverless) + WebSocket Deriv (app_id = 71954)
+/// Mantive TODO o design original, acrescentei apenas a lógica necessária.
+/// Redirect HTTPS configurado para: https://alfredoooh.github.io/database/oauth-redirect/
+/// Deep link custom scheme: com.nexa.madeeasy://oauth
 class MarketplaceScreen extends StatefulWidget {
   @override
   _MarketplaceScreenState createState() => _MarketplaceScreenState();
@@ -37,18 +34,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   DerivWSClient? _wsClient;
   StreamSubscription<String?>? _wsSubscription;
 
-  // AppLinks (substitui uni_links)
-  final AppLinks _appLinks = AppLinks();
-  StreamSubscription<Uri?>? _appLinksSub;
+  // Uni-links subscription to capture deep links
+  StreamSubscription<Uri?>? _uniSub;
 
-  // App id e URIs
+  // App ID
   static const int _derivAppId = 71954;
+
+  // OAuth redirect HTTPS (tua página no GitHub Pages)
   static const String _redirectHttps = 'https://alfredoooh.github.io/database/oauth-redirect/';
+
+  // custom scheme that está registado no AndroidManifest/Info.plist
   static const String _customScheme = 'com.nexa.madeeasy';
   static const String _customHost = 'oauth';
-
-  // Estado anti-CSRF
-  String? _pendingState;
 
   @override
   void initState() {
@@ -62,58 +59,47 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     _apiTokenController.dispose();
     _wsSubscription?.cancel();
     _wsClient?.disconnect();
-    _appLinksSub?.cancel();
+    _uniSub?.cancel();
     super.dispose();
   }
 
   // ----------------------------
-  // Inicialização: deep links via app_links
+  // Inicialização: deep links
   // ----------------------------
   void _initDeepLinkListener() async {
-    // Captura initial link (quando app abriu via deep link)
+    // 1) captura se app foi aberto cold-start com deep link
     try {
-      final initialUri = await _appLinks.getInitialAppLink();
+      final initialUri = await getInitialUri();
       if (initialUri != null) {
         _handleIncomingUri(initialUri);
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (_) {}
 
-    // Ouvimos stream de deep links
-    _appLinksSub = _appLinks.uriLinkStream.listen((Uri? uri) {
+    // 2) ouve stream de deep links (hot)
+    _uniSub = uriLinkStream.listen((Uri? uri) {
       if (uri != null) _handleIncomingUri(uri);
     }, onError: (err) {
-      // não bloquear UI
+      // não bloquear a UI
     });
   }
 
   void _handleIncomingUri(Uri uri) {
-    // Exemplo: com.nexa.madeeasy://oauth?access_token=...&state=...
+    // Exemplo: com.nexa.madeeasy://oauth?token=XXX&state=...
     if (uri.scheme == _customScheme && uri.host == _customHost) {
       final params = uri.queryParameters;
-      final token = params['token'] ?? params['access_token'] ?? params['accessToken'];
+      // prioridade para token / access_token
+      final token = params['token'] ?? params['access_token'];
       final code = params['code'];
-      final returnedState = params['state'];
-
-      // validar state se houver pendingState
-      if (_pendingState != null) {
-        if (returnedState == null || returnedState != _pendingState) {
-          // possível CSRF ou mismatch
-          _showErrorDialog('State mismatch no callback OAuth. (esperado: $_pendingState) Recebido: $returnedState');
-          _pendingState = null;
-          return;
-        }
-      }
-
-      _pendingState = null; // limpar pending
-
       if (token != null && token.isNotEmpty) {
+        // guardamos e conectamos
         _onReceivedToken(token);
       } else if (code != null && code.isNotEmpty) {
+        // Se a Deriv devolveu authorization code, é necessário trocar por token
+        // num backend (não seguro fazer client-side se exigir client_secret).
         _showCodeReceivedDialog(code);
       } else {
-        _showErrorDialog('Callback recebido sem token/code');
+        // nenhum token/code -> informar
+        _showErrorDialog('Callback recebido sem token (params: ${params.keys.join(',')})');
       }
     }
   }
@@ -121,30 +107,35 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Future<void> _onReceivedToken(String token) async {
     await _secureStorage.write(key: 'deriv_api_token', value: token);
     _apiTokenController.text = token;
+    // conecta via WS usando token
     await _connectToDerivAPI(token);
   }
 
   void _showCodeReceivedDialog(String code) {
     showCupertinoDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => CupertinoAlertDialog(
-        title: Text('Código OAuth recebido'),
+        title: Text('Código recebido'),
         content: Padding(
           padding: EdgeInsets.only(top: 8),
           child: Text(
-            'Recebemos um authorization code. Para trocar por um access token é necessário um backend seguro. Código:\n\n$code',
+            'Recebemos um authorization code. Para trocar este code por um token de acesso é necessário um backend (por segurança). Código:\n\n$code',
             style: TextStyle(fontSize: 13),
           ),
         ),
         actions: [
-          CupertinoDialogAction(child: Text('OK'), onPressed: () => Navigator.pop(context)),
+          CupertinoDialogAction(
+            child: Text('Entendi'),
+            onPressed: () => Navigator.pop(context),
+          ),
         ],
       ),
     );
   }
 
   // ----------------------------
-  // Persistência: carregar token salvo
+  // Token persistente: load / connect
   // ----------------------------
   Future<void> _loadSavedToken() async {
     try {
@@ -172,24 +163,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         if (mounted) setState(() => _isConnected = false);
       });
 
+      // autoriza
       _wsClient!.authorizeWithToken(token);
 
+      // salva seguro (por precaução)
       await _secureStorage.write(key: 'deriv_api_token', value: token);
 
-      if (mounted) {
-        setState(() {
-          _isConnected = true;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isConnected = true;
+        _isLoading = false;
+      });
       _showSuccessDialog();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isConnected = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+        _isConnected = false;
+      });
       _showErrorDialog(e.toString());
     }
   }
@@ -216,30 +205,27 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
       await _secureStorage.write(key: 'deriv_api_token', value: token);
 
-      if (mounted) {
-        setState(() {
-          _isConnected = true;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isConnected = true;
+        _isLoading = false;
+      });
 
       _showSuccessDialog();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isConnected = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+        _isConnected = false;
+      });
       _showErrorDialog(e.toString());
     }
   }
 
   // ----------------------------
-  // WebSocket message handling
+  // WS message handling
   // ----------------------------
   void _handleWsMessage(String? message) {
     if (message == null) return;
+
     dynamic data;
     try {
       data = jsonDecode(message);
@@ -252,11 +238,23 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         final auth = data['authorize'];
         String accountText = 'Conta conectada';
         if (auth is Map<String, dynamic>) {
-          if (auth.containsKey('loginid')) accountText = auth['loginid'].toString();
-          else if (auth.containsKey('client_id')) accountText = auth['client_id'].toString();
-          else if (auth.containsKey('account_email')) accountText = auth['account_email'].toString();
-        } else if (auth is String) accountText = auth;
-        if (mounted) setState(() => _accountInfo = accountText);
+          if (auth.containsKey('loginid')) {
+            accountText = auth['loginid'].toString();
+          } else if (auth.containsKey('client_id')) {
+            accountText = auth['client_id'].toString();
+          } else if (auth.containsKey('account_email')) {
+            accountText = auth['account_email'].toString();
+          }
+        } else if (auth is String) {
+          accountText = auth;
+        }
+
+        if (mounted) {
+          setState(() {
+            _accountInfo = accountText;
+            _isConnected = true;
+          });
+        }
       }
 
       if (data.containsKey('balance')) {
@@ -269,13 +267,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           if (inner is String) parsed = double.tryParse(inner);
           if (inner is num) parsed = inner.toDouble();
         }
-        if (parsed != null && mounted) setState(() => _balance = parsed);
+
+        if (parsed != null && mounted) {
+          setState(() {
+            _balance = parsed;
+          });
+        }
       }
     }
   }
 
   // ----------------------------
-  // OAuth: gerar state e iniciar autorization
+  // OAuth: abrir URL de autorização e esperar deep link
   // ----------------------------
   String _generateRandomState([int length = 24]) {
     final rand = Random.secure();
@@ -285,21 +288,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Future<void> _startOAuthFlow() async {
     final state = _generateRandomState();
-    _pendingState = state;
-
+    // monta URL de autorização Deriv
     final authUri = Uri.parse('https://oauth.deriv.com/oauth2/authorize').replace(queryParameters: {
       'app_id': _derivAppId.toString(),
       'redirect_uri': _redirectHttps,
       'state': state,
-      'response_type': 'token', // pedimos token no fragment (implicit flow) se a Deriv suportar
-      'scope': 'trade read',
+      'scope': 'trade read', // podes ajustar scopes conforme necessário
+      // 'response_type': 'token' // Deriv decide o formato; mantemos padrão
     });
 
     final url = authUri.toString();
 
+    // abre browser externo
     if (await canLaunchUrl(Uri.parse(url))) {
+      // ouviremos deep link (uni_links) já configurado no initState
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      // callback será capturado via app_links listener
+      // a resposta chegará ao _handleIncomingUri através do uriLinkStream
     } else {
       _showErrorDialog('Não foi possível abrir o browser para autorizar.');
     }
@@ -315,7 +319,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         title: Text('✅ Conectado'),
         content: Text('Conta Deriv conectada com sucesso!'),
         actions: [
-          CupertinoDialogAction(child: Text('OK'), onPressed: () => Navigator.pop(context)),
+          CupertinoDialogAction(
+            child: Text('OK'),
+            onPressed: () => Navigator.pop(context),
+          ),
         ],
       ),
     );
@@ -328,12 +335,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         title: Text('❌ Erro'),
         content: Text('Falha: $error'),
         actions: [
-          CupertinoDialogAction(child: Text('OK'), onPressed: () => Navigator.pop(context)),
+          CupertinoDialogAction(
+            child: Text('OK'),
+            onPressed: () => Navigator.pop(context),
+          ),
         ],
       ),
     );
   }
 
+  // ----------------------------
+  // UI: mantive o design original
+  // ----------------------------
   void _showLoginSheet() {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
@@ -342,7 +355,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: ClipRRect(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           child: BackdropFilter(
@@ -357,11 +372,35 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: CupertinoColors.systemGrey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.systemGrey.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                   SizedBox(height: 24),
-                  Text('Conectar Deriv', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? CupertinoColors.white : CupertinoColors.black, letterSpacing: -0.5)),
+                  Text(
+                    'Conectar Deriv',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                   SizedBox(height: 8),
-                  Text('Insira seu token API da Deriv para começar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: CupertinoColors.systemGrey)),
+                  Text(
+                    'Insira seu token API da Deriv para começar',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
                   SizedBox(height: 24),
                   CupertinoTextField(
                     controller: _apiTokenController,
@@ -370,10 +409,19 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     decoration: BoxDecoration(
                       color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: isDark ? Color(0xFF3A3A3C) : CupertinoColors.systemGrey5, width: 1),
+                      border: Border.all(
+                        color: isDark ? Color(0xFF3A3A3C) : CupertinoColors.systemGrey5,
+                        width: 1,
+                      ),
                     ),
-                    style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black, fontSize: 16),
-                    placeholderStyle: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16),
+                    style: TextStyle(
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      fontSize: 16,
+                    ),
+                    placeholderStyle: TextStyle(
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 16,
+                    ),
                   ),
                   SizedBox(height: 20),
                   SizedBox(
@@ -385,30 +433,61 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       onPressed: () {
                         Navigator.pop(context);
                         final token = _apiTokenController.text.trim();
-                        if (token.isNotEmpty) _connectToDerivAPI(token);
-                        else _showErrorDialog('Token vazio');
+                        if (token.isNotEmpty) {
+                          _connectToDerivAPI(token);
+                        } else {
+                          _showErrorDialog('Token vazio');
+                        }
                       },
-                      child: _isLoading ? CupertinoActivityIndicator(color: CupertinoColors.white) : Text('Conectar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17, letterSpacing: 0.3)),
+                      child: _isLoading
+                          ? CupertinoActivityIndicator(color: CupertinoColors.white)
+                          : Text(
+                              'Conectar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 17,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
                     ),
                   ),
                   SizedBox(height: 8),
+
+                  // === ADICIONADO: botão claro para iniciar OAuth via browser (serverless) ===
+                  // Isto é explicito para o utilizador: abre a página de autorização
                   Center(
                     child: CupertinoButton(
                       onPressed: () {
                         Navigator.pop(context);
                         _startOAuthFlow();
                       },
-                      child: Text('Autorizar via navegador (OAuth)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFFFF444F))),
+                      child: Text(
+                        'Autorizar via navegador (OAuth)',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF444F),
+                        ),
+                      ),
                     ),
                   ),
+
                   SizedBox(height: 4),
+
                   Center(
                     child: CupertinoButton(
                       onPressed: () {
                         Navigator.pop(context);
                         _showApiGuide();
                       },
-                      child: Text('Como obter meu token API?', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFFFF444F))),
+                      child: Text(
+                        'Como obter meu token API?',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF444F),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -422,6 +501,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   void _showApiGuide() {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -433,16 +513,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              decoration: BoxDecoration(color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              decoration: BoxDecoration(
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
               child: Column(
                 children: [
                   Padding(
                     padding: EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        Container(width: 40, height: 4, decoration: BoxDecoration(color: CupertinoColors.systemGrey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+                        Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.systemGrey.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                         SizedBox(height: 16),
-                        Text('Guia de Configuração API', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? CupertinoColors.white : CupertinoColors.black, letterSpacing: -0.5)),
+                        Text(
+                          'Guia de Configuração API',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -451,23 +549,78 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: EdgeInsets.symmetric(horizontal: 24),
                       physics: BouncingScrollPhysics(),
                       children: [
-                        _buildGuideStep(isDark, '1', 'Acesse sua conta Deriv', 'Faça login em app.deriv.com', CupertinoIcons.arrow_right_circle_fill),
-                        _buildGuideStep(isDark, '2', 'Vá para API Token', 'Clique no menu → Settings → API Token', CupertinoIcons.settings_solid),
-                        _buildGuideStep(isDark, '3', 'Crie um novo token', 'Clique em "Create" e selecione as permissões:\n• Read\n• Trade\n• Trading Information', CupertinoIcons.add_circled_solid),
-                        _buildGuideStep(isDark, '4', 'Copie o token', 'Copie o token gerado e cole no app', CupertinoIcons.doc_on_clipboard_fill),
+                        _buildGuideStep(
+                          isDark,
+                          '1',
+                          'Acesse sua conta Deriv',
+                          'Faça login em app.deriv.com',
+                          CupertinoIcons.arrow_right_circle_fill,
+                        ),
+                        _buildGuideStep(
+                          isDark,
+                          '2',
+                          'Vá para API Token',
+                          'Clique no menu → Settings → API Token',
+                          CupertinoIcons.settings_solid,
+                        ),
+                        _buildGuideStep(
+                          isDark,
+                          '3',
+                          'Crie um novo token',
+                          'Clique em "Create" e selecione as permissões:\n• Read\n• Trade\n• Trading Information',
+                          CupertinoIcons.add_circled_solid,
+                        ),
+                        _buildGuideStep(
+                          isDark,
+                          '4',
+                          'Copie o token',
+                          'Copie o token gerado e cole no app',
+                          CupertinoIcons.doc_on_clipboard_fill,
+                        ),
                         SizedBox(height: 24),
                         Container(
                           padding: EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [Color(0xFFFF444F).withOpacity(0.12), Color(0xFFFF444F).withOpacity(0.06)]),
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFFFF444F).withOpacity(0.12),
+                                Color(0xFFFF444F).withOpacity(0.06),
+                              ],
+                            ),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Color(0xFFFF444F).withOpacity(0.25), width: 1.5),
+                            border: Border.all(
+                              color: Color(0xFFFF444F).withOpacity(0.25),
+                              width: 1.5,
+                            ),
                           ),
-                          child: Row(children: [
-                            Container(padding: EdgeInsets.all(10), decoration: BoxDecoration(color: Color(0xFFFF444F).withOpacity(0.15), borderRadius: BorderRadius.circular(12)), child: Icon(CupertinoIcons.exclamationmark_shield_fill, color: Color(0xFFFF444F), size: 24)),
-                            SizedBox(width: 16),
-                            Expanded(child: Text('Mantenha seu token seguro e nunca o compartilhe', style: TextStyle(fontSize: 15, color: isDark ? CupertinoColors.white : CupertinoColors.black, fontWeight: FontWeight.w600, height: 1.4))),
-                          ]),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFFF444F).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  CupertinoIcons.exclamationmark_shield_fill,
+                                  color: Color(0xFFFF444F),
+                                  size: 24,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  'Mantenha seu token seguro e nunca o compartilhe',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         SizedBox(height: 40),
                       ],
@@ -485,15 +638,72 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildGuideStep(bool isDark, String number, String title, String description, IconData icon) {
     return Padding(
       padding: EdgeInsets.only(bottom: 24),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(width: 48, height: 48, decoration: BoxDecoration(color: Color(0xFFFF444F), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0xFFFF444F).withOpacity(0.3), blurRadius: 10, offset: Offset(0, 4))]), child: Center(child: Text(number, style: TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w800, fontSize: 18)))),
-        SizedBox(width: 16),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Icon(icon, size: 20, color: Color(0xFFFF444F)), SizedBox(width: 8), Expanded(child: Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: isDark ? CupertinoColors.white : CupertinoColors.black)))]),
-          SizedBox(height: 8),
-          Text(description, style: TextStyle(fontSize: 15, color: isDark ? CupertinoColors.white.withOpacity(0.7) : CupertinoColors.black.withOpacity(0.6), height: 1.5, fontWeight: FontWeight.w500)),
-        ])),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Color(0xFFFF444F),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFFFF444F).withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  color: CupertinoColors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 20, color: Color(0xFFFF444F)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: isDark
+                        ? CupertinoColors.white.withOpacity(0.7)
+                        : CupertinoColors.black.withOpacity(0.6),
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -515,95 +725,480 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      child: CustomScrollView(physics: BouncingScrollPhysics(), slivers: [
-        CupertinoSliverNavigationBar(
-          backgroundColor: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
-          border: null,
-          largeTitle: Text('Trading', style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black, fontWeight: FontWeight.w800)),
-          trailing: _isConnected ? CupertinoButton(padding: EdgeInsets.zero, minSize: 0, onPressed: _disconnect, child: Icon(CupertinoIcons.power, color: Color(0xFFFF444F), size: 24)) : null,
-        ),
-        SliverToBoxAdapter(child: _isConnected ? _buildConnectedView(isDark) : _buildDisconnectedView(isDark)),
-      ]),
+      child: CustomScrollView(
+        physics: BouncingScrollPhysics(),
+        slivers: [
+          CupertinoSliverNavigationBar(
+            backgroundColor: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+            border: null,
+            largeTitle: Text(
+              'Trading',
+              style: TextStyle(
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            trailing: _isConnected
+                ? CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minSize: 0,
+                    onPressed: _disconnect,
+                    child: Icon(
+                      CupertinoIcons.power,
+                      color: Color(0xFFFF444F),
+                      size: 24,
+                    ),
+                  )
+                : null,
+          ),
+          SliverToBoxAdapter(
+            child: _isConnected ? _buildConnectedView(isDark) : _buildDisconnectedView(isDark),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildDisconnectedView(bool isDark) {
     return Padding(
       padding: EdgeInsets.all(20),
-      child: Column(children: [
-        SizedBox(height: 40),
-        Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)], begin: Alignment.topLeft, end: Alignment.bottomRight), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0xFFFF444F).withOpacity(0.4), blurRadius: 30, offset: Offset(0, 15))]),
-          child: Icon(CupertinoIcons.chart_bar_alt_fill, size: 60, color: CupertinoColors.white),
-        ),
-        SizedBox(height: 32),
-        Text('Bem-vindo ao Trading', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: isDark ? CupertinoColors.white : CupertinoColors.black, letterSpacing: -0.5)),
-        SizedBox(height: 12),
-        Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Conecte sua conta Deriv para começar a negociar nos mercados financeiros', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: CupertinoColors.systemGrey, height: 1.5, fontWeight: FontWeight.w500))),
-        SizedBox(height: 48),
-        _buildFeatureCard(isDark, CupertinoIcons.speedometer, 'Trading Rápido', 'Execute trades em segundos'),
-        SizedBox(height: 16),
-        _buildFeatureCard(isDark, CupertinoIcons.chart_bar_square_fill, 'Análise em Tempo Real', 'Gráficos e indicadores avançados'),
-        SizedBox(height: 16),
-        _buildFeatureCard(isDark, CupertinoIcons.lock_shield_fill, 'Seguro e Confiável', 'Powered by Deriv API'),
-        SizedBox(height: 48),
-        CupertinoButton(padding: EdgeInsets.zero, onPressed: _showLoginSheet, child: Container(width: double.infinity, padding: EdgeInsets.symmetric(vertical: 18), decoration: BoxDecoration(color: Color(0xFFFF444F), borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Color(0xFFFF444F).withOpacity(0.4), blurRadius: 16, offset: Offset(0, 6))]), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(CupertinoIcons.link, size: 22, color: CupertinoColors.white), SizedBox(width: 10), Text('Conectar Conta Deriv', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: CupertinoColors.white, letterSpacing: 0.3))]))),
-        SizedBox(height: 40),
-      ]),
+      child: Column(
+        children: [
+          SizedBox(height: 40),
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF444F),
+                  Color(0xFFFF6B6B),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFFFF444F).withOpacity(0.4),
+                  blurRadius: 30,
+                  offset: Offset(0, 15),
+                ),
+              ],
+            ),
+            child: Icon(
+              CupertinoIcons.chart_bar_alt_fill,
+              size: 60,
+              color: CupertinoColors.white,
+            ),
+          ),
+          SizedBox(height: 32),
+          Text(
+            'Bem-vindo ao Trading',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              letterSpacing: -0.5,
+            ),
+          ),
+          SizedBox(height: 12),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Conecte sua conta Deriv para começar a negociar nos mercados financeiros',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: CupertinoColors.systemGrey,
+                height: 1.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          SizedBox(height: 48),
+          _buildFeatureCard(
+            isDark,
+            CupertinoIcons.speedometer,
+            'Trading Rápido',
+            'Execute trades em segundos',
+          ),
+          SizedBox(height: 16),
+          _buildFeatureCard(
+            isDark,
+            CupertinoIcons.chart_bar_square_fill,
+            'Análise em Tempo Real',
+            'Gráficos e indicadores avançados',
+          ),
+          SizedBox(height: 16),
+          _buildFeatureCard(
+            isDark,
+            CupertinoIcons.lock_shield_fill,
+            'Seguro e Confiável',
+            'Powered by Deriv API',
+          ),
+          SizedBox(height: 48),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _showLoginSheet,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                color: Color(0xFFFF444F),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFFFF444F).withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.link, size: 22, color: CupertinoColors.white),
+                  SizedBox(width: 10),
+                  Text(
+                    'Conectar Conta Deriv',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: CupertinoColors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 40),
+        ],
+      ),
     );
   }
 
   Widget _buildFeatureCard(bool isDark, IconData icon, String title, String subtitle) {
-    return Container(padding: EdgeInsets.all(20), decoration: BoxDecoration(color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6, width: 1), boxShadow: [BoxShadow(color: CupertinoColors.black.withOpacity(0.08), blurRadius: 12, offset: Offset(0, 4))]), child: Row(children: [Container(width: 56, height: 56, decoration: BoxDecoration(color: Color(0xFFFF444F).withOpacity(0.12), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: Color(0xFFFF444F), size: 28)), SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: isDark ? CupertinoColors.white : CupertinoColors.black)), SizedBox(height: 4), Text(subtitle, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: CupertinoColors.systemGrey))]))]);
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Color(0xFFFF444F).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: Color(0xFFFF444F), size: 28),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildConnectedView(bool isDark) {
-    return Padding(padding: EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: EdgeInsets.all(24), decoration: BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Color(0xFFFF444F).withOpacity(0.4), blurRadius: 20, offset: Offset(0, 10))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Saldo Disponível', style: TextStyle(color: CupertinoColors.white.withOpacity(0.85), fontSize: 14, fontWeight: FontWeight.w600)),
-            SizedBox(height: 8),
-            Text('\$${_balance?.toStringAsFixed(2) ?? '0.00'}', style: TextStyle(color: CupertinoColors.white, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1)),
-          ]),
-          Container(padding: EdgeInsets.all(14), decoration: BoxDecoration(color: CupertinoColors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(14)), child: Icon(CupertinoIcons.money_dollar_circle_fill, color: CupertinoColors.white, size: 32)),
-        ]),
-        SizedBox(height: 16),
-        Row(children: [Icon(CupertinoIcons.checkmark_seal_fill, size: 16, color: CupertinoColors.white.withOpacity(0.9)), SizedBox(width: 6), Text(_accountInfo ?? 'Conta Deriv', style: TextStyle(color: CupertinoColors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600))]),
-      ])),
-      SizedBox(height: 32),
-      Row(children: [Container(width: 4, height: 24, decoration: BoxDecoration(color: Color(0xFFFF444F), borderRadius: BorderRadius.circular(2))), SizedBox(width: 12), Text('Ações Rápidas', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: isDark ? CupertinoColors.white : CupertinoColors.black, letterSpacing: -0.5))]),
-      SizedBox(height: 16),
-      Row(children: [
-        Expanded(child: _buildActionButton(isDark, CupertinoIcons.arrow_up_circle_fill, 'Comprar', CupertinoColors.systemGreen, () { /* implementar compra */ })),
-        SizedBox(width: 12),
-        Expanded(child: _buildActionButton(isDark, CupertinoIcons.arrow_down_circle_fill, 'Vender', Color(0xFFFF444F), () { /* implementar venda */ })),
-      ]),
-      SizedBox(height: 32),
-      Row(children: [Container(width: 4, height: 24, decoration: BoxDecoration(color: Color(0xFFFF444F), borderRadius: BorderRadius.circular(2))), SizedBox(width: 12), Text('Em Desenvolvimento', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: isDark ? CupertinoColors.white : CupertinoColors.black, letterSpacing: -0.5))]),
-      SizedBox(height: 16),
-      Container(padding: EdgeInsets.all(20), decoration: BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFFF444F).withOpacity(0.12), Color(0xFFFF444F).withOpacity(0.06)]), borderRadius: BorderRadius.circular(16), border: Border.all(color: Color(0xFFFF444F).withOpacity(0.25), width: 1.5)), child: Row(children: [Container(padding: EdgeInsets.all(10), decoration: BoxDecoration(color: Color(0xFFFF444F).withOpacity(0.15), borderRadius: BorderRadius.circular(12)), child: Icon(CupertinoIcons.hammer_fill, color: Color(0xFFFF444F), size: 24)), SizedBox(width: 16), Expanded(child: Text('Funcionalidades de trading completas em breve', style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black, fontSize: 15, fontWeight: FontWeight.w600, height: 1.4)))])),
-      SizedBox(height: 40),
-    ]));
+    return Padding(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF444F),
+                  Color(0xFFFF6B6B),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFFFF444F).withOpacity(0.4),
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Saldo Disponível',
+                          style: TextStyle(
+                            color: CupertinoColors.white.withOpacity(0.85),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '\$${_balance?.toStringAsFixed(2) ?? '0.00'}',
+                          style: TextStyle(
+                            color: CupertinoColors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.money_dollar_circle_fill,
+                        color: CupertinoColors.white,
+                        size: 32,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.checkmark_seal_fill,
+                      size: 16,
+                      color: CupertinoColors.white.withOpacity(0.9),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      _accountInfo ?? 'Conta Deriv',
+                      style: TextStyle(
+                        color: CupertinoColors.white.withOpacity(0.9),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 32),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Color(0xFFFF444F),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Ações Rápidas',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  isDark,
+                  CupertinoIcons.arrow_up_circle_fill,
+                  'Comprar',
+                  CupertinoColors.systemGreen,
+                  () {
+                    // exemplo: implementar fluxo de proposta->buy aqui
+                  },
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  isDark,
+                  CupertinoIcons.arrow_down_circle_fill,
+                  'Vender',
+                  Color(0xFFFF444F),
+                  () {
+                    // exemplo: implementar fluxo de proposta->buy aqui
+                  },
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 32),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Color(0xFFFF444F),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Em Desenvolvimento',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF444F).withOpacity(0.12),
+                  Color(0xFFFF444F).withOpacity(0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Color(0xFFFF444F).withOpacity(0.25),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFF444F).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    CupertinoIcons.hammer_fill,
+                    color: Color(0xFFFF444F),
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Funcionalidades de trading completas em breve',
+                    style: TextStyle(
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 40),
+        ],
+      ),
+    );
   }
 
   Widget _buildActionButton(bool isDark, IconData icon, String label, Color color, VoidCallback onTap) {
-    return CupertinoButton(padding: EdgeInsets.zero, onPressed: onTap, child: Container(padding: EdgeInsets.symmetric(vertical: 20), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withOpacity(0.3), width: 1.5)), child: Column(children: [Icon(icon, color: color, size: 36), SizedBox(height: 10), Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16, letterSpacing: 0.2))])));
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 36),
+            SizedBox(height: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-/// Cliente WebSocket mínimo para Deriv (v3 websockets)
+/// Cliente WebSocket mínimo para Deriv
 class DerivWSClient {
   final int appId;
   final String endpoint;
   WebSocketChannel? _channel;
-  final StreamController<String?> _messagesController = StreamController<String?>.broadcast();
+  final StreamController<String?> _messagesController = StreamController.broadcast();
 
   Stream<String?> get messages => _messagesController.stream;
 
-  DerivWSClient({required this.appId}) : endpoint = 'wss://ws.derivws.com/websockets/v3?app_id=$appId';
+  DerivWSClient({required this.appId})
+      : endpoint = 'wss://ws.derivws.com/websockets/v3?app_id=$appId';
 
   void connect() {
     disconnect();
@@ -625,7 +1220,6 @@ class DerivWSClient {
 
   void authorizeWithToken(String token) {
     if (_channel == null) return;
-    // Deriv's authorize expects {"authorize": "TOKEN"}
     final payload = jsonEncode({'authorize': token});
     _channel!.sink.add(payload);
   }
