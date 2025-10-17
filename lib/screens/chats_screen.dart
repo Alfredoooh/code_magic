@@ -30,17 +30,13 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   late AnimationController _badgeController;
   late PageController _pageController;
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
+  bool _isProOrAdmin = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
-    });
     _badgeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -73,7 +69,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     });
   }
 
-  void _loadUserData() {
+  Future<void> _loadUserData() async {
     final user = widget.currentUser;
     if (user != null) {
       FirebaseFirestore.instance
@@ -82,13 +78,89 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           .snapshots()
           .listen((doc) {
         if (doc.exists && mounted) {
-          setState(() => _userData = doc.data());
+          final data = doc.data();
+          setState(() {
+            _userData = data;
+            _isProOrAdmin = (data?['pro'] == true) || (data?['admin'] == true);
+            _isLoading = false;
+          });
         }
       });
     }
   }
 
+  Future<void> _createConversation(String otherUserId) async {
+    final user = widget.currentUser;
+    if (user == null) return;
+
+    try {
+      // Verificar se já existe uma conversa
+      final existingConv = await FirebaseFirestore.instance
+          .collection('conversations')
+          .where('participants', arrayContains: user.uid)
+          .get();
+
+      for (var doc in existingConv.docs) {
+        final participants = List<String>.from(doc.data()['participants'] ?? []);
+        if (participants.contains(otherUserId) && participants.length == 2) {
+          // Conversa já existe, navegar para ela
+          final otherUserDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(otherUserId)
+              .get();
+          
+          final otherUserData = otherUserDoc.data();
+          
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              builder: (context) => ChatDetailScreen(
+                recipientId: otherUserId,
+                recipientName: otherUserData?['username'] ?? 'Usuário',
+                recipientImage: otherUserData?['profile_image'] ?? '',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      // Criar nova conversa
+      final conversationRef = await FirebaseFirestore.instance.collection('conversations').add({
+        'participants': [user.uid, otherUserId],
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'unreadCount_${user.uid}': 0,
+        'unreadCount_$otherUserId': 0,
+      });
+
+      // Navegar para a conversa
+      final otherUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .get();
+      
+      final otherUserData = otherUserDoc.data();
+      
+      Navigator.push(
+        context,
+        CupertinoPageRoute(
+          builder: (context) => ChatDetailScreen(
+            recipientId: otherUserId,
+            recipientName: otherUserData?['username'] ?? 'Usuário',
+            recipientImage: otherUserData?['profile_image'] ?? '',
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Erro ao criar conversa: $e');
+    }
+  }
+
   void _showOptionsMenu() {
+    if (!_isProOrAdmin) return;
+    
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showCupertinoModalPopup(
@@ -116,21 +188,20 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
               ],
             ),
           ),
-          if (_userData?['pro'] == true)
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.pop(context);
-                _showCreateGroupDialog();
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.group, color: primaryColor),
-                  const SizedBox(width: 8),
-                  Text('Criar Grupo', style: TextStyle(color: primaryColor)),
-                ],
-              ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _showCreateGroupDialog();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.group, color: primaryColor),
+                const SizedBox(width: 8),
+                Text('Criar Grupo', style: TextStyle(color: primaryColor)),
+              ],
             ),
+          ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(context),
@@ -186,6 +257,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                       'timestamp': FieldValue.serverTimestamp(),
                       'lastMessage': '',
                       'lastMessageTime': FieldValue.serverTimestamp(),
+                      'groupImage': '',
                     });
                     nameController.dispose();
                     Navigator.pop(context);
@@ -209,6 +281,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         builder: (context) => UsersListScreen(
           currentUser: widget.currentUser,
           userData: _userData,
+          onUserSelected: _createConversation,
         ),
       ),
     );
@@ -217,8 +290,85 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final maxScroll = 60.0;
-    final scrollProgress = (_scrollOffset / maxScroll).clamp(0.0, 1.0);
+
+    if (_isLoading) {
+      return CupertinoPageScaffold(
+        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
+        child: Center(child: CupertinoActivityIndicator(radius: 20)),
+      );
+    }
+
+    // Tela bloqueada para usuários não PRO/Admin
+    if (!_isProOrAdmin) {
+      return CupertinoPageScaffold(
+        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
+        child: Stack(
+          children: [
+            // Conteúdo blur
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                color: (isDark ? Colors.black : Colors.white).withOpacity(0.3),
+              ),
+            ),
+            // Mensagem centralizada
+            Center(
+              child: Container(
+                margin: EdgeInsets.all(32),
+                padding: EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      CupertinoIcons.lock_shield_fill,
+                      size: 64,
+                      color: primaryColor,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Recursos PRO',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'O acesso aos Chats é exclusivo para usuários PRO e Administradores.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: CupertinoColors.systemGrey,
+                        height: 1.4,
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    CupertinoButton.filled(
+                      child: Text('Atualizar para PRO'),
+                      onPressed: () {
+                        // Navegar para tela de planos
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
@@ -226,144 +376,90 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         bottom: false,
         child: CustomScrollView(
           controller: _scrollController,
+          physics: BouncingScrollPhysics(),
           slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _SliverAppBarDelegate(
-                minHeight: 44.0,
-                maxHeight: 96.0,
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      color: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(0.85),
-                      child: Column(
-                        children: [
-                          // Header com título e botões
-                          Container(
-                            height: 44,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                // Título grande à esquerda (aparece quando não está rolado)
-                                Expanded(
-                                  child: Opacity(
-                                    opacity: 1 - scrollProgress,
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        'Conversas',
-                                        style: TextStyle(
-                                          fontSize: 34,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                        ),
-                                      ),
-                                    ),
+            CupertinoSliverNavigationBar(
+              backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : CupertinoColors.white.withOpacity(0.9),
+              border: null,
+              largeTitle: Text('Conversas'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minSize: 32,
+                    onPressed: _showUsersDialog,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(
+                          CupertinoIcons.person_2,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          size: 24,
+                        ),
+                        if (_activeUsers > 0)
+                          Positioned(
+                            right: -6,
+                            top: -4,
+                            child: ScaleTransition(
+                              scale: CurvedAnimation(
+                                parent: _badgeController,
+                                curve: Curves.elasticOut,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                                    width: 2,
                                   ),
                                 ),
-                                // Título pequeno centralizado (aparece ao rolar)
-                                if (scrollProgress > 0.5)
-                                  Positioned.fill(
-                                    child: Opacity(
-                                      opacity: (scrollProgress - 0.5) * 2,
-                                      child: Center(
-                                        child: Text(
-                                          'Conversas',
-                                          style: TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w600,
-                                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                // Botões à direita
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    CupertinoButton(
-                                      padding: EdgeInsets.zero,
-                                      minSize: 32,
-                                      onPressed: _showUsersDialog,
-                                      child: Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          Icon(
-                                            CupertinoIcons.person_2,
-                                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                            size: 24,
-                                          ),
-                                          if (_activeUsers > 0)
-                                            Positioned(
-                                              right: -6,
-                                              top: -4,
-                                              child: ScaleTransition(
-                                                scale: CurvedAnimation(
-                                                  parent: _badgeController,
-                                                  curve: Curves.elasticOut,
-                                                ),
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(4),
-                                                  decoration: BoxDecoration(
-                                                    color: primaryColor,
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                      color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                                                      width: 2,
-                                                    ),
-                                                  ),
-                                                  constraints: const BoxConstraints(
-                                                    minWidth: 18,
-                                                    minHeight: 18,
-                                                  ),
-                                                  child: Text(
-                                                    _activeUsers > 99 ? '99+' : '$_activeUsers',
-                                                    style: const TextStyle(
-                                                      color: CupertinoColors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    CupertinoButton(
-                                      padding: EdgeInsets.zero,
-                                      minSize: 32,
-                                      onPressed: _showOptionsMenu,
-                                      child: const Icon(
-                                        CupertinoIcons.plus_circle_fill,
-                                        color: primaryColor,
-                                        size: 28,
-                                      ),
-                                    ),
-                                  ],
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
                                 ),
-                              ],
+                                child: Text(
+                                  _activeUsers > 99 ? '99+' : '$_activeUsers',
+                                  style: const TextStyle(
+                                    color: CupertinoColors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
                             ),
                           ),
-                          // Segmented Control e Filtros
-                          Opacity(
-                            opacity: 1 - scrollProgress,
-                            child: Column(
-                              children: [
-                                _buildSegmentedControl(isDark),
-                                _buildFilterButtons(isDark),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
-                ),
+                  SizedBox(width: 8),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minSize: 32,
+                    onPressed: _showOptionsMenu,
+                    child: Icon(
+                      CupertinoIcons.plus_circle_fill,
+                      color: primaryColor,
+                      size: 28,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            CupertinoSliverRefreshControl(
+              onRefresh: () async {
+                await _loadUserData();
+              },
+            ),
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _buildSegmentedControl(isDark),
+                  _buildFilterButtons(isDark),
+                ],
               ),
             ),
             SliverFillRemaining(
@@ -371,6 +467,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                   ? const Center(child: CupertinoActivityIndicator(radius: 15))
                   : PageView(
                       controller: _pageController,
+                      physics: BouncingScrollPhysics(),
                       onPageChanged: (index) {
                         setState(() => _selectedTab = index);
                       },
@@ -491,7 +588,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   Widget _buildFilterButtons(bool isDark) {
     final filters = [
       {'label': 'Todas', 'icon': CupertinoIcons.globe},
-      {'label': 'Tendências', 'icon': CupertinoIcons.flame_fill},
+      {'label': 'Não lidas', 'icon': CupertinoIcons.circle_fill},
       {'label': 'Recentes', 'icon': CupertinoIcons.time},
     ];
 
@@ -499,6 +596,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        physics: BouncingScrollPhysics(),
         child: Row(
           children: List.generate(filters.length, (index) {
             final isSelected = _selectedFilter == index;
@@ -571,16 +669,12 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
         var conversations = snapshot.data!.docs;
 
+        // Filtro de não lidas
         if (_selectedFilter == 1) {
           conversations = conversations.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final unreadCount = data['unreadCount_${currentUser.uid}'] ?? 0;
             return unreadCount > 0;
-          }).toList();
-        } else if (_selectedFilter == 2) {
-          conversations = conversations.where((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return data['lastMessage'] == '' || data['lastMessage'] == null;
           }).toList();
         }
 
@@ -593,15 +687,10 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           );
         }
 
-        return ListView.separated(
+        return ListView.builder(
           padding: EdgeInsets.zero,
+          physics: BouncingScrollPhysics(),
           itemCount: conversations.length,
-          separatorBuilder: (context, index) => Divider(
-            height: 1,
-            thickness: 0.5,
-            indent: 88,
-            color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
-          ),
           itemBuilder: (context, index) {
             return ConversationListItem(
               conversation: conversations[index],
@@ -630,22 +719,17 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           return _buildEmptyState(
             icon: CupertinoIcons.group,
             title: 'Nenhum grupo',
-            subtitle: _userData?['pro'] == true ? 'Toque em + para criar' : 'Apenas PRO',
+            subtitle: 'Toque em + para criar',
             isDark: isDark,
           );
         }
 
         final groups = snapshot.data!.docs;
 
-        return ListView.separated(
+        return ListView.builder(
           padding: EdgeInsets.zero,
+          physics: BouncingScrollPhysics(),
           itemCount: groups.length,
-          separatorBuilder: (context, index) => Divider(
-            height: 1,
-            thickness: 0.5,
-            indent: 88,
-            color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
-          ),
           itemBuilder: (context, index) {
             return GroupListItem(
               group: groups[index],
@@ -695,35 +779,5 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         ),
       ),
     );
-  }
-}
-
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
-
-  _SliverAppBarDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
-
-  @override
-  double get minExtent => minHeight;
-
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(child: child);
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight ||
-        minHeight != oldDelegate.minHeight ||
-        child != oldDelegate.child;
   }
 }
