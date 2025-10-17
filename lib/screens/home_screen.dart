@@ -16,10 +16,10 @@ import 'create_post_screen.dart';
 import 'user_drawer.dart';
 import 'search_screen.dart';
 import '../models/news_article.dart';
-import '../widgets/wallet_card.dart';
+import '../widgets/wallet_card.dart'; // Manter este import
 import '../widgets/post_card.dart';
 import 'crypto_list_screen.dart' hide SearchScreen;
-import 'more_options_screen.dart';
+import 'more_options_screen.dart' hide WalletCard; // Adicionar "hide WalletCard" aqui
 import 'home_widgets.dart';
 import 'home_crypto_section.dart' as crypto_section;
 import 'plans_screen.dart';
