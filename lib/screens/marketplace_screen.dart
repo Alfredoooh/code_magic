@@ -42,15 +42,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Inicializar a API da Deriv
+      // CORREÇÃO: Remover parâmetro apiToken (não existe mais)
       await APIInitializer().initialize(
-        apiToken: token,
-        isMock: false, // Mude para true para usar API de teste
+        isMock: false,
       );
 
       // Obter informações da conta
       final authorize = await AuthorizeRequest(authorize: token).fetchAuthorize();
-      
+
       setState(() {
         _isConnected = true;
         _accountInfo = authorize.authorize?.email ?? 'Conta conectada';
@@ -105,8 +104,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _showLoginSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -116,14 +115,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : Colors.white).withOpacity(0.95),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -134,7 +133,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.3),
+                        color: CupertinoColors.systemGrey.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -144,16 +143,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     'Conectar Deriv',
                     style: TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   SizedBox(height: 8),
                   Text(
                     'Insira seu token API da Deriv para começar',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: CupertinoColors.systemGrey,
                     ),
                   ),
                   SizedBox(height: 24),
@@ -163,21 +164,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? Color(0xFF3A3A3C) : CupertinoColors.systemGrey5,
+                        width: 1,
+                      ),
                     ),
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      fontSize: 16,
                     ),
                     placeholderStyle: TextStyle(
-                      color: Colors.grey,
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 16,
                     ),
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: CupertinoButton(
                       color: Color(0xFFFF444F),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
+                      padding: EdgeInsets.symmetric(vertical: 16),
                       onPressed: () {
                         Navigator.pop(context);
                         if (_apiTokenController.text.isNotEmpty) {
@@ -185,17 +193,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         }
                       },
                       child: _isLoading
-                          ? CupertinoActivityIndicator(color: Colors.white)
+                          ? CupertinoActivityIndicator(color: CupertinoColors.white)
                           : Text(
                               'Conectar',
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 17,
+                                letterSpacing: 0.3,
                               ),
                             ),
                     ),
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(height: 8),
                   Center(
                     child: CupertinoButton(
                       onPressed: () {
@@ -205,7 +214,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       child: Text(
                         'Como obter meu token API?',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: Color(0xFFFF444F),
                         ),
                       ),
@@ -221,34 +231,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _showApiGuide() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
+        height: MediaQuery.of(context).size.height * 0.85,
         child: ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : Colors.white).withOpacity(0.95),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
                 children: [
                   Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: EdgeInsets.all(20),
                     child: Column(
                       children: [
                         Container(
                           width: 40,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.3),
+                            color: CupertinoColors.systemGrey.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -256,9 +266,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         Text(
                           'Guia de Configuração API',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            letterSpacing: -0.5,
                           ),
                         ),
                       ],
@@ -266,67 +277,83 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ),
                   Expanded(
                     child: ListView(
-                      padding: EdgeInsets.all(24),
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      physics: BouncingScrollPhysics(),
                       children: [
                         _buildGuideStep(
                           isDark,
                           '1',
                           'Acesse sua conta Deriv',
                           'Faça login em app.deriv.com',
-                          Icons.login_rounded,
+                          CupertinoIcons.arrow_right_circle_fill,
                         ),
                         _buildGuideStep(
                           isDark,
                           '2',
                           'Vá para API Token',
                           'Clique no menu → Settings → API Token',
-                          Icons.settings_rounded,
+                          CupertinoIcons.settings_solid,
                         ),
                         _buildGuideStep(
                           isDark,
                           '3',
                           'Crie um novo token',
                           'Clique em "Create" e selecione as permissões:\n• Read\n• Trade\n• Trading Information',
-                          Icons.add_circle_rounded,
+                          CupertinoIcons.add_circled_solid,
                         ),
                         _buildGuideStep(
                           isDark,
                           '4',
                           'Copie o token',
                           'Copie o token gerado e cole no app',
-                          Icons.copy_rounded,
+                          CupertinoIcons.doc_on_clipboard_fill,
                         ),
                         SizedBox(height: 24),
                         Container(
-                          padding: EdgeInsets.all(16),
+                          padding: EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Color(0xFFFF444F).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFFFF444F).withOpacity(0.12),
+                                Color(0xFFFF444F).withOpacity(0.06),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Color(0xFFFF444F).withOpacity(0.3),
+                              color: Color(0xFFFF444F).withOpacity(0.25),
+                              width: 1.5,
                             ),
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.warning_rounded,
-                                color: Color(0xFFFF444F),
-                                size: 24,
+                              Container(
+                                padding: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFFF444F).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  CupertinoIcons.exclamationmark_shield_fill,
+                                  color: Color(0xFFFF444F),
+                                  size: 24,
+                                ),
                               ),
-                              SizedBox(width: 12),
+                              SizedBox(width: 16),
                               Expanded(
                                 child: Text(
                                   'Mantenha seu token seguro e nunca o compartilhe',
                                   style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark ? Colors.white : Colors.black87,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.4,
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        SizedBox(height: 40),
                       ],
                     ),
                   ),
@@ -341,24 +368,31 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildGuideStep(bool isDark, String number, String title, String description, IconData icon) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 20),
+      padding: EdgeInsets.only(bottom: 24),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: Color(0xFFFF444F),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFFFF444F).withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: Center(
               child: Text(
                 number,
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  color: CupertinoColors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
                 ),
               ),
             ),
@@ -372,12 +406,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   children: [
                     Icon(icon, size: 20, color: Color(0xFFFF444F)),
                     SizedBox(width: 8),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        ),
                       ),
                     ),
                   ],
@@ -386,9 +422,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 Text(
                   description,
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
+                    fontSize: 15,
+                    color: isDark 
+                      ? CupertinoColors.white.withOpacity(0.7) 
+                      : CupertinoColors.black.withOpacity(0.6),
                     height: 1.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -412,30 +451,27 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      body: CustomScrollView(
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      child: CustomScrollView(
+        physics: BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
-            backgroundColor: (isDark ? Color(0xFF1C1C1E) : Colors.white).withOpacity(0.9),
-            border: Border(
-              bottom: BorderSide(
-                color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
-                width: 0.5,
-              ),
-            ),
+            backgroundColor: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+            border: null,
             largeTitle: Text(
               'Trading',
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
-                fontWeight: FontWeight.bold,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                fontWeight: FontWeight.w800,
               ),
             ),
             trailing: _isConnected
                 ? CupertinoButton(
                     padding: EdgeInsets.zero,
+                    minSize: 0,
                     onPressed: _disconnect,
                     child: Icon(
                       CupertinoIcons.power,
@@ -455,10 +491,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildDisconnectedView(bool isDark) {
     return Padding(
-      padding: EdgeInsets.all(24),
+      padding: EdgeInsets.all(20),
       child: Column(
         children: [
-          SizedBox(height: 60),
+          SizedBox(height: 40),
           Container(
             width: 120,
             height: 120,
@@ -474,16 +510,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFFFF444F).withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: Offset(0, 10),
+                  color: Color(0xFFFF444F).withOpacity(0.4),
+                  blurRadius: 30,
+                  offset: Offset(0, 15),
                 ),
               ],
             ),
             child: Icon(
-              Icons.show_chart_rounded,
+              CupertinoIcons.chart_bar_alt_fill,
               size: 60,
-              color: Colors.white,
+              color: CupertinoColors.white,
             ),
           ),
           SizedBox(height: 32),
@@ -491,65 +527,83 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             'Bem-vindo ao Trading',
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.w800,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              letterSpacing: -0.5,
             ),
           ),
           SizedBox(height: 12),
-          Text(
-            'Conecte sua conta Deriv para começar\na negociar nos mercados financeiros',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-              height: 1.5,
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Conecte sua conta Deriv para começar a negociar nos mercados financeiros',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: CupertinoColors.systemGrey,
+                height: 1.5,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           SizedBox(height: 48),
           _buildFeatureCard(
             isDark,
-            Icons.speed_rounded,
+            CupertinoIcons.speedometer,
             'Trading Rápido',
             'Execute trades em segundos',
           ),
           SizedBox(height: 16),
           _buildFeatureCard(
             isDark,
-            Icons.analytics_rounded,
+            CupertinoIcons.chart_bar_square_fill,
             'Análise em Tempo Real',
             'Gráficos e indicadores avançados',
           ),
           SizedBox(height: 16),
           _buildFeatureCard(
             isDark,
-            Icons.security_rounded,
+            CupertinoIcons.lock_shield_fill,
             'Seguro e Confiável',
             'Powered by Deriv API',
           ),
           SizedBox(height: 48),
-          SizedBox(
-            width: double.infinity,
-            child: CupertinoButton(
-              color: Color(0xFFFF444F),
-              borderRadius: BorderRadius.circular(16),
-              padding: EdgeInsets.symmetric(vertical: 16),
-              onPressed: _showLoginSheet,
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _showLoginSheet,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                color: Color(0xFFFF444F),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFFFF444F).withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.link_rounded, size: 20),
-                  SizedBox(width: 8),
+                  Icon(CupertinoIcons.link, size: 22, color: CupertinoColors.white),
+                  SizedBox(width: 10),
                   Text(
                     'Conectar Conta Deriv',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: CupertinoColors.white,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          SizedBox(height: 40),
         ],
       ),
     );
@@ -557,24 +611,32 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildFeatureCard(bool isDark, IconData icon, String title, String subtitle) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+          color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: Color(0xFFFF444F).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: Color(0xFFFF444F).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: Color(0xFFFF444F), size: 24),
+            child: Icon(icon, color: Color(0xFFFF444F), size: 28),
           ),
           SizedBox(width: 16),
           Expanded(
@@ -584,17 +646,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: CupertinoColors.systemGrey,
                   ),
                 ),
               ],
@@ -607,12 +670,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildConnectedView(bool isDark) {
     return Padding(
-      padding: EdgeInsets.all(24),
+      padding: EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -622,10 +685,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFFFF444F).withOpacity(0.3),
+                  color: Color(0xFFFF444F).withOpacity(0.4),
                   blurRadius: 20,
                   offset: Offset(0, 10),
                 ),
@@ -643,54 +706,81 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         Text(
                           'Saldo Disponível',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: CupertinoColors.white.withOpacity(0.85),
                             fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
                           '\$${_balance?.toStringAsFixed(2) ?? '0.00'}',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
+                            color: CupertinoColors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1,
                           ),
                         ),
                       ],
                     ),
                     Container(
-                      padding: EdgeInsets.all(12),
+                      padding: EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        color: CupertinoColors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
-                        Icons.account_balance_wallet_rounded,
-                        color: Colors.white,
-                        size: 28,
+                        CupertinoIcons.money_dollar_circle_fill,
+                        color: CupertinoColors.white,
+                        size: 32,
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 16),
-                Text(
-                  _accountInfo ?? 'Conta Deriv',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.checkmark_seal_fill,
+                      size: 16,
+                      color: CupertinoColors.white.withOpacity(0.9),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      _accountInfo ?? 'Conta Deriv',
+                      style: TextStyle(
+                        color: CupertinoColors.white.withOpacity(0.9),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          SizedBox(height: 24),
-          Text(
-            'Ações Rápidas',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
+          SizedBox(height: 32),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Color(0xFFFF444F),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Ações Rápidas',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 16),
           Row(
@@ -698,9 +788,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Expanded(
                 child: _buildActionButton(
                   isDark,
-                  Icons.trending_up_rounded,
+                  CupertinoIcons.arrow_up_circle_fill,
                   'Comprar',
-                  Color(0xFF4CAF50),
+                  CupertinoColors.systemGreen,
                   () {},
                 ),
               ),
@@ -708,7 +798,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Expanded(
                 child: _buildActionButton(
                   isDark,
-                  Icons.trending_down_rounded,
+                  CupertinoIcons.arrow_down_circle_fill,
                   'Vender',
                   Color(0xFFFF444F),
                   () {},
@@ -716,41 +806,75 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ],
           ),
-          SizedBox(height: 24),
-          Text(
-            'Em Desenvolvimento',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
+          SizedBox(height: 32),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Color(0xFFFF444F),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Em Desenvolvimento',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 16),
           Container(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Color(0xFFFF444F).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF444F).withOpacity(0.12),
+                  Color(0xFFFF444F).withOpacity(0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Color(0xFFFF444F).withOpacity(0.3),
+                color: Color(0xFFFF444F).withOpacity(0.25),
+                width: 1.5,
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.info_rounded, color: Color(0xFFFF444F)),
-                SizedBox(width: 12),
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFF444F).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    CupertinoIcons.hammer_fill,
+                    color: Color(0xFFFF444F),
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     'Funcionalidades de trading completas em breve',
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
-                      fontSize: 14,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
                     ),
                   ),
                 ),
               ],
             ),
           ),
+          SizedBox(height: 40),
         ],
       ),
     );
@@ -761,24 +885,26 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 16),
+        padding: EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: color.withOpacity(0.3),
+            width: 1.5,
           ),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 32),
-            SizedBox(height: 8),
+            Icon(icon, color: color, size: 36),
+            SizedBox(height: 10),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                letterSpacing: 0.2,
               ),
             ),
           ],
