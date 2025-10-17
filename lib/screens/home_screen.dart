@@ -16,10 +16,10 @@ import 'create_post_screen.dart';
 import 'user_drawer.dart';
 import 'search_screen.dart';
 import '../models/news_article.dart';
-import '../widgets/wallet_card.dart'; // Manter este import
+import '../widgets/wallet_card.dart';
 import '../widgets/post_card.dart';
 import 'crypto_list_screen.dart' hide SearchScreen;
-import 'more_options_screen.dart' hide WalletCard; // Adicionar "hide WalletCard" aqui
+import 'more_options_screen.dart' hide WalletCard;
 import 'home_widgets.dart';
 import 'home_crypto_section.dart' as crypto_section;
 import 'plans_screen.dart';
@@ -56,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentNewsPage = 0;
   int _currentCryptoPage = 0;
   final ScrollController _scrollController = ScrollController();
-  String _headerTitle = '';
+  bool _showScrollToTopButton = false;
   bool _showNewPostsBanner = false;
   int _newPostsCount = 0;
   List<String> _newPostsUserImages = [];
@@ -125,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 .cast<String>()
                 .toList();
 
-            if (mounted) {
+            if (mounted && _scrollController.offset > 100) {
               setState(() {
                 _newPostsCount = newPosts.length;
                 _newPostsUserImages = userImages;
@@ -166,18 +166,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _onScroll() {
     if (_scrollController.hasClients) {
       final offset = _scrollController.offset;
-      String newTitle = '';
-
-      if (offset > 1200) {
-        newTitle = 'Sheets';
-      } else if (offset > 800) {
-        newTitle = 'Notícias';
-      } else if (offset > 400) {
-        newTitle = 'Criptomoedas';
-      }
-
-      if (_headerTitle != newTitle) {
-        setState(() => _headerTitle = newTitle);
+      
+      final shouldShowButton = offset > 400;
+      if (_showScrollToTopButton != shouldShowButton) {
+        setState(() {
+          _showScrollToTopButton = shouldShowButton;
+        });
       }
     }
   }
@@ -660,350 +654,366 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onWillPop: () async => false,
       child: CupertinoPageScaffold(
         backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: (isDark ? Color(0xFF000000) : CupertinoColors.white).withOpacity(0.95),
-          leading: Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _headerTitle.isEmpty ? username : _headerTitle,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 28,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+        child: Stack(
+          children: [
+            CustomScrollView(
+              controller: _scrollController,
+              physics: BouncingScrollPhysics(),
+              slivers: [
+                CupertinoSliverNavigationBar(
+                  backgroundColor: Colors.transparent,
+                  border: null,
+                  largeTitle: Text(username),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Icon(
+                          CupertinoIcons.search,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          size: 22,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                              builder: (context) => SearchScreen(),
+                              fullscreenDialog: true,
+                            ),
+                          );
+                        },
+                      ),
+                      SizedBox(width: 8),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Color(0xFFFF444F),
+                          backgroundImage: (_userData?['profile_image'] != null &&
+                                  (_userData!['profile_image'] as String).isNotEmpty)
+                              ? NetworkImage(_userData!['profile_image'])
+                              : null,
+                          child: (_userData?['profile_image'] == null ||
+                                  (_userData!['profile_image'] as String).isEmpty)
+                              ? Text(
+                                  username[0].toUpperCase(),
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      color: CupertinoColors.white,
+                                      fontWeight: FontWeight.bold),
+                                )
+                              : null,
+                        ),
+                        onPressed: _showUserDrawer,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: Icon(
-                  CupertinoIcons.search,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  size: 22,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (context) => SearchScreen(),
-                      fullscreenDialog: true,
-                    ),
-                  );
-                },
-              ),
-              SizedBox(width: 8),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Color(0xFFFF444F),
-                  backgroundImage: (_userData?['profile_image'] != null &&
-                          (_userData!['profile_image'] as String).isNotEmpty)
-                      ? NetworkImage(_userData!['profile_image'])
-                      : null,
-                  child: (_userData?['profile_image'] == null ||
-                          (_userData!['profile_image'] as String).isEmpty)
-                      ? Text(
-                          username[0].toUpperCase(),
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: CupertinoColors.white,
-                              fontWeight: FontWeight.bold),
-                        )
-                      : null,
-                ),
-                onPressed: _showUserDrawer,
-              ),
-            ],
-          ),
-          border: null,
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              CustomScrollView(
-                controller: _scrollController,
-                physics: BouncingScrollPhysics(),
-                slivers: [
-                  CupertinoSliverRefreshControl(
-                    onRefresh: () async {
+                CupertinoSliverRefreshControl(
+                  onRefresh: () async {
+                    if (_scrollController.offset <= 100) {
                       await _loadUserData();
                       await _loadNews();
                       await _loadStats();
                       await _loadCryptoData();
-                    },
-                  ),
-                  SliverPadding(
-                    padding: EdgeInsets.all(16),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        WalletCard(
-                          userData: _userData,
-                          cardStyle: _cardStyle,
-                          showCustomizeButton: false,
+                    }
+                  },
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      WalletCard(
+                        userData: _userData,
+                        cardStyle: _cardStyle,
+                        showCustomizeButton: false,
+                      ),
+                      SizedBox(height: 16),
+                      _buildActionButton(isDark),
+                      SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              icon: CupertinoIcons.chat_bubble_2_fill,
+                              title: 'Mensagens',
+                              value: '$_messageCount',
+                              color: CupertinoColors.systemBlue,
+                              isDark: isDark,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatCard(
+                              icon: CupertinoIcons.group_solid,
+                              title: 'Grupos',
+                              value: '$_groupCount',
+                              color: CupertinoColors.systemGreen,
+                              isDark: isDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 24),
+                      crypto_section.HomeCryptoSection(
+                        cryptoData: _cryptoData,
+                        loadingCrypto: _loadingCrypto,
+                        isDark: isDark,
+                        pageController: _cryptoPageController,
+                        currentPage: _currentCryptoPage,
+                        onViewMore: () {
+                          Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                              builder: (context) => CryptoListScreen(),
+                              fullscreenDialog: true,
+                            ),
+                          );
+                        },
+                      ),
+                      if (_showNews) ...[
+                        SizedBox(height: 32),
+                        Text(
+                          'Últimas Notícias',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          ),
                         ),
                         SizedBox(height: 16),
-                        _buildActionButton(isDark),
-                        SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                icon: CupertinoIcons.chat_bubble_2_fill,
-                                title: 'Mensagens',
-                                value: '$_messageCount',
-                                color: CupertinoColors.systemBlue,
-                                isDark: isDark,
+                        _loadingNews
+                            ? Center(child: CupertinoActivityIndicator(radius: 16))
+                            : Column(
+                                children: [
+                                  Container(
+                                    height: 140,
+                                    child: PageView.builder(
+                                      controller: _newsPageController,
+                                      physics: BouncingScrollPhysics(),
+                                      itemCount: _newsArticles.length,
+                                      itemBuilder: (context, index) {
+                                        final article = _newsArticles[index];
+                                        return Padding(
+                                          padding: EdgeInsets.only(right: 12),
+                                          child: GestureDetector(
+                                            onTap: () => _handleNewsClick(article, index),
+                                            child: _buildNewsCard(
+                                              article: article,
+                                              isDark: isDark,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(height: 12),
+                                  HomeWidgets.buildPageIndicator(
+                                    count: _newsArticles.length,
+                                    currentPage: _currentNewsPage,
+                                    isDark: isDark,
+                                  ),
+                                ],
                               ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: _buildStatCard(
-                                icon: CupertinoIcons.group_solid,
-                                title: 'Grupos',
-                                value: '$_groupCount',
-                                color: CupertinoColors.systemGreen,
-                                isDark: isDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 24),
-                        crypto_section.HomeCryptoSection(
-                          cryptoData: _cryptoData,
-                          loadingCrypto: _loadingCrypto,
-                          isDark: isDark,
-                          pageController: _cryptoPageController,
-                          currentPage: _currentCryptoPage,
-                          onViewMore: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => CryptoListScreen(),
-                                fullscreenDialog: true,
-                              ),
-                            );
-                          },
-                        ),
-                        if (_showNews) ...[
-                          SizedBox(height: 32),
-                          Text(
-                            'Últimas Notícias',
+                      ],
+                    ]),
+                  ),
+                ),
+
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverAppBarDelegate(
+                    minHeight: 60,
+                    maxHeight: 60,
+                    child: ClipRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Container(
+                          color: (isDark ? Color(0xFF000000) : Color(0xFFF5F5F5)).withOpacity(0.85),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Text(
+                            'Sheets',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             ),
                           ),
-                          SizedBox(height: 16),
-                          _loadingNews
-                              ? Center(child: CupertinoActivityIndicator(radius: 16))
-                              : Column(
-                                  children: [
-                                    Container(
-                                      height: 140,
-                                      child: PageView.builder(
-                                        controller: _newsPageController,
-                                        physics: BouncingScrollPhysics(),
-                                        itemCount: _newsArticles.length,
-                                        itemBuilder: (context, index) {
-                                          final article = _newsArticles[index];
-                                          return Padding(
-                                            padding: EdgeInsets.only(right: 12),
-                                            child: GestureDetector(
-                                              onTap: () => _handleNewsClick(article, index),
-                                              child: _buildNewsCard(
-                                                article: article,
-                                                isDark: isDark,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    SizedBox(height: 12),
-                                    HomeWidgets.buildPageIndicator(
-                                      count: _newsArticles.length,
-                                      currentPage: _currentNewsPage,
-                                      isDark: isDark,
-                                    ),
-                                  ],
-                                ),
-                        ],
-                      ]),
-                    ),
-                  ),
-
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _SliverAppBarDelegate(
-                      minHeight: 60,
-                      maxHeight: 60,
-                      child: ClipRect(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            color: (isDark ? Color(0xFF000000) : Color(0xFFF5F5F5)).withOpacity(0.9),
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Text(
-                              'Sheets',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('publicacoes')
-                          .orderBy('timestamp', descending: true)
-                          .limit(20)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Center(child: CupertinoActivityIndicator(radius: 16)),
-                          );
-                        }
-
-                        if (!snapshot.hasData || snapshot.data == null) {
-                          return _buildEmptyState(isDark);
-                        }
-
-                        final posts = snapshot.data!.docs;
-
-                        if (posts.isEmpty) {
-                          return _buildEmptyState(isDark);
-                        }
-
-                        return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            children: [
-                              ...posts.map((docSnap) {
-                                final post = docSnap.data() as Map<String, dynamic>;
-                                final postId = docSnap.id;
-                                return Padding(
-                                  padding: EdgeInsets.only(bottom: 12),
-                                  child: PostCard(
-                                    post: post,
-                                    postId: postId,
-                                    isDark: isDark,
-                                    currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                                  ),
-                                );
-                              }).toList(),
-                              Padding(
-                                padding: EdgeInsets.symmetric(vertical: 32),
-                                child: Text(
-                                  'Não há mais nada para ver',
-                                  style: TextStyle(
-                                    color: CupertinoColors.systemGrey,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-                ],
-              ),
-
-              if (_showNewPostsBanner)
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: GestureDetector(
-                    onTap: _scrollToTop,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white).withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: CupertinoColors.systemBlue.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_newPostsUserImages.isNotEmpty) ...[
-                                SizedBox(
-                                  width: 80,
-                                  height: 32,
-                                  child: Stack(
-                                    children: _newPostsUserImages.asMap().entries.map((entry) {
-                                      final index = entry.key;
-                                      final imageUrl = entry.value;
-                                      return Positioned(
-                                        left: index * 20.0,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: CircleAvatar(
-                                            radius: 16,
-                                            backgroundImage: NetworkImage(imageUrl),
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                              ],
-                              Expanded(
-                                child: Text(
-                                  '${_newPostsCount} ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
-                                  style: TextStyle(
-                                    color: CupertinoColors.systemBlue,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                CupertinoIcons.arrow_up,
-                                color: CupertinoColors.systemBlue,
-                                size: 18,
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+
+                SliverToBoxAdapter(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('publicacoes')
+                        .orderBy('timestamp', descending: true)
+                        .limit(20)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(child: CupertinoActivityIndicator(radius: 16)),
+                        );
+                      }
+
+                      if (!snapshot.hasData || snapshot.data == null) {
+                        return _buildEmptyState(isDark);
+                      }
+
+                      final posts = snapshot.data!.docs;
+
+                      if (posts.isEmpty) {
+                        return _buildEmptyState(isDark);
+                      }
+
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            ...posts.map((docSnap) {
+                              final post = docSnap.data() as Map<String, dynamic>;
+                              final postId = docSnap.id;
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: 12),
+                                child: PostCard(
+                                  post: post,
+                                  postId: postId,
+                                  isDark: isDark,
+                                  currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                ),
+                              );
+                            }).toList(),
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: Text(
+                                'Não há mais nada para ver',
+                                style: TextStyle(
+                                  color: CupertinoColors.systemGrey,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+              ],
+            ),
+
+            if (_showNewPostsBanner)
+              Positioned(
+                top: 100,
+                left: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: _scrollToTop,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: CupertinoColors.systemBlue.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_newPostsUserImages.isNotEmpty) ...[
+                              SizedBox(
+                                width: 80,
+                                height: 32,
+                                child: Stack(
+                                  children: _newPostsUserImages.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final imageUrl = entry.value;
+                                    return Positioned(
+                                      left: index * 20.0,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 16,
+                                          backgroundImage: NetworkImage(imageUrl),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                            ],
+                            Expanded(
+                              child: Text(
+                                '${_newPostsCount} ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
+                                style: TextStyle(
+                                  color: CupertinoColors.systemBlue,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              CupertinoIcons.arrow_up,
+                              color: CupertinoColors.systemBlue,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            if (_showScrollToTopButton)
+              Positioned(
+                bottom: 24,
+                right: 16,
+                child: GestureDetector(
+                  onTap: _scrollToTop,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemBlue,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: CupertinoColors.systemBlue.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      CupertinoIcons.arrow_up,
+                      color: CupertinoColors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
