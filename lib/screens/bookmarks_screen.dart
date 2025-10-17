@@ -383,11 +383,14 @@ class _BookmarkCard extends StatelessWidget {
           );
 
           Navigator.push(
-            context,
-            CupertinoPageRoute(
-              builder: (context) => NewsDetailScreen(article: article),
-            ),
-          );
+  context,
+  CupertinoPageRoute(
+    builder: (context) => NewsDetailScreen(
+      article: article,
+      isDark: isDark,  // ← ADICIONE ESTA LINHA
+    ),
+  ),
+);
         } catch (e) {
           print('Erro ao abrir notícia: $e');
         }
