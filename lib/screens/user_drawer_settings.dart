@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 class UserDrawerSettings {
   static void showSettingsModal(
@@ -57,23 +56,10 @@ class _SettingsScreen extends StatelessWidget {
         ),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                CupertinoIcons.back,
-                color: Color(0xFFFF444F),
-                size: 24,
-              ),
-              SizedBox(width: 4),
-              Text(
-                'Voltar',
-                style: TextStyle(
-                  color: Color(0xFFFF444F),
-                  fontSize: 17,
-                ),
-              ),
-            ],
+          child: Icon(
+            CupertinoIcons.back,
+            color: const Color(0xFFFF444F),
+            size: 28,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -94,8 +80,8 @@ class _SettingsScreen extends StatelessWidget {
               context: context,
               icon: CupertinoIcons.moon_fill,
               title: 'Tema',
-              subtitle: Theme.of(context).brightness == Brightness.dark ? 'Escuro' : 'Claro',
-              onTap: () => _showThemeDialog(context, onThemeChanged),
+              subtitle: isDark ? 'Escuro' : 'Claro',
+              onTap: () => _showThemeDialog(context, onThemeChanged, isDark),
               isDark: isDark,
             ),
             const SizedBox(height: 12),
@@ -104,7 +90,7 @@ class _SettingsScreen extends StatelessWidget {
               icon: CupertinoIcons.globe,
               title: 'Idioma',
               subtitle: _getLanguageName(currentLocale),
-              onTap: () => _showLanguageDialog(context, onLanguageChanged),
+              onTap: () => _showLanguageDialog(context, onLanguageChanged, isDark),
               isDark: isDark,
             ),
             const SizedBox(height: 12),
@@ -137,14 +123,25 @@ class _SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: const Color(0xFFFF444F),
-              size: 24,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF444F).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: const Color(0xFFFF444F),
+                size: 24,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -159,7 +156,7 @@ class _SettingsScreen extends StatelessWidget {
                       color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: const TextStyle(
@@ -181,21 +178,66 @@ class _SettingsScreen extends StatelessWidget {
     );
   }
 
-  static void _showThemeDialog(BuildContext context, Function(String) onThemeChanged) {
+  static void _showThemeDialog(
+    BuildContext context,
+    Function(String) onThemeChanged,
+    bool isDark,
+  ) {
     showCupertinoModalPopup(
       context: context,
+      barrierColor: CupertinoColors.black.withOpacity(0.3),
       builder: (context) => CupertinoActionSheet(
-        title: const Text('Escolha o tema'),
+        title: Text(
+          'Escolha o tema',
+          style: TextStyle(
+            fontSize: 13,
+            color: CupertinoColors.systemGrey,
+          ),
+        ),
         actions: [
           CupertinoActionSheetAction(
-            child: const Text('Claro'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.sun_max_fill,
+                  color: const Color(0xFFFF444F),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Claro',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             onPressed: () {
               onThemeChanged('light');
               Navigator.pop(context);
             },
           ),
           CupertinoActionSheetAction(
-            child: const Text('Escuro'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.moon_fill,
+                  color: const Color(0xFFFF444F),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Escuro',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             onPressed: () {
               onThemeChanged('dark');
               Navigator.pop(context);
@@ -203,35 +245,92 @@ class _SettingsScreen extends StatelessWidget {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          child: const Text('Cancelar'),
+          isDestructiveAction: true,
+          child: const Text(
+            'Cancelar',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
     );
   }
 
-  static void _showLanguageDialog(BuildContext context, Function(String) onLanguageChanged) {
+  static void _showLanguageDialog(
+    BuildContext context,
+    Function(String) onLanguageChanged,
+    bool isDark,
+  ) {
     showCupertinoModalPopup(
       context: context,
+      barrierColor: CupertinoColors.black.withOpacity(0.3),
       builder: (context) => CupertinoActionSheet(
-        title: const Text('Escolha o idioma'),
+        title: Text(
+          'Escolha o idioma',
+          style: TextStyle(
+            fontSize: 13,
+            color: CupertinoColors.systemGrey,
+          ),
+        ),
         actions: [
           CupertinoActionSheetAction(
-            child: const Text('Português'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🇵🇹', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Português',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             onPressed: () {
               onLanguageChanged('pt');
               Navigator.pop(context);
             },
           ),
           CupertinoActionSheetAction(
-            child: const Text('English'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🇺🇸', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                const Text(
+                  'English',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             onPressed: () {
               onLanguageChanged('en');
               Navigator.pop(context);
             },
           ),
           CupertinoActionSheetAction(
-            child: const Text('Español'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🇪🇸', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Español',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             onPressed: () {
               onLanguageChanged('es');
               Navigator.pop(context);
@@ -239,7 +338,14 @@ class _SettingsScreen extends StatelessWidget {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          child: const Text('Cancelar'),
+          isDestructiveAction: true,
+          child: const Text(
+            'Cancelar',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -254,8 +360,9 @@ class _SettingsScreen extends StatelessWidget {
   ) {
     showCupertinoModalPopup(
       context: context,
+      barrierColor: CupertinoColors.black.withOpacity(0.3),
       builder: (context) => Container(
-        height: 420,
+        height: 440,
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
           borderRadius: const BorderRadius.only(
@@ -291,6 +398,7 @@ class _SettingsScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 childAspectRatio: 1.1,
+                physics: const BouncingScrollPhysics(),
                 children: [
                   _buildStyleOption(
                     context: context,
@@ -331,7 +439,23 @@ class _SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: CupertinoButton(
+                color: const Color(0xFFFF444F),
+                borderRadius: BorderRadius.circular(14),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Concluído',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.white,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -351,28 +475,36 @@ class _SettingsScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         onCardStyleChanged(style);
-        Navigator.pop(context);
       },
       child: Container(
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFFFF444F).withOpacity(0.15)
+              ? const Color(0xFFFF444F).withOpacity(0.1)
               : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? const Color(0xFFFF444F) : Colors.transparent,
-            width: 2,
+            color: selected ? const Color(0xFFFF444F) : (isDark ? const Color(0xFF3C3C3E) : const Color(0xFFE5E5EA)),
+            width: selected ? 2 : 1,
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 36,
-              color: selected ? const Color(0xFFFF444F) : CupertinoColors.systemGrey,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFFF444F).withOpacity(0.15)
+                    : (isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                size: 36,
+                color: selected ? const Color(0xFFFF444F) : CupertinoColors.systemGrey,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               name,
               style: TextStyle(
@@ -383,6 +515,14 @@ class _SettingsScreen extends StatelessWidget {
                     : (isDark ? CupertinoColors.white : CupertinoColors.black),
               ),
             ),
+            if (selected) ...[
+              const SizedBox(height: 4),
+              Icon(
+                CupertinoIcons.checkmark_circle_fill,
+                size: 16,
+                color: const Color(0xFFFF444F),
+              ),
+            ],
           ],
         ),
       ),
