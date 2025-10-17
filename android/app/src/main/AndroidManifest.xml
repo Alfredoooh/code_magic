@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    
+
     <!-- Permissões essenciais -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -8,17 +8,17 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    
+
     <!-- REMOVIDA: MANAGE_EXTERNAL_STORAGE - causa rejeição na Play Store -->
     <!-- Use SCHEDULE_EXACT_ALARM apenas se necessário -->
     <!-- <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" /> -->
-    
+
     <application
         android:label="madeeasy"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -28,30 +28,58 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            
+
             <!-- Theme aplicado durante inicialização -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
-            
-            <!-- Intent filter principal -->
+
+            <!-- Intent filter principal (launcher) -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!--
+              Intent-filter ADICIONADO para capturar redirect OAuth do tipo:
+              com.nexa.madeeasy://oauth
+
+              - Regista EXACTAMENTE este redirect como Redirect URI na dashboard da Deriv:
+                ex: com.nexa.madeeasy://oauth
+              - Não alterei nenhum comportamento/visual do app - apenas adicionei
+                o filtro para garantir que o app recebe o callback.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- custom URL scheme: com.nexa.madeeasy://oauth -->
+                <data android:scheme="com.nexa.madeeasy" android:host="oauth" />
+            </intent-filter>
         </activity>
-        
+
         <!-- Metadata do Flutter -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    
-    <!-- Query para processamento de texto -->
+
+    <!-- Query para processamento de texto (mantida) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+
+        <!-- Queries ADICIONADAS para VIEW/http(s) -->
+        <!-- Ajuda a garantir que intents com HTTP/HTTPS (e.g. abrir browser para OAuth) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
         </intent>
     </queries>
 </manifest>
