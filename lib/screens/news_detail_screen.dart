@@ -11,9 +11,11 @@ class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
   final List<NewsArticle>? allArticles;
   final int? currentIndex;
+  final bool isDark;
 
   const NewsDetailScreen({
     required this.article,
+    required this.isDark,
     this.allArticles,
     this.currentIndex,
     Key? key,
@@ -190,7 +192,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   void _showBookmarksScreen() {
     Navigator.push(
       context,
-      CupertinoPageRoute(builder: (context) => BookmarksScreen()),
+      CupertinoPageRoute(builder: (context) => BookmarksScreen(isDark: widget.isDark)),
     );
   }
 
@@ -205,6 +207,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   }
 
   void _showActionSheet(BuildContext context, NewsArticle article) {
+    final primaryColor = Color(0xFFFF444F);
+    
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
@@ -226,8 +230,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.share, size: 20, 
-                       color: CupertinoTheme.of(context).primaryColor),
+                  Icon(CupertinoIcons.share, size: 20, color: primaryColor),
                   SizedBox(width: 8),
                   Text('Compartilhar'),
                 ],
@@ -241,8 +244,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.bookmark_fill, size: 20, 
-                       color: CupertinoTheme.of(context).primaryColor),
+                  Icon(CupertinoIcons.bookmark_fill, size: 20, color: primaryColor),
                   SizedBox(width: 8),
                   Text('Ver Favoritos'),
                 ],
@@ -275,9 +277,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final isDark = widget.isDark;
     final hasMultipleArticles = articles.length > 1;
-    final primaryColor = CupertinoTheme.of(context).primaryColor;
+    final primaryColor = Color(0xFFFF444F);
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
