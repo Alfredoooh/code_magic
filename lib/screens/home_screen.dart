@@ -1,13 +1,12 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 
 import '../services/language_service.dart';
 import 'admin_panel_screen.dart';
@@ -23,6 +22,7 @@ import 'more_options_screen.dart' hide WalletCard;
 import 'home_widgets.dart';
 import 'home_crypto_section.dart' as crypto_section;
 import 'plans_screen.dart';
+import 'home_screen_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -56,7 +56,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentNewsPage = 0;
   int _currentCryptoPage = 0;
   final ScrollController _scrollController = ScrollController();
-  bool _showScrollToTopButton = false;
   bool _showNewPostsBanner = false;
   int _newPostsCount = 0;
   List<String> _newPostsUserImages = [];
@@ -71,19 +70,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadUserData();
     _safeSetUserOnline(true);
-    _loadNews();
-    _loadStats();
-    _loadCryptoData();
-    _cryptoTimer = Timer.periodic(Duration(seconds: 10), (_) => _loadCryptoData());
+    HomeScreenHelper.loadNews((articles, loading) {
+      if (mounted) setState(() {
+        _newsArticles = articles;
+        _loadingNews = loading;
+      });
+    });
+    HomeScreenHelper.loadStats((messages, groups) {
+      if (mounted) setState(() {
+        _messageCount = messages;
+        _groupCount = groups;
+      });
+    });
+    HomeScreenHelper.loadCryptoData((data, loading) {
+      if (mounted) setState(() {
+        _cryptoData = data;
+        _loadingCrypto = loading;
+      });
+    });
+    _cryptoTimer = Timer.periodic(Duration(seconds: 10), (_) {
+      HomeScreenHelper.loadCryptoData((data, loading) {
+        if (mounted) setState(() {
+          _cryptoData = data;
+          _loadingCrypto = loading;
+        });
+      });
+    });
 
     _scrollController.addListener(_onScroll);
     _newsPageController.addListener(() {
       if (_newsPageController.page != null) {
         final newPage = _newsPageController.page!.round();
         if (newPage != _currentNewsPage) {
-          setState(() {
-            _currentNewsPage = newPage;
-          });
+          setState(() => _currentNewsPage = newPage);
         }
       }
     });
@@ -91,9 +110,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (_cryptoPageController.page != null) {
         final newPage = _cryptoPageController.page!.round();
         if (newPage != _currentCryptoPage) {
-          setState(() {
-            _currentCryptoPage = newPage;
-          });
+          setState(() => _currentCryptoPage = newPage);
         }
       }
     });
@@ -164,16 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _onScroll() {
-    if (_scrollController.hasClients) {
-      final offset = _scrollController.offset;
-
-      final shouldShowButton = offset > 400;
-      if (_showScrollToTopButton != shouldShowButton) {
-        setState(() {
-          _showScrollToTopButton = shouldShowButton;
-        });
-      }
-    }
+    // Removido o botão scroll to top
   }
 
   @override
@@ -182,108 +190,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() {});
     });
-  }
-
-  Future<void> _loadCryptoData() async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://api.binance.com/api/v3/ticker/24hr'),
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        final usdtPairs = data.where((coin) =>
-            coin['symbol'].toString().endsWith('USDT') &&
-            !coin['symbol'].toString().contains('DOWN') &&
-            !coin['symbol'].toString().contains('UP') &&
-            !coin['symbol'].toString().contains('BEAR') &&
-            !coin['symbol'].toString().contains('BULL')).toList();
-
-        usdtPairs.sort((a, b) => double.parse(b['quoteVolume'].toString()).compareTo(double.parse(a['quoteVolume'].toString())));
-
-        if (mounted) {
-          setState(() {
-            _cryptoData = usdtPairs.take(3).map((coin) => crypto_section.CryptoData.fromBinance(coin)).toList();
-            _loadingCrypto = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loadingCrypto = false);
-      }
-    }
-  }
-
-  Future<void> _loadStats() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final convSnapshot = await FirebaseFirestore.instance
-          .collection('conversations')
-          .where('participants', arrayContains: user.uid)
-          .get();
-
-      int totalMessages = 0;
-      for (var conv in convSnapshot.docs) {
-        final messagesSnapshot = await FirebaseFirestore.instance
-            .collection('conversations')
-            .doc(conv.id)
-            .collection('messages')
-            .where('senderId', isEqualTo: user.uid)
-            .get();
-        totalMessages += messagesSnapshot.docs.length;
-      }
-
-      final groupSnapshot = await FirebaseFirestore.instance
-          .collection('groups')
-          .where('members', arrayContains: user.uid)
-          .get();
-
-      if (mounted) {
-        setState(() {
-          _messageCount = totalMessages;
-          _groupCount = groupSnapshot.docs.length;
-        });
-      }
-    } catch (e) {}
-  }
-
-  Future<void> _loadNews() async {
-    setState(() => _loadingNews = true);
-
-    try {
-      final response = await http.get(
-        Uri.parse(
-            'https://newsdata.io/api/1/news?apikey=pub_7d7d1ac2f86b4bc6b4662fd5d6dad47c&language=pt&country=br'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List? ?? [];
-
-        List<NewsArticle> articles = [];
-        for (var article in results.take(10)) {
-          articles.add(NewsArticle.fromNewsdata(article));
-        }
-
-        if (mounted) {
-          setState(() {
-            _newsArticles = articles;
-            _loadingNews = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() => _loadingNews = false);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loadingNews = false);
-      }
-    }
   }
 
   @override
@@ -411,7 +317,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
 
         await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'tokens': currentTokens - 1});
-
         return true;
       }
     } catch (e) {}
@@ -529,70 +434,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     showCupertinoModalPopup(
       context: context,
-      builder: (context) => ClipRRect(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white).withOpacity(0.9),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(height: 12),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  _buildModalOption(
-                    icon: CupertinoIcons.arrow_up_circle_fill,
-                    label: 'Enviar',
-                    isDark: isDark,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  _buildModalOption(
-                    icon: CupertinoIcons.add_circled_solid,
-                    label: 'Criar Publicação',
-                    isDark: isDark,
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _handleCreatePost();
-                    },
-                  ),
-                  _buildModalOption(
-                    icon: CupertinoIcons.arrow_down_circle_fill,
-                    label: 'Receber',
-                    isDark: isDark,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  _buildModalOption(
-                    icon: CupertinoIcons.ellipsis_circle_fill,
-                    label: 'Mais Opções',
-                    isDark: isDark,
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                          builder: (context) => MoreOptionsScreen(),
-                          fullscreenDialog: true,
-                        ),
-                      );
-                    },
-                  ),
-                  SizedBox(height: 12),
-                ],
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
+              SizedBox(height: 20),
+              _buildModalOption(
+                icon: CupertinoIcons.arrow_up_circle_fill,
+                label: 'Enviar',
+                isDark: isDark,
+                onPressed: () => Navigator.pop(context),
+              ),
+              _buildModalOption(
+                icon: CupertinoIcons.add_circled_solid,
+                label: 'Criar Publicação',
+                isDark: isDark,
+                onPressed: () {
+                  Navigator.pop(context);
+                  _handleCreatePost();
+                },
+              ),
+              _buildModalOption(
+                icon: CupertinoIcons.arrow_down_circle_fill,
+                label: 'Receber',
+                isDark: isDark,
+                onPressed: () => Navigator.pop(context),
+              ),
+              _buildModalOption(
+                icon: CupertinoIcons.ellipsis_circle_fill,
+                label: 'Mais Opções',
+                isDark: isDark,
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => MoreOptionsScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 12),
+            ],
           ),
         ),
       ),
@@ -629,13 +528,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  ImageProvider? _getProfileImage(String? profileImage, String username) {
+    if (profileImage == null || profileImage.isEmpty) return null;
+    
+    // Verifica se é base64
+    if (profileImage.startsWith('data:image')) {
+      try {
+        final base64String = profileImage.split(',')[1];
+        final bytes = base64Decode(base64String);
+        return MemoryImage(bytes);
+      } catch (e) {
+        return null;
+      }
+    }
+    
+    // Se não for base64, trata como URL
+    return NetworkImage(profileImage);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final username = _userData?['username'] ?? 'Usuário';
+    final profileImage = _userData?['profile_image'] as String?;
 
     return WillPopScope(
-      onWillPop: () async => false,
+      onWillPop: () async {
+        // Volta ao topo e atualiza ao pressionar voltar
+        _scrollToTop();
+        await Future.wait([
+          _loadUserData(),
+          HomeScreenHelper.loadNews((articles, loading) {
+            if (mounted) setState(() {
+              _newsArticles = articles;
+              _loadingNews = loading;
+            });
+          }),
+          HomeScreenHelper.loadStats((messages, groups) {
+            if (mounted) setState(() {
+              _messageCount = messages;
+              _groupCount = groups;
+            });
+          }),
+          HomeScreenHelper.loadCryptoData((data, loading) {
+            if (mounted) setState(() {
+              _cryptoData = data;
+              _loadingCrypto = loading;
+            });
+          }),
+        ]);
+        return false;
+      },
       child: CupertinoPageScaffold(
         backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
         child: Stack(
@@ -645,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               physics: BouncingScrollPhysics(),
               slivers: [
                 CupertinoSliverNavigationBar(
-                  backgroundColor: Colors.transparent,
+                  backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : Color(0xFFF5F5F5).withOpacity(0.9),
                   border: null,
                   largeTitle: Text(username),
                   trailing: Row(
@@ -674,12 +617,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: CircleAvatar(
                           radius: 16,
                           backgroundColor: Color(0xFFFF444F),
-                          backgroundImage: (_userData?['profile_image'] != null &&
-                                  (_userData!['profile_image'] as String).isNotEmpty)
-                              ? NetworkImage(_userData!['profile_image'])
-                              : null,
-                          child: (_userData?['profile_image'] == null ||
-                                  (_userData!['profile_image'] as String).isEmpty)
+                          backgroundImage: _getProfileImage(profileImage, username),
+                          child: _getProfileImage(profileImage, username) == null
                               ? Text(
                                   username[0].toUpperCase(),
                                   style: TextStyle(fontSize: 14, color: CupertinoColors.white, fontWeight: FontWeight.bold),
@@ -693,12 +632,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 CupertinoSliverRefreshControl(
                   onRefresh: () async {
-                    if (_scrollController.offset <= 100) {
-                      await _loadUserData();
-                      await _loadNews();
-                      await _loadStats();
-                      await _loadCryptoData();
-                    }
+                    await Future.wait([
+                      _loadUserData(),
+                      HomeScreenHelper.loadNews((articles, loading) {
+                        if (mounted) setState(() {
+                          _newsArticles = articles;
+                          _loadingNews = loading;
+                        });
+                      }),
+                      HomeScreenHelper.loadStats((messages, groups) {
+                        if (mounted) setState(() {
+                          _messageCount = messages;
+                          _groupCount = groups;
+                        });
+                      }),
+                      HomeScreenHelper.loadCryptoData((data, loading) {
+                        if (mounted) setState(() {
+                          _cryptoData = data;
+                          _loadingCrypto = loading;
+                        });
+                      }),
+                    ]);
                   },
                 ),
                 SliverPadding(
@@ -780,7 +734,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           padding: EdgeInsets.only(right: 12),
                                           child: GestureDetector(
                                             onTap: () => _handleNewsClick(article, index),
-                                            child: _buildNewsCard(
+                                            child: HomeScreenHelper.buildNewsCard(
                                               article: article,
                                               isDark: isDark,
                                             ),
@@ -801,32 +755,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ]),
                   ),
                 ),
-
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: _SliverAppBarDelegate(
                     minHeight: 60,
                     maxHeight: 60,
-                    child: ClipRect(
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                        child: Container(
-                          color: (isDark ? Color(0xFF000000) : Color(0xFFF5F5F5)).withOpacity(0.85),
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Text(
-                            'Sheets',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
-                          ),
+                    child: Container(
+                      color: isDark ? Color(0xFF000000).withOpacity(0.9) : Color(0xFFF5F5F5).withOpacity(0.9),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Text(
+                        'Sheets',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
                         ),
                       ),
                     ),
                   ),
                 ),
-
                 SliverToBoxAdapter(
                   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance.collection('publicacoes').orderBy('timestamp', descending: true).limit(20).snapshots(),
@@ -881,11 +828,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     },
                   ),
                 ),
-
                 SliverPadding(padding: EdgeInsets.only(bottom: 100)),
               ],
             ),
-
             if (_showNewPostsBanner)
               Positioned(
                 top: 100,
@@ -893,99 +838,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 right: 16,
                 child: GestureDetector(
                   onTap: _scrollToTop,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white).withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: CupertinoColors.systemBlue.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_newPostsUserImages.isNotEmpty) ...[
-                              SizedBox(
-                                width: 80,
-                                height: 32,
-                                child: Stack(
-                                  children: _newPostsUserImages.asMap().entries.map((entry) {
-                                    final index = entry.key;
-                                    final imageUrl = entry.value;
-                                    return Positioned(
-                                      left: index * 20.0,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: CircleAvatar(
-                                          radius: 16,
-                                          backgroundImage: NetworkImage(imageUrl),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                            ],
-                            Expanded(
-                              child: Text(
-                                '${_newPostsCount} ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
-                                style: TextStyle(
-                                  color: CupertinoColors.systemBlue,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              CupertinoIcons.arrow_up,
-                              color: CupertinoColors.systemBlue,
-                              size: 18,
-                            ),
-                          ],
-                        ),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: CupertinoColors.systemBlue.withOpacity(0.3),
+                        width: 1,
                       ),
                     ),
-                  ),
-                ),
-              ),
-
-            if (_showScrollToTopButton)
-              Positioned(
-                bottom: 24,
-                right: 16,
-                child: GestureDetector(
-                  onTap: _scrollToTop,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemBlue,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: CupertinoColors.systemBlue.withOpacity(0.3),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_newPostsUserImages.isNotEmpty) ...[
+                          SizedBox(
+                            width: 80,
+                            height: 32,
+                            child: Stack(
+                              children: _newPostsUserImages.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final imageUrl = entry.value;
+                                return Positioned(
+                                  left: index * 20.0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 16,
+                                      backgroundImage: NetworkImage(imageUrl),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Text(
+                            '${_newPostsCount} ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
+                            style: TextStyle(
+                              color: CupertinoColors.systemBlue,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          CupertinoIcons.arrow_up,
+                          color: CupertinoColors.systemBlue,
+                          size: 18,
                         ),
                       ],
-                    ),
-                    child: Icon(
-                      CupertinoIcons.arrow_up,
-                      color: CupertinoColors.white,
-                      size: 24,
                     ),
                   ),
                 ),
@@ -1075,7 +985,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 title,
                 style: TextStyle(
                   fontSize: 11,
-                  color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+                  color: CupertinoColors.systemGrey,
                 ),
               ),
               Text(
@@ -1089,76 +999,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNewsCard({
-    required NewsArticle article,
-    required bool isDark,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.7),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Stack(
-            children: [
-              if (article.imageUrl != null)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      article.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
-                        child: Icon(
-                          CupertinoIcons.photo,
-                          color: CupertinoColors.systemGrey,
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.8),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 12,
-                left: 12,
-                right: 12,
-                child: Text(
-                  article.title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: CupertinoColors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1191,5 +1031,3 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     return maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
   }
 }
-
-void unawaited(Future? f) {}
