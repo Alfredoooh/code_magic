@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -17,6 +16,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  static const Color primaryColor = Color(0xFFFF444F);
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -24,63 +25,113 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   }
 
   void _showStatsPopup() {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: Text(
-          'Menu Admin',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showStatisticsModal();
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(CupertinoIcons.chart_bar_alt_fill, color: CupertinoColors.systemBlue),
-                SizedBox(width: 12),
-                Text('Estatísticas'),
+                SizedBox(height: 12),
+                Container(
+                  width: 36,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Menu Admin',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                SizedBox(height: 16),
+                ListTile(
+                  title: Text(
+                    'Estatísticas',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showStatisticsModal();
+                  },
+                ),
+                Divider(height: 1, thickness: 0.5),
+                ListTile(
+                  title: Text(
+                    'Configurações',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showSettingsModal();
+                  },
+                ),
+                Divider(height: 1, thickness: 0.5),
+                ListTile(
+                  title: Text(
+                    'Relatórios',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showReportsModal();
+                  },
+                ),
+                SizedBox(height: 8),
+                Container(
+                  height: 8,
+                  color: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+                ),
+                ListTile(
+                  title: Text(
+                    'Cancelar',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(context),
+                ),
+                SizedBox(height: 8),
               ],
             ),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showSettingsModal();
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.settings_solid, color: CupertinoColors.systemBlue),
-                SizedBox(width: 12),
-                Text('Configurações'),
-              ],
-            ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showReportsModal();
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.doc_text_fill, color: CupertinoColors.systemBlue),
-                SizedBox(width: 12),
-                Text('Relatórios'),
-              ],
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDefaultAction: true,
-          child: Text('Cancelar'),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -122,7 +173,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(CupertinoIcons.chevron_back, color: isDark ? Colors.white : Colors.black87),
+          icon: Icon(Icons.arrow_back_ios, color: primaryColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -135,10 +186,17 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(CupertinoIcons.ellipsis_circle, color: isDark ? Colors.white : Colors.black87),
+            icon: Icon(Icons.more_horiz, color: primaryColor),
             onPressed: _showStatsPopup,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Container(
+            color: isDark ? Color(0xFF38383A) : Color(0xFFE5E5EA),
+            height: 0.5,
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -153,7 +211,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
             ),
             child: Row(
               children: [
-                Icon(CupertinoIcons.search, color: Colors.grey, size: 20),
+                Icon(Icons.search, color: Colors.grey, size: 20),
                 SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -179,7 +237,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                         _searchQuery = '';
                       });
                     },
-                    child: Icon(CupertinoIcons.xmark_circle_fill, color: Colors.grey, size: 18),
+                    child: Icon(Icons.clear, color: Colors.grey, size: 18),
                   ),
               ],
             ),
@@ -191,7 +249,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
-                    child: CupertinoActivityIndicator(),
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(primaryColor),
+                    ),
                   );
                 }
 
@@ -200,7 +260,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(CupertinoIcons.person_2, size: 60, color: Colors.grey),
+                        Icon(Icons.people_outline, size: 60, color: Colors.grey),
                         SizedBox(height: 16),
                         Text(
                           'Nenhum usuário encontrado',
@@ -271,7 +331,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Color(0xFFFF444F),
+                    backgroundColor: primaryColor,
                     backgroundImage: user.profileImage != null && user.profileImage!.isNotEmpty
                         ? NetworkImage(user.profileImage!)
                         : null,
@@ -294,7 +354,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: CupertinoColors.systemGreen,
+                          color: Colors.green,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: isDark ? Color(0xFF000000) : Colors.white,
@@ -329,7 +389,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: CupertinoColors.systemBlue,
+                              color: primaryColor,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -356,7 +416,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(CupertinoIcons.money_dollar_circle, size: 13, color: Colors.grey),
+                        Icon(Icons.monetization_on, size: 13, color: Colors.grey),
                         SizedBox(width: 4),
                         Text(
                           '${user.tokens} tokens',
@@ -367,7 +427,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: user.access ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                            color: user.access ? Colors.green : Colors.red,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -376,7 +436,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           user.access ? 'Ativo' : 'Bloqueado',
                           style: TextStyle(
                             fontSize: 13,
-                            color: user.access ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                            color: user.access ? Colors.green : Colors.red,
                           ),
                         ),
                       ],
@@ -386,7 +446,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               ),
               // Chevron
               Icon(
-                CupertinoIcons.chevron_right,
+                Icons.chevron_right,
                 color: Colors.grey,
                 size: 20,
               ),
