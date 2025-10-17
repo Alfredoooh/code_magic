@@ -2,224 +2,270 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
-import 'dart:math';
 
 class DerivService {
-  static const int _appId = 71954;
-  static const String _redirectHttps = 'https://alfredoooh.github.io/database/oauth-redirect/';
-  static const String _customScheme = 'com.nexa.madeeasy';
-  
-  final _secureStorage = const FlutterSecureStorage();
-  WebSocketChannel? _channel;
-  
-  final _connectionController = StreamController<bool>.broadcast();
-  final _balanceController = StreamController<Map<String, dynamic>?>.broadcast();
-  final _tickController = StreamController<Map<String, dynamic>>.broadcast();
-  
-  Stream<bool> get connectionStream => _connectionController.stream;
-  Stream<Map<String, dynamic>?> get balanceStream => _balanceController.stream;
-  Stream<Map<String, dynamic>> get tickStream => _tickController.stream;
+  static const int appId = 71954;
+  static const String wsUrl = 'wss://ws.derivws.com/websockets/v3?app_id=$appId';
 
+  WebSocketChannel? _channel;
+  final StreamController<bool> _connectionController = StreamController<bool>.broadcast();
+  final StreamController<double> _balanceController = StreamController<double>.broadcast();
+  final StreamController<Map<String, dynamic>?> _accountController = StreamController<Map<String, dynamic>?>.broadcast();
+  final StreamController<Map<String, dynamic>> _tickController = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _proposalController = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _contractController = StreamController<Map<String, dynamic>>.broadcast();
+  
   String? _currentToken;
   bool _isConnected = false;
+  double _balance = 0.0;
+  Map<String, dynamic>? _accountInfo;
+  List<Map<String, dynamic>> _activeSymbols = [];
+  String? _forgetTickId;
 
-  Future<void> loadSavedToken() async {
+  Stream<bool> get connectionState => _connectionController.stream;
+  Stream<double> get balanceStream => _balanceController.stream;
+  Stream<Map<String, dynamic>?> get accountInfo => _accountController.stream;
+  Stream<Map<String, dynamic>> get tickStream => _tickController.stream;
+  Stream<Map<String, dynamic>> get proposalStream => _proposalController.stream;
+  Stream<Map<String, dynamic>> get contractStream => _contractController.stream;
+
+  bool get isConnected => _isConnected;
+  double get balance => _balance;
+  String? get currentToken => _currentToken;
+  List<Map<String, dynamic>> get activeSymbols => _activeSymbols;
+
+  void _connect() {
     try {
-      final token = await _secureStorage.read(key: 'deriv_api_token');
-      if (token != null && token.isNotEmpty) {
-        await connectWithToken(token);
-      }
+      _channel?.sink.close();
+      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      
+      _channel!.stream.listen(
+        (message) => _handleMessage(message),
+        onError: (error) {
+          _isConnected = false;
+          _connectionController.add(false);
+        },
+        onDone: () {
+          _isConnected = false;
+          _connectionController.add(false);
+        },
+      );
     } catch (e) {
-      // Ignorar erro
+      _isConnected = false;
+      _connectionController.add(false);
+      rethrow;
     }
   }
 
   Future<void> connectWithToken(String token) async {
-    disconnect();
-    
-    final uri = Uri.parse('wss://ws.derivws.com/websockets/v3?app_id=$_appId');
-    _channel = WebSocketChannel.connect(uri);
     _currentToken = token;
-
-    _channel!.stream.listen(
-      (dynamic msg) => _handleMessage(msg?.toString()),
-      onError: (_) => _connectionController.add(false),
-      onDone: () {
-        _isConnected = false;
-        _connectionController.add(false);
-      },
-    );
-
-    await _secureStorage.write(key: 'deriv_api_token', value: token);
-    
-    // Autorizar
-    _sendMessage({'authorize': token});
-    
-    // Solicitar saldo após conexão
+    _connect();
     await Future.delayed(Duration(milliseconds: 500));
-    _sendMessage({'balance': 1, 'subscribe': 1});
+    _sendMessage({'authorize': token});
   }
 
-  void _handleMessage(String? message) {
-    if (message == null) return;
+  Future<void> loginWithCredentials(String email, String password) async {
+    _connect();
+    await Future.delayed(Duration(milliseconds: 500));
+    
+    _sendMessage({
+      'authorize': email,
+      'password': password,
+    });
+  }
 
+  void _handleMessage(dynamic message) {
     try {
-      final data = jsonDecode(message) as Map<String, dynamic>;
-
-      // Autorização bem-sucedida
-      if (data.containsKey('authorize')) {
-        _isConnected = true;
-        _connectionController.add(true);
-        
-        final auth = data['authorize'];
-        if (auth is Map<String, dynamic>) {
-          final balance = auth['balance'];
-          final currency = auth['currency'];
-          final loginid = auth['loginid'];
-          
-          _balanceController.add({
-            'balance': _parseBalance(balance),
-            'currency': currency ?? 'USD',
-            'loginid': loginid,
-          });
-        }
-      }
-
-      // Atualização de saldo
-      if (data.containsKey('balance')) {
-        final balanceData = data['balance'];
-        double? balance;
-        String? currency;
-        String? loginid;
-
-        if (balanceData is Map<String, dynamic>) {
-          balance = _parseBalance(balanceData['balance']);
-          currency = balanceData['currency']?.toString();
-          loginid = balanceData['loginid']?.toString();
-        } else {
-          balance = _parseBalance(balanceData);
-        }
-
-        _balanceController.add({
-          'balance': balance ?? 0.0,
-          'currency': currency ?? 'USD',
-          'loginid': loginid,
-        });
-      }
-
-      // Tick de preço
-      if (data.containsKey('tick')) {
-        _tickController.add(data['tick']);
-      }
-
-      // Proposta
-      if (data.containsKey('proposal')) {
-        // Implementar lógica de proposta se necessário
-      }
-    } catch (e) {
-      // Ignorar erros de parsing
-    }
-  }
-
-  double _parseBalance(dynamic value) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  void _sendMessage(Map<String, dynamic> payload) {
-    if (_channel != null && _isConnected) {
-      _channel!.sink.add(jsonEncode(payload));
-    }
-  }
-
-  Future<String?> startOAuthFlow() async {
-    final state = _generateRandomState();
-    final authUri = Uri.parse('https://oauth.deriv.com/oauth2/authorize').replace(
-      queryParameters: {
-        'app_id': _appId.toString(),
-        'redirect_uri': _redirectHttps,
-        'state': state,
-        'response_type': 'token',
-        'scope': 'trade read',
-      },
-    );
-
-    try {
-      final result = await FlutterWebAuth2.authenticate(
-        url: authUri.toString(),
-        callbackUrlScheme: _customScheme,
-      );
-
-      final callbackUri = Uri.parse(result);
-      final token = callbackUri.queryParameters['token'] ?? 
-                     callbackUri.queryParameters['access_token'];
+      final data = jsonDecode(message);
       
-      if (token != null && token.isNotEmpty) {
-        await connectWithToken(token);
-        return token;
+      if (data['msg_type'] == 'authorize') {
+        _handleAuthorize(data);
+      } else if (data['msg_type'] == 'balance') {
+        _handleBalance(data);
+      } else if (data['msg_type'] == 'active_symbols') {
+        _handleActiveSymbols(data);
+      } else if (data['msg_type'] == 'tick') {
+        _handleTick(data);
+      } else if (data['msg_type'] == 'proposal') {
+        _handleProposal(data);
+      } else if (data['msg_type'] == 'buy') {
+        _handleBuy(data);
+      } else if (data['msg_type'] == 'proposal_open_contract') {
+        _handleContract(data);
+      } else if (data['error']) {
+        print('Deriv API Error: ${data['error']['message']}');
       }
     } catch (e) {
-      // Erro ou cancelamento
+      print('Error parsing message: $e');
     }
-    return null;
   }
 
-  String _generateRandomState([int length = 24]) {
-    final rand = Random.secure();
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return List.generate(length, (_) => chars[rand.nextInt(chars.length)]).join();
+  void _handleAuthorize(Map<String, dynamic> data) {
+    if (data['authorize'] != null) {
+      _isConnected = true;
+      _connectionController.add(true);
+      
+      final authData = data['authorize'];
+      _accountInfo = {
+        'loginid': authData['loginid'],
+        'currency': authData['currency'],
+        'balance': authData['balance']?.toDouble() ?? 0.0,
+        'account_type': authData['account_type'] ?? 'demo',
+        'email': authData['email'],
+      };
+      
+      _balance = _accountInfo!['balance'];
+      _balanceController.add(_balance);
+      _accountController.add(_accountInfo);
+      
+      if (_currentToken == null && authData['token'] != null) {
+        _currentToken = authData['token'];
+      }
+      
+      getActiveSymbols();
+      subscribeToBalance();
+    }
+  }
+
+  void _handleBalance(Map<String, dynamic> data) {
+    if (data['balance'] != null) {
+      final balanceData = data['balance'];
+      if (balanceData is Map) {
+        _balance = (balanceData['balance'] ?? balanceData['amount'] ?? 0.0).toDouble();
+      } else {
+        _balance = (balanceData as num).toDouble();
+      }
+      _balanceController.add(_balance);
+    }
+  }
+
+  void _handleActiveSymbols(Map<String, dynamic> data) {
+    if (data['active_symbols'] != null) {
+      _activeSymbols = List<Map<String, dynamic>>.from(data['active_symbols']);
+    }
+  }
+
+  void _handleTick(Map<String, dynamic> data) {
+    if (data['tick'] != null) {
+      _tickController.add(data['tick']);
+    }
+  }
+
+  void _handleProposal(Map<String, dynamic> data) {
+    if (data['proposal'] != null) {
+      _proposalController.add(data['proposal']);
+    }
+  }
+
+  void _handleBuy(Map<String, dynamic> data) {
+    if (data['buy'] != null) {
+      _contractController.add(data['buy']);
+    }
+  }
+
+  void _handleContract(Map<String, dynamic> data) {
+    if (data['proposal_open_contract'] != null) {
+      _contractController.add(data['proposal_open_contract']);
+    }
+  }
+
+  void _sendMessage(Map<String, dynamic> message) {
+    if (_channel != null) {
+      _channel!.sink.add(jsonEncode(message));
+    }
+  }
+
+  void getActiveSymbols() {
+    _sendMessage({
+      'active_symbols': 'brief',
+      'product_type': 'basic',
+    });
+  }
+
+  void subscribeToBalance() {
+    _sendMessage({
+      'balance': 1,
+      'subscribe': 1,
+    });
   }
 
   void subscribeTicks(String symbol) {
+    if (_forgetTickId != null) {
+      _sendMessage({'forget': _forgetTickId});
+    }
+    
     _sendMessage({
       'ticks': symbol,
       'subscribe': 1,
     });
   }
 
-  void unsubscribeTicks(String symbol) {
+  void getProposal({
+    required String contractType,
+    required String symbol,
+    required String currency,
+    required double amount,
+    required String duration,
+    required String durationType,
+    String? barrier,
+  }) {
+    final proposal = {
+      'proposal': 1,
+      'amount': amount,
+      'basis': 'stake',
+      'contract_type': contractType,
+      'currency': currency,
+      'duration': int.parse(duration),
+      'duration_unit': durationType,
+      'symbol': symbol,
+      'subscribe': 1,
+    };
+
+    if (barrier != null) {
+      proposal['barrier'] = barrier;
+    }
+
+    _sendMessage(proposal);
+  }
+
+  void buyContract(String proposalId, double price) {
     _sendMessage({
-      'forget': symbol,
+      'buy': proposalId,
+      'price': price,
     });
   }
 
-  Future<void> buyContract({
-    required String contractType,
-    required String symbol,
-    required double stake,
-    required int duration,
-    required String durationType,
-  }) async {
+  void getOpenContracts() {
     _sendMessage({
-      'buy': 1,
-      'subscribe': 1,
-      'price': stake,
-      'parameters': {
-        'contract_type': contractType,
-        'symbol': symbol,
-        'duration': duration,
-        'duration_unit': durationType,
-        'basis': 'stake',
-        'amount': stake,
-      },
+      'portfolio': 1,
+    });
+  }
+
+  void sellContract(String contractId) {
+    _sendMessage({
+      'sell': contractId,
     });
   }
 
   void disconnect() {
+    _forgetTickId = null;
     _channel?.sink.close();
     _channel = null;
     _isConnected = false;
+    _currentToken = null;
+    _balance = 0.0;
+    _accountInfo = null;
+    _activeSymbols = [];
     _connectionController.add(false);
-    _secureStorage.delete(key: 'deriv_api_token');
   }
 
   void dispose() {
     disconnect();
     _connectionController.close();
     _balanceController.close();
+    _accountController.close();
     _tickController.close();
+    _proposalController.close();
+    _contractController.close();
   }
 }
