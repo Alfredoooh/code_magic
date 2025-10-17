@@ -1,34 +1,43 @@
-// lib/widgets/wallet_card.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:ui';
-import 'dart:math' as math;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'web_platform.dart';
 
-class WalletCard extends StatelessWidget {
-  final Map<String, dynamic>? userData;
-  final String cardStyle;
-  final Function(String)? onStyleChanged;
-  final bool showCustomizeButton;
+class MoreOptionsScreen extends StatefulWidget {
+  @override
+  _MoreOptionsScreenState createState() => _MoreOptionsScreenState();
+}
 
-  const WalletCard({
-    required this.userData,
-    required this.cardStyle,
-    this.onStyleChanged,
-    this.showCustomizeButton = true,
-    Key? key,
-  }) : super(key: key);
+class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstTime();
+  }
 
-  void _showCardStylePicker(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+  Future<void> _checkFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenIntro = prefs.getBool('hasSeenMoreOptionsIntro') ?? false;
+    
+    if (!hasSeenIntro) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).push(
+          CupertinoPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => MoreOptionsIntroScreen(),
+          ),
+        );
+      });
+    }
+  }
 
+  void _showPlatformsSheet(BuildContext context, bool isDark) {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => Container(
-        height: 450,
+        height: MediaQuery.of(context).size.height * 0.7,
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
@@ -36,39 +45,52 @@ class WalletCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            SizedBox(height: 16),
+            SizedBox(height: 12),
             Container(
-              width: 40,
-              height: 4,
+              width: 36,
+              height: 5,
               decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey,
-                borderRadius: BorderRadius.circular(2),
+                color: CupertinoColors.systemGrey3,
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 16),
             Text(
-              'Escolha o Estilo do Cartão',
+              'Plataformas de Trading',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 color: isDark ? CupertinoColors.white : CupertinoColors.black,
               ),
             ),
             SizedBox(height: 20),
             Expanded(
-              child: GridView.count(
-                padding: EdgeInsets.all(16),
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.1,
+              child: ListView(
+                padding: EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  _buildStyleOption(context, 'aurora', 'Aurora', CupertinoIcons.sparkles, isDark),
-                  _buildStyleOption(context, 'ocean', 'Ocean', CupertinoIcons.wind, isDark),
-                  _buildStyleOption(context, 'carbon', 'Carbon', CupertinoIcons.layers_alt_fill, isDark),
-                  _buildStyleOption(context, 'sunset', 'Sunset', CupertinoIcons.sun_max_fill, isDark),
-                  _buildStyleOption(context, 'midnight', 'Midnight', CupertinoIcons.moon_stars_fill, isDark),
-                  _buildStyleOption(context, 'emerald', 'Emerald', CupertinoIcons.leaf_arrow_circlepath, isDark),
+                  _buildPlatformItem(
+                    context: context,
+                    name: 'Binance',
+                    url: 'https://www.binance.com',
+                    isDark: isDark,
+                    iconColor: Color(0xFFF3BA2F),
+                  ),
+                  SizedBox(height: 12),
+                  _buildPlatformItem(
+                    context: context,
+                    name: 'Coinbase',
+                    url: 'https://www.coinbase.com',
+                    isDark: isDark,
+                    iconColor: Color(0xFF0052FF),
+                  ),
+                  SizedBox(height: 12),
+                  _buildPlatformItem(
+                    context: context,
+                    name: 'Kraken',
+                    url: 'https://www.kraken.com',
+                    isDark: isDark,
+                    iconColor: Color(0xFF5741D9),
+                  ),
                 ],
               ),
             ),
@@ -78,52 +100,83 @@ class WalletCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStyleOption(BuildContext context, String style, String name, IconData icon, bool isDark) {
-    final isSelected = cardStyle == style;
-
-    return GestureDetector(
-      onTap: () async {
-        onStyleChanged?.call(style);
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .update({'cardStyle': style});
-        }
+  Widget _buildPlatformItem({
+    required BuildContext context,
+    required String name,
+    required String url,
+    required bool isDark,
+    required Color iconColor,
+  }) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: () {
         Navigator.pop(context);
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => PlatformDetailScreen(
+              name: name,
+              url: url,
+              iconColor: iconColor,
+            ),
+          ),
+        );
       },
       child: Container(
+        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? Color(0xFFFF444F).withOpacity(0.2)
-              : (isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6),
+          color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? Color(0xFFFF444F) : Colors.transparent,
-            width: 2,
-          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            Icon(
-              icon,
-              size: 36,
-              color: isSelected ? Color(0xFFFF444F) : CupertinoColors.systemGrey,
-            ),
-            SizedBox(height: 8),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected 
-                    ? Color(0xFFFF444F) 
-                    : (isDark ? CupertinoColors.white : CupertinoColors.black),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  name[0],
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: iconColor,
+                  ),
+                ),
               ),
             ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                ),
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              color: CupertinoColors.systemGrey,
+              size: 20,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _openFeature(BuildContext context, String title, IconData icon, bool isDark) {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => FeatureDetailScreen(
+          title: title,
+          icon: icon,
         ),
       ),
     );
@@ -131,651 +184,710 @@ class WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (cardStyle) {
-      case 'aurora':
-        return _buildAuroraCard(context);
-      case 'ocean':
-        return _buildOceanCard(context);
-      case 'carbon':
-        return _buildCarbonCard(context);
-      case 'sunset':
-        return _buildSunsetCard(context);
-      case 'midnight':
-        return _buildMidnightCard(context);
-      case 'emerald':
-        return _buildEmeraldCard(context);
-      default:
-        return _buildAuroraCard(context);
-    }
-  }
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-  // Aurora Card - Inspirado em American Express
-  Widget _buildAuroraCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF6366F1).withOpacity(0.4),
-            blurRadius: 25,
-            offset: Offset(0, 12),
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            width: 0.5,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF4F46E5),
-                    Color(0xFF7C3AED),
-                    Color(0xFF6366F1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size.infinite,
-              painter: WavyLinesPainter(color: Colors.white.withOpacity(0.1)),
-            ),
-            Positioned(
-              top: -80,
-              right: -80,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.15),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            _buildCardContent(context, Colors.white),
-          ],
         ),
-      ),
-    );
-  }
-
-  // Ocean Card - Tons de azul/verde como Mastercard
-  Widget _buildOceanCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF0891B2).withOpacity(0.4),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF0E7490),
-                    Color(0xFF0891B2),
-                    Color(0xFF06B6D4),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size.infinite,
-              painter: CircularPatternPainter(color: Colors.white.withOpacity(0.08)),
-            ),
-            Positioned(
-              bottom: -50,
-              left: -50,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
-                    width: 40,
-                  ),
-                ),
-              ),
-            ),
-            _buildCardContent(context, Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Carbon Card - Preto com linhas texturizadas
-  Widget _buildCarbonCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF0A0A0A),
-                    Color(0xFF1A1A1A),
-                    Color(0xFF0F0F0F),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size.infinite,
-              painter: CarbonFiberPainter(),
-            ),
-            Positioned(
-              top: 20,
-              right: 20,
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Color(0xFFFF444F).withOpacity(0.3),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            _buildCardContent(context, Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Sunset Card - Laranja/Rosa vibrante
-  Widget _buildSunsetCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFFF59E0B).withOpacity(0.4),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFF59E0B),
-                    Color(0xFFF97316),
-                    Color(0xFFEF4444),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size.infinite,
-              painter: TopographicPainter(color: Colors.white.withOpacity(0.1)),
-            ),
-            _buildCardContent(context, Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Midnight Card - Azul escuro estrelado
-  Widget _buildMidnightCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF1E3A8A).withOpacity(0.5),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF0F172A),
-                    Color(0xFF1E293B),
-                    Color(0xFF334155),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size.infinite,
-              painter: StarfieldPainter(),
-            ),
-            _buildCardContent(context, Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Emerald Card - Verde esmeralda com padrão
-  Widget _buildEmeraldCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF059669).withOpacity(0.4),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF047857),
-                    Color(0xFF059669),
-                    Color(0xFF10B981),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size.infinite,
-              painter: HexagonPatternPainter(color: Colors.white.withOpacity(0.08)),
-            ),
-            Positioned(
-              bottom: -30,
-              right: -30,
-              child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.15),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            _buildCardContent(context, Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardContent(BuildContext context, Color textColor) {
-    return Padding(
-      padding: EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Icon(
+                CupertinoIcons.back,
+                color: Color(0xFFFF444F),
+                size: 24,
+              ),
+              SizedBox(width: 4),
+              Text(
+                'Voltar',
+                style: TextStyle(
+                  color: Color(0xFFFF444F),
+                  fontSize: 17,
+                ),
+              ),
+            ],
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        middle: Text(
+          'Mais Opções',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.all(16),
                 children: [
+                  // Features List
                   Text(
-                    'TOKENS',
+                    'FUNCIONALIDADES',
                     style: TextStyle(
-                      color: textColor.withOpacity(0.7),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: CupertinoColors.systemGrey,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  SizedBox(height: 6),
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(FirebaseAuth.instance.currentUser?.uid)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      final tokens = snapshot.data?.data() != null
-                          ? (snapshot.data!.data() as Map<String, dynamic>)['tokens'] ?? 0
-                          : 0;
-                      return Text(
-                        '$tokens',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 52,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1,
-                          height: 1,
-                        ),
-                      );
-                    },
+                  SizedBox(height: 12),
+                  _buildFeatureCard(
+                    context: context,
+                    icon: CupertinoIcons.chart_bar_alt_fill,
+                    title: 'Análise de Mercado',
+                    subtitle: 'Ferramentas avançadas',
+                    onTap: () => _openFeature(context, 'Análise de Mercado', CupertinoIcons.chart_bar_alt_fill, isDark),
+                    isDark: isDark,
+                  ),
+                  SizedBox(height: 12),
+                  _buildFeatureCard(
+                    context: context,
+                    icon: CupertinoIcons.bell_fill,
+                    title: 'Alertas de Preço',
+                    subtitle: 'Notificações personalizadas',
+                    onTap: () => _openFeature(context, 'Alertas de Preço', CupertinoIcons.bell_fill, isDark),
+                    isDark: isDark,
+                  ),
+                  SizedBox(height: 12),
+                  _buildFeatureCard(
+                    context: context,
+                    icon: CupertinoIcons.briefcase_fill,
+                    title: 'Gestão de Portfolio',
+                    subtitle: 'Acompanhe seus investimentos',
+                    onTap: () => _openFeature(context, 'Gestão de Portfolio', CupertinoIcons.briefcase_fill, isDark),
+                    isDark: isDark,
                   ),
                 ],
               ),
-              Visibility(
-                visible: showCustomizeButton,
-                child: GestureDetector(
-                  onTap: () => _showCardStylePicker(context),
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Icon(
-                      CupertinoIcons.slider_horizontal_3,
-                      color: textColor,
-                      size: 24,
-                    ),
+            ),
+            
+            // Bottom Button
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                border: Border(
+                  top: BorderSide(
+                    color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
+                    width: 0.5,
                   ),
                 ),
               ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (userData?['pro'] == true)
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.4),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(CupertinoIcons.star_fill, color: textColor, size: 12),
-                      SizedBox(width: 6),
-                      Text(
-                        'PRO MEMBER',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    borderRadius: BorderRadius.circular(14),
+                    color: Color(0xFFFF444F),
+                    onPressed: () => _showPlatformsSheet(context, isDark),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          CupertinoIcons.globe,
+                          color: CupertinoColors.white,
+                          size: 24,
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${_getExpirationDays()} DIAS',
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1,
+                        SizedBox(width: 12),
+                        Text(
+                          'Abrir Plataforma',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: CupertinoColors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              SizedBox(height: 10),
-              Text(
-                (userData?['username'] ?? 'UTILIZADOR').toUpperCase(),
-                style: TextStyle(
-                  color: textColor.withOpacity(0.95),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  String _getExpirationDays() {
-    if (userData?['expiration_date'] == null) return '0';
-    try {
-      final date = DateTime.parse(userData!['expiration_date']);
-      final diff = date.difference(DateTime.now()).inDays;
-      return diff > 0 ? '$diff' : '0';
-    } catch (e) {
-      return '0';
-    }
+  Widget _buildFeatureCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: Color(0xFFFF444F),
+              size: 28,
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              color: CupertinoColors.systemGrey,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-// Painters para padrões decorativos
-
-class WavyLinesPainter extends CustomPainter {
-  final Color color;
-  WavyLinesPainter({required this.color});
-
+// Intro Screen
+class MoreOptionsIntroScreen extends StatefulWidget {
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    for (int i = 0; i < 8; i++) {
-      final path = Path();
-      final y = size.height * 0.15 * i;
-      path.moveTo(0, y);
-      
-      for (double x = 0; x <= size.width; x += 20) {
-        path.lineTo(x, y + math.sin(x * 0.05) * 8);
-      }
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  _MoreOptionsIntroScreenState createState() => _MoreOptionsIntroScreenState();
 }
 
-class CircularPatternPainter extends CustomPainter {
-  final Color color;
-  CircularPatternPainter({required this.color});
+class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(milliseconds: 600),
+      vsync: this,
+    );
 
-    for (double r = 20; r < 300; r += 20) {
-      canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.5), r, paint);
-    }
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(0.0, 0.5, curve: Curves.easeOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+    ));
+
+    _controller.forward();
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDismiss() async {
+    await _controller.reverse();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenMoreOptionsIntro', true);
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 50),
+                  
+                  Icon(
+                    CupertinoIcons.globe,
+                    color: Color(0xFFFF444F),
+                    size: 64,
+                  ),
+                  
+                  SizedBox(height: 40),
+                  
+                  Text(
+                    'Bem-vindo às\nMais Opções',
+                    style: TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black,
+                      letterSpacing: -1,
+                      height: 1.1,
+                    ),
+                  ),
+                  
+                  SizedBox(height: 20),
+                  
+                  Text(
+                    'Explore funcionalidades avançadas e acesse plataformas de trading diretamente do app.',
+                    style: TextStyle(
+                      fontSize: 18,
+                      height: 1.6,
+                      color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.8),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  
+                  SizedBox(height: 44),
+                  
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildInfoSection(
+                            icon: CupertinoIcons.chart_bar_alt_fill,
+                            title: 'Análise Avançada',
+                            description: 'Ferramentas profissionais para análise técnica e fundamental do mercado.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: CupertinoIcons.globe,
+                            title: 'Plataformas Integradas',
+                            description: 'Acesse diversas corretoras e plataformas de trading sem sair do app.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 28),
+                          
+                          _buildInfoSection(
+                            icon: CupertinoIcons.bell_fill,
+                            title: 'Alertas Personalizados',
+                            description: 'Configure notificações para acompanhar movimentos de preços importantes.',
+                            isDark: isDark,
+                          ),
+                          
+                          SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 20, top: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _handleDismiss,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFFF444F),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'Começar',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: Color(0xFFFF444F),
+          size: 28,
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class CarbonFiberPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.02)
-      ..style = PaintingStyle.fill;
+// Feature Detail Screen
+class FeatureDetailScreen extends StatelessWidget {
+  final String title;
+  final IconData icon;
 
-    for (double i = 0; i < size.width; i += 4) {
-      for (double j = 0; j < size.height; j += 4) {
-        if ((i + j) % 8 == 0) {
-          canvas.drawRect(Rect.fromLTWH(i, j, 2, 2), paint);
-        }
-      }
-    }
+  const FeatureDetailScreen({
+    required this.title,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFF444F).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 50,
+                        color: Color(0xFFFF444F),
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        'Em breve disponível',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            Container(
+              padding: EdgeInsets.all(16),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    borderRadius: BorderRadius.circular(14),
+                    color: Color(0xFFFF444F),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Voltar',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class TopographicPainter extends CustomPainter {
-  final Color color;
-  TopographicPainter({required this.color});
+// Platform Detail Screen
+class PlatformDetailScreen extends StatelessWidget {
+  final String name;
+  final String url;
+  final Color iconColor;
+
+  const PlatformDetailScreen({
+    required this.name,
+    required this.url,
+    required this.iconColor,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
+  Widget build(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-    for (int i = 0; i < 10; i++) {
-      final path = Path();
-      final yOffset = i * 25.0;
-      path.moveTo(0, yOffset);
-      
-      for (double x = 0; x <= size.width; x += 30) {
-        final y = yOffset + math.sin(x * 0.03 + i) * 15;
-        path.lineTo(x, y);
-      }
-      canvas.drawPath(path, paint);
-    }
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            width: 0.5,
+          ),
+        ),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                CupertinoIcons.back,
+                color: Color(0xFFFF444F),
+                size: 24,
+              ),
+              SizedBox(width: 4),
+              Text(
+                'Voltar',
+                style: TextStyle(
+                  color: Color(0xFFFF444F),
+                  fontSize: 17,
+                ),
+              ),
+            ],
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        middle: Text(
+          name,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(28),
+                child: Column(
+                  children: [
+                    SizedBox(height: 20),
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: iconColor.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          name[0],
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w700,
+                            color: iconColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 32),
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      ),
+                    ),
+                    SizedBox(height: 40),
+                    _buildSection(
+                      icon: CupertinoIcons.checkmark_shield_fill,
+                      title: 'Vantagens',
+                      description: 'Plataforma confiável com alta liquidez e diversas opções de trading.',
+                      isDark: isDark,
+                    ),
+                    SizedBox(height: 24),
+                    _buildSection(
+                      icon: CupertinoIcons.info_circle_fill,
+                      title: 'Considerações',
+                      description: 'Verifique as taxas e regulamentações aplicáveis na sua região.',
+                      isDark: isDark,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            Container(
+              padding: EdgeInsets.all(16),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    borderRadius: BorderRadius.circular(14),
+                    color: Color(0xFFFF444F),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (context) => WebPlatformScreen(url: url),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Continuar',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class StarfieldPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    final random = math.Random(42);
-    for (int i = 0; i < 50; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      final starSize = random.nextDouble() * 2 + 0.5;
-      final opacity = random.nextDouble() * 0.5 + 0.3;
-      
-      paint.color = Colors.white.withOpacity(opacity);
-      canvas.drawCircle(Offset(x, y), starSize, paint);
-    }
+  Widget _buildSection({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: Color(0xFFFF444F),
+          size: 28,
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class HexagonPatternPainter extends CustomPainter {
-  final Color color;
-  HexagonPatternPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    final hexSize = 30.0;
-    for (double y = 0; y < size.height + hexSize; y += hexSize * 1.5) {
-      for (double x = 0; x < size.width + hexSize; x += hexSize * math.sqrt(3)) {
-        final offset = (y / (hexSize * 1.5)) % 2 == 0 ? 0.0 : hexSize * math.sqrt(3) / 2;
-        _drawHexagon(canvas, Offset(x + offset, y), hexSize, paint);
-      }
-    }
-  }
-
-  void _drawHexagon(Canvas canvas, Offset center, double size, Paint paint) {
-    final path = Path();
-    for (int i = 0; i < 6; i++) {
-      final angle = (math.pi / 3) * i;
-      final x = center.dx + size * math.cos(angle);
-      final y = center.dy + size * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
