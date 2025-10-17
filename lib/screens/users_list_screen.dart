@@ -1,18 +1,18 @@
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'chat_detail_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UsersListScreen extends StatefulWidget {
   final User? currentUser;
   final Map<String, dynamic>? userData;
+  final Function(String)? onUserSelected;
 
   const UsersListScreen({
     Key? key,
-    required this.currentUser,
+    this.currentUser,
     this.userData,
+    this.onUserSelected,
   }) : super(key: key);
 
   @override
@@ -20,8 +20,6 @@ class UsersListScreen extends StatefulWidget {
 }
 
 class _UsersListScreenState extends State<UsersListScreen> {
-  static const Color primaryColor = Color(0xFFFF444F);
-  
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -38,81 +36,89 @@ class _UsersListScreenState extends State<UsersListScreen> {
     return CupertinoPageScaffold(
       backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
+        backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : CupertinoColors.white.withOpacity(0.9),
         border: null,
+        middle: Text('Usuários'),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
+          child: Icon(CupertinoIcons.back, color: isDark ? CupertinoColors.white : CupertinoColors.black),
           onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Cancelar',
-            style: TextStyle(color: primaryColor),
-          ),
-        ),
-        middle: Text(
-          'Novo Chat',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
         ),
       ),
       child: SafeArea(
         child: Column(
           children: [
-            ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  color: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(0.85),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: CupertinoSearchTextField(
-                    controller: _searchController,
-                    placeholder: 'Buscar',
-                    style: TextStyle(
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value.toLowerCase());
-                    },
-                  ),
-                ),
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: CupertinoSearchTextField(
+                controller: _searchController,
+                placeholder: 'Buscar usuários',
+                style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black),
+                onChanged: (value) {
+                  setState(() => _searchQuery = value.toLowerCase());
+                },
               ),
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CupertinoActivityIndicator(radius: 15));
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CupertinoActivityIndicator());
                   }
 
-                  final allUsers = snapshot.data!.docs.where((doc) {
-                    if (doc.id == widget.currentUser?.uid) return false;
-                    if (_searchQuery.isNotEmpty) {
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Nenhum usuário encontrado',
+                        style: TextStyle(
+                          color: CupertinoColors.systemGrey,
+                          fontSize: 16,
+                        ),
+                      ),
+                    );
+                  }
+
+                  var users = snapshot.data!.docs.where((doc) {
+                    return doc.id != widget.currentUser?.uid;
+                  }).toList();
+
+                  if (_searchQuery.isNotEmpty) {
+                    users = users.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       final username = (data['username'] ?? '').toString().toLowerCase();
                       final email = (data['email'] ?? '').toString().toLowerCase();
                       return username.contains(_searchQuery) || email.contains(_searchQuery);
-                    }
-                    return true;
-                  }).toList();
+                    }).toList();
+                  }
 
-                  if (allUsers.isEmpty) {
+                  if (users.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            CupertinoIcons.person_2,
+                          Icon(
+                            CupertinoIcons.search,
                             size: 64,
                             color: CupertinoColors.systemGrey,
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           Text(
-                            _searchQuery.isEmpty ? 'Nenhum usuário disponível' : 'Nenhum resultado',
-                            style: const TextStyle(
+                            'Nenhum resultado',
+                            style: TextStyle(
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Tente buscar outro usuário',
+                            style: TextStyle(
                               color: CupertinoColors.systemGrey,
-                              fontSize: 17,
+                              fontSize: 14,
                             ),
                           ),
                         ],
@@ -120,43 +126,52 @@ class _UsersListScreenState extends State<UsersListScreen> {
                     );
                   }
 
-                  return ListView.separated(
+                  return ListView.builder(
                     padding: EdgeInsets.zero,
-                    itemCount: allUsers.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      thickness: 0.5,
-                      indent: 88,
-                      color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
-                    ),
+                    physics: BouncingScrollPhysics(),
+                    itemCount: users.length,
                     itemBuilder: (context, index) {
-                      final userDoc = allUsers[index];
-                      final userData = userDoc.data() as Map<String, dynamic>;
+                      final userData = users[index].data() as Map<String, dynamic>;
+                      final userId = users[index].id;
+                      final username = userData['username'] ?? 'Usuário';
+                      final email = userData['email'] ?? '';
+                      final profileImage = userData['profile_image'] ?? '';
                       final isOnline = userData['isOnline'] == true;
+                      final isPro = userData['pro'] == true;
+                      final isAdmin = userData['admin'] == true;
 
                       return Container(
-                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                        decoration: BoxDecoration(
+                          color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isDark 
+                                  ? CupertinoColors.systemGrey6.darkColor
+                                  : CupertinoColors.systemGrey6,
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
                         child: CupertinoListTile(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           leading: Stack(
                             children: [
                               Container(
                                 width: 56,
                                 height: 56,
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: primaryColor,
+                                  color: Color(0xFFFF444F),
                                 ),
-                                child: userData['profile_image'] != null &&
-                                        userData['profile_image'].isNotEmpty
+                                child: profileImage.isNotEmpty
                                     ? ClipOval(
                                         child: Image.network(
-                                          userData['profile_image'],
+                                          profileImage,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Center(
+                                          errorBuilder: (_, __, ___) => Center(
                                             child: Text(
-                                              (userData['username'] ?? 'U')[0].toUpperCase(),
-                                              style: const TextStyle(
+                                              username[0].toUpperCase(),
+                                              style: TextStyle(
                                                 fontSize: 22,
                                                 color: CupertinoColors.white,
                                                 fontWeight: FontWeight.w600,
@@ -167,8 +182,8 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                       )
                                     : Center(
                                         child: Text(
-                                          (userData['username'] ?? 'U')[0].toUpperCase(),
-                                          style: const TextStyle(
+                                          username[0].toUpperCase(),
+                                          style: TextStyle(
                                             fontSize: 22,
                                             color: CupertinoColors.white,
                                             fontWeight: FontWeight.w600,
@@ -195,55 +210,55 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                 ),
                             ],
                           ),
-                          title: Text(
-                            userData['username'] ?? 'Usuário',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 17,
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  username,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 17,
+                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                  ),
+                                ),
+                              ),
+                              if (isPro)
+                                Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child: Icon(
+                                    CupertinoIcons.checkmark_seal_fill,
+                                    color: CupertinoColors.activeBlue,
+                                    size: 16,
+                                  ),
+                                ),
+                              if (isAdmin)
+                                Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child: Icon(
+                                    CupertinoIcons.shield_fill,
+                                    color: Color(0xFFFF444F),
+                                    size: 16,
+                                  ),
+                                ),
+                            ],
                           ),
                           subtitle: Text(
-                            isOnline ? 'Online' : 'Offline',
+                            isOnline ? 'Online' : email,
                             style: TextStyle(
                               color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
                               fontSize: 15,
                             ),
                           ),
-                          trailing: CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            minSize: 32,
-                            child: const Icon(
-                              CupertinoIcons.chat_bubble_fill,
-                              color: primaryColor,
-                              size: 24,
-                            ),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                CupertinoPageRoute(
-                                  builder: (context) => ChatDetailScreen(
-                                    recipientId: userDoc.id,
-                                    recipientName: userData['username'] ?? 'Usuário',
-                                    recipientImage: userData['profile_image'] ?? '',
-                                  ),
-                                ),
-                              );
-                            },
+                          trailing: Icon(
+                            CupertinoIcons.chat_bubble_fill,
+                            color: Color(0xFFFF444F),
+                            size: 24,
                           ),
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => ChatDetailScreen(
-                                  recipientId: userDoc.id,
-                                  recipientName: userData['username'] ?? 'Usuário',
-                                  recipientImage: userData['profile_image'] ?? '',
-                                ),
-                              ),
-                            );
+                            if (widget.onUserSelected != null) {
+                              Navigator.pop(context);
+                              widget.onUserSelected!(userId);
+                            }
                           },
                         ),
                       );
