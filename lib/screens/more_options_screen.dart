@@ -9,6 +9,8 @@ class MoreOptionsScreen extends StatefulWidget {
 }
 
 class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
+  bool _hasShownIntro = false;
+
   @override
   void initState() {
     super.initState();
@@ -18,15 +20,18 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
   Future<void> _checkFirstTime() async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeenIntro = prefs.getBool('hasSeenMoreOptionsIntro') ?? false;
-    
-    if (!hasSeenIntro) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).push(
-          CupertinoPageRoute(
-            fullscreenDialog: true,
-            builder: (context) => MoreOptionsIntroScreen(),
-          ),
-        );
+
+    if (!hasSeenIntro && !_hasShownIntro && mounted) {
+      _hasShownIntro = true;
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (mounted) {
+          Navigator.of(context).push(
+            CupertinoPageRoute(
+              fullscreenDialog: true,
+              builder: (context) => MoreOptionsIntroScreen(),
+            ),
+          );
+        }
       });
     }
   }
@@ -73,7 +78,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                     name: 'Binance',
                     url: 'https://www.binance.com',
                     isDark: isDark,
-                    iconColor: Color(0xFFF3BA2F),
+                    faviconUrl: 'https://bin.bnbstatic.com/static/images/common/favicon.ico',
                   ),
                   SizedBox(height: 12),
                   _buildPlatformItem(
@@ -81,7 +86,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                     name: 'Coinbase',
                     url: 'https://www.coinbase.com',
                     isDark: isDark,
-                    iconColor: Color(0xFF0052FF),
+                    faviconUrl: 'https://www.coinbase.com/favicon.ico',
                   ),
                   SizedBox(height: 12),
                   _buildPlatformItem(
@@ -89,7 +94,31 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                     name: 'Kraken',
                     url: 'https://www.kraken.com',
                     isDark: isDark,
-                    iconColor: Color(0xFF5741D9),
+                    faviconUrl: 'https://www.kraken.com/favicon.ico',
+                  ),
+                  SizedBox(height: 12),
+                  _buildPlatformItem(
+                    context: context,
+                    name: 'Bybit',
+                    url: 'https://www.bybit.com',
+                    isDark: isDark,
+                    faviconUrl: 'https://www.bybit.com/favicon.ico',
+                  ),
+                  SizedBox(height: 12),
+                  _buildPlatformItem(
+                    context: context,
+                    name: 'KuCoin',
+                    url: 'https://www.kucoin.com',
+                    isDark: isDark,
+                    faviconUrl: 'https://www.kucoin.com/favicon.ico',
+                  ),
+                  SizedBox(height: 12),
+                  _buildPlatformItem(
+                    context: context,
+                    name: 'OKX',
+                    url: 'https://www.okx.com',
+                    isDark: isDark,
+                    faviconUrl: 'https://www.okx.com/favicon.ico',
                   ),
                 ],
               ),
@@ -105,7 +134,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
     required String name,
     required String url,
     required bool isDark,
-    required Color iconColor,
+    required String faviconUrl,
   }) {
     return CupertinoButton(
       padding: EdgeInsets.zero,
@@ -117,7 +146,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
             builder: (context) => PlatformDetailScreen(
               name: name,
               url: url,
-              iconColor: iconColor,
+              faviconUrl: faviconUrl,
             ),
           ),
         );
@@ -134,17 +163,32 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.2),
-                shape: BoxShape.circle,
+                color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(
-                child: Text(
-                  name[0],
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: iconColor,
-                  ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  faviconUrl,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Color(0xFFFF444F).withOpacity(0.2),
+                      child: Icon(
+                        CupertinoIcons.globe,
+                        color: Color(0xFFFF444F),
+                        size: 24,
+                      ),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CupertinoActivityIndicator(radius: 10),
+                    );
+                  },
                 ),
               ),
             ),
@@ -184,7 +228,8 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final isDark = brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
@@ -234,7 +279,6 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
               child: ListView(
                 padding: EdgeInsets.all(16),
                 children: [
-                  // Features List
                   Text(
                     'FUNCIONALIDADES',
                     style: TextStyle(
@@ -274,8 +318,6 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                 ],
               ),
             ),
-            
-            // Bottom Button
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -386,7 +428,6 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
   }
 }
 
-// Intro Screen
 class MoreOptionsIntroScreen extends StatefulWidget {
   @override
   _MoreOptionsIntroScreenState createState() => _MoreOptionsIntroScreenState();
@@ -432,16 +473,19 @@ class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
     await _controller.reverse();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasSeenMoreOptionsIntro', true);
-    Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final isDark = brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
-      body: SafeArea(
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
+      child: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
@@ -452,40 +496,33 @@ class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(height: 50),
-                  
                   Icon(
                     CupertinoIcons.globe,
                     color: Color(0xFFFF444F),
                     size: 64,
                   ),
-                  
                   SizedBox(height: 40),
-                  
                   Text(
                     'Bem-vindo às\nMais Opções',
                     style: TextStyle(
                       fontSize: 38,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
                       letterSpacing: -1,
                       height: 1.1,
                     ),
                   ),
-                  
                   SizedBox(height: 20),
-                  
                   Text(
                     'Explore funcionalidades avançadas e acesse plataformas de trading diretamente do app.',
                     style: TextStyle(
                       fontSize: 18,
                       height: 1.6,
-                      color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.8),
+                      color: isDark ? CupertinoColors.white.withOpacity(0.85) : CupertinoColors.black.withOpacity(0.8),
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  
                   SizedBox(height: 44),
-                  
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
@@ -496,52 +533,42 @@ class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
                             description: 'Ferramentas profissionais para análise técnica e fundamental do mercado.',
                             isDark: isDark,
                           ),
-                          
                           SizedBox(height: 28),
-                          
                           _buildInfoSection(
                             icon: CupertinoIcons.globe,
                             title: 'Plataformas Integradas',
                             description: 'Acesse diversas corretoras e plataformas de trading sem sair do app.',
                             isDark: isDark,
                           ),
-                          
                           SizedBox(height: 28),
-                          
                           _buildInfoSection(
                             icon: CupertinoIcons.bell_fill,
                             title: 'Alertas Personalizados',
                             description: 'Configure notificações para acompanhar movimentos de preços importantes.',
                             isDark: isDark,
                           ),
-                          
                           SizedBox(height: 20),
                         ],
                       ),
                     ),
                   ),
-                  
                   Padding(
                     padding: EdgeInsets.only(bottom: 20, top: 16),
                     child: SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        borderRadius: BorderRadius.circular(16),
+                        color: Color(0xFFFF444F),
                         onPressed: _handleDismiss,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFFFF444F),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
                         child: Text(
                           'Começar',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.5,
+                            color: CupertinoColors.white,
                           ),
                         ),
                       ),
@@ -580,7 +607,7 @@ class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -590,7 +617,7 @@ class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
-                  color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
+                  color: isDark ? CupertinoColors.white.withOpacity(0.7) : CupertinoColors.black.withOpacity(0.65),
                 ),
               ),
             ],
@@ -601,7 +628,6 @@ class _MoreOptionsIntroScreenState extends State<MoreOptionsIntroScreen>
   }
 }
 
-// Feature Detail Screen
 class FeatureDetailScreen extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -613,7 +639,8 @@ class FeatureDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final isDark = brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
@@ -667,7 +694,6 @@ class FeatureDetailScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
             Container(
               padding: EdgeInsets.all(16),
               child: SafeArea(
@@ -699,21 +725,21 @@ class FeatureDetailScreen extends StatelessWidget {
   }
 }
 
-// Platform Detail Screen
 class PlatformDetailScreen extends StatelessWidget {
   final String name;
   final String url;
-  final Color iconColor;
+  final String faviconUrl;
 
   const PlatformDetailScreen({
     required this.name,
     required this.url,
-    required this.iconColor,
+    required this.faviconUrl,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final isDark = brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
@@ -769,17 +795,37 @@ class PlatformDetailScreen extends StatelessWidget {
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
-                        color: iconColor.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          name[0],
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.w700,
-                            color: iconColor,
+                        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: Offset(0, 4),
                           ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: Image.network(
+                          faviconUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Color(0xFFFF444F).withOpacity(0.2),
+                              child: Icon(
+                                CupertinoIcons.globe,
+                                color: Color(0xFFFF444F),
+                                size: 48,
+                              ),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CupertinoActivityIndicator(radius: 15),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -810,7 +856,6 @@ class PlatformDetailScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
             Container(
               padding: EdgeInsets.all(16),
               child: SafeArea(
@@ -872,7 +917,7 @@ class PlatformDetailScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
               SizedBox(height: 6),
@@ -881,7 +926,7 @@ class PlatformDetailScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
-                  color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
+                  color: isDark ? CupertinoColors.white.withOpacity(0.7) : CupertinoColors.black.withOpacity(0.65),
                 ),
               ),
             ],
