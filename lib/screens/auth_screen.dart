@@ -2,29 +2,81 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'forgot_password_screen.dart'; // Import da tela existente
+import 'dart:async';
+import 'forgot_password_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   @override
   _AuthScreenState createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   bool _isLogin = true;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  
+  // Feature presentations
+  final List<Map<String, dynamic>> _features = [
+    {
+      'icon': CupertinoIcons.chat_bubble_2_fill,
+      'title': 'Conversas Inteligentes',
+      'description': 'Chat avançado com IA'
+    },
+    {
+      'icon': CupertinoIcons.sparkles,
+      'title': 'Respostas Rápidas',
+      'description': 'Processamento instantâneo'
+    },
+    {
+      'icon': CupertinoIcons.lock_shield_fill,
+      'title': 'Totalmente Seguro',
+      'description': 'Seus dados protegidos'
+    },
+    {
+      'icon': CupertinoIcons.infinite,
+      'title': 'Sem Limites',
+      'description': 'Explore possibilidades infinitas'
+    },
+  ];
+  
+  int _currentFeatureIndex = 0;
+  Timer? _featureTimer;
+  double _featureOpacity = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startFeatureRotation();
+  }
+
+  void _startFeatureRotation() {
+    _featureTimer = Timer.periodic(Duration(seconds: 3), (timer) {
+      setState(() {
+        _featureOpacity = 0.0;
+      });
+      
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _currentFeatureIndex = (_currentFeatureIndex + 1) % _features.length;
+            _featureOpacity = 1.0;
+          });
+        }
+      });
+    });
+  }
 
   Future<void> _submit() async {
     if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
-      _showErrorDialog('Erro', 'Por favor, preencha todos os campos');
+      _showErrorDialog('Campos Obrigatórios', 'Por favor, preencha o email e a senha para continuar.');
       return;
     }
 
     if (!_isLogin && _nameController.text.trim().isEmpty) {
-      _showErrorDialog('Erro', 'Por favor, digite seu nome');
+      _showErrorDialog('Nome Obrigatório', 'Por favor, digite seu nome completo para criar a conta.');
       return;
     }
 
@@ -44,19 +96,36 @@ class _AuthScreenState extends State<AuthScreen> {
 
         if (userDoc.exists) {
           final userData = userDoc.data()!;
+          
           if (userData['access'] == false) {
             await FirebaseAuth.instance.signOut();
-            throw Exception('Acesso negado. Conta desativada.');
+            _showErrorDialog(
+              'Acesso Negado', 
+              'Sua conta foi desativada. Entre em contato com o suporte para mais informações.'
+            );
+            setState(() => _isLoading = false);
+            return;
           }
 
           if (userData['expiration_date'] != null) {
             final expDate = DateTime.parse(userData['expiration_date']);
             if (expDate.isBefore(DateTime.now())) {
               await FirebaseAuth.instance.signOut();
-              throw Exception('Conta expirada.');
+              _showErrorDialog(
+                'Conta Expirada', 
+                'Sua assinatura expirou. Renove para continuar usando o serviço.'
+              );
+              setState(() => _isLoading = false);
+              return;
             }
           }
         }
+        
+        // Login bem-sucedido - não volta para tela de login
+        if (mounted) {
+          // Navega para a próxima tela ou deixa o StreamBuilder do main gerenciar
+        }
+        
       } else {
         final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
@@ -86,21 +155,41 @@ class _AuthScreenState extends State<AuthScreen> {
         });
       }
     } on FirebaseAuthException catch (e) {
-      String message = 'Erro ao autenticar';
+      String title = 'Erro de Autenticação';
+      String message = '';
+      
       if (e.code == 'user-not-found') {
-        message = 'Usuário não encontrado';
+        title = 'Usuário Não Encontrado';
+        message = 'Não encontramos uma conta com este email. Verifique o email digitado ou crie uma nova conta.';
       } else if (e.code == 'wrong-password') {
-        message = 'Senha incorreta';
+        title = 'Senha Incorreta';
+        message = 'A senha está incorreta. Verifique sua senha ou use a opção "Esqueceu a palavra-passe?" para recuperá-la.';
+      } else if (e.code == 'invalid-credential') {
+        title = 'Credenciais Inválidas';
+        message = 'Email ou senha incorretos. Verifique seus dados e tente novamente.';
       } else if (e.code == 'email-already-in-use') {
-        message = 'Email já está em uso';
+        title = 'Email Já Cadastrado';
+        message = 'Este email já está sendo usado por outra conta. Tente fazer login ou use outro email.';
       } else if (e.code == 'weak-password') {
-        message = 'Senha muito fraca (mín. 6 caracteres)';
+        title = 'Senha Fraca';
+        message = 'A senha deve ter no mínimo 6 caracteres. Escolha uma senha mais forte com letras e números.';
       } else if (e.code == 'invalid-email') {
-        message = 'Email inválido';
+        title = 'Email Inválido';
+        message = 'O formato do email está incorreto. Verifique e digite um email válido.';
+      } else if (e.code == 'network-request-failed') {
+        title = 'Erro de Conexão';
+        message = 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.';
+      } else if (e.code == 'too-many-requests') {
+        title = 'Muitas Tentativas';
+        message = 'Muitas tentativas de login. Por segurança, aguarde alguns minutos antes de tentar novamente.';
+      } else {
+        title = 'Erro Inesperado';
+        message = 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.';
       }
-      _showErrorDialog('Erro', message);
+      
+      _showErrorDialog(title, message);
     } catch (e) {
-      _showErrorDialog('Erro', e.toString());
+      _showErrorDialog('Erro', 'Ocorreu um erro inesperado. Por favor, tente novamente.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -109,15 +198,32 @@ class _AuthScreenState extends State<AuthScreen> {
   void _showErrorDialog(String title, String message) {
     showCupertinoDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => CupertinoAlertDialog(
-        title: Text(title),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         content: Padding(
           padding: EdgeInsets.only(top: 8),
-          child: Text(message),
+          child: Text(
+            message,
+            style: TextStyle(fontSize: 13),
+          ),
         ),
         actions: [
           CupertinoDialogAction(
-            child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
+            isDefaultAction: true,
+            child: Text(
+              'Entendi',
+              style: TextStyle(
+                color: Color(0xFFFF444F),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -144,141 +250,193 @@ class _AuthScreenState extends State<AuthScreen> {
     return CupertinoPageScaffold(
       backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
       child: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Top bar with Learn button
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    CupertinoButton(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      onPressed: _navigateToLearn,
-                      child: Text(
-                        'Aprender',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
+        child: Stack(
+          children: [
+            // Conteúdo principal (não scrollable)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  // Top bar com botão Aprender
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        CupertinoButton(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          onPressed: _navigateToLearn,
+                          child: Text(
+                            'Aprender',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFFF444F),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Spacer(),
+
+                        // Ícone do app (sem container, apenas ícone)
+                        Icon(
+                          CupertinoIcons.chat_bubble_fill,
+                          size: 80,
                           color: Color(0xFFFF444F),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // Main content
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Spacer(),
-                    
-                    // App icon
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Color(0xFFFF444F),
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0xFFFF444F).withOpacity(0.3),
-                            blurRadius: 20,
-                            offset: Offset(0, 8),
+
+                        SizedBox(height: 32),
+
+                        // Título
+                        Text(
+                          _isLogin ? 'Entrar' : 'Criar Conta',
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+
+                        SizedBox(height: 16),
+
+                        // Feature rotativa com animação
+                        AnimatedOpacity(
+                          opacity: _featureOpacity,
+                          duration: Duration(milliseconds: 300),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  _features[_currentFeatureIndex]['icon'],
+                                  size: 32,
+                                  color: Color(0xFFFF444F),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  _features[_currentFeatureIndex]['title'],
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  _features[_currentFeatureIndex]['description'],
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: 32),
+
+                        // Campos do formulário
+                        if (!_isLogin) ...[
+                          _buildInputField(
+                            controller: _nameController,
+                            placeholder: 'Nome',
+                            icon: CupertinoIcons.person_fill,
+                            isDark: isDark,
+                          ),
+                          SizedBox(height: 12),
+                        ],
+
+                        _buildInputField(
+                          controller: _emailController,
+                          placeholder: 'Email',
+                          icon: CupertinoIcons.mail_solid,
+                          keyboardType: TextInputType.emailAddress,
+                          isDark: isDark,
+                        ),
+
+                        SizedBox(height: 12),
+
+                        _buildInputField(
+                          controller: _passwordController,
+                          placeholder: 'Senha',
+                          icon: CupertinoIcons.lock_fill,
+                          obscureText: _obscurePassword,
+                          isDark: isDark,
+                          suffixIcon: CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            minSize: 0,
+                            onPressed: () {
+                              setState(() => _obscurePassword = !_obscurePassword);
+                            },
+                            child: Icon(
+                              _obscurePassword 
+                                ? CupertinoIcons.eye_fill 
+                                : CupertinoIcons.eye_slash_fill,
+                              color: CupertinoColors.systemGrey,
+                              size: 22,
+                            ),
+                          ),
+                        ),
+
+                        if (_isLogin) ...[
+                          SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: CupertinoButton(
+                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                              onPressed: _navigateToForgotPassword,
+                              child: Text(
+                                'Esqueceu a palavra-passe?',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFFF444F),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
-                      ),
-                      child: Icon(
-                        CupertinoIcons.chat_bubble_fill,
-                        size: 50,
-                        color: CupertinoColors.white,
-                      ),
-                    ),
-                    
-                    SizedBox(height: 32),
-                    
-                    // Title
-                    Text(
-                      _isLogin ? 'Entrar' : 'Criar Conta',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    
-                    SizedBox(height: 8),
-                    
-                    Text(
-                      _isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta para começar',
-                      style: TextStyle(
-                        fontSize: 17,
-                        color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey,
-                      ),
-                    ),
-                    
-                    SizedBox(height: 40),
-                    
-                    // Form fields
-                    if (!_isLogin) ...[
-                      _buildInputField(
-                        controller: _nameController,
-                        placeholder: 'Nome',
-                        icon: CupertinoIcons.person_fill,
-                        isDark: isDark,
-                      ),
-                      SizedBox(height: 12),
-                    ],
-                    
-                    _buildInputField(
-                      controller: _emailController,
-                      placeholder: 'Email',
-                      icon: CupertinoIcons.mail_solid,
-                      keyboardType: TextInputType.emailAddress,
-                      isDark: isDark,
-                    ),
-                    
-                    SizedBox(height: 12),
-                    
-                    _buildInputField(
-                      controller: _passwordController,
-                      placeholder: 'Senha',
-                      icon: CupertinoIcons.lock_fill,
-                      obscureText: _obscurePassword,
-                      isDark: isDark,
-                      suffixIcon: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        minSize: 0,
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
-                        child: Icon(
-                          _obscurePassword 
-                            ? CupertinoIcons.eye_fill 
-                            : CupertinoIcons.eye_slash_fill,
-                          color: CupertinoColors.systemGrey,
-                          size: 22,
+
+                        SizedBox(height: 24),
+
+                        // Botão de submit
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            color: Color(0xFFFF444F),
+                            borderRadius: BorderRadius.circular(14),
+                            onPressed: _isLoading ? null : _submit,
+                            child: _isLoading
+                                ? CupertinoActivityIndicator(color: CupertinoColors.white)
+                                : Text(
+                                    _isLogin ? 'Entrar' : 'Criar Conta',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      color: CupertinoColors.white,
+                                    ),
+                                  ),
+                          ),
                         ),
-                      ),
-                    ),
-                    
-                    if (_isLogin) ...[
-                      SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: CupertinoButton(
-                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                          onPressed: _navigateToForgotPassword,
+
+                        SizedBox(height: 16),
+
+                        // Botão de alternância
+                        CupertinoButton(
+                          onPressed: () => setState(() => _isLogin = !_isLogin),
                           child: Text(
-                            'Esqueceu a palavra-passe?',
+                            _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -286,65 +444,26 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                    
-                    SizedBox(height: 24),
-                    
-                    // Submit button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        color: Color(0xFFFF444F),
-                        borderRadius: BorderRadius.circular(14),
-                        onPressed: _isLoading ? null : _submit,
-                        child: _isLoading
-                            ? CupertinoActivityIndicator(color: CupertinoColors.white)
-                            : Text(
-                                _isLogin ? 'Entrar' : 'Criar Conta',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: CupertinoColors.white,
-                                ),
-                              ),
-                      ),
-                    ),
-                    
-                    SizedBox(height: 16),
-                    
-                    // Toggle button
-                    CupertinoButton(
-                      onPressed: () => setState(() => _isLogin = !_isLogin),
-                      child: Text(
-                        _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFFF444F),
+
+                        Spacer(),
+
+                        // Footer
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 20),
+                          child: Text(
+                            'from nexa',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: CupertinoColors.systemGrey,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    
-                    Spacer(),
-                    
-                    // Footer
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 20),
-                      child: Text(
-                        'from nexa',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: CupertinoColors.systemGrey,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -365,14 +484,11 @@ class _AuthScreenState extends State<AuthScreen> {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(100), // Bordas 100% curvas
+        border: Border.all(
+          color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
+          width: 1,
+        ),
       ),
       child: CupertinoTextField(
         controller: controller,
@@ -390,7 +506,7 @@ class _AuthScreenState extends State<AuthScreen> {
         decoration: BoxDecoration(
           color: Colors.transparent,
         ),
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         prefix: Padding(
           padding: EdgeInsets.only(left: 12, right: 12),
           child: Icon(
@@ -411,6 +527,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _featureTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
