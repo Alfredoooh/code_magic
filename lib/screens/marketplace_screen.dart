@@ -1,41 +1,56 @@
+// lib/screens/marketplace_screen.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:uni_links/uni_links.dart';
 
-/// MarketplaceScreen — UI mantida conforme pedido.
-/// Acrescentei integração WebSocket com Deriv (app_id 71954)
-/// e armazenamento seguro do token (flutter_secure_storage).
+/// MarketplaceScreen com OAuth (serverless) + WebSocket Deriv (app_id = 71954)
+/// Mantive TODO o design original, acrescentei apenas a lógica necessária.
+/// Redirect HTTPS configurado para: https://alfredoooh.github.io/database/oauth-redirect/
+/// Deep link custom scheme: com.nexa.madeeasy://oauth
 class MarketplaceScreen extends StatefulWidget {
   @override
   _MarketplaceScreenState createState() => _MarketplaceScreenState();
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
-  // Estado UI (mantive os nomes originais)
   bool _isConnected = false;
   bool _isLoading = false;
   String? _accountInfo;
   double? _balance;
   final _apiTokenController = TextEditingController();
 
-  // Secure storage
+  // Secure storage (token)
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  // WebSocket client (Deriv)
+  // WebSocket client
   DerivWSClient? _wsClient;
   StreamSubscription<String?>? _wsSubscription;
 
-  // App ID informado por ti
+  // Uni-links subscription to capture deep links
+  StreamSubscription<Uri?>? _uniSub;
+
+  // App ID
   static const int _derivAppId = 71954;
+
+  // OAuth redirect HTTPS (tua página no GitHub Pages)
+  static const String _redirectHttps = 'https://alfredoooh.github.io/database/oauth-redirect/';
+
+  // custom scheme that está registado no AndroidManifest/Info.plist
+  static const String _customScheme = 'com.nexa.madeeasy';
+  static const String _customHost = 'oauth';
 
   @override
   void initState() {
     super.initState();
+    _initDeepLinkListener();
     _loadSavedToken();
   }
 
@@ -44,92 +59,150 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     _apiTokenController.dispose();
     _wsSubscription?.cancel();
     _wsClient?.disconnect();
+    _uniSub?.cancel();
     super.dispose();
   }
 
+  // ----------------------------
+  // Inicialização: deep links
+  // ----------------------------
+  void _initDeepLinkListener() async {
+    // 1) captura se app foi aberto cold-start com deep link
+    try {
+      final initialUri = await getInitialUri();
+      if (initialUri != null) {
+        _handleIncomingUri(initialUri);
+      }
+    } catch (_) {}
+
+    // 2) ouve stream de deep links (hot)
+    _uniSub = uriLinkStream.listen((Uri? uri) {
+      if (uri != null) _handleIncomingUri(uri);
+    }, onError: (err) {
+      // não bloquear a UI
+    });
+  }
+
+  void _handleIncomingUri(Uri uri) {
+    // Exemplo: com.nexa.madeeasy://oauth?token=XXX&state=...
+    if (uri.scheme == _customScheme && uri.host == _customHost) {
+      final params = uri.queryParameters;
+      // prioridade para token / access_token
+      final token = params['token'] ?? params['access_token'];
+      final code = params['code'];
+      if (token != null && token.isNotEmpty) {
+        // guardamos e conectamos
+        _onReceivedToken(token);
+      } else if (code != null && code.isNotEmpty) {
+        // Se a Deriv devolveu authorization code, é necessário trocar por token
+        // num backend (não seguro fazer client-side se exigir client_secret).
+        _showCodeReceivedDialog(code);
+      } else {
+        // nenhum token/code -> informar
+        _showErrorDialog('Callback recebido sem token (params: ${params.keys.join(',')})');
+      }
+    }
+  }
+
+  Future<void> _onReceivedToken(String token) async {
+    await _secureStorage.write(key: 'deriv_api_token', value: token);
+    _apiTokenController.text = token;
+    // conecta via WS usando token
+    await _connectToDerivAPI(token);
+  }
+
+  void _showCodeReceivedDialog(String code) {
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Código recebido'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+            'Recebemos um authorization code. Para trocar este code por um token de acesso é necessário um backend (por segurança). Código:\n\n$code',
+            style: TextStyle(fontSize: 13),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text('Entendi'),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ----------------------------
+  // Token persistente: load / connect
+  // ----------------------------
   Future<void> _loadSavedToken() async {
     try {
       final token = await _secureStorage.read(key: 'deriv_api_token');
       if (token != null && token.isNotEmpty) {
         _apiTokenController.text = token;
-        // tenta conectar automaticamente com token salvo
         await _tryInitializeAndConnect(token);
       }
     } catch (e) {
-      // ignore read errors; UI permanece desconectada
+      // ignore
     }
   }
 
   Future<void> _tryInitializeAndConnect(String token) async {
     setState(() => _isLoading = true);
     try {
-      // Inicializa WebSocket client e conecta
-      _wsClient = DerivWSClient(appId: _derivAppId);
-      _wsClient!.connect();
-
-      // escuta mensagens do WS
-      _wsSubscription = _wsClient!.messages.listen((msg) {
-        _handleWsMessage(msg);
-      }, onError: (err) {
-        // erro no stream
-      }, onDone: () {
-        // quando channel fecha
-        if (mounted) {
-          setState(() {
-            _isConnected = false;
-          });
-        }
-      });
-
-      // envia authorize
-      _wsClient!.authorizeWithToken(token);
-
-      // grava token seguro
-      await _secureStorage.write(key: 'deriv_api_token', value: token);
-
-      // esperamos um pouco por resposta; mas não bloqueamos a UI — a resposta real virá via listener
-      setState(() {
-        _isConnected = true;
-        _isLoading = false;
-      });
-
-      _showSuccessDialog();
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _isConnected = false;
-      });
-      _showErrorDialog(e.toString());
-    }
-  }
-
-  Future<void> _connectToDerivAPI(String token) async {
-    setState(() => _isLoading = true);
-
-    try {
-      // cria e conecta WebSocket
       _wsClient?.disconnect();
       _wsClient = DerivWSClient(appId: _derivAppId);
       _wsClient!.connect();
 
-      // listen
       _wsSubscription?.cancel();
       _wsSubscription = _wsClient!.messages.listen((msg) {
         _handleWsMessage(msg);
-      }, onError: (err) {
-        // fallback
-      }, onDone: () {
-        if (mounted) {
-          setState(() {
-            _isConnected = false;
-          });
-        }
+      }, onError: (_) {}, onDone: () {
+        if (mounted) setState(() => _isConnected = false);
       });
 
-      // Autoriza via token
+      // autoriza
       _wsClient!.authorizeWithToken(token);
 
-      // Salva token em armazenamento seguro
+      // salva seguro (por precaução)
+      await _secureStorage.write(key: 'deriv_api_token', value: token);
+
+      setState(() {
+        _isConnected = true;
+        _isLoading = false;
+      });
+      _showSuccessDialog();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _isConnected = false;
+      });
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  // ----------------------------
+  // Conexão manual via token colado
+  // ----------------------------
+  Future<void> _connectToDerivAPI(String token) async {
+    setState(() => _isLoading = true);
+
+    try {
+      _wsClient?.disconnect();
+      _wsClient = DerivWSClient(appId: _derivAppId);
+      _wsClient!.connect();
+
+      _wsSubscription?.cancel();
+      _wsSubscription = _wsClient!.messages.listen((msg) {
+        _handleWsMessage(msg);
+      }, onError: (_) {}, onDone: () {
+        if (mounted) setState(() => _isConnected = false);
+      });
+
+      _wsClient!.authorizeWithToken(token);
+
       await _secureStorage.write(key: 'deriv_api_token', value: token);
 
       setState(() {
@@ -147,11 +220,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
-  // Handler genérico das mensagens WS para povoar account/balance
+  // ----------------------------
+  // WS message handling
+  // ----------------------------
   void _handleWsMessage(String? message) {
     if (message == null) return;
 
-    // tenta decodificar JSON
     dynamic data;
     try {
       data = jsonDecode(message);
@@ -160,12 +234,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
 
     if (data is Map<String, dynamic>) {
-      // resposta authorize
       if (data.containsKey('authorize')) {
         final auth = data['authorize'];
         String accountText = 'Conta conectada';
         if (auth is Map<String, dynamic>) {
-          // pode conter loginid, email, client_id, etc
           if (auth.containsKey('loginid')) {
             accountText = auth['loginid'].toString();
           } else if (auth.containsKey('client_id')) {
@@ -185,18 +257,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         }
       }
 
-      // resposta balance (pode vir em diferentes formatos)
       if (data.containsKey('balance')) {
-        // alguns endpoints retornam { "balance": "<value>" } ou { "balance": {..} }
         final b = data['balance'];
         double? parsed;
-        if (b is String) {
-          parsed = double.tryParse(b);
-        } else if (b is num) {
-          parsed = b.toDouble();
-        } else if (b is Map) {
-          // às vezes retorna { balance: "100", currency: "USD" ... }
-          final inner = b['balance'] ?? b['amount'] ?? b['balance_value'];
+        if (b is String) parsed = double.tryParse(b);
+        else if (b is num) parsed = b.toDouble();
+        else if (b is Map) {
+          final inner = b['balance'] ?? b['amount'];
           if (inner is String) parsed = double.tryParse(inner);
           if (inner is num) parsed = inner.toDouble();
         }
@@ -207,14 +274,44 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           });
         }
       }
-
-      // a API devolve mensagens de compra/contratos; podes logar
-      // Mantive apenas parse básico — podes adaptar para casos específicos.
     }
-
-    // fallback: se não for JSON ou não contiver campos, apenas ignoramos
   }
 
+  // ----------------------------
+  // OAuth: abrir URL de autorização e esperar deep link
+  // ----------------------------
+  String _generateRandomState([int length = 24]) {
+    final rand = Random.secure();
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List.generate(length, (_) => chars[rand.nextInt(chars.length)]).join();
+  }
+
+  Future<void> _startOAuthFlow() async {
+    final state = _generateRandomState();
+    // monta URL de autorização Deriv
+    final authUri = Uri.parse('https://oauth.deriv.com/oauth2/authorize').replace(queryParameters: {
+      'app_id': _derivAppId.toString(),
+      'redirect_uri': _redirectHttps,
+      'state': state,
+      'scope': 'trade read', // podes ajustar scopes conforme necessário
+      // 'response_type': 'token' // Deriv decide o formato; mantemos padrão
+    });
+
+    final url = authUri.toString();
+
+    // abre browser externo
+    if (await canLaunchUrl(Uri.parse(url))) {
+      // ouviremos deep link (uni_links) já configurado no initState
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      // a resposta chegará ao _handleIncomingUri através do uriLinkStream
+    } else {
+      _showErrorDialog('Não foi possível abrir o browser para autorizar.');
+    }
+  }
+
+  // ----------------------------
+  // UI dialogs
+  // ----------------------------
   void _showSuccessDialog() {
     showCupertinoDialog(
       context: context,
@@ -236,7 +333,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text('❌ Erro'),
-        content: Text('Falha na conexão: $error'),
+        content: Text('Falha: $error'),
         actions: [
           CupertinoDialogAction(
             child: Text('OK'),
@@ -247,6 +344,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  // ----------------------------
+  // UI: mantive o design original
+  // ----------------------------
   void _showLoginSheet() {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
@@ -265,8 +365,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             child: Container(
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white)
-                    .withOpacity(0.95),
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
@@ -353,6 +452,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                   ),
                   SizedBox(height: 8),
+
+                  // === ADICIONADO: botão claro para iniciar OAuth via browser (serverless) ===
+                  // Isto é explicito para o utilizador: abre a página de autorização
+                  Center(
+                    child: CupertinoButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _startOAuthFlow();
+                      },
+                      child: Text(
+                        'Autorizar via navegador (OAuth)',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF444F),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 4),
+
                   Center(
                     child: CupertinoButton(
                       onPressed: () {
@@ -393,8 +514,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white)
-                    .withOpacity(0.95),
+                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
@@ -417,8 +537,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color:
-                                isDark ? CupertinoColors.white : CupertinoColors.black,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -494,8 +613,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   'Mantenha seu token seguro e nunca o compartilhe',
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color:
-                                        isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
                                     fontWeight: FontWeight.w600,
                                     height: 1.4,
                                   ),
@@ -611,8 +729,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         physics: BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
-            backgroundColor:
-                (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
+            backgroundColor: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
             border: null,
             largeTitle: Text(
               'Trading',
@@ -945,8 +1062,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   'Comprar',
                   CupertinoColors.systemGreen,
                   () {
-                    // Exemplo: pedir proposta -> buy
-                    // _wsClient?.requestProposal(...); // TODO: implementar UI de trade
+                    // exemplo: implementar fluxo de proposta->buy aqui
                   },
                 ),
               ),
@@ -958,7 +1074,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   'Vender',
                   Color(0xFFFF444F),
                   () {
-                    // Exemplo: vender (mesma nota que comprar)
+                    // exemplo: implementar fluxo de proposta->buy aqui
                   },
                 ),
               ),
@@ -1072,10 +1188,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 }
 
-/// Cliente WebSocket mínimo para a Deriv
-/// - conecta a wss://ws.derivws.com/websockets/v3?app_id=APP_ID
-/// - envia {"authorize": "TOKEN"} para autorizar
-/// - expõe stream de mensagens (String)
+/// Cliente WebSocket mínimo para Deriv
 class DerivWSClient {
   final int appId;
   final String endpoint;
@@ -1088,16 +1201,17 @@ class DerivWSClient {
       : endpoint = 'wss://ws.derivws.com/websockets/v3?app_id=$appId';
 
   void connect() {
-    disconnect(); // garante que não há conexões anteriores
+    disconnect();
     try {
       _channel = WebSocketChannel.connect(Uri.parse(endpoint));
       _channel!.stream.listen((dynamic msg) {
-        // envia mensagem recebida ao stream
         _messagesController.add(msg?.toString());
       }, onError: (err) {
         _messagesController.addError(err);
       }, onDone: () {
-        _messagesController.close();
+        try {
+          _messagesController.close();
+        } catch (_) {}
       });
     } catch (e) {
       _messagesController.addError(e);
@@ -1112,7 +1226,6 @@ class DerivWSClient {
 
   void getBalance(String currency) {
     if (_channel == null) return;
-    // balance request id = 1 (exemplo)
     final payload = jsonEncode({'balance': 1, 'currency': currency});
     _channel!.sink.add(payload);
   }
@@ -1127,6 +1240,5 @@ class DerivWSClient {
       _channel?.sink.close();
     } catch (_) {}
     _channel = null;
-    // não fechamos o controller se já está em uso; cancelar listeners é tarefa do caller
   }
 }
