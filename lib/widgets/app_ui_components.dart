@@ -308,44 +308,46 @@ class _AppPrimaryButtonState extends State<AppPrimaryButton> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1.0,
-      duration: Duration(milliseconds: 100),
-      child: SizedBox(
-        width: double.infinity,
-        height: widget.height,
-        child: ElevatedButton(
-          onPressed: widget.isLoading ? null : widget.onPressed,
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) => setState(() => _isPressed = false),
-          onTapCancel: () => setState(() => _isPressed = false),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: widget.isLoading ? Colors.grey : AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: _isPressed ? 1 : 2,
-            shadowColor: AppColors.primary.withOpacity(0.3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(widget.borderRadius),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.98 : 1.0,
+        duration: Duration(milliseconds: 100),
+        child: SizedBox(
+          width: double.infinity,
+          height: widget.height,
+          child: ElevatedButton(
+            onPressed: widget.isLoading ? null : widget.onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.isLoading ? Colors.grey : AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: _isPressed ? 1 : 2,
+              shadowColor: AppColors.primary.withOpacity(0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+              ),
+              splashFactory: InkRipple.splashFactory,
             ),
-            splashFactory: InkRipple.splashFactory,
+            child: widget.isLoading
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
+                  )
+                : Text(
+                    widget.text,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
           ),
-          child: widget.isLoading
-              ? SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  ),
-                )
-              : Text(
-                  widget.text,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
-                  ),
-                ),
         ),
       ),
     );
@@ -376,32 +378,34 @@ class _AppSecondaryButtonState extends State<AppSecondaryButton> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1.0,
-      duration: Duration(milliseconds: 100),
-      child: SizedBox(
-        width: double.infinity,
-        height: widget.height,
-        child: OutlinedButton(
-          onPressed: widget.onPressed,
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) => setState(() => _isPressed = false),
-          onTapCancel: () => setState(() => _isPressed = false),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: BorderSide(color: AppColors.primary, width: 2),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(widget.borderRadius),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.98 : 1.0,
+        duration: Duration(milliseconds: 100),
+        child: SizedBox(
+          width: double.infinity,
+          height: widget.height,
+          child: OutlinedButton(
+            onPressed: widget.onPressed,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: BorderSide(color: AppColors.primary, width: 2),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+              ),
+              splashFactory: InkRipple.splashFactory,
             ),
-            splashFactory: InkRipple.splashFactory,
-          ),
-          child: Text(
-            widget.text,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+            child: Text(
+              widget.text,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ),
