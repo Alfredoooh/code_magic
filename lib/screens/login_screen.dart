@@ -1,312 +1,644 @@
-// lib/screens/login_screen.dart
+// lib/screens/home_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../widgets/app_ui_components.dart';
-import '../services/deriv_service.dart';
-import 'trading_chart_screen.dart';
+import 'home_widgets.dart';
+import 'home_crypto_section.dart' as crypto_section;
+import 'home_news_section.dart';
+import 'home_posts_section.dart';
+import 'home_stats_section.dart';
+import 'home_action_button.dart';
+import 'user_drawer.dart';
+import 'search_screen.dart' as search_posts;
+import '../models/news_article.dart';
+import '../widgets/wallet_card.dart';
+import 'crypto_list_screen.dart';
+import 'plans_screen.dart';
+import 'home_screen_helper.dart';
 
-class LoginScreen extends StatefulWidget {
-  final DerivService derivService;
+class HomeScreen extends StatefulWidget {
+  final Function(ThemeMode) onThemeChanged;
+  final Function(String) onLocaleChanged;
+  final String currentLocale;
 
-  const LoginScreen({Key? key, required this.derivService}) : super(key: key);
+  const HomeScreen({
+    required this.onThemeChanged,
+    required this.onLocaleChanged,
+    required this.currentLocale,
+    Key? key,
+  }) : super(key: key);
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  
-  late TabController _tabController;
-  bool _isLoading = false;
-  bool _rememberMe = false;
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  Map<String, dynamic>? _userData;
+  List<NewsArticle> _newsArticles = [];
+  bool _loadingNews = true;
+  bool _showNews = true;
+  String _cardStyle = 'modern';
+  int _messageCount = 0;
+  int _groupCount = 0;
+  List<crypto_section.CryptoData> _cryptoData = [];
+  bool _loadingCrypto = true;
+  Timer? _cryptoTimer;
+  final PageController _newsPageController = PageController();
+  final PageController _cryptoPageController = PageController();
+  int _currentNewsPage = 0;
+  int _currentCryptoPage = 0;
+  final ScrollController _scrollController = ScrollController();
+  bool _showNewPostsBanner = false;
+  int _newPostsCount = 0;
+  List<String> _newPostsUserImages = [];
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSubscription;
+  String? _lastSeenPostId;
+  bool _hasShownWelcomeBack = false;
+
+  List<QueryDocumentSnapshot> _posts = [];
+  bool _loadingMorePosts = false;
+  bool _hasMorePosts = true;
+  DocumentSnapshot? _lastDocument;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _loadSavedCredentials();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeScreen();
+  }
+
+  void _initializeScreen() {
+    _loadUserData();
+    _safeSetUserOnline(true);
+    _loadAllData();
+    _setupTimers();
+    _setupScrollListeners();
+    _loadInitialPosts();
+    _listenToNewPostsNotification();
+  }
+
+  void _loadAllData() {
+    HomeScreenHelper.loadNews((articles, loading) {
+      if (mounted) setState(() {
+        _newsArticles = articles;
+        _loadingNews = loading;
+      });
+    });
+
+    HomeScreenHelper.loadStats((messages, groups) {
+      if (mounted) setState(() {
+        _messageCount = messages;
+        _groupCount = groups;
+      });
+    });
+
+    HomeScreenHelper.loadCryptoData((data, loading) {
+      if (mounted) setState(() {
+        _cryptoData = data;
+        _loadingCrypto = loading;
+      });
+    });
+  }
+
+  void _setupTimers() {
+    _cryptoTimer = Timer.periodic(Duration(seconds: 10), (_) {
+      HomeScreenHelper.loadCryptoData((data, loading) {
+        if (mounted) setState(() {
+          _cryptoData = data;
+          _loadingCrypto = loading;
+        });
+      });
+    });
+  }
+
+  void _setupScrollListeners() {
+    _scrollController.addListener(_onScroll);
+
+    _newsPageController.addListener(() {
+      if (_newsPageController.page != null) {
+        final newPage = _newsPageController.page!.round();
+        if (newPage != _currentNewsPage) {
+          setState(() => _currentNewsPage = newPage);
+        }
+      }
+    });
+
+    _cryptoPageController.addListener(() {
+      if (_cryptoPageController.page != null) {
+        final newPage = _cryptoPageController.page!.round();
+        if (newPage != _currentCryptoPage) {
+          setState(() => _currentCryptoPage = newPage);
+        }
+      }
+    });
+  }
+
+  Future<void> _loadInitialPosts() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('publicacoes')
+          .orderBy('timestamp', descending: true)
+          .limit(10)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _posts = snapshot.docs;
+          _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+          _hasMorePosts = snapshot.docs.length == 10;
+        });
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        _lastSeenPostId = snapshot.docs.first.id;
+      }
+    } catch (e) {
+      print('Error loading posts: $e');
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_loadingMorePosts || !_hasMorePosts || _lastDocument == null) return;
+
+    setState(() => _loadingMorePosts = true);
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('publicacoes')
+          .orderBy('timestamp', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(10)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _posts.addAll(snapshot.docs);
+          _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : _lastDocument;
+          _hasMorePosts = snapshot.docs.length == 10;
+          _loadingMorePosts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingMorePosts = false);
+      }
+    }
+  }
+
+  void _listenToNewPostsNotification() {
+    FirebaseFirestore.instance
+        .collection('publicacoes')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+      if (_lastSeenPostId == null && snapshot.docs.isNotEmpty) {
+        _lastSeenPostId = snapshot.docs.first.id;
+        return;
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        final latestPostId = snapshot.docs.first.id;
+        if (latestPostId != _lastSeenPostId && 
+            _scrollController.hasClients && 
+            _scrollController.offset > 100) {
+          setState(() {
+            _newPostsCount++;
+            _showNewPostsBanner = true;
+          });
+        }
+      }
+    });
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+
+    _loadInitialPosts();
+
+    setState(() {
+      _showNewPostsBanner = false;
+      _newPostsCount = 0;
+      _newPostsUserImages = [];
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final offset = _scrollController.offset;
+      final maxScroll = _scrollController.position.maxScrollExtent;
+
+      if (offset >= maxScroll - 200 && !_loadingMorePosts && _hasMorePosts) {
+        _loadMorePosts();
+      }
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _cryptoTimer?.cancel();
+    _newsPageController.dispose();
+    _cryptoPageController.dispose();
+    _scrollController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _userSubscription?.cancel();
+    _safeSetUserOnline(false);
     super.dispose();
   }
 
-  Future<void> _loadSavedCredentials() async {
-    final savedEmail = await _storage.read(key: 'deriv_email');
-    final savedRemember = await _storage.read(key: 'deriv_remember');
-    
-    if (savedEmail != null && savedRemember == 'true') {
-      setState(() {
-        _emailController.text = savedEmail;
-        _rememberMe = true;
-      });
+  Future<void> _safeSetUserOnline(bool isOnline) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'isOnline': isOnline});
+      }
+    } catch (e) {}
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await _userSubscription?.cancel();
+
+      _userSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+        if (doc.exists && mounted) {
+          final data = doc.data();
+
+          final isAdmin = data?['admin'] == true;
+          if (isAdmin && !_hasShownWelcomeBack) {
+            _hasShownWelcomeBack = true;
+            return;
+          }
+
+          setState(() {
+            _userData = data;
+            _showNews = _userData?['showNews'] ?? true;
+            _cardStyle = _userData?['cardStyle'] ?? 'modern';
+          });
+
+          if (!_hasShownWelcomeBack) {
+            _hasShownWelcomeBack = true;
+            _showWelcomeBackMessage(data?['username'] ?? 'Usuário');
+          }
+        }
+      }, onError: (err) {});
     }
   }
 
-  /// LOGIN COM OAUTH
-  Future<void> _loginWithOAuth() async {
-    if (_isLoading) return;
-    
-    setState(() => _isLoading = true);
-
-    try {
-      final authUrl = Uri.https('oauth.deriv.com', '/oauth2/authorize', {
-        'app_id': '71954',
-        'redirect_uri': 'https://alfredoooh.github.io/database/oauth-redirect/',
-        'response_type': 'token',
-        'scope': 'trade read',
-      });
-
-      final result = await FlutterWebAuth2.authenticate(
-        url: authUrl.toString(),
-        callbackUrlScheme: 'com.nexa.madeeasy',
-      );
-
-      final uri = Uri.parse(result);
-      String? token = uri.queryParameters['token'] ?? uri.queryParameters['access_token'];
-
-      if (token == null && uri.fragment.isNotEmpty) {
-        final fragmentParams = Uri.splitQueryString(uri.fragment);
-        token = fragmentParams['token'] ?? fragmentParams['access_token'];
-      }
-
-      if (token != null && token.isNotEmpty) {
-        await _storage.write(key: 'deriv_api_token', value: token);
-        await widget.derivService.connectWithToken(token);
-        
-        if (mounted) {
-          AppDialogs.showSuccess(
-            context, 
-            'Conectado!', 
-            'Login realizado com sucesso',
-            onClose: () => Navigator.pop(context),
-          );
-        }
-      } else {
-        throw Exception('Token não recebido');
-      }
-    } catch (e) {
+  void _showWelcomeBackMessage(String username) {
+    Future.delayed(Duration(milliseconds: 500), () {
       if (mounted) {
-        AppDialogs.showError(context, 'Erro', 'Falha ao conectar: ${e.toString()}');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  /// LOGIN COM EMAIL E PASSWORD
-  Future<void> _loginWithCredentials() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      AppDialogs.showError(context, 'Erro', 'Preencha email e senha');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Método 1: Tentar obter token primeiro
-      final token = await widget.derivService.getApiTokenFromCredentials(email, password);
-      
-      if (token != null && token.isNotEmpty) {
-        // Sucesso! Salvar token e conectar
-        await _storage.write(key: 'deriv_api_token', value: token);
-        
-        if (_rememberMe) {
-          await _storage.write(key: 'deriv_email', value: email);
-          await _storage.write(key: 'deriv_remember', value: 'true');
-        } else {
-          await _storage.delete(key: 'deriv_email');
-          await _storage.delete(key: 'deriv_remember');
-        }
-
-        await widget.derivService.connectWithToken(token);
-        
-        if (mounted) {
-          AppDialogs.showSuccess(
-            context,
-            'Conectado!',
-            'Login realizado com sucesso',
-            onClose: () => Navigator.pop(context),
-          );
-        }
-      } else {
-        // Método 2: Tentar login direto
-        final result = await widget.derivService.loginWithCredentials(email, password);
-        
-        if (result['success'] == true) {
-          if (result['token'] != null) {
-            await _storage.write(key: 'deriv_api_token', value: result['token']);
-          }
-          
-          if (_rememberMe) {
-            await _storage.write(key: 'deriv_email', value: email);
-            await _storage.write(key: 'deriv_remember', value: 'true');
-          }
-
-          if (mounted) {
-            AppDialogs.showSuccess(
-              context,
-              'Conectado!',
-              'Login realizado com sucesso',
-              onClose: () => Navigator.pop(context),
-            );
-          }
-        } else {
-          throw Exception(result['error'] ?? 'Falha na autenticação');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        AppDialogs.showError(
+        AppDialogs.showSuccess(
           context,
-          'Erro de Login',
-          'Verifique suas credenciais: ${e.toString()}',
+          '🎉',
+          'Bem-vindo de volta, $username!',
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    });
   }
 
-  Future<void> _openRegisterPage() async {
-    const url = 'https://deriv.com/signup/';
-    final uri = Uri.parse(url);
-    
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  void _showUserDrawer() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => UserDrawer(
+        userData: _userData,
+        onThemeChanged: widget.onThemeChanged,
+        onLocaleChanged: widget.onLocaleChanged,
+        currentLocale: widget.currentLocale,
+        showNews: _showNews,
+        cardStyle: _cardStyle,
+        onShowNewsChanged: (value) async {
+          setState(() => _showNews = value);
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            try {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .update({'showNews': value});
+            } catch (e) {}
+          }
+        },
+        onCardStyleChanged: (style) {
+          setState(() => _cardStyle = style);
+        },
+      ),
+    );
+  }
+
+  Future<bool> _checkAndDecrementToken(String action) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final isPro = userDoc.data()?['pro'] == true;
+        if (isPro) return true;
+
+        final currentTokens = userDoc.data()?['tokens'] ?? 0;
+
+        if (currentTokens <= 0) {
+          _showNoTokensDialog();
+          return false;
+        }
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'tokens': currentTokens - 1});
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  void _showNoTokensDialog() {
+    final username = _userData?['username'] ?? 'Usuário';
+
+    AppDialogs.showConfirmation(
+      context,
+      'Olá, $username!',
+      'Os seus tokens estão esgotados. Adquira saldo para obter mais tokens e continuar usando todos os recursos do aplicativo.',
+      onConfirm: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlansScreen(),
+            fullscreenDialog: true,
+          ),
+        );
+      },
+      confirmText: 'Continuar',
+      cancelText: 'Cancelar',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final username = _userData?['username'] ?? 'Usuário';
+    final profileImage = _userData?['profile_image'] as String?;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppSecondaryAppBar(title: 'Login'),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: BouncingScrollPhysics(),
-          padding: EdgeInsets.all(24),
-          child: Column(
-            children: [
-              SizedBox(height: 20),
-              
-              // Logo/Icon
-              AppIconCircle(
-                icon: Icons.account_balance_wallet_outlined,
-                size: 60,
-                iconColor: AppColors.primary,
-              ),
-              
-              SizedBox(height: 24),
-              
-              Text(
-                'Bem-vindo de volta',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-              ),
-              
-              SizedBox(height: 8),
-              
-              Text(
-                'Escolha como deseja entrar',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey,
-                ),
-              ),
-              
-              SizedBox(height: 32),
-              
-              // Tab Bar
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                  ),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey,
-                  labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                  tabs: [
-                    Tab(text: 'OAuth'),
-                    Tab(text: 'Email/Senha'),
-                  ],
-                ),
-              ),
-              
-              SizedBox(height: 32),
-              
-              // Tab Views
-              SizedBox(
-                height: 400,
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOAuthTab(isDark),
-                    _buildCredentialsTab(isDark),
-                  ],
-                ),
-              ),
-              
-              SizedBox(height: 24),
-              
-              // Registrar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Não tem conta? ',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: _openRegisterPage,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Text(
-                        'Registrar',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_scrollController.hasClients && _scrollController.offset > 0) {
+          _scrollController.animateTo(
+            0,
+            duration: Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        body: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                await Future.wait([
+                  _loadUserData(),
+                  _loadInitialPosts(),
+                ]);
+                _loadAllData();
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: BouncingScrollPhysics(),
+                slivers: [
+                  _buildAppBar(isDark, username, profileImage),
+                  _buildMainContent(isDark),
+                  _buildPostsHeader(isDark),
+                  _buildPostsList(isDark),
+                  SliverPadding(padding: EdgeInsets.only(bottom: 100)),
                 ],
+              ),
+            ),
+            if (_showNewPostsBanner)
+              _buildNewPostsBanner(isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverAppBar _buildAppBar(bool isDark, String username, String? profileImage) {
+    return SliverAppBar(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      elevation: 0,
+      pinned: false,
+      floating: true,
+      expandedHeight: 60,
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: EdgeInsets.only(left: 16, bottom: 16),
+        title: Text(
+          username,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(
+            Icons.search,
+            color: isDark ? Colors.white : Colors.black,
+            size: 24,
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => search_posts.SearchScreen(),
+                fullscreenDialog: true,
+              ),
+            );
+          },
+        ),
+        SizedBox(width: 8),
+        GestureDetector(
+          onTap: _showUserDrawer,
+          child: Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary,
+              backgroundImage: profileImage != null && profileImage.isNotEmpty
+                  ? NetworkImage(profileImage)
+                  : null,
+              child: profileImage == null || profileImage.isEmpty
+                  ? Text(
+                      username[0].toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  SliverPadding _buildMainContent(bool isDark) {
+    return SliverPadding(
+      padding: EdgeInsets.all(16),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          WalletCard(
+            userData: _userData,
+            cardStyle: _cardStyle,
+            showCustomizeButton: false,
+          ),
+          SizedBox(height: 16),
+          HomeActionButton(
+            userData: _userData,
+            onCheckToken: _checkAndDecrementToken,
+            isDark: isDark,
+          ),
+          SizedBox(height: 24),
+          HomeStatsSection(
+            messageCount: _messageCount,
+            groupCount: _groupCount,
+            isDark: isDark,
+          ),
+          SizedBox(height: 24),
+          crypto_section.HomeCryptoSection(
+            cryptoData: _cryptoData,
+            loadingCrypto: _loadingCrypto,
+            isDark: isDark,
+            pageController: _cryptoPageController,
+            currentPage: _currentCryptoPage,
+            onViewMore: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CryptoListScreen(),
+                  fullscreenDialog: true,
+                ),
+              );
+            },
+          ),
+          if (_showNews) ...[
+            SizedBox(height: 32),
+            HomeNewsSection(
+              newsArticles: _newsArticles,
+              loadingNews: _loadingNews,
+              isDark: isDark,
+              pageController: _newsPageController,
+              currentPage: _currentNewsPage,
+              onNewsClick: _checkAndDecrementToken,
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  SliverPersistentHeader _buildPostsHeader(bool isDark) {
+    return SliverPersistentHeader(
+      pinned: false,
+      floating: true,
+      delegate: _SliverAppBarDelegate(
+        minHeight: 60,
+        maxHeight: 60,
+        child: Container(
+          color: isDark 
+              ? AppColors.darkBackground.withOpacity(0.9) 
+              : AppColors.lightBackground.withOpacity(0.9),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: AppSectionTitle(
+            text: 'Sheets',
+            fontSize: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
+  SliverList _buildPostsList(bool isDark) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          return HomePostsSection(
+            posts: _posts,
+            index: index,
+            loadingMorePosts: _loadingMorePosts,
+            hasMorePosts: _hasMorePosts,
+            isDark: isDark,
+          );
+        },
+        childCount: _posts.length + 1,
+      ),
+    );
+  }
+
+  Widget _buildNewPostsBanner(bool isDark) {
+    return Positioned(
+      top: 100,
+      left: 16,
+      right: 16,
+      child: GestureDetector(
+        onTap: _scrollToTop,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: Colors.blue.withOpacity(0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Expanded(
+                child: Text(
+                  '$_newPostsCount ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_upward,
+                color: Colors.blue,
+                size: 18,
               ),
             ],
           ),
@@ -314,114 +646,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ),
     );
   }
+}
 
-  Widget _buildOAuthTab(bool isDark) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.security,
-          size: 80,
-          color: AppColors.primary.withOpacity(0.3),
-        ),
-        
-        SizedBox(height: 24),
-        
-        Text(
-          'Login Seguro',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        
-        SizedBox(height: 12),
-        
-        Text(
-          'Conecte-se usando OAuth da Deriv.\nSeguro, rápido e sem compartilhar senha.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-            height: 1.5,
-          ),
-        ),
-        
-        SizedBox(height: 32),
-        
-        AppPrimaryButton(
-          text: 'Conectar com OAuth',
-          onPressed: _isLoading ? null : _loginWithOAuth,
-          isLoading: _isLoading,
-        ),
-        
-        SizedBox(height: 16),
-        
-        AppInfoCard(
-          icon: Icons.info_outline,
-          text: 'Método recomendado pela Deriv. Seus dados ficam sempre seguros.',
-        ),
-      ],
-    );
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _SliverAppBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
   }
 
-  Widget _buildCredentialsTab(bool isDark) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AppFieldLabel(text: 'Email'),
-        SizedBox(height: 8),
-        AppTextField(
-          controller: _emailController,
-          hintText: 'seu@email.com',
-          keyboardType: TextInputType.emailAddress,
-          prefixIcon: Icon(Icons.email_outlined, color: Colors.grey),
-        ),
-        
-        SizedBox(height: 16),
-        
-        AppFieldLabel(text: 'Senha'),
-        SizedBox(height: 8),
-        AppPasswordField(
-          controller: _passwordController,
-          hintText: 'Sua senha',
-        ),
-        
-        SizedBox(height: 16),
-        
-        // Remember me
-        Row(
-          children: [
-            CupertinoSwitch(
-              value: _rememberMe,
-              activeColor: AppColors.primary,
-              onChanged: (value) {
-                setState(() => _rememberMe = value);
-              },
-            ),
-            SizedBox(width: 12),
-            Text(
-              'Lembrar meu email',
-              style: TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
-        
-        SizedBox(height: 24),
-        
-        AppPrimaryButton(
-          text: 'Entrar com Email',
-          onPressed: _isLoading ? null : _loginWithCredentials,
-          isLoading: _isLoading,
-        ),
-        
-        SizedBox(height: 16),
-        
-        AppInfoCard(
-          icon: Icons.warning_amber_outlined,
-          text: 'Use apenas em dispositivos confiáveis. O OAuth é mais seguro.',
-        ),
-      ],
-    );
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight || 
+           minHeight != oldDelegate.minHeight || 
+           child != oldDelegate.child;
   }
 }
