@@ -1,6 +1,5 @@
 // lib/screens/goals_screen.dart
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/app_ui_components.dart';
@@ -9,21 +8,17 @@ import 'goals_widgets/goals_add_strategy_screen.dart';
 import 'goals_widgets/goals_add_note_screen.dart';
 import 'goals_widgets/goals_journal_screen.dart';
 import 'goals_widgets/goals_checklist_screen.dart';
-import 'goals_widgets/goals_pro_overlay.dart';
-import 'plans_screen.dart';
 
 class GoalsScreen extends StatefulWidget {
   @override
   _GoalsScreenState createState() => _GoalsScreenState();
 }
 
-class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStateMixin {
+class _GoalsScreenState extends State<GoalsScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _targetController = TextEditingController();
   String _selectedCategory = 'Financeiro';
-  bool _isPro = false;
-  bool _isAdmin = false;
-  bool _isLoading = true;
   late TabController _tabController;
 
   final List<String> _categories = [
@@ -39,23 +34,14 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
-    _checkUserStatus();
   }
 
-  Future<void> _checkUserStatus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        setState(() {
-          _isPro = doc.data()?['pro'] == true;
-          _isAdmin = doc.data()?['admin'] == true;
-          _isLoading = false;
-        });
-      }
-    } else {
-      setState(() => _isLoading = false);
-    }
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _targetController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _showAddGoalModal() {
@@ -104,7 +90,9 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppColors.primary
-                              : (isDark ? AppColors.darkBorder : Color(0xFFF2F2F7)),
+                              : (isDark
+                                  ? AppColors.darkBorder
+                                  : Color(0xFFF2F2F7)),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -181,7 +169,10 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
       'Tem certeza que deseja excluir esta meta?',
       onConfirm: () async {
         try {
-          await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+          await FirebaseFirestore.instance
+              .collection('goals')
+              .doc(goalId)
+              .delete();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Meta excluída'),
@@ -233,7 +224,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GoalsAddTaskScreen(),
+                  builder: (_) => GoalsAddTaskScreen(),
                   fullscreenDialog: true,
                 ),
               );
@@ -249,7 +240,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GoalsAddStrategyScreen(),
+                  builder: (_) => GoalsAddStrategyScreen(),
                   fullscreenDialog: true,
                 ),
               );
@@ -265,7 +256,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GoalsAddNoteScreen(),
+                  builder: (_) => GoalsAddNoteScreen(),
                   fullscreenDialog: true,
                 ),
               );
@@ -281,7 +272,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GoalsJournalScreen(),
+                  builder: (_) => GoalsJournalScreen(),
                   fullscreenDialog: true,
                 ),
               );
@@ -297,7 +288,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GoalsChecklistScreen(),
+                  builder: (_) => GoalsChecklistScreen(),
                   fullscreenDialog: true,
                 ),
               );
@@ -349,125 +340,114 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
 
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
-
-    bool hasAccess = _isPro || _isAdmin;
-
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-          body: CustomScrollView(
-            physics: BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                backgroundColor: isDark ? AppColors.darkBackground.withOpacity(0.9) : AppColors.lightBackground.withOpacity(0.9),
-                flexibleSpace: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkBackground.withOpacity(0.75) : AppColors.lightBackground.withOpacity(0.75),
-                      ),
-                      child: FlexibleSpaceBar(
-                        centerTitle: false,
-                        titlePadding: EdgeInsets.only(left: 20, bottom: 16),
-                        title: Text(
-                          'Metas',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                            fontSize: 28,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                actions: [
-                  IconButton(
-                    icon: Icon(Icons.add_rounded, color: AppColors.primary),
-                    onPressed: hasAccess ? _showAddGoalModal : null,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.more_vert_rounded, color: isDark ? Colors.white : Colors.black),
-                    onPressed: hasAccess ? _showOptionsMenu : null,
-                  ),
-                ],
-              ),
-              if (hasAccess)
-                SliverToBoxAdapter(
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    labelColor: AppColors.primary,
-                    unselectedLabelColor: isDark ? Colors.white70 : Colors.black54,
-                    indicatorColor: AppColors.primary,
-                    tabs: [
-                      Tab(text: 'Metas'),
-                      Tab(text: 'Tarefas'),
-                      Tab(text: 'Estratégias'),
-                      Tab(text: 'Notas'),
-                      Tab(text: 'Diário'),
-                    ],
-                  ),
-                ),
-              if (hasAccess)
-                SliverFillRemaining(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildGoalsList(isDark, user),
-                      Center(child: Text('Tarefas em desenvolvimento')),
-                      Center(child: Text('Estratégias em desenvolvimento')),
-                      Center(child: Text('Notas em desenvolvimento')),
-                      Center(child: Text('Diário em desenvolvimento')),
-                    ],
-                  ),
-                )
-              else
-                SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.track_changes_rounded,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Nenhuma meta ainda',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+    return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppPrimaryAppBar(
+        title: 'Metas',
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add_rounded, color: AppColors.primary),
+            onPressed: _showAddGoalModal,
           ),
-        ),
-        if (!hasAccess) GoalsProOverlay(),
-      ],
+          IconButton(
+            icon: Icon(Icons.more_vert_rounded),
+            onPressed: _showOptionsMenu,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : AppColors.lightCard,
+              border: Border(
+                bottom: BorderSide(
+                  color: isDark ? AppColors.darkSeparator : AppColors.separator,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: isDark ? Colors.white70 : Colors.black54,
+              indicatorColor: AppColors.primary,
+              indicatorWeight: 3,
+              tabs: [
+                Tab(text: 'Metas'),
+                Tab(text: 'Tarefas'),
+                Tab(text: 'Estratégias'),
+                Tab(text: 'Notas'),
+                Tab(text: 'Diário'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildGoalsList(isDark, user),
+                _buildComingSoon('Tarefas', isDark),
+                _buildComingSoon('Estratégias', isDark),
+                _buildComingSoon('Notas', isDark),
+                _buildComingSoon('Diário', isDark),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComingSoon(String feature, bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.construction_rounded,
+            size: 80,
+            color: Colors.grey.withOpacity(0.5),
+          ),
+          SizedBox(height: 16),
+          Text(
+            '$feature em desenvolvimento',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Em breve disponível',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildGoalsList(bool isDark, User? user) {
     if (user == null) {
-      return Center(child: Text('Faça login para ver suas metas'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.login, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Faça login para ver suas metas',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -478,7 +458,9 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: AppColors.primary));
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -489,7 +471,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
                 Icon(
                   Icons.track_changes_rounded,
                   size: 80,
-                  color: Colors.grey,
+                  color: Colors.grey.withOpacity(0.5),
                 ),
                 SizedBox(height: 16),
                 Text(
@@ -527,110 +509,109 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
             final current = (goal['current'] ?? 0).toDouble();
             final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
 
-            return AppCard(
-              padding: EdgeInsets.all(16),
-              borderRadius: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          _getCategoryIcon(category),
-                          color: AppColors.primary,
-                          size: 24,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            Text(
-                              category,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete_rounded, color: Colors.red),
-                        onPressed: () => _deleteGoal(goalId),
-                      ),
-                    ],
-                  ),
-                  if (target > 0) ...[
-                    SizedBox(height: 16),
+            return Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: AppCard(
+                padding: EdgeInsets.all(16),
+                borderRadius: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'R\$ ${current.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : Colors.black,
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            _getCategoryIcon(category),
+                            color: AppColors.primary,
+                            size: 24,
                           ),
                         ),
-                        Text(
-                          'R\$ ${target.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              Text(
+                                category,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete_rounded, color: Colors.red),
+                          onPressed: () => _deleteGoal(goalId),
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: isDark ? AppColors.darkBorder : Color(0xFFE5E5EA),
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    if (target > 0) ...[
+                      SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'R\$ ${current.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          Text(
+                            'R\$ ${target.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '${(progress * 100).toStringAsFixed(0)}% completo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
+                      SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          backgroundColor: isDark
+                              ? AppColors.darkBorder
+                              : Color(0xFFE5E5EA),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
                       ),
-                    ),
+                      SizedBox(height: 8),
+                      Text(
+                        '${(progress * 100).toStringAsFixed(0)}% completo',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             );
           },
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _targetController.dispose();
-    _tabController.dispose();
-    super.dispose();
   }
 }
