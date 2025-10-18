@@ -410,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _handleNewsClick(NewsArticle article, int index) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // REMOVIDO: final isDark = Theme.of(context).brightness == Brightness.dark;
     final canProceed = await _checkAndDecrementToken('view_news');
     if (!canProceed) return;
 
@@ -421,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           article: article,
           allArticles: _newsArticles,
           currentIndex: index,
-          isDark: isDark,
+          // REMOVIDO: isDark: isDark,
         ),
         fullscreenDialog: true,
       ),
