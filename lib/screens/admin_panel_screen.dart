@@ -1,12 +1,11 @@
-// admin_panel_screen.dart - Atualizado com conversão Base64
+// admin_panel_screen.dart - Redesenhado com UI Components
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import '../models/user_model.dart';
 import 'admin_modals.dart';
 import 'admin_user_edit.dart';
+import 'app_ui_components.dart';
 
 class AdminPanelScreen extends StatefulWidget {
   const AdminPanelScreen({Key? key}) : super(key: key);
@@ -18,8 +17,6 @@ class AdminPanelScreen extends StatefulWidget {
 class _AdminPanelScreenState extends State<AdminPanelScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-
-  static const Color primaryColor = Color(0xFFFF444F);
 
   @override
   void dispose() {
@@ -53,114 +50,75 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     return null;
   }
 
-  void _showStatsPopup() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
+  void _showAdminMenu() {
+    AppBottomSheet.show(
+      context,
+      height: 320,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          const AppSectionTitle(text: 'Menu Admin', fontSize: 18),
+          const SizedBox(height: 24),
+          _buildMenuOption(
+            icon: Icons.analytics_outlined,
+            title: 'Estatísticas',
+            onTap: () {
+              Navigator.pop(context);
+              _showStatisticsModal();
+            },
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(height: 12),
-                Container(
-                  width: 36,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Menu Admin',
-                  style: TextStyle(
+          const Divider(height: 1),
+          _buildMenuOption(
+            icon: Icons.settings_outlined,
+            title: 'Configurações',
+            onTap: () {
+              Navigator.pop(context);
+              _showSettingsModal();
+            },
+          ),
+          const Divider(height: 1),
+          _buildMenuOption(
+            icon: Icons.assessment_outlined,
+            title: 'Relatórios',
+            onTap: () {
+              Navigator.pop(context);
+              _showReportsModal();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 16),
-                ListTile(
-                  title: Text(
-                    'Estatísticas',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showStatisticsModal();
-                  },
-                ),
-                Divider(height: 1, thickness: 0.5),
-                ListTile(
-                  title: Text(
-                    'Configurações',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showSettingsModal();
-                  },
-                ),
-                Divider(height: 1, thickness: 0.5),
-                ListTile(
-                  title: Text(
-                    'Relatórios',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showReportsModal();
-                  },
-                ),
-                SizedBox(height: 8),
-                Container(
-                  height: 8,
-                  color: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-                ),
-                ListTile(
-                  title: Text(
-                    'Cancelar',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onTap: () => Navigator.pop(context),
-                ),
-                SizedBox(height: 8),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -169,7 +127,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => StatisticsModal(),
+      builder: (context) => const StatisticsModal(),
     );
   }
 
@@ -178,7 +136,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => SettingsModal(),
+      builder: (context) => const SettingsModal(),
     );
   }
 
@@ -187,7 +145,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => ReportsModal(),
+      builder: (context) => const ReportsModal(),
     );
   }
 
@@ -196,79 +154,40 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1C1C1E) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: primaryColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Painel Administrativo',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
-            fontSize: 17,
-          ),
-        ),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Painel Admin',
         actions: [
           IconButton(
-            icon: Icon(Icons.more_horiz, color: primaryColor),
-            onPressed: _showStatsPopup,
+            icon: const Icon(Icons.more_horiz, color: AppColors.primary),
+            onPressed: _showAdminMenu,
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(
-            color: isDark ? Color(0xFF38383A) : Color(0xFFE5E5EA),
-            height: 0.5,
-          ),
-        ),
       ),
       body: Column(
         children: [
           // Search Bar
           Container(
-            margin: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            height: 40,
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.search, color: Colors.grey, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value.toLowerCase());
-                    },
-                  ),
-                ),
-                if (_searchQuery.isNotEmpty)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _searchController.clear();
-                        _searchQuery = '';
-                      });
-                    },
-                    child: Icon(Icons.clear, color: Colors.grey, size: 18),
-                  ),
-              ],
+            padding: const EdgeInsets.all(16),
+            color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+            child: AppTextField(
+              controller: _searchController,
+              hintText: 'Buscar usuários...',
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              onChanged: (value) {
+                setState(() => _searchQuery = value.toLowerCase());
+              },
             ),
           ),
           // Users List
@@ -277,9 +196,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               stream: FirebaseFirestore.instance.collection('users').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(
+                  return const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(primaryColor),
+                      color: AppColors.primary,
                     ),
                   );
                 }
@@ -289,11 +208,15 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.people_outline, size: 60, color: Colors.grey),
-                        SizedBox(height: 16),
+                        AppIconCircle(
+                          icon: Icons.people_outline,
+                          size: 40,
+                          iconColor: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           'Nenhum usuário encontrado',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 16),
                         ),
                       ],
                     ),
@@ -314,22 +237,34 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
 
                 if (users.isEmpty) {
                   return Center(
-                    child: Text(
-                      'Nenhum resultado encontrado',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AppIconCircle(
+                          icon: Icons.search_off,
+                          size: 40,
+                          iconColor: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Nenhum resultado encontrado',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                        ),
+                      ],
                     ),
                   );
                 }
 
                 return Container(
-                  color: isDark ? Color(0xFF000000) : Colors.white,
+                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
                   child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: users.length,
                     separatorBuilder: (context, index) => Divider(
                       height: 1,
                       thickness: 0.5,
                       indent: 72,
-                      color: isDark ? Color(0xFF38383A) : Color(0xFFE5E5EA),
+                      color: isDark ? AppColors.darkSeparator : AppColors.separator,
                     ),
                     itemBuilder: (context, index) {
                       final userData = users[index].data() as Map<String, dynamic>;
@@ -350,11 +285,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     final imageProvider = _getImageFromBase64(user.profileImage);
 
     return Material(
-      color: isDark ? Color(0xFF000000) : Colors.white,
+      color: Colors.transparent,
       child: InkWell(
         onTap: () => showUserEditModal(context, user, isDark),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               // Avatar com suporte a Base64
@@ -362,14 +297,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: primaryColor,
+                    backgroundColor: AppColors.primary.withOpacity(0.2),
                     backgroundImage: imageProvider,
                     child: imageProvider == null
                         ? Text(
                             user.username[0].toUpperCase(),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 20,
-                              color: Colors.white,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           )
@@ -386,7 +321,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           color: Colors.green,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isDark ? Color(0xFF000000) : Colors.white,
+                            color: isDark ? AppColors.darkCard : AppColors.lightCard,
                             width: 2,
                           ),
                         ),
@@ -394,7 +329,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     ),
                 ],
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               // User Info
               Expanded(
                 child: Column(
@@ -406,7 +341,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           child: Text(
                             user.username,
                             style: TextStyle(
-                              fontSize: 17,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
@@ -414,14 +349,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                           ),
                         ),
                         if (user.admin) ...[
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: primaryColor,
+                              color: AppColors.primary,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text(
+                            child: const Text(
                               'ADMIN',
                               style: TextStyle(
                                 color: Colors.white,
@@ -433,25 +368,28 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                         ],
                       ],
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       user.email,
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
+                        fontSize: 13,
+                        color: Colors.grey[600],
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.monetization_on, size: 13, color: Colors.grey),
-                        SizedBox(width: 4),
+                        Icon(Icons.monetization_on_outlined, 
+                          size: 14, 
+                          color: Colors.grey[600]
+                        ),
+                        const SizedBox(width: 4),
                         Text(
                           '${user.tokens} tokens',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         Container(
                           width: 6,
                           height: 6,
@@ -460,11 +398,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                             shape: BoxShape.circle,
                           ),
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           user.access ? 'Ativo' : 'Bloqueado',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                             color: user.access ? Colors.green : Colors.red,
                           ),
                         ),
@@ -476,7 +415,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               // Chevron
               Icon(
                 Icons.chevron_right,
-                color: Colors.grey,
+                color: Colors.grey[400],
                 size: 20,
               ),
             ],
