@@ -1,27 +1,63 @@
+// lib/screens/user_drawer_settings.dart
 import 'package:flutter/material.dart';
 import '../widgets/app_ui_components.dart';
 
 class UserDrawerSettings {
-  static void showSettingsModal(BuildContext context) {
+  // ✅ CORRIGIDO: Adicionados parâmetros necessários
+  static void showSettingsModal(
+    BuildContext context, {
+    required String currentLocale,
+    required String cardStyle,
+    required Function(String) onThemeChanged,
+    required Function(String) onLanguageChanged,
+    required Function(String) onCardStyleChanged,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const SettingsScreen(),
+        builder: (context) => SettingsScreen(
+          currentLocale: currentLocale,
+          cardStyle: cardStyle,
+          onThemeChanged: onThemeChanged,
+          onLanguageChanged: onLanguageChanged,
+          onCardStyleChanged: onCardStyleChanged,
+        ),
       ),
     );
   }
 }
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  final String currentLocale;
+  final String cardStyle;
+  final Function(String) onThemeChanged;
+  final Function(String) onLanguageChanged;
+  final Function(String) onCardStyleChanged;
+
+  const SettingsScreen({
+    required this.currentLocale,
+    required this.cardStyle,
+    required this.onThemeChanged,
+    required this.onLanguageChanged,
+    required this.onCardStyleChanged,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _currentTheme = 'light';
-  String _currentLocale = 'pt';
-  String _currentCardStyle = 'modern';
+  late String _currentTheme;
+  late String _currentLocale;
+  late String _currentCardStyle;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTheme = 'light';
+    _currentLocale = widget.currentLocale;
+    _currentCardStyle = widget.cardStyle;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,18 +169,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showThemeDialog(BuildContext context) {
-    AppDialogs.showConfirmation(
-      context,
-      'Escolha o tema',
-      'Selecione o tema desejado para o aplicativo',
-      onConfirm: () {
-        setState(() {
-          _currentTheme = 'dark';
-        });
-      },
-      confirmText: '🌙 Escuro',
-      cancelText: '☀️ Claro',
-      isDestructive: false,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Escolha o tema'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.light_mode, color: AppColors.primary),
+              title: Text('☀️ Claro'),
+              onTap: () {
+                setState(() => _currentTheme = 'light');
+                widget.onThemeChanged('light');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.dark_mode, color: AppColors.primary),
+              title: Text('🌙 Escuro'),
+              onTap: () {
+                setState(() => _currentTheme = 'dark');
+                widget.onThemeChanged('dark');
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -168,11 +221,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildLanguageOption('🇺🇸', 'English', 'en'),
             const SizedBox(height: 12),
             _buildLanguageOption('🇪🇸', 'Español', 'es'),
-            const SizedBox(height: 24),
-            AppPrimaryButton(
-              text: 'Concluído',
-              onPressed: () => Navigator.pop(context),
-            ),
           ],
         ),
       ),
@@ -183,9 +231,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isSelected = _currentLocale == code;
     return InkWell(
       onTap: () {
-        setState(() {
-          _currentLocale = code;
-        });
+        setState(() => _currentLocale = code);
+        widget.onLanguageChanged(code);
         Navigator.pop(context);
       },
       child: Container(
@@ -268,12 +315,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildStyleOption(String style, String name, IconData icon) {
     final isSelected = _currentCardStyle == style;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return InkWell(
       onTap: () {
-        setState(() {
-          _currentCardStyle = style;
-        });
+        setState(() => _currentCardStyle = style);
+        widget.onCardStyleChanged(style);
       },
       child: Container(
         decoration: BoxDecoration(
