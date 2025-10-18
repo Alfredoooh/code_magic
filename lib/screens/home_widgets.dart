@@ -122,7 +122,7 @@ class HomeWidgets {
               article: article,
               allArticles: allArticles,
               currentIndex: index,
-              isDark: isDark,
+              // ✅ REMOVIDO: isDark: isDark,
             ),
             fullscreenDialog: true,
           ),
