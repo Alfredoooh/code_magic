@@ -1,32 +1,6 @@
 // lib/widgets/app_ui_components.dart
 import 'package:flutter/material.dart';
-
-/// Cores do aplicativo - NOVO DESIGN
-class AppColors {
-  // Cor principal atualizada - Azul vibrante moderno
-  static const Color primary = Color(0xFF0066FF);
-  static const Color primaryLight = Color(0xFF3D8BFF);
-  static const Color primaryDark = Color(0xFF0052CC);
-  
-  // Backgrounds
-  static const Color darkBackground = Color(0xFF0A0A0A);
-  static const Color darkCard = Color(0xFF1A1A1A);
-  static const Color darkBorder = Color(0xFF2A2A2A);
-  
-  static const Color lightBackground = Color(0xFFFAFAFA);
-  static const Color lightCard = Colors.white;
-  static const Color lightBorder = Color(0xFFE8E8E8);
-  
-  // Separadores
-  static const Color separator = Color(0xFFE8E8E8);
-  static const Color darkSeparator = Color(0xFF2A2A2A);
-  
-  // Accent colors
-  static const Color success = Color(0xFF00C853);
-  static const Color error = Color(0xFFFF3B30);
-  static const Color warning = Color(0xFFFF9500);
-  static const Color info = Color(0xFF007AFF);
-}
+import 'app_colors.dart';
 
 /// AppBar Tipo 1 - Para telas principais
 class AppPrimaryAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -116,7 +90,7 @@ class AppSecondaryAppBar extends StatelessWidget implements PreferredSizeWidget 
   }
 }
 
-/// TextField NOVO - Design minimalista e moderno
+/// TextField com border radius dinâmico
 class AppTextField extends StatefulWidget {
   final TextEditingController? controller;
   final String? hintText;
@@ -158,11 +132,9 @@ class _AppTextFieldState extends State<AppTextField> {
       duration: Duration(milliseconds: 200),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppDesignConfig.borderRadius),
         border: Border.all(
-          color: _isFocused 
-              ? AppColors.primary
-              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          color: _isFocused ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
           width: 1.5,
         ),
       ),
@@ -200,7 +172,7 @@ class _AppTextFieldState extends State<AppTextField> {
   }
 }
 
-/// TextField de senha com botão de visibilidade
+/// TextField de senha
 class AppPasswordField extends StatefulWidget {
   final TextEditingController? controller;
   final String? hintText;
@@ -237,20 +209,20 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
   }
 }
 
-/// Botão primário NOVO - Design moderno com gradiente
+/// Botão primário com border radius dinâmico
 class AppPrimaryButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isLoading;
-  final double height;
-  final double borderRadius;
+  final double? height;
+  final double? borderRadius;
 
   const AppPrimaryButton({
     required this.text,
     this.onPressed,
     this.isLoading = false,
-    this.height = 50,
-    this.borderRadius = 12,
+    this.height,
+    this.borderRadius,
     Key? key,
   }) : super(key: key);
 
@@ -272,9 +244,9 @@ class _AppPrimaryButtonState extends State<AppPrimaryButton> {
         duration: Duration(milliseconds: 100),
         child: Container(
           width: double.infinity,
-          height: widget.height,
+          height: widget.height ?? AppDesignConfig.buttonHeight,
           decoration: BoxDecoration(
-            gradient: widget.isLoading 
+            gradient: widget.isLoading
                 ? null
                 : LinearGradient(
                     colors: [AppColors.primary, AppColors.primaryLight],
@@ -282,20 +254,26 @@ class _AppPrimaryButtonState extends State<AppPrimaryButton> {
                     end: Alignment.centerRight,
                   ),
             color: widget.isLoading ? Colors.grey : null,
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            boxShadow: widget.isLoading ? [] : [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(
+              widget.borderRadius ?? AppDesignConfig.buttonRadius,
+            ),
+            boxShadow: widget.isLoading
+                ? []
+                : [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: widget.isLoading ? null : widget.onPressed,
-              borderRadius: BorderRadius.circular(widget.borderRadius),
+              borderRadius: BorderRadius.circular(
+                widget.borderRadius ?? AppDesignConfig.buttonRadius,
+              ),
               child: Center(
                 child: widget.isLoading
                     ? SizedBox(
@@ -324,18 +302,18 @@ class _AppPrimaryButtonState extends State<AppPrimaryButton> {
   }
 }
 
-/// Botão secundário NOVO - Design minimalista
+/// Botão secundário
 class AppSecondaryButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
-  final double height;
-  final double borderRadius;
+  final double? height;
+  final double? borderRadius;
 
   const AppSecondaryButton({
     required this.text,
     this.onPressed,
-    this.height = 50,
-    this.borderRadius = 12,
+    this.height,
+    this.borderRadius,
     Key? key,
   }) : super(key: key);
 
@@ -359,20 +337,21 @@ class _AppSecondaryButtonState extends State<AppSecondaryButton> {
         duration: Duration(milliseconds: 100),
         child: Container(
           width: double.infinity,
-          height: widget.height,
+          height: widget.height ?? AppDesignConfig.buttonHeight,
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkCard : AppColors.lightCard,
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            border: Border.all(
-              color: AppColors.primary,
-              width: 1.5,
+            borderRadius: BorderRadius.circular(
+              widget.borderRadius ?? AppDesignConfig.buttonRadius,
             ),
+            border: Border.all(color: AppColors.primary, width: 1.5),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: widget.onPressed,
-              borderRadius: BorderRadius.circular(widget.borderRadius),
+              borderRadius: BorderRadius.circular(
+                widget.borderRadius ?? AppDesignConfig.buttonRadius,
+              ),
               child: Center(
                 child: Text(
                   widget.text,
@@ -392,17 +371,17 @@ class _AppSecondaryButtonState extends State<AppSecondaryButton> {
   }
 }
 
-/// Card de conteúdo NOVO
+/// Card com border radius dinâmico
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
-  final double borderRadius;
+  final double? borderRadius;
   final bool elevated;
 
   const AppCard({
     required this.child,
     this.padding,
-    this.borderRadius = 12,
+    this.borderRadius,
     this.elevated = false,
     Key? key,
   }) : super(key: key);
@@ -412,10 +391,12 @@ class AppCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: padding ?? EdgeInsets.all(16),
+      padding: padding ?? EdgeInsets.all(AppDesignConfig.spacing),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(
+          borderRadius ?? AppDesignConfig.cardRadius,
+        ),
         border: Border.all(
           color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           width: 1,
@@ -426,16 +407,16 @@ class AppCard extends StatelessWidget {
   }
 }
 
-/// Card de informação com ícone NOVO
+/// Card de informação
 class AppInfoCard extends StatelessWidget {
   final IconData icon;
   final String text;
-  final double borderRadius;
+  final double? borderRadius;
 
   const AppInfoCard({
     required this.icon,
     required this.text,
-    this.borderRadius = 12,
+    this.borderRadius,
     Key? key,
   }) : super(key: key);
 
@@ -447,7 +428,9 @@ class AppInfoCard extends StatelessWidget {
       padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.primary.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(
+          borderRadius ?? AppDesignConfig.borderRadius,
+        ),
         border: Border.all(
           color: AppColors.primary.withOpacity(0.2),
           width: 1,
@@ -503,18 +486,22 @@ class AppSectionTitle extends StatelessWidget {
   }
 }
 
-/// Diálogos NOVOS
+/// Diálogos
 class AppDialogs {
   static void showError(BuildContext context, String title, String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDesignConfig.borderRadius + 4),
+        ),
         title: Text(title, style: TextStyle(fontWeight: FontWeight.w700)),
         content: Text(message, style: TextStyle(fontSize: 14)),
         actions: [
           TextButton(
-            child: Text('OK', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+            child: Text('OK',
+                style: TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -532,7 +519,9 @@ class AppDialogs {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDesignConfig.borderRadius + 4),
+        ),
         title: Row(
           children: [
             Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
@@ -543,7 +532,9 @@ class AppDialogs {
         content: Text(message, style: TextStyle(fontSize: 14)),
         actions: [
           TextButton(
-            child: Text('OK', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+            child: Text('OK',
+                style: TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
             onPressed: () {
               Navigator.pop(context);
               onClose?.call();
@@ -566,12 +557,16 @@ class AppDialogs {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDesignConfig.borderRadius + 4),
+        ),
         title: Text(title, style: TextStyle(fontWeight: FontWeight.w700)),
         content: Text(message, style: TextStyle(fontSize: 14)),
         actions: [
           TextButton(
-            child: Text(cancelText, style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+            child: Text(cancelText,
+                style:
+                    TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
             onPressed: () => Navigator.pop(context),
           ),
           TextButton(
@@ -593,7 +588,7 @@ class AppDialogs {
   }
 }
 
-/// Modal bottom sheet NOVO
+/// Modal bottom sheet
 class AppBottomSheet {
   static void show(
     BuildContext context, {
@@ -637,7 +632,7 @@ class AppBottomSheet {
   }
 }
 
-/// Container com ícone circular NOVO
+/// Container com ícone circular
 class AppIconCircle extends StatelessWidget {
   final IconData icon;
   final double size;
@@ -654,8 +649,6 @@ class AppIconCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Container(
       padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -678,7 +671,7 @@ class AppIconCircle extends StatelessWidget {
   }
 }
 
-/// Label de campo NOVO
+/// Label de campo
 class AppFieldLabel extends StatelessWidget {
   final String text;
 
