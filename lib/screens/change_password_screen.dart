@@ -1,6 +1,7 @@
 // lib/screens/change_password_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/app_ui_components.dart';
 import 'forgot_password_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -15,12 +16,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _obscureCurrentPassword = true;
-  bool _obscureNewPassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-
-  static const Color primaryColor = Color(0xFFFF444F);
 
   @override
   void dispose() {
@@ -34,22 +30,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (_currentPasswordController.text.isEmpty ||
         _newPasswordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
-      _showErrorDialog('Erro', 'Preencha todos os campos');
+      AppDialogs.showError(context, 'Erro', 'Preencha todos os campos');
       return;
     }
 
     if (_newPasswordController.text.length < 6) {
-      _showErrorDialog('Erro', 'A nova senha deve ter pelo menos 6 caracteres');
+      AppDialogs.showError(context, 'Erro', 'A nova senha deve ter pelo menos 6 caracteres');
       return;
     }
 
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showErrorDialog('Erro', 'As senhas não coincidem');
+      AppDialogs.showError(context, 'Erro', 'As senhas não coincidem');
       return;
     }
 
     if (_currentPasswordController.text == _newPasswordController.text) {
-      _showErrorDialog('Erro', 'A nova senha deve ser diferente da atual');
+      AppDialogs.showError(context, 'Erro', 'A nova senha deve ser diferente da atual');
       return;
     }
 
@@ -70,7 +66,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       await user.updatePassword(_newPasswordController.text);
 
       setState(() => _isLoading = false);
-      _showSuccessDialog();
+      
+      AppDialogs.showSuccess(
+        context,
+        'Sucesso!',
+        'Sua senha foi alterada com sucesso!',
+        onClose: () => Navigator.pop(context),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
 
@@ -102,56 +104,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           errorMessage = 'Erro: ${e.message}';
       }
 
-      _showErrorDialog('Erro', errorMessage);
+      AppDialogs.showError(context, 'Erro', errorMessage);
     } catch (e) {
       setState(() => _isLoading = false);
-      _showErrorDialog('Erro', 'Erro inesperado. Tente novamente.');
+      AppDialogs.showError(context, 'Erro', 'Erro inesperado. Tente novamente.');
     }
-  }
-
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            child: Text('OK', style: TextStyle(color: primaryColor)),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 8),
-            Text('Sucesso!'),
-          ],
-        ),
-        content: Text(
-          'Sua senha foi alterada com sucesso!',
-          style: TextStyle(fontSize: 15),
-        ),
-        actions: [
-          TextButton(
-            child: Text('OK', style: TextStyle(color: primaryColor)),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -159,34 +116,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios,
-            color: primaryColor,
-            size: 24,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Alterar Senha',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-            height: 0.5,
-          ),
-        ),
-      ),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(title: 'Alterar Senha'),
       body: SafeArea(
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
@@ -198,227 +129,61 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               children: [
                 SizedBox(height: 20),
 
+                // Ícone central
                 Center(
-                  child: Container(
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.lock_outline,
-                      size: 60,
-                      color: primaryColor,
-                    ),
+                  child: AppIconCircle(
+                    icon: Icons.lock_outline,
+                    size: 60,
                   ),
                 ),
 
                 SizedBox(height: 32),
 
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: primaryColor,
-                        size: 24,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Por segurança, você precisa informar sua senha atual',
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                // Card de informação
+                AppInfoCard(
+                  icon: Icons.info_outline,
+                  text: 'Por segurança, você precisa informar sua senha atual',
                 ),
 
                 SizedBox(height: 32),
 
-                Text(
-                  'Senha Atual',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-                      width: 1,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _currentPasswordController,
-                    obscureText: _obscureCurrentPassword,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Digite sua senha atual',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(16),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureCurrentPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() => _obscureCurrentPassword = !_obscureCurrentPassword);
-                        },
-                      ),
-                    ),
-                  ),
+                // Senha Atual
+                AppFieldLabel(text: 'Senha Atual'),
+                AppPasswordField(
+                  controller: _currentPasswordController,
+                  hintText: 'Digite sua senha atual',
                 ),
 
                 SizedBox(height: 24),
 
-                Text(
-                  'Nova Senha',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-                      width: 1,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _newPasswordController,
-                    obscureText: _obscureNewPassword,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Mínimo 6 caracteres',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(16),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureNewPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() => _obscureNewPassword = !_obscureNewPassword);
-                        },
-                      ),
-                    ),
-                  ),
+                // Nova Senha
+                AppFieldLabel(text: 'Nova Senha'),
+                AppPasswordField(
+                  controller: _newPasswordController,
+                  hintText: 'Mínimo 6 caracteres',
                 ),
 
                 SizedBox(height: 24),
 
-                Text(
-                  'Confirmar Nova Senha',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-                      width: 1,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Confirme a nova senha',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(16),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                        },
-                      ),
-                    ),
-                  ),
+                // Confirmar Nova Senha
+                AppFieldLabel(text: 'Confirmar Nova Senha'),
+                AppPasswordField(
+                  controller: _confirmPasswordController,
+                  hintText: 'Confirme a nova senha',
                 ),
 
                 SizedBox(height: 40),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _changePassword,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isLoading ? Colors.grey : primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            'Alterar Senha',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
+                // Botão de alterar senha
+                AppPrimaryButton(
+                  text: 'Alterar Senha',
+                  onPressed: _changePassword,
+                  isLoading: _isLoading,
                 ),
 
                 SizedBox(height: 24),
 
+                // Link para recuperar senha
                 Center(
                   child: TextButton(
                     onPressed: () {
@@ -432,7 +197,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     child: Text(
                       'Esqueceu sua senha?',
                       style: TextStyle(
-                        color: primaryColor,
+                        color: AppColors.primary,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
