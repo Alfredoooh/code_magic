@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../models/news_article.dart';
+import '../widgets/app_ui_components.dart';
 
 class RelatedArticleCard extends StatelessWidget {
   final NewsArticle article;
@@ -27,13 +27,13 @@ class RelatedArticleCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+          color: isDark ? AppColors.darkCard : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: CupertinoColors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 10,
-              offset: Offset(0, 4),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -41,7 +41,7 @@ class RelatedArticleCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: article.imageUrl.isNotEmpty
                   ? Image.network(
                       article.imageUrl,
@@ -51,29 +51,35 @@ class RelatedArticleCard extends StatelessWidget {
                       errorBuilder: (context, error, stack) => Container(
                         height: 100,
                         color: isDark 
-                          ? Color(0xFF2C2C2E) 
-                          : CupertinoColors.systemGrey6,
-                        child: Icon(CupertinoIcons.photo, size: 32, 
-                             color: CupertinoColors.systemGrey),
+                          ? AppColors.darkCard 
+                          : AppColors.lightCard,
+                        child: const Icon(
+                          Icons.image,
+                          size: 32,
+                          color: Colors.grey,
+                        ),
                       ),
                     )
                   : Container(
                       height: 100,
                       color: isDark 
-                        ? Color(0xFF2C2C2E) 
-                        : CupertinoColors.systemGrey6,
-                      child: Icon(CupertinoIcons.news, size: 32, 
-                           color: CupertinoColors.systemGrey),
+                        ? AppColors.darkCard 
+                        : AppColors.lightCard,
+                      child: const Icon(
+                        Icons.article,
+                        size: 32,
+                        color: Colors.grey,
+                      ),
                     ),
             ),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -89,7 +95,7 @@ class RelatedArticleCard extends StatelessWidget {
                         maxLines: 1,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Expanded(
                       child: Text(
                         article.title,
@@ -97,8 +103,8 @@ class RelatedArticleCard extends StatelessWidget {
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: isDark 
-                            ? CupertinoColors.white 
-                            : CupertinoColors.black,
+                            ? Colors.white 
+                            : Colors.black,
                           height: 1.3,
                           letterSpacing: -0.2,
                         ),
@@ -106,7 +112,7 @@ class RelatedArticleCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         ClipRRect(
@@ -116,19 +122,19 @@ class RelatedArticleCard extends StatelessWidget {
                             width: 14,
                             height: 14,
                             errorBuilder: (context, error, stack) => Icon(
-                              CupertinoIcons.news,
+                              Icons.article,
                               size: 14,
                               color: primaryColor,
                             ),
                           ),
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             article.timeAgo,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
-                              color: CupertinoColors.systemGrey,
+                              color: Colors.grey,
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
