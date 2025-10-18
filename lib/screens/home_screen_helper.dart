@@ -1,10 +1,10 @@
 // lib/screens/home_screen_helper.dart
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import '../widgets/app_ui_components.dart';
 import '../models/news_article.dart';
 import 'home_crypto_section.dart' as crypto_section;
 
@@ -101,7 +101,7 @@ class HomeScreenHelper {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Stack(
@@ -114,10 +114,10 @@ class HomeScreenHelper {
                   article.imageUrl!,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
-                    color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey5,
+                    color: isDark ? AppColors.darkBorder : Color(0xFFF2F2F7),
                     child: Icon(
-                      CupertinoIcons.photo,
-                      color: CupertinoColors.systemGrey,
+                      Icons.photo,
+                      color: Colors.grey,
                       size: 40,
                     ),
                   ),
@@ -148,7 +148,7 @@ class HomeScreenHelper {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: CupertinoColors.white,
+                color: Colors.white,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
