@@ -1,8 +1,7 @@
-// lib/widgets/wallet_card.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'app_ui_components.dart';
 
 class WalletCard extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -19,59 +18,38 @@ class WalletCard extends StatelessWidget {
   }) : super(key: key);
 
   void _showCardStylePicker(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => Container(
-        height: 450,
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+    AppBottomSheet.show(
+      context,
+      height: 500,
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          AppSectionTitle(
+            text: 'Escolha o Estilo do Cartão',
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-        ),
-        child: Column(
-          children: [
-            SizedBox(height: 16),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: GridView.count(
+              padding: const EdgeInsets.all(16),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
+              children: [
+                _buildStyleOption(context, 'aurora', 'Aurora', Icons.auto_awesome, isDark),
+                _buildStyleOption(context, 'ocean', 'Ocean', Icons.waves, isDark),
+                _buildStyleOption(context, 'carbon', 'Carbon', Icons.layers, isDark),
+                _buildStyleOption(context, 'sunset', 'Sunset', Icons.wb_sunny, isDark),
+                _buildStyleOption(context, 'midnight', 'Midnight', Icons.nightlight, isDark),
+                _buildStyleOption(context, 'emerald', 'Emerald', Icons.eco, isDark),
+              ],
             ),
-            SizedBox(height: 20),
-            Text(
-              'Escolha o Estilo do Cartão',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-              ),
-            ),
-            SizedBox(height: 20),
-            Expanded(
-              child: GridView.count(
-                padding: EdgeInsets.all(16),
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.1,
-                children: [
-                  _buildStyleOption(context, 'aurora', 'Aurora', CupertinoIcons.sparkles, isDark),
-                  _buildStyleOption(context, 'ocean', 'Ocean', CupertinoIcons.wind, isDark),
-                  _buildStyleOption(context, 'carbon', 'Carbon', CupertinoIcons.layers_alt_fill, isDark),
-                  _buildStyleOption(context, 'sunset', 'Sunset', CupertinoIcons.sun_max_fill, isDark),
-                  _buildStyleOption(context, 'midnight', 'Midnight', CupertinoIcons.moon_stars_fill, isDark),
-                  _buildStyleOption(context, 'emerald', 'Emerald', CupertinoIcons.leaf_arrow_circlepath, isDark),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -94,11 +72,11 @@ class WalletCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected 
-              ? Color(0xFFFF444F).withOpacity(0.2)
-              : (isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6),
+              ? AppColors.primary.withOpacity(0.2)
+              : (isDark ? AppColors.darkCard : AppColors.lightCard),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Color(0xFFFF444F) : Colors.transparent,
+            color: isSelected ? AppColors.primary : Colors.transparent,
             width: 2,
           ),
         ),
@@ -108,17 +86,17 @@ class WalletCard extends StatelessWidget {
             Icon(
               icon,
               size: 36,
-              color: isSelected ? Color(0xFFFF444F) : CupertinoColors.systemGrey,
+              color: isSelected ? AppColors.primary : Colors.grey,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               name,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isSelected 
-                    ? Color(0xFFFF444F) 
-                    : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                    ? AppColors.primary 
+                    : (isDark ? Colors.white : Colors.black),
               ),
             ),
           ],
@@ -156,17 +134,17 @@ class WalletCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFFF444F).withOpacity(0.2),
+            color: AppColors.primary.withOpacity(0.2),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: BoxDecoration(
-            color: Color(0xFFFF444F),
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
           ),
           child: _buildCardContent(context, Colors.white),
         ),
@@ -183,16 +161,16 @@ class WalletCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF06B6D4).withOpacity(0.2),
+            color: const Color(0xFF06B6D4).withOpacity(0.2),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFF06B6D4),
           ),
           child: _buildCardContent(context, Colors.white),
@@ -212,14 +190,14 @@ class WalletCard extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFF1A1A1A),
           ),
           child: _buildCardContent(context, Colors.white),
@@ -237,16 +215,16 @@ class WalletCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFF97316).withOpacity(0.2),
+            color: const Color(0xFFF97316).withOpacity(0.2),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFFF97316),
           ),
           child: _buildCardContent(context, Colors.white),
@@ -264,16 +242,16 @@ class WalletCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF1E3A8A).withOpacity(0.3),
+            color: const Color(0xFF1E3A8A).withOpacity(0.3),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFF1E3A8A),
           ),
           child: _buildCardContent(context, Colors.white),
@@ -291,16 +269,16 @@ class WalletCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF10B981).withOpacity(0.2),
+            color: const Color(0xFF10B981).withOpacity(0.2),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFF10B981),
           ),
           child: _buildCardContent(context, Colors.white),
@@ -311,7 +289,7 @@ class WalletCard extends StatelessWidget {
 
   Widget _buildCardContent(BuildContext context, Color textColor) {
     return Padding(
-      padding: EdgeInsets.all(24),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -331,7 +309,7 @@ class WalletCard extends StatelessWidget {
                       letterSpacing: 1.5,
                     ),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   StreamBuilder<DocumentSnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('users')
@@ -360,13 +338,13 @@ class WalletCard extends StatelessWidget {
                 child: GestureDetector(
                   onTap: () => _showCardStylePicker(context),
                   child: Container(
-                    padding: EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      CupertinoIcons.slider_horizontal_3,
+                      Icons.tune,
                       color: textColor,
                       size: 24,
                     ),
@@ -380,7 +358,7 @@ class WalletCard extends StatelessWidget {
             children: [
               if (userData?['pro'] == true)
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.25),
                     borderRadius: BorderRadius.circular(6),
@@ -388,8 +366,8 @@ class WalletCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(CupertinoIcons.star_fill, color: textColor, size: 12),
-                      SizedBox(width: 6),
+                      Icon(Icons.star, color: textColor, size: 12),
+                      const SizedBox(width: 6),
                       Text(
                         'PRO MEMBER',
                         style: TextStyle(
@@ -404,7 +382,7 @@ class WalletCard extends StatelessWidget {
                 )
               else
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -419,7 +397,7 @@ class WalletCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Text(
                 (userData?['username'] ?? 'UTILIZADOR').toUpperCase(),
                 style: TextStyle(
