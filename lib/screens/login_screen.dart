@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
-import 'trading_chart_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final DerivService derivService;
@@ -17,38 +15,45 @@ class LoginScreen extends StatefulWidget {
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _tokenController = TextEditingController();
   
-  late TabController _tabController;
   bool _isLoading = false;
   bool _rememberMe = false;
+  String _selectedMethod = 'oauth'; // 'oauth', 'credentials', 'token'
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _loadSavedCredentials();
+    _loadSavedData();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _tokenController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadSavedCredentials() async {
+  Future<void> _loadSavedData() async {
     final savedEmail = await _storage.read(key: 'deriv_email');
+    final savedToken = await _storage.read(key: 'deriv_api_token');
     final savedRemember = await _storage.read(key: 'deriv_remember');
     
     if (savedEmail != null && savedRemember == 'true') {
       setState(() {
         _emailController.text = savedEmail;
         _rememberMe = true;
+      });
+    }
+    
+    if (savedToken != null) {
+      setState(() {
+        _tokenController.text = savedToken.substring(0, 20) + '...';
       });
     }
   }
@@ -64,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         'app_id': '71954',
         'redirect_uri': 'https://alfredoooh.github.io/database/oauth-redirect/',
         'response_type': 'token',
-        'scope': 'trade read',
+        'scope': 'trade read payments admin',
       });
 
       final result = await FlutterWebAuth2.authenticate(
@@ -88,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           AppDialogs.showSuccess(
             context, 
             'Conectado!', 
-            'Login realizado com sucesso',
+            'Login OAuth realizado com sucesso',
             onClose: () => Navigator.pop(context),
           );
         }
@@ -97,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
     } catch (e) {
       if (mounted) {
-        AppDialogs.showError(context, 'Erro', 'Falha ao conectar: ${e.toString()}');
+        AppDialogs.showError(context, 'Erro OAuth', e.toString());
       }
     } finally {
       if (mounted) {
@@ -106,7 +111,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
-  /// LOGIN COM EMAIL E PASSWORD
+  /// LOGIN COM TOKEN DIRETO
+  Future<void> _loginWithToken() async {
+    final token = _tokenController.text.trim();
+
+    if (token.isEmpty) {
+      AppDialogs.showError(context, 'Erro', 'Digite o token');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _storage.write(key: 'deriv_api_token', value: token);
+      await widget.derivService.connectWithToken(token);
+      
+      if (mounted) {
+        AppDialogs.showSuccess(
+          context,
+          'Conectado!',
+          'Login com token realizado',
+          onClose: () => Navigator.pop(context),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppDialogs.showError(context, 'Erro', 'Token inválido: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// LOGIN COM EMAIL/PASSWORD
   Future<void> _loginWithCredentials() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -119,11 +158,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     setState(() => _isLoading = true);
 
     try {
-      // Método 1: Tentar obter token primeiro
       final token = await widget.derivService.getApiTokenFromCredentials(email, password);
       
       if (token != null && token.isNotEmpty) {
-        // Sucesso! Salvar token e conectar
         await _storage.write(key: 'deriv_api_token', value: token);
         
         if (_rememberMe) {
@@ -145,7 +182,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           );
         }
       } else {
-        // Método 2: Tentar login direto
         final result = await widget.derivService.loginWithCredentials(email, password);
         
         if (result['success'] == true) {
@@ -162,35 +198,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             AppDialogs.showSuccess(
               context,
               'Conectado!',
-              'Login realizado com sucesso',
+              'Login realizado',
               onClose: () => Navigator.pop(context),
             );
           }
         } else {
-          throw Exception(result['error'] ?? 'Falha na autenticação');
+          throw Exception(result['error'] ?? 'Credenciais inválidas');
         }
       }
     } catch (e) {
       if (mounted) {
-        AppDialogs.showError(
-          context,
-          'Erro de Login',
-          'Verifique suas credenciais: ${e.toString()}',
-        );
+        AppDialogs.showError(context, 'Erro', 'Verifique suas credenciais');
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  Future<void> _openRegisterPage() async {
-    const url = 'https://deriv.com/signup/';
-    final uri = Uri.parse(url);
-    
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -209,7 +232,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             children: [
               SizedBox(height: 20),
               
-              // Logo/Icon
               AppIconCircle(
                 icon: Icons.account_balance_wallet_outlined,
                 size: 60,
@@ -219,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               SizedBox(height: 24),
               
               Text(
-                'Bem-vindo de volta',
+                'Conecte sua conta',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -230,84 +252,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               SizedBox(height: 8),
               
               Text(
-                'Escolha como deseja entrar',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey,
-                ),
+                'Escolha o método de login',
+                style: TextStyle(fontSize: 15, color: Colors.grey),
               ),
               
               SizedBox(height: 32),
               
-              // Tab Bar
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                  ),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey,
-                  labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                  tabs: [
-                    Tab(text: 'OAuth'),
-                    Tab(text: 'Email/Senha'),
-                  ],
-                ),
-              ),
+              // Selector de método
+              _buildMethodSelector(isDark),
               
               SizedBox(height: 32),
               
-              // Tab Views
-              SizedBox(
-                height: 400,
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOAuthTab(isDark),
-                    _buildCredentialsTab(isDark),
-                  ],
-                ),
-              ),
-              
-              SizedBox(height: 24),
-              
-              // Registrar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Não tem conta? ',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: _openRegisterPage,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Text(
-                        'Registrar',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              // Conteúdo baseado no método selecionado
+              if (_selectedMethod == 'oauth') _buildOAuthContent(isDark),
+              if (_selectedMethod == 'token') _buildTokenContent(isDark),
+              if (_selectedMethod == 'credentials') _buildCredentialsContent(isDark),
             ],
           ),
         ),
@@ -315,59 +274,130 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildOAuthTab(bool isDark) {
+  Widget _buildMethodSelector(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: Column(
+        children: [
+          _buildMethodOption(isDark, 'oauth', 'OAuth Deriv', Icons.security, 'Seguro e recomendado'),
+          Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          _buildMethodOption(isDark, 'token', 'API Token', Icons.vpn_key, 'Cole seu token'),
+          Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          _buildMethodOption(isDark, 'credentials', 'Email/Senha', Icons.email, 'Login direto'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMethodOption(bool isDark, String method, String title, IconData icon, String subtitle) {
+    final isSelected = _selectedMethod == method;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _selectedMethod = method),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? AppColors.primary : Colors.grey,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_circle, color: AppColors.primary, size: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOAuthContent(bool isDark) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.security,
-          size: 80,
-          color: AppColors.primary.withOpacity(0.3),
+        AppInfoCard(
+          icon: Icons.info_outline,
+          text: 'Você será redirecionado para Deriv.com para fazer login de forma segura. Método recomendado.',
         ),
-        
         SizedBox(height: 24),
-        
-        Text(
-          'Login Seguro',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        
-        SizedBox(height: 12),
-        
-        Text(
-          'Conecte-se usando OAuth da Deriv.\nSeguro, rápido e sem compartilhar senha.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-            height: 1.5,
-          ),
-        ),
-        
-        SizedBox(height: 32),
-        
         AppPrimaryButton(
           text: 'Conectar com OAuth',
           onPressed: _isLoading ? null : _loginWithOAuth,
           isLoading: _isLoading,
         ),
-        
+      ],
+    );
+  }
+
+  Widget _buildTokenContent(bool isDark) {
+    return Column(
+      children: [
+        AppFieldLabel(text: 'API Token'),
+        SizedBox(height: 8),
+        AppTextField(
+          controller: _tokenController,
+          hintText: 'Cole seu API token aqui',
+          maxLines: 3,
+          prefixIcon: Icon(Icons.vpn_key, color: Colors.grey),
+        ),
         SizedBox(height: 16),
-        
         AppInfoCard(
           icon: Icons.info_outline,
-          text: 'Método recomendado pela Deriv. Seus dados ficam sempre seguros.',
+          text: 'Obtenha seu token em: Deriv > Configurações > Segurança > API Token',
+        ),
+        SizedBox(height: 24),
+        AppPrimaryButton(
+          text: 'Conectar com Token',
+          onPressed: _isLoading ? null : _loginWithToken,
+          isLoading: _isLoading,
         ),
       ],
     );
   }
 
-  Widget _buildCredentialsTab(bool isDark) {
+  Widget _buildCredentialsContent(bool isDark) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         AppFieldLabel(text: 'Email'),
         SizedBox(height: 8),
@@ -377,49 +407,35 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           keyboardType: TextInputType.emailAddress,
           prefixIcon: Icon(Icons.email_outlined, color: Colors.grey),
         ),
-        
         SizedBox(height: 16),
-        
         AppFieldLabel(text: 'Senha'),
         SizedBox(height: 8),
         AppPasswordField(
           controller: _passwordController,
           hintText: 'Sua senha',
         ),
-        
         SizedBox(height: 16),
-        
-        // Remember me
         Row(
           children: [
             CupertinoSwitch(
               value: _rememberMe,
               activeColor: AppColors.primary,
-              onChanged: (value) {
-                setState(() => _rememberMe = value);
-              },
+              onChanged: (value) => setState(() => _rememberMe = value),
             ),
             SizedBox(width: 12),
-            Text(
-              'Lembrar meu email',
-              style: TextStyle(fontSize: 14),
-            ),
+            Text('Lembrar email', style: TextStyle(fontSize: 14)),
           ],
         ),
-        
-        SizedBox(height: 24),
-        
-        AppPrimaryButton(
-          text: 'Entrar com Email',
-          onPressed: _isLoading ? null : _loginWithCredentials,
-          isLoading: _isLoading,
-        ),
-        
         SizedBox(height: 16),
-        
         AppInfoCard(
           icon: Icons.warning_amber_outlined,
-          text: 'Use apenas em dispositivos confiáveis. O OAuth é mais seguro.',
+          text: 'Use apenas em dispositivos confiáveis. OAuth é mais seguro.',
+        ),
+        SizedBox(height: 24),
+        AppPrimaryButton(
+          text: 'Entrar',
+          onPressed: _isLoading ? null : _loginWithCredentials,
+          isLoading: _isLoading,
         ),
       ],
     );
