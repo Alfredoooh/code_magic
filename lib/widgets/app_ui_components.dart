@@ -47,6 +47,7 @@ class AppPrimaryAppBar extends StatelessWidget implements PreferredSizeWidget {
                 size: 24,
               ),
               onPressed: onBackPressed ?? () => Navigator.pop(context),
+              splashRadius: 24,
             )
           : null,
       title: Text(
@@ -99,6 +100,7 @@ class AppSecondaryAppBar extends StatelessWidget implements PreferredSizeWidget 
           size: 24,
         ),
         onPressed: onBackPressed ?? () => Navigator.pop(context),
+        splashRadius: 24,
       ),
       title: Text(
         title,
@@ -120,8 +122,8 @@ class AppSecondaryAppBar extends StatelessWidget implements PreferredSizeWidget 
   }
 }
 
-/// TextField personalizado com bordas super curvas
-class AppTextField extends StatelessWidget {
+/// TextField personalizado com Material Design 3
+class AppTextField extends StatefulWidget {
   final TextEditingController? controller;
   final String? hintText;
   final bool obscureText;
@@ -131,7 +133,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLines;
   final Function(String)? onChanged;
   final bool enabled;
-  final VoidCallback? onTap; // ADICIONADO
+  final VoidCallback? onTap;
 
   const AppTextField({
     this.controller,
@@ -143,43 +145,97 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.onChanged,
     this.enabled = true,
-    this.onTap, // ADICIONADO
+    this.onTap,
     Key? key,
   }) : super(key: key);
+
+  @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  bool _isFocused = false;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : AppColors.lightCard,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            width: 1,
-          ),
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isFocused 
+              ? AppColors.primary.withOpacity(0.5)
+              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          width: _isFocused ? 2 : 1,
         ),
-        child: TextField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          onChanged: onChanged,
-          enabled: enabled,
-          readOnly: onTap != null, // ADICIONADO: torna somente leitura se onTap existir
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
+        boxShadow: _isFocused ? [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(color: Colors.grey),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            prefixIcon: prefixIcon,
-            suffixIcon: suffixIcon,
+        ] : [],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: IgnorePointer(
+            ignoring: widget.onTap != null,
+            child: Focus(
+              onFocusChange: (focused) {
+                setState(() => _isFocused = focused);
+              },
+              child: TextField(
+                controller: widget.controller,
+                obscureText: widget.obscureText,
+                keyboardType: widget.keyboardType,
+                maxLines: widget.maxLines,
+                onChanged: widget.onChanged,
+                enabled: widget.enabled,
+                readOnly: widget.onTap != null,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  hintStyle: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
+                  prefixIcon: widget.prefixIcon != null 
+                      ? Padding(
+                          padding: EdgeInsets.only(left: 12, right: 8),
+                          child: widget.prefixIcon,
+                        )
+                      : null,
+                  prefixIconConstraints: BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  suffixIcon: widget.suffixIcon != null
+                      ? Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: widget.suffixIcon,
+                        )
+                      : null,
+                  suffixIconConstraints: BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -213,20 +269,21 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
       obscureText: _obscureText,
       suffixIcon: IconButton(
         icon: Icon(
-          _obscureText ? Icons.visibility_off : Icons.visibility,
+          _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
           color: Colors.grey,
-          size: 20,
+          size: 22,
         ),
         onPressed: () {
           setState(() => _obscureText = !_obscureText);
         },
+        splashRadius: 20,
       ),
     );
   }
 }
 
-/// Botão primário com bordas super curvas
-class AppPrimaryButton extends StatelessWidget {
+/// Botão primário com Material Design 3 e animações
+class AppPrimaryButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isLoading;
@@ -237,49 +294,66 @@ class AppPrimaryButton extends StatelessWidget {
     required this.text,
     this.onPressed,
     this.isLoading = false,
-    this.height = 50,
-    this.borderRadius = 25,
+    this.height = 56,
+    this.borderRadius = 16,
     Key? key,
   }) : super(key: key);
 
   @override
+  State<AppPrimaryButton> createState() => _AppPrimaryButtonState();
+}
+
+class _AppPrimaryButtonState extends State<AppPrimaryButton> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isLoading ? Colors.grey : AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+    return AnimatedScale(
+      scale: _isPressed ? 0.98 : 1.0,
+      duration: Duration(milliseconds: 100),
+      child: SizedBox(
+        width: double.infinity,
+        height: widget.height,
+        child: ElevatedButton(
+          onPressed: widget.isLoading ? null : widget.onPressed,
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.isLoading ? Colors.grey : AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: _isPressed ? 1 : 2,
+            shadowColor: AppColors.primary.withOpacity(0.3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+            ),
+            splashFactory: InkRipple.splashFactory,
           ),
+          child: widget.isLoading
+              ? SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              : Text(
+                  widget.text,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
         ),
-        child: isLoading
-            ? SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              )
-            : Text(
-                text,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
       ),
     );
   }
 }
 
-/// Botão secundário (outline) com bordas super curvas
-class AppSecondaryButton extends StatelessWidget {
+/// Botão secundário (outline) com Material Design 3
+class AppSecondaryButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final double height;
@@ -288,31 +362,47 @@ class AppSecondaryButton extends StatelessWidget {
   const AppSecondaryButton({
     required this.text,
     this.onPressed,
-    this.height = 50,
-    this.borderRadius = 25,
+    this.height = 56,
+    this.borderRadius = 16,
     Key? key,
   }) : super(key: key);
 
   @override
+  State<AppSecondaryButton> createState() => _AppSecondaryButtonState();
+}
+
+class _AppSecondaryButtonState extends State<AppSecondaryButton> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: BorderSide(color: AppColors.primary, width: 2),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+    return AnimatedScale(
+      scale: _isPressed ? 0.98 : 1.0,
+      duration: Duration(milliseconds: 100),
+      child: SizedBox(
+        width: double.infinity,
+        height: widget.height,
+        child: OutlinedButton(
+          onPressed: widget.onPressed,
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: BorderSide(color: AppColors.primary, width: 2),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+            ),
+            splashFactory: InkRipple.splashFactory,
           ),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          child: Text(
+            widget.text,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
           ),
         ),
       ),
@@ -325,11 +415,13 @@ class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final double borderRadius;
+  final bool elevated;
 
   const AppCard({
     required this.child,
     this.padding,
-    this.borderRadius = 12,
+    this.borderRadius = 16,
+    this.elevated = false,
     Key? key,
   }) : super(key: key);
 
@@ -342,6 +434,13 @@ class AppCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: elevated ? [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ] : [],
       ),
       child: child,
     );
@@ -357,7 +456,7 @@ class AppInfoCard extends StatelessWidget {
   const AppInfoCard({
     required this.icon,
     required this.text,
-    this.borderRadius = 12,
+    this.borderRadius = 16,
     Key? key,
   }) : super(key: key);
 
@@ -370,13 +469,24 @@ class AppInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: AppColors.primary,
-            size: 24,
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: AppColors.primary,
+              size: 24,
+            ),
           ),
           SizedBox(width: 12),
           Expanded(
@@ -385,6 +495,7 @@ class AppInfoCard extends StatelessWidget {
               style: TextStyle(
                 color: isDark ? Colors.white : Colors.black,
                 fontSize: 14,
+                height: 1.4,
               ),
             ),
           ),
@@ -417,6 +528,7 @@ class AppSectionTitle extends StatelessWidget {
         fontSize: fontSize,
         fontWeight: fontWeight,
         color: isDark ? Colors.white : Colors.black,
+        letterSpacing: 0.1,
       ),
     );
   }
@@ -540,8 +652,8 @@ class AppBottomSheet {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : AppColors.lightCard,
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(25),
-            topRight: Radius.circular(25),
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
         ),
         child: Column(
@@ -551,7 +663,7 @@ class AppBottomSheet {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey,
+                color: Colors.grey.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -588,6 +700,13 @@ class AppIconCircle extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor ?? (isDark ? AppColors.darkCard : AppColors.lightCard),
         shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: (iconColor ?? AppColors.primary).withOpacity(0.15),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Icon(
         icon,
@@ -619,6 +738,7 @@ class AppFieldLabel extends StatelessWidget {
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: isDark ? Colors.white : Colors.black,
+          letterSpacing: 0.1,
         ),
       ),
     );
