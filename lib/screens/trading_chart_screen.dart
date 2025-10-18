@@ -1,10 +1,9 @@
 // lib/screens/trading_chart_screen.dart
-import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
-import '../widgets/trading_panel.dart';
 import '../widgets/trading_chart_widget.dart';
 
 class TradingChartScreen extends StatefulWidget {
@@ -17,52 +16,242 @@ class TradingChartScreen extends StatefulWidget {
 }
 
 class _TradingChartScreenState extends State<TradingChartScreen> {
-  String? _selectedSymbol = 'R_10';
+  String _selectedSymbol = 'R_10';
+  String _contractType = 'CALL';
+  String _duration = '5';
+  String _durationType = 't';
+  double _stakeAmount = 1.0;
+  String? _barrier;
+  
+  double _currentTick = 0.0;
+  double _payout = 0.0;
+  String? _proposalId;
+  
   double _totalProfit = 0.0;
   double _totalLoss = 0.0;
   int _winCount = 0;
   int _lossCount = 0;
+  
   bool _autoTradingEnabled = false;
+  String _autoStrategy = 'martingale';
+  int _autoTradeCount = 0;
+  int _consecutiveLosses = 0;
+  Timer? _autoTradeTimer;
+  
   List<Map<String, dynamic>> _tradeHistory = [];
+  StreamSubscription? _tickSub;
+  StreamSubscription? _proposalSub;
+  StreamSubscription? _contractSub;
+
+  final List<String> _availableSymbols = [
+    'R_10', 'R_25', 'R_50', 'R_75', 'R_100',
+    '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V',
+    'frxEURUSD', 'frxGBPUSD', 'frxAUDUSD', 'frxUSDJPY',
+  ];
+
+  final Map<String, List<Map<String, String>>> _contractCategories = {
+    'Rise/Fall': [
+      {'id': 'CALL', 'name': 'Rise', 'icon': '📈'},
+      {'id': 'PUT', 'name': 'Fall', 'icon': '📉'},
+    ],
+    'Higher/Lower': [
+      {'id': 'CALLE', 'name': 'Higher', 'icon': '⬆️'},
+      {'id': 'PUTE', 'name': 'Lower', 'icon': '⬇️'},
+    ],
+    'Matches/Differs': [
+      {'id': 'DIGITMATCH', 'name': 'Matches', 'icon': '🎯'},
+      {'id': 'DIGITDIFF', 'name': 'Differs', 'icon': '❌'},
+    ],
+    'Even/Odd': [
+      {'id': 'DIGITEVEN', 'name': 'Even', 'icon': '2️⃣'},
+      {'id': 'DIGITODD', 'name': 'Odd', 'icon': '1️⃣'},
+    ],
+    'Over/Under': [
+      {'id': 'DIGITOVER', 'name': 'Over', 'icon': '🔼'},
+      {'id': 'DIGITUNDER', 'name': 'Under', 'icon': '🔽'},
+    ],
+    'Touch/No Touch': [
+      {'id': 'ONETOUCH', 'name': 'Touch', 'icon': '👆'},
+      {'id': 'NOTOUCH', 'name': 'No Touch', 'icon': '🚫'},
+    ],
+    'Ends Between/Outside': [
+      {'id': 'RANGE', 'name': 'Between', 'icon': '↔️'},
+      {'id': 'UPORDOWN', 'name': 'Outside', 'icon': '↕️'},
+    ],
+    'Stays Between/Goes Outside': [
+      {'id': 'EXPIRYMISS', 'name': 'Stays', 'icon': '🎯'},
+      {'id': 'EXPIRYRANGE', 'name': 'Goes', 'icon': '💥'},
+    ],
+  };
+
+  final Map<String, String> _autoStrategies = {
+    'martingale': 'Martingale (Dobrar após perda)',
+    'anti_martingale': 'Anti-Martingale (Dobrar após ganho)',
+    'dalembert': "D'Alembert (+0.35 após perda)",
+    'fibonacci': 'Fibonacci (Sequência)',
+    'fixed': 'Valor Fixo',
+    'percentage': 'Percentual do Saldo (5%)',
+  };
 
   @override
   void initState() {
     super.initState();
     _setupListeners();
+    widget.derivService.subscribeTicks(_selectedSymbol);
+    _updateProposal();
+  }
+
+  @override
+  void dispose() {
+    _tickSub?.cancel();
+    _proposalSub?.cancel();
+    _contractSub?.cancel();
+    _autoTradeTimer?.cancel();
+    super.dispose();
   }
 
   void _setupListeners() {
-    widget.derivService.contractStream.listen((contract) {
+    _tickSub = widget.derivService.tickStream.listen((tick) {
       if (mounted) {
-        _handleContractResult(contract);
+        setState(() => _currentTick = (tick['quote'] ?? 0).toDouble());
       }
+    });
+
+    _proposalSub = widget.derivService.proposalStream.listen((proposal) {
+      if (mounted) {
+        setState(() {
+          _payout = (proposal['payout'] ?? 0).toDouble();
+          _proposalId = proposal['id'];
+        });
+      }
+    });
+
+    _contractSub = widget.derivService.contractStream.listen((contract) {
+      if (mounted) _handleContractResult(contract);
     });
   }
 
   void _handleContractResult(Map<String, dynamic> contract) {
-    final buyPrice = contract['buy_price']?.toDouble() ?? 0.0;
-    final payout = contract['payout']?.toDouble() ?? 0.0;
-    final profit = payout - buyPrice;
+    if (contract['status'] == 'sold' || contract['status'] == 'won' || contract['status'] == 'lost') {
+      final buyPrice = (contract['buy_price'] ?? 0).toDouble();
+      final sellPrice = (contract['sell_price'] ?? contract['bid_price'] ?? 0).toDouble();
+      final profit = sellPrice - buyPrice;
+      final isWin = profit > 0;
 
-    setState(() {
-      _tradeHistory.add({
-        'timestamp': DateTime.now(),
-        'symbol': _selectedSymbol,
-        'type': contract['contract_type'] ?? 'CALL',
-        'amount': buyPrice,
-        'payout': payout,
-        'profit': profit,
-        'status': profit > 0 ? 'won' : 'lost',
+      setState(() {
+        _tradeHistory.insert(0, {
+          'timestamp': DateTime.now(),
+          'symbol': _selectedSymbol,
+          'type': _contractType,
+          'amount': buyPrice,
+          'payout': sellPrice,
+          'profit': profit,
+          'status': isWin ? 'won' : 'lost',
+        });
+
+        if (isWin) {
+          _totalProfit += profit;
+          _winCount++;
+          _consecutiveLosses = 0;
+          
+          if (_autoTradingEnabled && _autoStrategy == 'anti_martingale') {
+            _stakeAmount *= 2;
+          } else if (_autoStrategy == 'fibonacci' || _autoStrategy == 'dalembert') {
+            _stakeAmount = 1.0;
+          }
+        } else {
+          _totalLoss += profit.abs();
+          _lossCount++;
+          _consecutiveLosses++;
+          
+          if (_autoTradingEnabled) {
+            _applyLossStrategy();
+          }
+        }
       });
+    }
+  }
 
-      if (profit > 0) {
-        _totalProfit += profit;
-        _winCount++;
-      } else {
-        _totalLoss += profit.abs();
-        _lossCount++;
-      }
-    });
+  void _applyLossStrategy() {
+    switch (_autoStrategy) {
+      case 'martingale':
+        _stakeAmount *= 2;
+        break;
+      case 'dalembert':
+        _stakeAmount += 0.35;
+        break;
+      case 'fibonacci':
+        if (_consecutiveLosses <= 1) {
+          _stakeAmount = 1.0;
+        } else if (_consecutiveLosses == 2) {
+          _stakeAmount = 1.0;
+        } else if (_consecutiveLosses == 3) {
+          _stakeAmount = 2.0;
+        } else if (_consecutiveLosses == 4) {
+          _stakeAmount = 3.0;
+        } else if (_consecutiveLosses >= 5) {
+          _stakeAmount = 5.0;
+        }
+        break;
+      case 'percentage':
+        _stakeAmount = widget.derivService.balance * 0.05;
+        break;
+    }
+    
+    if (_stakeAmount < 0.35) _stakeAmount = 0.35;
+    if (_stakeAmount > widget.derivService.balance * 0.5) {
+      _stakeAmount = widget.derivService.balance * 0.1;
+    }
+  }
+
+  void _updateProposal() {
+    widget.derivService.getProposal(
+      contractType: _contractType,
+      symbol: _selectedSymbol,
+      currency: widget.derivService.accountInfo.value?['currency'] ?? 'USD',
+      amount: _stakeAmount,
+      duration: _duration,
+      durationType: _durationType,
+      barrier: _barrier,
+    );
+  }
+
+  void _executeTrade(String type) {
+    if (_proposalId != null && _payout > 0) {
+      widget.derivService.buyContract(_proposalId!, _payout);
+      _autoTradeCount++;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Trade #$_autoTradeCount executado'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  void _toggleAutoTrading() {
+    setState(() => _autoTradingEnabled = !_autoTradingEnabled);
+
+    if (_autoTradingEnabled) {
+      _autoTradeTimer = Timer.periodic(Duration(seconds: 8), (timer) {
+        if (_proposalId != null && _payout > 0) {
+          _executeTrade(_contractType);
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Auto-trading: ${_autoStrategies[_autoStrategy]}'), 
+          backgroundColor: AppColors.primary),
+      );
+    } else {
+      _autoTradeTimer?.cancel();
+      _autoTradeCount = 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Auto-trading OFF'), backgroundColor: Colors.grey),
+      );
+    }
   }
 
   double get _winRate {
@@ -78,385 +267,403 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: CustomScrollView(
-        physics: BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 100,
-            pinned: true,
-            stretch: true,
-            backgroundColor: Colors.transparent,
-            leading: IconButton(
-              icon: Icon(
-                CupertinoIcons.back,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            flexibleSpace: ClipRRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: (isDark ? AppColors.darkCard : AppColors.lightCard).withOpacity(0.8),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: (isDark ? AppColors.darkBorder : AppColors.lightBorder).withOpacity(0.2),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: FlexibleSpaceBar(
-                    titlePadding: EdgeInsets.only(left: 60, bottom: 16),
-                    title: Text(
-                      'Trading Chart',
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+      appBar: AppSecondaryAppBar(
+        title: 'Trading',
+        actions: [
+          IconButton(
+            icon: Icon(Icons.settings_outlined, color: AppColors.primary),
+            onPressed: () => _showStrategySettings(isDark),
           ),
-          SliverPadding(
-            padding: EdgeInsets.all(20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildProfitLossCard(isDark),
-                SizedBox(height: 16),
-                _buildChartWidget(isDark),
-                SizedBox(height: 16),
-                _buildAutoTradingToggle(isDark),
-                SizedBox(height: 24),
-                TradingPanel(
-                  derivService: widget.derivService,
-                  onSymbolChanged: (symbol) {
-                    setState(() => _selectedSymbol = symbol);
-                  },
-                ),
-                SizedBox(height: 24),
-                if (_tradeHistory.isNotEmpty) _buildTradeHistory(isDark),
-              ]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfitLossCard(bool isDark) {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildPLItem(
-                isDark,
-                'Lucro Total',
-                '+\$${_totalProfit.toStringAsFixed(2)}',
-                Colors.green,
-              ),
-              Container(
-                width: 1,
-                height: 40,
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              ),
-              _buildPLItem(
-                isDark,
-                'Perda Total',
-                '-\$${_totalLoss.toStringAsFixed(2)}',
-                Colors.red,
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-          SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'P&L Líquido',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: _netProfit >= 0 ? Colors.green : Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Taxa de Acerto',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '${_winRate.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: _winRate >= 50 ? Colors.green : Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPLItem(bool isDark, String label, String value, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // CORRIGIDO: Retorna o widget TradingChartWidget ao invés de chamar como método
-  Widget _buildChartWidget(bool isDark) {
-  return TradingChartWidget(
-    symbol: _selectedSymbol ?? 'R_10',
-    tradeHistory: _tradeHistory,
-  );
-}
-
-  Widget _buildAutoTradingToggle(bool isDark) {
-    return AppCard(
-      padding: EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.auto_awesome,
-              color: AppColors.primary,
-              size: 24,
-            ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Trading Automático',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  _autoTradingEnabled ? 'Ativado' : 'Desativado',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          CupertinoSwitch(
-            value: _autoTradingEnabled,
-            activeColor: AppColors.primary,
-            onChanged: (value) {
-              setState(() => _autoTradingEnabled = value);
-              if (value) {
-                _showAutoTradingConfig(isDark);
-              }
+          IconButton(
+            icon: Icon(Icons.refresh, color: AppColors.primary),
+            onPressed: () {
+              setState(() {
+                _totalProfit = 0;
+                _totalLoss = 0;
+                _winCount = 0;
+                _lossCount = 0;
+                _tradeHistory.clear();
+                _consecutiveLosses = 0;
+                _autoTradeCount = 0;
+              });
             },
           ),
         ],
       ),
-    );
-  }
-
-  void _showAutoTradingConfig(bool isDark) {
-    AppBottomSheet.show(
-      context,
-      height: MediaQuery.of(context).size.height * 0.6,
-      child: Padding(
-        padding: EdgeInsets.all(24),
+      body: SingleChildScrollView(
+        physics: BouncingScrollPhysics(),
+        padding: EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppSectionTitle(
-              text: 'Configurar Trading Automático',
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-            ),
-            SizedBox(height: 24),
-            AppInfoCard(
-              icon: Icons.info_outline,
-              text: 'Configure os parâmetros para o trading automático. O sistema executará trades baseado nas suas configurações.',
-            ),
-            SizedBox(height: 24),
-            AppFieldLabel(text: 'Valor por Trade'),
-            SizedBox(height: 8),
-            AppTextField(
-              hintText: 'Mínimo: 0.35 USD',
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 16),
-            AppFieldLabel(text: 'Estratégia'),
-            SizedBox(height: 8),
-            AppTextField(
-              hintText: 'Martingale, Fixed, etc.',
-            ),
-            SizedBox(height: 24),
-            AppPrimaryButton(
-              text: 'Salvar Configuração',
-              onPressed: () {
-                Navigator.pop(context);
-                AppDialogs.showSuccess(
-                  context,
-                  'Sucesso!',
-                  'Trading automático configurado',
-                );
-              },
-            ),
+            _buildStatsCard(isDark),
+            SizedBox(height: 12),
+            _buildChartWidget(isDark),
+            SizedBox(height: 12),
+            _buildTickInfo(isDark),
+            SizedBox(height: 12),
+            _buildTradingPanel(isDark),
+            SizedBox(height: 12),
+            if (_tradeHistory.isNotEmpty) _buildTradeHistory(isDark),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildStatsCard(bool isDark) {
+    return Container(
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildStat('P&L', '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}', 
+            _netProfit >= 0 ? Colors.green : Colors.red)),
+          _divider(isDark),
+          Expanded(child: _buildStat('Taxa', '${_winRate.toStringAsFixed(1)}%', 
+            _winRate >= 50 ? Colors.green : Colors.orange)),
+          _divider(isDark),
+          Expanded(child: _buildStat('W/L', '$_winCount/$_lossCount', Colors.blue)),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider(bool isDark) => Container(
+    width: 1, height: 35, 
+    color: isDark ? AppColors.darkBorder : AppColors.lightBorder
+  );
+
+  Widget _buildStat(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey)),
+        SizedBox(height: 3),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  Widget _buildChartWidget(bool isDark) {
+    return TradingChartWidget(symbol: _selectedSymbol, tradeHistory: _tradeHistory);
+  }
+
+  Widget _buildTickInfo(bool isDark) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Tick:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+          Text(_currentTick.toStringAsFixed(5),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTradingPanel(bool isDark) {
+    return Container(
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Painel', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              CupertinoSwitch(
+                value: _autoTradingEnabled,
+                activeColor: AppColors.primary,
+                onChanged: (v) => _toggleAutoTrading(),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          
+          Text('Símbolo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          SizedBox(height: 6),
+          _buildSymbolSelector(isDark),
+          SizedBox(height: 12),
+          
+          Text('Contratos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          SizedBox(height: 6),
+          _buildContractSelector(isDark),
+          SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Duração', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    SizedBox(height: 6),
+                    _buildInputField(isDark, _duration, (v) {
+                      if (v.isNotEmpty) {
+                        setState(() => _duration = v);
+                        _updateProposal();
+                      }
+                    }),
+                  ],
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Stake', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    SizedBox(height: 6),
+                    _buildInputField(isDark, '\$${_stakeAmount.toStringAsFixed(2)}', (v) {
+                      if (v.isNotEmpty) {
+                        final amt = double.tryParse(v);
+                        if (amt != null && amt >= 0.35) {
+                          setState(() => _stakeAmount = amt);
+                          _updateProposal();
+                        }
+                      }
+                    }, isNumeric: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          
+          if (_payout > 0)
+            Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Payout:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text('\$${_payout.toStringAsFixed(2)}', 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSymbolSelector(bool isDark) {
+    return Container(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _availableSymbols.length,
+        itemBuilder: (context, i) {
+          final symbol = _availableSymbols[i];
+          final isSelected = symbol == _selectedSymbol;
+          
+          return GestureDetector(
+            onTap: () {
+              setState(() => _selectedSymbol = symbol);
+              widget.derivService.subscribeTicks(symbol);
+              _updateProposal();
+            },
+            child: Container(
+              margin: EdgeInsets.only(right: 6),
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBackground : Colors.grey[200]),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: Text(symbol, style: TextStyle(
+                color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
+                fontWeight: FontWeight.w600, fontSize: 12)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildContractSelector(bool isDark) {
+    return Column(
+      children: _contractCategories.entries.map((category) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 4),
+              child: Text(category.key, 
+                style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+            ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: category.value.map((contract) {
+                final isSelected = contract['id'] == _contractType;
+                
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _contractType = contract['id']!);
+                    _updateProposal();
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBackground : Colors.grey[200]),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isSelected ? AppColors.primary : 
+                        (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                    ),
+                    child: Text('${contract['icon']} ${contract['name']}',
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
+                        fontSize: 11, fontWeight: FontWeight.w600)),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildInputField(bool isDark, String hint, Function(String) onChanged, {bool isNumeric = false}) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkBackground : Colors.grey[200],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: TextField(
+        keyboardType: isNumeric ? TextInputType.numberWithOptions(decimal: true) : TextInputType.number,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 13),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  void _showStrategySettings(bool isDark) {
+    AppBottomSheet.show(context, height: 400, child: Padding(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Estratégia de Auto-Trading', 
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16),
+          ..._autoStrategies.entries.map((e) {
+            return GestureDetector(
+              onTap: () {
+                setState(() => _autoStrategy = e.key);
+                Navigator.pop(context);
+              },
+              child: Container(
+                margin: EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _autoStrategy == e.key ? AppColors.primary.withOpacity(0.1) : 
+                    (isDark ? AppColors.darkBackground : Colors.grey[100]),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _autoStrategy == e.key ? AppColors.primary : 
+                      (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                ),
+                child: Row(
+                  children: [
+                    if (_autoStrategy == e.key) 
+                      Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                    if (_autoStrategy == e.key) SizedBox(width: 10),
+                    Expanded(child: Text(e.value, 
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    ));
+  }
+
   Widget _buildTradeHistory(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppSectionTitle(
-          text: 'Histórico de Trades',
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
-        SizedBox(height: 16),
-        ...(_tradeHistory.reversed.take(10).map((trade) {
-          final isWin = trade['status'] == 'won';
-          final profit = trade['profit'] as double;
+        Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        SizedBox(height: 10),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: _tradeHistory.length > 15 ? 15 : _tradeHistory.length,
+          itemBuilder: (context, i) {
+            final trade = _tradeHistory[i];
+            final isWin = trade['status'] == 'won';
+            final profit = trade['profit'] as double;
 
-          return Container(
-            margin: EdgeInsets.only(bottom: 12),
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isWin ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
-                width: 1.5,
+            return Container(
+              margin: EdgeInsets.only(bottom: 6),
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: isWin ? 
+                  Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3)),
               ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: (isWin ? Colors.green : Colors.red).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(
+                      color: (isWin ? Colors.green : Colors.red).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(isWin ? Icons.trending_up : Icons.trending_down,
+                      color: isWin ? Colors.green : Colors.red, size: 16),
                   ),
-                  child: Icon(
-                    isWin ? Icons.trending_up : Icons.trending_down,
-                    color: isWin ? Colors.green : Colors.red,
-                    size: 20,
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${trade['symbol']}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text('\$${(trade['amount'] as double).toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${trade['symbol']} - ${trade['type']}',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Stake: \$${(trade['amount'] as double).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: isWin ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList()),
+                  Text('${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold,
+                      color: isWin ? Colors.green : Colors.red)),
+                ],
+              ),
+            );
+          },
+        ),
       ],
     );
   }
