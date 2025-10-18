@@ -1,7 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/app_ui_components.dart';
 import '../services/plans_service.dart';
 import '../models/plan_model.dart';
 
@@ -9,16 +9,15 @@ class PlansScreen extends StatefulWidget {
   const PlansScreen({Key? key}) : super(key: key);
 
   @override
-  _PlansScreenState createState() => _PlansScreenState();
+  State<PlansScreen> createState() => _PlansScreenState();
 }
 
 class _PlansScreenState extends State<PlansScreen> {
   int _selectedPlanIndex = 1;
-  
   List<PlanModel> _plans = [];
   bool _isLoading = true;
   String? _errorMessage;
-  
+
   final PlansService _plansService = PlansService();
 
   @override
@@ -47,27 +46,9 @@ class _PlansScreenState extends State<PlansScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF1C1C1E) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.pop(context),
-          child: Icon(
-            CupertinoIcons.chevron_back,
-            color: isDark ? Colors.white : Colors.black,
-          ),
-        ),
-        title: Text(
-          'Planos',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Planos',
       ),
       body: _isLoading
           ? _buildLoadingState(isDark)
@@ -82,8 +63,10 @@ class _PlansScreenState extends State<PlansScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CupertinoActivityIndicator(radius: 16),
-          SizedBox(height: 20),
+          const CircularProgressIndicator(
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 20),
           Text(
             'Carregando planos...',
             style: TextStyle(
@@ -103,12 +86,11 @@ class _PlansScreenState extends State<PlansScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              CupertinoIcons.exclamationmark_triangle,
+            AppIconCircle(
+              icon: Icons.error_outline,
               size: 64,
-              color: Colors.grey,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
               _errorMessage ?? 'Erro desconhecido',
               style: TextStyle(
@@ -117,11 +99,10 @@ class _PlansScreenState extends State<PlansScreen> {
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 20),
-            CupertinoButton(
-              color: Color(0xFFFF444F),
+            const SizedBox(height: 20),
+            AppPrimaryButton(
+              text: 'Tentar novamente',
               onPressed: _loadPlans,
-              child: Text('Tentar novamente'),
             ),
           ],
         ),
@@ -131,21 +112,18 @@ class _PlansScreenState extends State<PlansScreen> {
 
   Widget _buildPlansContent(bool isDark) {
     return ListView(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.symmetric(vertical: 20),
           child: Column(
             children: [
-              Text(
-                'Escolha seu plano',
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+              AppSectionTitle(
+                text: 'Escolha seu plano',
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'Desbloqueie todo o potencial da plataforma',
                 style: TextStyle(
@@ -168,7 +146,7 @@ class _PlansScreenState extends State<PlansScreen> {
 
   Widget _buildPlanCard(PlanModel plan, int index, bool isDark) {
     final isSelected = _selectedPlanIndex == index;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -176,20 +154,20 @@ class _PlansScreenState extends State<PlansScreen> {
         });
       },
       child: Container(
-        margin: EdgeInsets.only(bottom: 16),
-        padding: EdgeInsets.all(20),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+          color: isDark ? AppColors.darkCard : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Color(0xFFFF444F) : Colors.transparent,
+            color: isSelected ? AppColors.primary : Colors.transparent,
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
-              offset: Offset(0, 4),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -202,26 +180,23 @@ class _PlansScreenState extends State<PlansScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      plan.name,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    AppSectionTitle(
+                      text: plan.name,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         Text(
                           plan.price,
-                          style: TextStyle(
-                            color: Color(0xFFFF444F),
+                          style: const TextStyle(
+                            color: AppColors.primary,
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
                           plan.period,
                           style: TextStyle(
@@ -235,12 +210,12 @@ class _PlansScreenState extends State<PlansScreen> {
                 ),
                 if (plan.popular)
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Color(0xFFFF444F),
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: const Text(
                       'POPULAR',
                       style: TextStyle(
                         color: Colors.white,
@@ -251,33 +226,33 @@ class _PlansScreenState extends State<PlansScreen> {
                   ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Color(0xFFFF444F).withOpacity(0.1),
+                color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${plan.tokens} tokens',
-                style: TextStyle(
-                  color: Color(0xFFFF444F),
+                style: const TextStyle(
+                  color: AppColors.primary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ...plan.features.map((feature) => Padding(
-              padding: EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
-                  Icon(
-                    CupertinoIcons.checkmark_circle_fill,
-                    color: Color(0xFFFF444F),
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
                     size: 18,
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       feature,
@@ -290,23 +265,18 @@ class _PlansScreenState extends State<PlansScreen> {
                 ],
               ),
             )).toList(),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: CupertinoButton(
-                padding: EdgeInsets.symmetric(vertical: 14),
-                color: isSelected ? Color(0xFFFF444F) : (isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7)),
-                borderRadius: BorderRadius.circular(12),
-                onPressed: () => _subscribeToPlan(plan),
-                child: Text(
-                  'Adquirir',
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              child: isSelected
+                  ? AppPrimaryButton(
+                      text: 'Adquirir',
+                      onPressed: () => _subscribeToPlan(plan),
+                    )
+                  : AppSecondaryButton(
+                      text: 'Adquirir',
+                      onPressed: () => _subscribeToPlan(plan),
+                    ),
             ),
           ],
         ),
@@ -317,7 +287,11 @@ class _PlansScreenState extends State<PlansScreen> {
   Future<void> _subscribeToPlan(PlanModel plan) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showErrorDialog('Erro', 'Você precisa estar logado para adquirir um plano.');
+      AppDialogs.showError(
+        context,
+        'Erro',
+        'Você precisa estar logado para adquirir um plano.',
+      );
       return;
     }
 
@@ -332,86 +306,130 @@ class _PlansScreenState extends State<PlansScreen> {
   }
 
   void _showPaymentMethodsDialog(PlanModel plan, String userId, String userEmail, String userName) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text('Escolha o método de pagamento'),
-        message: Text('Selecione como deseja pagar pelo plano ${plan.name}'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _sendPurchaseRequest(plan, userId, userEmail, userName, 'Cartão de Crédito');
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.creditcard, color: CupertinoColors.activeBlue),
-                SizedBox(width: 8),
-                Text('Cartão de Crédito'),
-              ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    AppBottomSheet.show(
+      context,
+      height: 500,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppSectionTitle(
+              text: 'Escolha o método de pagamento',
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _sendPurchaseRequest(plan, userId, userEmail, userName, 'PIX');
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.money_dollar_circle, color: CupertinoColors.activeBlue),
-                SizedBox(width: 8),
-                Text('PIX'),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              'Selecione como deseja pagar pelo plano ${plan.name}',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
             ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _sendPurchaseRequest(plan, userId, userEmail, userName, 'Boleto Bancário');
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.barcode, color: CupertinoColors.activeBlue),
-                SizedBox(width: 8),
-                Text('Boleto Bancário'),
-              ],
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildPaymentOption(
+                    icon: Icons.credit_card,
+                    title: 'Cartão de Crédito',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendPurchaseRequest(plan, userId, userEmail, userName, 'Cartão de Crédito');
+                    },
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPaymentOption(
+                    icon: Icons.pix,
+                    title: 'PIX',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendPurchaseRequest(plan, userId, userEmail, userName, 'PIX');
+                    },
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPaymentOption(
+                    icon: Icons.receipt_long,
+                    title: 'Boleto Bancário',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendPurchaseRequest(plan, userId, userEmail, userName, 'Boleto Bancário');
+                    },
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPaymentOption(
+                    icon: Icons.swap_horiz,
+                    title: 'Transferência Bancária',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendPurchaseRequest(plan, userId, userEmail, userName, 'Transferência Bancária');
+                    },
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPaymentOption(
+                    icon: Icons.payment,
+                    title: 'PayPal',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendPurchaseRequest(plan, userId, userEmail, userName, 'PayPal');
+                    },
+                    isDark: isDark,
+                  ),
+                ],
+              ),
             ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _sendPurchaseRequest(plan, userId, userEmail, userName, 'Transferência Bancária');
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.activeBlue),
-                SizedBox(width: 8),
-                Text('Transferência Bancária'),
-              ],
+            const SizedBox(height: 16),
+            AppSecondaryButton(
+              text: 'Cancelar',
+              onPressed: () => Navigator.pop(context),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AppCard(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: AppColors.primary,
+                size: 24,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: AppSectionTitle(
+                  text: title,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+                size: 20,
+              ),
+            ],
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _sendPurchaseRequest(plan, userId, userEmail, userName, 'PayPal');
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.globe, color: CupertinoColors.activeBlue),
-                SizedBox(width: 8),
-                Text('PayPal'),
-              ],
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          child: Text('Cancelar'),
-          onPressed: () => Navigator.pop(context),
         ),
       ),
     );
@@ -425,26 +443,26 @@ class _PlansScreenState extends State<PlansScreen> {
     String paymentMethod,
   ) async {
     // Mostrar loading
-    showCupertinoDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Color(0xFF1C1C1E),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CupertinoActivityIndicator(radius: 16),
-              SizedBox(height: 16),
-              Text(
-                'Enviando solicitação...',
-                style: TextStyle(color: Colors.white),
-              ),
-            ],
+        child: AppCard(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Enviando solicitação...',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -469,55 +487,24 @@ class _PlansScreenState extends State<PlansScreen> {
       Navigator.pop(context);
 
       // Mostrar mensagem de sucesso
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Row(
-            children: [
-              Icon(CupertinoIcons.check_mark_circled_solid, color: Color(0xFFFF444F)),
-              SizedBox(width: 8),
-              Text('Solicitação Enviada!'),
-            ],
-          ),
-          content: Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Text(
-              'Sua solicitação de compra do plano ${plan.name} foi enviada aos administradores.\n\nVocê receberá um email com as instruções de pagamento em breve.\n\nPor favor, aguarde o contato.',
-            ),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: Text('Entendido'),
-              onPressed: () {
-                Navigator.pop(context); // Fechar dialog
-                Navigator.pop(context); // Voltar para tela anterior
-              },
-            ),
-          ],
-        ),
+      AppDialogs.showSuccess(
+        context,
+        'Solicitação Enviada!',
+        'Sua solicitação de compra do plano ${plan.name} foi enviada aos administradores.\n\nVocê receberá um email com as instruções de pagamento em breve.\n\nPor favor, aguarde o contato.',
+        onClose: () {
+          Navigator.pop(context); // Voltar para tela anterior
+        },
       );
     } catch (e) {
       // Fechar loading
       Navigator.pop(context);
-      
-      // Mostrar erro
-      _showErrorDialog('Erro', 'Ocorreu um erro ao enviar a solicitação: $e');
-    }
-  }
 
-  void _showErrorDialog(String title, String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
+      // Mostrar erro
+      AppDialogs.showError(
+        context,
+        'Erro',
+        'Ocorreu um erro ao enviar a solicitação: $e',
+      );
+    }
   }
 }
