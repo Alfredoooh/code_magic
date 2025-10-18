@@ -1,10 +1,10 @@
 // lib/screens/chat_detail_screen.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/app_ui_components.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String recipientId;
@@ -25,9 +25,11 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   String? _conversationId;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _isSending = false;
 
   static const int FREE_LIMIT = 20;
   static const int PRO_LIMIT = 1000;
@@ -36,6 +38,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void initState() {
     super.initState();
     _initializeChat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeChat() async {
@@ -53,7 +63,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           setState(() => _userData = doc.data());
         }
       } catch (e) {
-        print('Erro ao carregar dados do usuário: $e');
+        print('❌ Erro ao carregar dados do usuário: $e');
       }
     }
   }
@@ -65,7 +75,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists && mounted) setState(() => _userData = doc.data());
     } catch (e) {
-      print('Erro ao atualizar dados do usuário: $e');
+      print('❌ Erro ao atualizar dados: $e');
     }
   }
 
@@ -108,7 +118,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       if (mounted) setState(() => _conversationId = newConv.id);
     } catch (e) {
-      print('Erro ao inicializar conversa: $e');
+      print('❌ Erro ao inicializar conversa: $e');
     }
   }
 
@@ -121,11 +131,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       await FirebaseFirestore.instance
           .collection('conversations')
           .doc(_conversationId)
-          .update({
-        'unreadCount_${currentUser.uid}': 0,
-      });
+          .update({'unreadCount_${currentUser.uid}': 0});
     } catch (e) {
-      print('Erro ao marcar como lido: $e');
+      print('❌ Erro ao marcar como lido: $e');
     }
   }
 
@@ -144,12 +152,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       if (data == null) return 0;
       final date = data['messagesSentAt'] as String? ?? '';
       final count = (data['messagesSentToday'] ?? 0) as int;
-      if (date != _todayString()) {
-        return 0;
-      }
+      if (date != _todayString()) return 0;
       return count;
     } catch (e) {
-      print('Erro ao obter contador diário: $e');
+      print('❌ Erro ao obter contador: $e');
       return 0;
     }
   }
@@ -173,17 +179,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         if (date != today) {
           tx.update(ref, {'messagesSentToday': 1, 'messagesSentAt': today});
         } else {
-          count += 1;
-          tx.update(ref, {'messagesSentToday': count});
+          tx.update(ref, {'messagesSentToday': count + 1});
         }
       });
       await _refreshUserData();
     } catch (e) {
-      print('Erro ao incrementar contador diário: $e');
+      print('❌ Erro ao incrementar contador: $e');
     }
   }
 
-  Future<bool> _canSendMessageAndMaybeWarn() async {
+  Future<bool> _canSendMessage() async {
     await _refreshUserData();
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
@@ -193,7 +198,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final sentToday = await _getUserMessagesSentToday();
 
     if (sentToday >= limit) {
-      _showToast('Você atingiu o limite diário de $limit mensagens.');
+      AppDialogs.showError(context, 'Limite atingido', 'Você atingiu o limite diário de $limit mensagens.');
       return false;
     }
 
@@ -202,32 +207,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _conversationId == null) return;
+    if (text.isEmpty || _conversationId == null || _isSending) return;
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
-    final canSend = await _canSendMessageAndMaybeWarn();
+    final canSend = await _canSendMessage();
     if (!canSend) return;
 
     if (_userData?['pro'] != true) {
       if ((_userData?['tokens'] ?? 0) <= 0) {
-        _showToast('Tokens insuficientes');
+        AppDialogs.showError(context, 'Tokens insuficientes', 'Você não tem tokens suficientes para enviar mensagens.');
         return;
-      } else {
-        try {
-          await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
-            'tokens': FieldValue.increment(-1),
-          });
-          if (_userData != null) {
-            _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
-          }
-        } catch (e) {
-          print('Erro ao decrementar tokens: $e');
-        }
+      }
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
+          'tokens': FieldValue.increment(-1),
+        });
+        if (_userData != null) _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
+      } catch (e) {
+        print('❌ Erro ao decrementar tokens: $e');
       }
     }
 
+    setState(() => _isSending = true);
     final messageText = text;
     _controller.clear();
 
@@ -253,17 +256,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       });
 
       await _incrementUserMessagesSent();
-      final sentAfter = await _getUserMessagesSentToday();
-      final isPro = _userData?['pro'] == true;
-      final limit = isPro ? PRO_LIMIT : FREE_LIMIT;
-      if (sentAfter >= limit) {
-        _showToast('Você atingiu o limite diário de $limit mensagens.');
-      }
-
       _scrollToBottom();
     } catch (e) {
-      print('Erro ao enviar mensagem: $e');
-      _showToast('Erro ao enviar mensagem');
+      print('❌ Erro ao enviar mensagem: $e');
+      AppDialogs.showError(context, 'Erro', 'Não foi possível enviar a mensagem.');
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -271,15 +269,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (_scrollController.hasClients) {
       Future.delayed(Duration(milliseconds: 100), () {
         if (_scrollController.hasClients) {
-          try {
-            _scrollController.animateTo(
-              0,
-              duration: Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          } catch (e) {
-            _scrollController.jumpTo(0);
-          }
+          _scrollController.animateTo(0, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
         }
       });
     }
@@ -312,73 +302,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         });
       }
     } catch (e) {
-      print('Erro ao curtir mensagem: $e');
+      print('❌ Erro ao curtir: $e');
     }
   }
 
-  void _showToast(String message) {
-    showCupertinoDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => Center(
-        child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 40),
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemGrey.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            message,
-            style: TextStyle(
-              color: CupertinoColors.white,
-              fontSize: 15,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-    Future.delayed(Duration(seconds: 2), () {
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
-    });
-  }
-
-  Future<void> _editMessage(String messageId, String currentText, DateTime timestamp) async {
+  void _editMessage(String messageId, String currentText, DateTime timestamp) {
     final now = DateTime.now();
     final diff = now.difference(timestamp);
     if (diff.inMinutes > 5) {
-      _showToast('Não é possível editar após 5 minutos');
+      AppDialogs.showError(context, 'Tempo excedido', 'Não é possível editar após 5 minutos.');
       return;
     }
 
     final controller = TextEditingController(text: currentText);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: Text('Editar Mensagem'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 16),
-          child: CupertinoTextField(
-            controller: controller,
-            maxLines: 3,
-            placeholder: 'Digite a nova mensagem',
-            style: TextStyle(
-              fontSize: 15,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            padding: EdgeInsets.all(12),
-          ),
+        content: AppTextField(
+          controller: controller,
+          hintText: 'Digite a nova mensagem',
+          maxLines: 3,
         ),
         actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+          AppSecondaryButton(
+            text: 'Cancelar',
+            onPressed: () {
+              controller.dispose();
+              Navigator.pop(context);
+            },
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
+          AppPrimaryButton(
+            text: 'Salvar',
             onPressed: () async {
               if (controller.text.trim().isNotEmpty) {
                 try {
@@ -391,108 +347,98 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     'text': controller.text.trim(),
                     'edited': true,
                   });
+                  controller.dispose();
                   Navigator.pop(context);
                 } catch (e) {
-                  print('Erro ao editar mensagem: $e');
+                  print('❌ Erro ao editar: $e');
                 }
               }
             },
-            child: Text('Salvar'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _deleteMessage(String messageId) async {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Excluir Mensagem'),
-        content: Text('Tem certeza que deseja excluir esta mensagem?'),
-        actions: [
-          CupertinoDialogAction(onPressed: () => Navigator.pop(context), child: Text('Cancelar')),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () async {
-              try {
-                await FirebaseFirestore.instance
-                    .collection('conversations')
-                    .doc(_conversationId)
-                    .collection('messages')
-                    .doc(messageId)
-                    .delete();
-                Navigator.pop(context);
-              } catch (e) {
-                print('Erro ao excluir mensagem: $e');
-              }
-            },
-            child: Text('Excluir'),
-          ),
-        ],
-      ),
+  void _deleteMessage(String messageId) {
+    AppDialogs.showConfirmation(
+      context,
+      'Excluir Mensagem',
+      'Tem certeza que deseja excluir esta mensagem?',
+      onConfirm: () async {
+        try {
+          await FirebaseFirestore.instance
+              .collection('conversations')
+              .doc(_conversationId)
+              .collection('messages')
+              .doc(messageId)
+              .delete();
+        } catch (e) {
+          print('❌ Erro ao excluir: $e');
+        }
+      },
+      isDestructive: true,
     );
   }
 
   void _showMessageOptions(String messageId, String messageText, DateTime timestamp, bool isMe) {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text('Opções da Mensagem'),
-        actions: [
-          if (isMe) ...[
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.pop(context);
-                _editMessage(messageId, messageText, timestamp);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.pencil, color: Color(0xFFFF444F)),
-                  SizedBox(width: 8),
-                  Text('Editar', style: TextStyle(color: Color(0xFFFF444F))),
-                ],
-              ),
-            ),
-            CupertinoActionSheetAction(
-              isDestructiveAction: true,
-              onPressed: () {
-                Navigator.pop(context);
-                _deleteMessage(messageId);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.delete),
-                  SizedBox(width: 8),
-                  Text('Excluir'),
-                ],
-              ),
-            ),
-          ],
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: messageText));
-              Navigator.pop(context);
-              _showToast('Mensagem copiada');
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(CupertinoIcons.doc_on_clipboard, color: Color(0xFFFF444F)),
-                SizedBox(width: 8),
-                Text('Copiar', style: TextStyle(color: Color(0xFFFF444F))),
+                SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                SizedBox(height: 20),
+                if (isMe) ...[
+                  ListTile(
+                    leading: Icon(Icons.edit, color: AppColors.primary),
+                    title: Text('Editar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _editMessage(messageId, messageText, timestamp);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text('Excluir', style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _deleteMessage(messageId);
+                    },
+                  ),
+                ],
+                ListTile(
+                  leading: Icon(Icons.copy, color: AppColors.primary),
+                  title: Text('Copiar'),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: messageText));
+                    Navigator.pop(context);
+                    AppDialogs.showSuccess(context, 'Copiado', 'Mensagem copiada!');
+                  },
+                ),
+                SizedBox(height: 20),
               ],
             ),
           ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDefaultAction: true,
-          child: Text('Cancelar'),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -502,62 +448,54 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     text.split(' ').forEach((word) {
       if (urlPattern.hasMatch(word)) {
-        spans.add(
-          WidgetSpan(
-            child: GestureDetector(
-              onTap: () async {
-                try {
-                  final uri = Uri.parse(word);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                } catch (e) {
-                  print('Erro ao abrir URL: $e');
+        spans.add(WidgetSpan(
+          child: GestureDetector(
+            onTap: () async {
+              try {
+                final uri = Uri.parse(word);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
                 }
-              },
-              child: Text(
-                word + ' ',
-                style: TextStyle(
-                  color: isMe ? CupertinoColors.white : CupertinoColors.activeBlue,
-                  decoration: TextDecoration.underline,
-                  fontSize: 16,
-                ),
+              } catch (e) {
+                print('❌ Erro ao abrir URL: $e');
+              }
+            },
+            child: Text(
+              word + ' ',
+              style: TextStyle(
+                color: isMe ? Colors.white : Colors.blue,
+                decoration: TextDecoration.underline,
+                fontSize: 16,
               ),
             ),
           ),
-        );
+        ));
       } else if (word.startsWith('*') && word.endsWith('*') && word.length > 2) {
-        spans.add(
-          TextSpan(
-            text: word.substring(1, word.length - 1) + ' ',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isMe ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
-              fontSize: 16,
-            ),
+        spans.add(TextSpan(
+          text: word.substring(1, word.length - 1) + ' ',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
+            fontSize: 16,
           ),
-        );
+        ));
       } else if (word.startsWith('_') && word.endsWith('_') && word.length > 2) {
-        spans.add(
-          TextSpan(
-            text: word.substring(1, word.length - 1) + ' ',
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              color: isMe ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
-              fontSize: 16,
-            ),
+        spans.add(TextSpan(
+          text: word.substring(1, word.length - 1) + ' ',
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
+            fontSize: 16,
           ),
-        );
+        ));
       } else {
-        spans.add(
-          TextSpan(
-            text: word + ' ',
-            style: TextStyle(
-              color: isMe ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
-              fontSize: 16,
-            ),
+        spans.add(TextSpan(
+          text: word + ' ',
+          style: TextStyle(
+            color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
+            fontSize: 16,
           ),
-        );
+        ));
       }
     });
 
@@ -570,106 +508,49 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (_isLoading) {
-      return CupertinoPageScaffold(
-        backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-        child: Center(
-          child: CupertinoActivityIndicator(radius: 15),
-        ),
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.pop(context),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(CupertinoIcons.back, color: Color(0xFFFF444F), size: 28),
-              Text(
-                'Voltar',
-                style: TextStyle(color: Color(0xFFFF444F), fontSize: 17),
-              ),
-            ],
-          ),
-        ),
-        middle: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFFF444F),
-              ),
-              child: widget.recipientImage.isNotEmpty
-                  ? ClipOval(
-                      child: Image.network(
-                        widget.recipientImage,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) => Center(
-                          child: Text(
-                            widget.recipientName[0].toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: CupertinoColors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        widget.recipientName[0].toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: CupertinoColors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: widget.recipientName,
+        actions: [
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(widget.recipientId).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return SizedBox.shrink();
+              final userData = snapshot.data!.data() as Map<String, dynamic>?;
+              final isOnline = userData?['isOnline'] == true;
+              return Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isOnline ? Colors.green : Colors.grey,
+                        shape: BoxShape.circle,
                       ),
                     ),
-            ),
-            SizedBox(width: 8),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.recipientName,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
-                ),
-                StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(widget.recipientId).snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return SizedBox.shrink();
-                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                    final isOnline = userData?['isOnline'] == true;
-                    return Text(
+                    SizedBox(width: 8),
+                    Text(
                       isOnline ? 'Online' : 'Offline',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
-                      ),
-                    );
-                  },
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+        ],
       ),
-      child: _conversationId == null
-          ? Center(child: CupertinoActivityIndicator(radius: 15))
+      body: _conversationId == null
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
               children: [
                 Expanded(
@@ -682,7 +563,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CupertinoActivityIndicator(radius: 15));
+                        return Center(child: CircularProgressIndicator(color: AppColors.primary));
                       }
 
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -690,20 +571,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                CupertinoIcons.chat_bubble_2,
-                                size: 80,
-                                color: CupertinoColors.systemGrey,
-                              ),
+                              Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey),
                               SizedBox(height: 16),
-                              Text(
-                                'Nenhuma mensagem ainda',
-                                style: TextStyle(
-                                  color: CupertinoColors.systemGrey,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              Text('Nenhuma mensagem ainda', style: TextStyle(fontSize: 18, color: Colors.grey)),
                             ],
                           ),
                         );
@@ -714,7 +584,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       return ListView.builder(
                         controller: _scrollController,
                         reverse: true,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: EdgeInsets.all(16),
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
                           final messageDoc = messages[index];
@@ -734,31 +604,36 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               _showMessageOptions(messageDoc.id, message['text'], timestamp.toDate(), isMe);
                             },
                             child: Padding(
-                              padding: EdgeInsets.only(bottom: 8),
+                              padding: EdgeInsets.only(bottom: 12),
                               child: Row(
                                 mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
+                                  if (!isMe) ...[
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        _likeMessage(messageDoc.id, likedBy);
+                                      },
+                                      child: Icon(
+                                        isLiked ? Icons.favorite : Icons.favorite_border,
+                                        size: 20,
+                                        color: isLiked ? Colors.red : Colors.grey,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                  ],
                                   Flexible(
                                     child: Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      padding: EdgeInsets.all(14),
                                       decoration: BoxDecoration(
-                                        color: isMe
-                                            ? Color(0xFFFF444F)
-                                            : (isDark ? Color(0xFF1A1A1A) : CupertinoColors.white),
+                                        color: isMe ? AppColors.primary : (isDark ? AppColors.darkCard : AppColors.lightCard),
                                         borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(20),
                                           topRight: Radius.circular(20),
                                           bottomLeft: isMe ? Radius.circular(20) : Radius.circular(4),
                                           bottomRight: isMe ? Radius.circular(4) : Radius.circular(20),
                                         ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 4,
-                                            offset: Offset(0, 1),
-                                          ),
-                                        ],
                                       ),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -771,9 +646,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                 'editado',
                                                 style: TextStyle(
                                                   fontSize: 11,
-                                                  color: isMe
-                                                      ? CupertinoColors.white.withOpacity(0.7)
-                                                      : CupertinoColors.systemGrey,
+                                                  color: isMe ? Colors.white70 : Colors.grey,
                                                   fontStyle: FontStyle.italic,
                                                 ),
                                               ),
@@ -785,18 +658,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Icon(
-                                                    isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                                                    isLiked ? Icons.favorite : Icons.favorite_border,
                                                     size: 14,
-                                                    color: isMe ? CupertinoColors.white : CupertinoColors.systemRed,
+                                                    color: isMe ? Colors.white : Colors.red,
                                                   ),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     '$likes',
                                                     style: TextStyle(
                                                       fontSize: 13,
-                                                      color: isMe
-                                                          ? CupertinoColors.white
-                                                          : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                                                      color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
                                                       fontWeight: FontWeight.w500,
                                                     ),
                                                   ),
@@ -807,18 +678,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      _likeMessage(messageDoc.id, likedBy);
-                                    },
-                                    child: Icon(
-                                      isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                                      size: 20,
-                                      color: isLiked ? CupertinoColors.systemRed : CupertinoColors.systemGrey,
+                                  if (isMe) ...[
+                                    SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        _likeMessage(messageDoc.id, likedBy);
+                                      },
+                                      child: Icon(
+                                        isLiked ? Icons.favorite : Icons.favorite_border,
+                                        size: 20,
+                                        color: isLiked ? Colors.red : Colors.grey,
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -828,78 +701,63 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     },
                   ),
                 ),
+                // INPUT FLUTUANTE
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  margin: EdgeInsets.all(16),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                    border: Border(
-                      top: BorderSide(
-                        color: isDark ? Color(0xFF2C2C2C) : CupertinoColors.systemGrey5,
-                        width: 0.5,
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
                       ),
-                    ),
+                    ],
                   ),
-                  child: SafeArea(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF2F2F7),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: CupertinoTextField(
-                              controller: _controller,
-                              style: TextStyle(
-                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                fontSize: 16,
-                              ),
-                              maxLines: null,
-                              placeholder: 'Mensagem',
-                              placeholderStyle: TextStyle(
-                                color: CupertinoColors.systemGrey,
-                                fontSize: 16,
-                              ),
-                              decoration: BoxDecoration(),
-                              padding: EdgeInsets.zero,
-                              onSubmitted: (_) => _sendMessage(),
-                            ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          maxLines: null,
+                          style: TextStyle(fontSize: 16),
+                          decoration: InputDecoration(
+                            hintText: 'Mensagem',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
                           ),
+                          onSubmitted: (_) => _sendMessage(),
                         ),
-                        SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            _sendMessage();
-                          },
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFF444F),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              CupertinoIcons.arrow_up,
-                              color: CupertinoColors.white,
-                              size: 20,
-                            ),
+                      ),
+                      SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          _sendMessage();
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _isSending ? Colors.grey : AppColors.primary,
+                            shape: BoxShape.circle,
                           ),
+                          child: _isSending
+                              ? Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : Icon(Icons.arrow_upward, color: Colors.white, size: 20),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
     );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
   }
 }
