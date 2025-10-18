@@ -1,3 +1,6 @@
+// ====================================================================
+// lib/screens/trading_chart_screen.dart - CORRIGIDO
+// ====================================================================
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -203,17 +206,14 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     }
   }
 
+  // ✅ CORREÇÃO: Acesso correto ao accountInfo
   void _updateProposal() {
-    final accountInfo = widget.derivService.accountInfo;
     String currency = 'USD';
     
-    // Tentar obter currency do ValueNotifier
-    try {
-      if (accountInfo is ValueNotifier<Map<String, dynamic>?>) {
-        currency = accountInfo.value?['currency'] ?? 'USD';
-      }
-    } catch (e) {
-      print('Erro ao obter currency: $e');
+    // Obter currency usando o getter público
+    final info = widget.derivService.accountInfoData;
+    if (info != null && info['currency'] != null) {
+      currency = info['currency'];
     }
 
     widget.derivService.getProposal(
