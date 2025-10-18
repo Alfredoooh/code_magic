@@ -1,13 +1,61 @@
 // lib/screens/home_widgets.dart
-import 'dart:ui';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_ui_components.dart';
 import '../models/news_article.dart';
 import 'news_detail_screen.dart';
 
 class HomeWidgets {
-  // Cor primária do app
-  static const Color primaryColor = Color(0xFFFF444F);
+  // Repositório de imagens de criptomoedas
+  static String getCryptoIcon(String symbol) {
+    final cleanSymbol = symbol.replaceAll('USDT', '').toLowerCase();
+    return 'https://cryptologos.cc/logos/${_getCryptoName(cleanSymbol)}-${cleanSymbol}-logo.png';
+  }
+
+  static String _getCryptoName(String symbol) {
+    final names = {
+      'btc': 'bitcoin',
+      'eth': 'ethereum',
+      'bnb': 'bnb',
+      'sol': 'solana',
+      'xrp': 'xrp',
+      'ada': 'cardano',
+      'doge': 'dogecoin',
+      'dot': 'polkadot',
+      'matic': 'polygon',
+      'ltc': 'litecoin',
+      'trx': 'tron',
+      'avax': 'avalanche',
+      'link': 'chainlink',
+      'uni': 'uniswap',
+      'atom': 'cosmos',
+    };
+    return names[symbol] ?? symbol;
+  }
+
+  static Widget buildCryptoIcon(String symbol, {double size = 32}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size / 2),
+      child: Image.network(
+        getCryptoIcon(symbol),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.currency_bitcoin,
+            color: AppColors.primary,
+            size: size * 0.6,
+          ),
+        ),
+      ),
+    );
+  }
 
   static Widget buildStatCard({
     required IconData icon,
@@ -16,35 +64,21 @@ class HomeWidgets {
     required Color color,
     required bool isDark,
   }) {
-    return Container(
+    return AppCard(
       padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(24), // Bordas mais ajustadas
-        border: Border.all(
-          color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
+      borderRadius: 24,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
+              color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               icon,
-              color: primaryColor,
+              color: AppColors.primary,
               size: 28,
             ),
           ),
@@ -54,7 +88,7 @@ class HomeWidgets {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              color: isDark ? Colors.white : Colors.black,
               letterSpacing: -0.5,
             ),
           ),
@@ -64,7 +98,7 @@ class HomeWidgets {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: CupertinoColors.systemGrey,
+              color: Colors.grey,
             ),
           ),
         ],
@@ -82,34 +116,21 @@ class HomeWidgets {
     return GestureDetector(
       onTap: () {
         Navigator.push(
-  context,
-  CupertinoPageRoute(
-    builder: (context) => NewsDetailScreen(
-      article: article,
-      allArticles: allArticles,
-      currentIndex: index,
-      isDark: isDark,  // ← ADICIONE ESTA LINHA
-    ),
-    fullscreenDialog: true,
-  ),
-);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(24), // Bordas mais ajustadas
-          border: Border.all(
-            color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: Offset(0, 4),
+          context,
+          MaterialPageRoute(
+            builder: (context) => NewsDetailScreen(
+              article: article,
+              allArticles: allArticles,
+              currentIndex: index,
+              isDark: isDark,
             ),
-          ],
-        ),
+            fullscreenDialog: true,
+          ),
+        );
+      },
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        borderRadius: 24,
         child: Row(
           children: [
             Expanded(
@@ -120,11 +141,10 @@ class HomeWidgets {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Badge de categoria/fonte
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -132,7 +152,7 @@ class HomeWidgets {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: primaryColor,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
@@ -142,7 +162,7 @@ class HomeWidgets {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        color: isDark ? Colors.white : Colors.black,
                         height: 1.3,
                         letterSpacing: -0.2,
                       ),
@@ -154,7 +174,7 @@ class HomeWidgets {
                       article.description,
                       style: TextStyle(
                         fontSize: 12,
-                        color: CupertinoColors.systemGrey,
+                        color: Colors.grey,
                         height: 1.3,
                       ),
                       maxLines: 2,
@@ -164,16 +184,16 @@ class HomeWidgets {
                     Row(
                       children: [
                         Icon(
-                          CupertinoIcons.clock,
+                          Icons.access_time,
                           size: 12,
-                          color: CupertinoColors.systemGrey,
+                          color: Colors.grey,
                         ),
                         SizedBox(width: 4),
                         Text(
                           'Há 2 horas',
                           style: TextStyle(
                             fontSize: 11,
-                            color: CupertinoColors.systemGrey,
+                            color: Colors.grey,
                           ),
                         ),
                       ],
@@ -199,13 +219,13 @@ class HomeWidgets {
                         height: 160,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stack) => Container(
-                          color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
+                          color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF2F2F7),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                CupertinoIcons.photo,
-                                color: CupertinoColors.systemGrey,
+                                Icons.photo,
+                                color: Colors.grey,
                                 size: 40,
                               ),
                             ],
@@ -213,7 +233,6 @@ class HomeWidgets {
                         ),
                       ),
                     ),
-                    // Overlay gradient para melhor legibilidade
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -233,8 +252,8 @@ class HomeWidgets {
                           ),
                         ),
                         child: Icon(
-                          CupertinoIcons.arrow_right_circle_fill,
-                          color: CupertinoColors.white,
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
                           size: 24,
                         ),
                       ),
@@ -265,13 +284,13 @@ class HomeWidgets {
           margin: EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: currentPage == index
-                ? primaryColor // Usando cor primária
-                : CupertinoColors.systemGrey.withOpacity(0.3),
+                ? AppColors.primary
+                : Colors.grey.withOpacity(0.3),
             borderRadius: BorderRadius.circular(4),
             boxShadow: currentPage == index
                 ? [
                     BoxShadow(
-                      color: primaryColor.withOpacity(0.3),
+                      color: AppColors.primary.withOpacity(0.3),
                       blurRadius: 8,
                       offset: Offset(0, 2),
                     ),
@@ -283,7 +302,6 @@ class HomeWidgets {
     );
   }
 
-  // Widget adicional para seção de ações rápidas
   static Widget buildQuickActionButton({
     required IconData icon,
     required String label,
@@ -292,35 +310,21 @@ class HomeWidgets {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AppCard(
         padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
+        borderRadius: 20,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
+                color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 icon,
-                color: primaryColor,
+                color: AppColors.primary,
                 size: 28,
               ),
             ),
@@ -330,7 +334,7 @@ class HomeWidgets {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                color: isDark ? Colors.white : Colors.black,
               ),
               textAlign: TextAlign.center,
             ),
@@ -340,7 +344,6 @@ class HomeWidgets {
     );
   }
 
-  // Widget para card promocional/destaque
   static Widget buildPromoCard({
     required String title,
     required String description,
@@ -355,8 +358,8 @@ class HomeWidgets {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              primaryColor,
-              primaryColor.withOpacity(0.8),
+              AppColors.primary,
+              AppColors.primary.withOpacity(0.8),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -364,7 +367,7 @@ class HomeWidgets {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: primaryColor.withOpacity(0.3),
+              color: AppColors.primary.withOpacity(0.3),
               blurRadius: 16,
               offset: Offset(0, 8),
             ),
@@ -381,7 +384,7 @@ class HomeWidgets {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: CupertinoColors.white,
+                      color: Colors.white,
                     ),
                   ),
                   SizedBox(height: 8),
@@ -389,7 +392,7 @@ class HomeWidgets {
                     description,
                     style: TextStyle(
                       fontSize: 14,
-                      color: CupertinoColors.white.withOpacity(0.9),
+                      color: Colors.white.withOpacity(0.9),
                       height: 1.3,
                     ),
                   ),
@@ -397,7 +400,7 @@ class HomeWidgets {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: CupertinoColors.white.withOpacity(0.2),
+                      color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -408,13 +411,13 @@ class HomeWidgets {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: CupertinoColors.white,
+                            color: Colors.white,
                           ),
                         ),
                         SizedBox(width: 4),
                         Icon(
-                          CupertinoIcons.arrow_right,
-                          color: CupertinoColors.white,
+                          Icons.arrow_forward,
+                          color: Colors.white,
                           size: 16,
                         ),
                       ],
@@ -427,14 +430,103 @@ class HomeWidgets {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: CupertinoColors.white.withOpacity(0.2),
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
                 icon,
-                color: CupertinoColors.white,
+                color: Colors.white,
                 size: 40,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget para card de criptomoeda com ícone PNG
+  static Widget buildCryptoCard({
+    required String symbol,
+    required String name,
+    required double price,
+    required double change,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    final isPositive = change >= 0;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AppCard(
+        padding: EdgeInsets.all(16),
+        borderRadius: 20,
+        child: Row(
+          children: [
+            buildCryptoIcon(symbol, size: 40),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    symbol.replaceAll('USDT', ''),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isPositive
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                        size: 12,
+                        color: isPositive ? Colors.green : Colors.red,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '${change.abs().toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isPositive ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
