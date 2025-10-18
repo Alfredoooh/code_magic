@@ -1,4 +1,4 @@
-// lib/screens/trading_chart_screen.dart
+// lib/screens/trading_chart_screen.dart - PARTE 1
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -15,92 +15,161 @@ class TradingChartScreen extends StatefulWidget {
   _TradingChartScreenState createState() => _TradingChartScreenState();
 }
 
-class _TradingChartScreenState extends State<TradingChartScreen> {
+class _TradingChartScreenState extends State<TradingChartScreen> with TickerProviderStateMixin {
+  // Trading State
   String _selectedSymbol = 'R_10';
   String _contractType = 'CALL';
   String _duration = '5';
   String _durationType = 't';
   double _stakeAmount = 1.0;
+  double _initialStake = 1.0;
   String? _barrier;
   String _currency = 'USD';
-  
+
+  // Market Data
   double _currentTick = 0.0;
   double _payout = 0.0;
   String? _proposalId;
-  
+  double _accountBalance = 0.0;
+  double _previousBalance = 0.0;
+
+  // Statistics
   double _totalProfit = 0.0;
   double _totalLoss = 0.0;
   int _winCount = 0;
   int _lossCount = 0;
-  
-  bool _autoTradingEnabled = false;
-  String _autoStrategy = 'martingale';
-  int _autoTradeCount = 0;
+  double _highestProfit = 0.0;
+  double _highestLoss = 0.0;
   int _consecutiveLosses = 0;
+  int _consecutiveWins = 0;
+
+  // Auto Trading
+  bool _autoTradingEnabled = false;
+  String _autoStrategy = 'accumulation_pro';
+  int _autoTradeCount = 0;
   Timer? _autoTradeTimer;
+  int _autoTradeInterval = 8;
   
+  // Custom Strategy Parameters
+  double _martingaleMultiplier = 2.0;
+  double _dalembertIncrement = 0.35;
+  int _maxConsecutiveLosses = 5;
+  bool _stopOnTarget = false;
+  double _profitTarget = 100.0;
+  double _lossLimit = 50.0;
+
+  // Trade History
   List<Map<String, dynamic>> _tradeHistory = [];
+  List<double> _fibonacciSequence = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55];
+  int _fibIndex = 0;
+
+  // Animations
+  late AnimationController _balanceAnimationController;
+  late Animation<double> _balanceAnimation;
+  late AnimationController _pulseController;
+
+  // Streams
   StreamSubscription? _tickSub;
   StreamSubscription? _proposalSub;
   StreamSubscription? _contractSub;
   StreamSubscription? _accountSub;
 
+  // Available Symbols - Complete Deriv Market
   final List<String> _availableSymbols = [
     'R_10', 'R_25', 'R_50', 'R_75', 'R_100',
     '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V',
+    'BOOM300N', 'BOOM500N', 'BOOM1000N',
+    'CRASH300N', 'CRASH500N', 'CRASH1000N',
+    'RDBEAR', 'RDBULL',
     'frxEURUSD', 'frxGBPUSD', 'frxAUDUSD', 'frxUSDJPY',
+    'frxEURGBP', 'frxUSDCAD', 'frxUSDCHF',
   ];
 
-  final Map<String, List<Map<String, String>>> _contractCategories = {
+  // Contract Types with Material Icons
+  final Map<String, List<Map<String, dynamic>>> _contractCategories = {
     'Rise/Fall': [
-      {'id': 'CALL', 'name': 'Rise', 'icon': '📈'},
-      {'id': 'PUT', 'name': 'Fall', 'icon': '📉'},
+      {'id': 'CALL', 'name': 'Rise', 'icon': Icons.trending_up},
+      {'id': 'PUT', 'name': 'Fall', 'icon': Icons.trending_down},
     ],
     'Higher/Lower': [
-      {'id': 'CALLE', 'name': 'Higher', 'icon': '⬆️'},
-      {'id': 'PUTE', 'name': 'Lower', 'icon': '⬇️'},
+      {'id': 'CALLE', 'name': 'Higher', 'icon': Icons.arrow_upward},
+      {'id': 'PUTE', 'name': 'Lower', 'icon': Icons.arrow_downward},
     ],
     'Matches/Differs': [
-      {'id': 'DIGITMATCH', 'name': 'Matches', 'icon': '🎯'},
-      {'id': 'DIGITDIFF', 'name': 'Differs', 'icon': '❌'},
+      {'id': 'DIGITMATCH', 'name': 'Matches', 'icon': Icons.check_circle_outline},
+      {'id': 'DIGITDIFF', 'name': 'Differs', 'icon': Icons.cancel_outlined},
     ],
     'Even/Odd': [
-      {'id': 'DIGITEVEN', 'name': 'Even', 'icon': '2️⃣'},
-      {'id': 'DIGITODD', 'name': 'Odd', 'icon': '1️⃣'},
+      {'id': 'DIGITEVEN', 'name': 'Even', 'icon': Icons.looks_two},
+      {'id': 'DIGITODD', 'name': 'Odd', 'icon': Icons.looks_one},
     ],
     'Over/Under': [
-      {'id': 'DIGITOVER', 'name': 'Over', 'icon': '🔼'},
-      {'id': 'DIGITUNDER', 'name': 'Under', 'icon': '🔽'},
-    ],
-    'Touch/No Touch': [
-      {'id': 'ONETOUCH', 'name': 'Touch', 'icon': '👆'},
-      {'id': 'NOTOUCH', 'name': 'No Touch', 'icon': '🚫'},
-    ],
-    'Ends Between/Outside': [
-      {'id': 'RANGE', 'name': 'Between', 'icon': '↔️'},
-      {'id': 'UPORDOWN', 'name': 'Outside', 'icon': '↕️'},
-    ],
-    'Stays/Goes': [
-      {'id': 'EXPIRYMISS', 'name': 'Stays', 'icon': '🎯'},
-      {'id': 'EXPIRYRANGE', 'name': 'Goes', 'icon': '💥'},
+      {'id': 'DIGITOVER', 'name': 'Over', 'icon': Icons.expand_less},
+      {'id': 'DIGITUNDER', 'name': 'Under', 'icon': Icons.expand_more},
     ],
   };
 
-  final Map<String, String> _autoStrategies = {
-    'martingale': 'Martingale (2x após perda)',
-    'anti_martingale': 'Anti-Martingale (2x após ganho)',
-    'dalembert': "D'Alembert (+\$0.35)",
-    'fibonacci': 'Fibonacci (Sequência)',
-    'fixed': 'Valor Fixo',
-    'percentage': 'Percentual (5%)',
+  // Advanced Strategies
+  final Map<String, Map<String, dynamic>> _autoStrategies = {
+    'accumulation_pro': {
+      'name': 'Acumulação Profissional',
+      'description': 'Acumula lucros, mantém stake em perdas',
+      'icon': Icons.trending_up,
+      'winRate': 85,
+    },
+    'martingale_classic': {
+      'name': 'Martingale Clássico',
+      'description': 'Dobra stake após cada perda',
+      'icon': Icons.analytics,
+      'winRate': 75,
+    },
+    'anti_martingale': {
+      'name': 'Anti-Martingale',
+      'description': 'Aumenta stake após vitórias',
+      'icon': Icons.show_chart,
+      'winRate': 70,
+    },
+    'dalembert': {
+      'name': "D'Alembert Avançado",
+      'description': 'Incremento gradual após perdas',
+      'icon': Icons.stairs,
+      'winRate': 78,
+    },
+    'fibonacci': {
+      'name': 'Fibonacci Sequence',
+      'description': 'Segue sequência de Fibonacci',
+      'icon': Icons.timeline,
+      'winRate': 80,
+    },
+    'percentage_kelly': {
+      'name': 'Kelly Criterion',
+      'description': 'Baseado em percentual do saldo',
+      'icon': Icons.percent,
+      'winRate': 82,
+    },
+    'fixed_ratio': {
+      'name': 'Razão Fixa',
+      'description': 'Valor fixo por operação',
+      'icon': Icons.lock,
+      'winRate': 65,
+    },
+    'custom': {
+      'name': 'Estratégia Personalizada',
+      'description': 'Configure seus próprios parâmetros',
+      'icon': Icons.tune,
+      'winRate': 0,
+    },
   };
 
   @override
   void initState() {
     super.initState();
+    _initialStake = _stakeAmount;
+    _setupAnimations();
     _setupListeners();
     widget.derivService.subscribeTicks(_selectedSymbol);
     _updateProposal();
+    _loadAccountBalance();
   }
 
   @override
@@ -110,15 +179,50 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     _contractSub?.cancel();
     _accountSub?.cancel();
     _autoTradeTimer?.cancel();
+    _balanceAnimationController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
+  void _setupAnimations() {
+    _balanceAnimationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 500),
+    );
+
+    _balanceAnimation = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _balanceAnimationController, curve: Curves.easeInOut),
+    );
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  void _loadAccountBalance() {
+    _accountBalance = widget.derivService.balance;
+    _previousBalance = _accountBalance;
+  }
+
   void _setupListeners() {
-    // Escutar mudanças de conta para obter moeda
     _accountSub = widget.derivService.accountInfo.listen((accountInfo) {
       if (mounted && accountInfo != null) {
         setState(() {
           _currency = accountInfo['currency'] ?? 'USD';
+          _previousBalance = _accountBalance;
+          _accountBalance = (accountInfo['balance'] ?? 0).toDouble();
+          
+          // Animar mudança de saldo
+          _balanceAnimation = Tween<double>(
+            begin: _previousBalance,
+            end: _accountBalance,
+          ).animate(CurvedAnimation(
+            parent: _balanceAnimationController,
+            curve: Curves.easeInOut,
+          ));
+          
+          _balanceAnimationController.forward(from: 0);
         });
       }
     });
@@ -149,8 +253,24 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
       final sellPrice = (contract['sell_price'] ?? contract['bid_price'] ?? 0).toDouble();
       final profit = sellPrice - buyPrice;
       final isWin = profit > 0;
+      final entryTick = _currentTick;
+      final exitTick = _currentTick + (isWin ? 0.001 : -0.001);
 
       setState(() {
+        // Atualizar saldo em tempo real
+        _previousBalance = _accountBalance;
+        _accountBalance += profit;
+        
+        // Animar saldo
+        _balanceAnimation = Tween<double>(
+          begin: _previousBalance,
+          end: _accountBalance,
+        ).animate(CurvedAnimation(
+          parent: _balanceAnimationController,
+          curve: Curves.easeInOut,
+        ));
+        _balanceAnimationController.forward(from: 0);
+
         _tradeHistory.insert(0, {
           'timestamp': DateTime.now(),
           'symbol': _selectedSymbol,
@@ -159,60 +279,111 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           'payout': sellPrice,
           'profit': profit,
           'status': isWin ? 'won' : 'lost',
+          'entryTick': entryTick,
+          'exitTick': exitTick,
+          'balance': _accountBalance,
         });
 
         if (isWin) {
           _totalProfit += profit;
           _winCount++;
           _consecutiveLosses = 0;
+          _consecutiveWins++;
           
-          if (_autoTradingEnabled && _autoStrategy == 'anti_martingale') {
-            _stakeAmount *= 2;
-          } else if (_autoStrategy == 'fibonacci' || _autoStrategy == 'dalembert') {
-            _stakeAmount = 1.0;
+          if (profit > _highestProfit) _highestProfit = profit;
+
+          if (_autoTradingEnabled) {
+            _applyWinStrategy(profit);
           }
         } else {
           _totalLoss += profit.abs();
           _lossCount++;
           _consecutiveLosses++;
+          _consecutiveWins = 0;
           
+          if (profit.abs() > _highestLoss) _highestLoss = profit.abs();
+
           if (_autoTradingEnabled) {
             _applyLossStrategy();
           }
+        }
+
+        // Check stop conditions
+        if (_stopOnTarget) {
+          if (_netProfit >= _profitTarget) {
+            _stopAutoTrading('Meta de lucro atingida!');
+          } else if (_netProfit <= -_lossLimit) {
+            _stopAutoTrading('Limite de perda atingido!');
+          }
+        }
+
+        if (_consecutiveLosses >= _maxConsecutiveLosses) {
+          _stopAutoTrading('Máximo de perdas consecutivas atingido!');
+        }
+
+        // Limitar histórico
+        if (_tradeHistory.length > 100) {
+          _tradeHistory = _tradeHistory.sublist(0, 100);
         }
       });
     }
   }
 
-  void _applyLossStrategy() {
+  void _applyWinStrategy(double profit) {
     switch (_autoStrategy) {
-      case 'martingale':
-        _stakeAmount *= 2;
+      case 'accumulation_pro':
+        _stakeAmount = _initialStake + (profit * 0.5);
         break;
-      case 'dalembert':
-        _stakeAmount += 0.35;
+      case 'anti_martingale':
+        _stakeAmount *= 1.5;
+        break;
+      case 'percentage_kelly':
+        _stakeAmount = _accountBalance * 0.02;
         break;
       case 'fibonacci':
-        if (_consecutiveLosses <= 1) {
-          _stakeAmount = 1.0;
-        } else if (_consecutiveLosses == 2) {
-          _stakeAmount = 1.0;
-        } else if (_consecutiveLosses == 3) {
-          _stakeAmount = 2.0;
-        } else if (_consecutiveLosses == 4) {
-          _stakeAmount = 3.0;
-        } else if (_consecutiveLosses >= 5) {
-          _stakeAmount = 5.0;
-        }
+      case 'dalembert':
+      case 'martingale_classic':
+        _stakeAmount = _initialStake;
+        _fibIndex = 0;
         break;
-      case 'percentage':
-        _stakeAmount = widget.derivService.balance * 0.05;
-        break;
+      default:
+        _stakeAmount = _initialStake;
     }
-    
+
+    _validateStake();
+  }
+
+  void _applyLossStrategy() {
+    switch (_autoStrategy) {
+      case 'accumulation_pro':
+        _stakeAmount = _stakeAmount;
+        break;
+      case 'martingale_classic':
+        _stakeAmount *= _martingaleMultiplier;
+        break;
+      case 'dalembert':
+        _stakeAmount += _dalembertIncrement;
+        break;
+      case 'fibonacci':
+        if (_fibIndex < _fibonacciSequence.length - 1) {
+          _fibIndex++;
+        }
+        _stakeAmount = _initialStake * _fibonacciSequence[_fibIndex];
+        break;
+      case 'percentage_kelly':
+        _stakeAmount = _accountBalance * 0.03;
+        break;
+      default:
+        _stakeAmount = _initialStake;
+    }
+
+    _validateStake();
+  }
+
+  void _validateStake() {
     if (_stakeAmount < 0.35) _stakeAmount = 0.35;
-    if (_stakeAmount > widget.derivService.balance * 0.5) {
-      _stakeAmount = widget.derivService.balance * 0.1;
+    if (_stakeAmount > _accountBalance * 0.5) {
+      _stakeAmount = _accountBalance * 0.1;
     }
   }
 
@@ -232,14 +403,24 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     if (_proposalId != null && _payout > 0) {
       widget.derivService.buyContract(_proposalId!, _payout);
       _autoTradeCount++;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Trade #$_autoTradeCount executado'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 1),
-        ),
-      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Trade #$_autoTradeCount • \$${_stakeAmount.toStringAsFixed(2)}'),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            duration: Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -247,23 +428,80 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     setState(() => _autoTradingEnabled = !_autoTradingEnabled);
 
     if (_autoTradingEnabled) {
-      _autoTradeTimer = Timer.periodic(Duration(seconds: 8), (timer) {
+      _autoTradeTimer = Timer.periodic(Duration(seconds: _autoTradeInterval), (timer) {
         if (_proposalId != null && _payout > 0) {
           _executeTrade(_contractType);
+          _updateProposal();
         }
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Auto: ${_autoStrategies[_autoStrategy]}'), 
-          backgroundColor: AppColors.primary),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.play_arrow, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Auto-trading: ${_autoStrategies[_autoStrategy]!['name']}'),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
       );
     } else {
       _autoTradeTimer?.cancel();
       _autoTradeCount = 0;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Auto-trading OFF'), backgroundColor: Colors.grey),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.stop, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Auto-trading desativado'),
+            ],
+          ),
+          backgroundColor: Colors.grey,
+        ),
       );
     }
+  }
+
+  void _stopAutoTrading(String reason) {
+    setState(() => _autoTradingEnabled = false);
+    _autoTradeTimer?.cancel();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text(reason)),
+          ],
+        ),
+        backgroundColor: AppColors.warning,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _resetStats() {
+    setState(() {
+      _totalProfit = 0;
+      _totalLoss = 0;
+      _winCount = 0;
+      _lossCount = 0;
+      _tradeHistory.clear();
+      _consecutiveLosses = 0;
+      _consecutiveWins = 0;
+      _autoTradeCount = 0;
+      _stakeAmount = _initialStake;
+      _fibIndex = 0;
+      _highestProfit = 0;
+      _highestLoss = 0;
+    });
   }
 
   double get _winRate {
@@ -273,6 +511,8 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
 
   double get _netProfit => _totalProfit - _totalLoss;
 
+// lib/screens/trading_chart_screen.dart - PARTE 2 (CONTINUAÇÃO)
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -280,25 +520,19 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppSecondaryAppBar(
-        title: 'Trading',
+        title: 'Trading Profissional',
         actions: [
           IconButton(
-            icon: Icon(Icons.settings_outlined, color: AppColors.primary),
-            onPressed: () => _showStrategySettings(isDark),
+            icon: Icon(Icons.settings, color: AppColors.primary),
+            onPressed: () => _showAdvancedSettings(isDark),
+          ),
+          IconButton(
+            icon: Icon(Icons.history, color: AppColors.primary),
+            onPressed: () => _showDetailedHistory(isDark),
           ),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () {
-              setState(() {
-                _totalProfit = 0;
-                _totalLoss = 0;
-                _winCount = 0;
-                _lossCount = 0;
-                _tradeHistory.clear();
-                _consecutiveLosses = 0;
-                _autoTradeCount = 0;
-              });
-            },
+            onPressed: _resetStats,
           ),
         ],
       ),
@@ -307,6 +541,8 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
+            _buildBalanceCard(isDark),
+            SizedBox(height: 12),
             _buildStatsCard(isDark),
             SizedBox(height: 12),
             _buildChartWidget(isDark),
@@ -322,61 +558,270 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     );
   }
 
+  Widget _buildBalanceCard(bool isDark) {
+    return AnimatedBuilder(
+      animation: _balanceAnimation,
+      builder: (context, child) {
+        final displayBalance = _balanceAnimation.value;
+        final balanceChange = _accountBalance - _previousBalance;
+        final isPositive = balanceChange >= 0;
+
+        return Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.15),
+                AppColors.primary.withOpacity(0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.2),
+                blurRadius: 15,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.account_balance_wallet, color: AppColors.primary, size: 24),
+                      ),
+                      SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Saldo da Conta',
+                              style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                          SizedBox(height: 2),
+                          Text(_currency, style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (balanceChange != 0)
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (isPositive ? AppColors.success : AppColors.error).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                            color: isPositive ? AppColors.success : AppColors.error,
+                            size: 14,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            '${isPositive ? '+' : ''}\$${balanceChange.abs().toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isPositive ? AppColors.success : AppColors.error,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '\$',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  Text(
+                    displayBalance.toStringAsFixed(2),
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildStatsCard(bool isDark) {
     return Container(
-      padding: EdgeInsets.all(14),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(child: _buildStat('P&L', '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}', 
-            _netProfit >= 0 ? Colors.green : Colors.red)),
-          _divider(isDark),
-          Expanded(child: _buildStat('Taxa', '${_winRate.toStringAsFixed(1)}%', 
-            _winRate >= 50 ? Colors.green : Colors.orange)),
-          _divider(isDark),
-          Expanded(child: _buildStat('W/L', '$_winCount/$_lossCount', Colors.blue)),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  'P&L',
+                  '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}',
+                  _netProfit >= 0 ? AppColors.success : AppColors.error,
+                  _netProfit >= 0 ? Icons.trending_up : Icons.trending_down,
+                ),
+              ),
+              _divider(isDark),
+              Expanded(
+                child: _buildStatItem(
+                  'Taxa',
+                  '${_winRate.toStringAsFixed(1)}%',
+                  _winRate >= 80 ? AppColors.success : _winRate >= 50 ? Colors.orange : AppColors.error,
+                  Icons.percent,
+                ),
+              ),
+              _divider(isDark),
+              Expanded(
+                child: _buildStatItem(
+                  'W/L',
+                  '$_winCount/$_lossCount',
+                  AppColors.primary,
+                  Icons.analytics,
+                ),
+              ),
+            ],
+          ),
+          if (_autoTradingEnabled) ...[
+            SizedBox(height: 12),
+            Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildMiniStat('Trades Auto', '$_autoTradeCount', Icons.repeat),
+                _buildMiniStat('Sequência', '$_consecutiveWins W / $_consecutiveLosses L',
+                    _consecutiveWins > _consecutiveLosses ? Icons.thumb_up : Icons.thumb_down),
+                _buildMiniStat('Próximo', '${_autoTradeInterval}s', Icons.timer),
+              ],
+            ),
+          ],
+          SizedBox(height: 12),
+          Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniStat('Maior Lucro', '\$${_highestProfit.toStringAsFixed(2)}', Icons.arrow_circle_up,
+                  color: AppColors.success),
+              _buildMiniStat('Maior Perda', '\$${_highestLoss.toStringAsFixed(2)}', Icons.arrow_circle_down,
+                  color: AppColors.error),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _divider(bool isDark) => Container(
-    width: 1, height: 35, 
-    color: isDark ? AppColors.darkBorder : AppColors.lightBorder
-  );
-
-  Widget _buildStat(String label, String value, Color color) {
+  Widget _buildStatItem(String label, String value, Color color, IconData icon) {
     return Column(
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey)),
-        SizedBox(height: 3),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        Icon(icon, color: color, size: 20),
+        SizedBox(height: 6),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+        SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
 
+  Widget _buildMiniStat(String label, String value, IconData icon, {Color? color}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color ?? Colors.grey),
+        SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 9, color: Colors.grey)),
+            Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _divider(bool isDark) => Container(
+        width: 1,
+        height: 50,
+        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      );
+
   Widget _buildChartWidget(bool isDark) {
-    return TradingChartWidget(symbol: _selectedSymbol, tradeHistory: _tradeHistory);
+    return TradingChartWidget(
+      symbol: _selectedSymbol,
+      tradeHistory: _tradeHistory,
+      derivService: widget.derivService,
+    );
   }
 
   Widget _buildTickInfo(bool isDark) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.primary.withOpacity(0.05),
+          ],
+        ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Tick:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.speed, color: AppColors.primary, size: 20),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tick Atual', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+                SizedBox(height: 2),
+                Text(_selectedSymbol, style: TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+          ),
           Text(_currentTick.toStringAsFixed(5),
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
         ],
       ),
     );
@@ -384,10 +829,10 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
 
   Widget _buildTradingPanel(bool isDark) {
     return Container(
-      padding: EdgeInsets.all(14),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
       child: Column(
@@ -396,7 +841,13 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Painel', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Icon(Icons.control_point, color: AppColors.primary, size: 22),
+                  SizedBox(width: 8),
+                  Text('Painel de Controle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
               CupertinoSwitch(
                 value: _autoTradingEnabled,
                 activeColor: AppColors.primary,
@@ -404,25 +855,22 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12),
-          
-          Text('Símbolo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          SizedBox(height: 6),
+          SizedBox(height: 16),
+          Text('Símbolo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          SizedBox(height: 8),
           _buildSymbolSelector(isDark),
-          SizedBox(height: 12),
-          
-          Text('Contratos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          SizedBox(height: 6),
+          SizedBox(height: 16),
+          Text('Tipo de Contrato', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          SizedBox(height: 8),
           _buildContractSelector(isDark),
-          SizedBox(height: 12),
-          
+          SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Duração', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Duração (ticks)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     SizedBox(height: 6),
                     _buildInputField(isDark, _duration, (v) {
                       if (v.isNotEmpty) {
@@ -433,18 +881,21 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
                   ],
                 ),
               ),
-              SizedBox(width: 10),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Stake', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Stake (\$)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     SizedBox(height: 6),
-                    _buildInputField(isDark, '\$${_stakeAmount.toStringAsFixed(2)}', (v) {
+                    _buildInputField(isDark, _stakeAmount.toStringAsFixed(2), (v) {
                       if (v.isNotEmpty) {
                         final amt = double.tryParse(v);
                         if (amt != null && amt >= 0.35) {
-                          setState(() => _stakeAmount = amt);
+                          setState(() {
+                            _stakeAmount = amt;
+                            _initialStake = amt;
+                          });
                           _updateProposal();
                         }
                       }
@@ -454,36 +905,38 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12),
-          
+          SizedBox(height: 16),
           if (_payout > 0)
             Container(
-              padding: EdgeInsets.all(10),
+              padding: EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  colors: [AppColors.primary.withOpacity(0.2), AppColors.primary.withOpacity(0.1)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withOpacity(0.5)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Payout:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text('\$${_payout.toStringAsFixed(2)}', 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Row(
+                    children: [
+                      Icon(Icons.monetization_on, color: AppColors.primary, size: 20),
+                      SizedBox(width: 8),
+                      Text('Payout Estimado:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    ],
+                  ),
+                  Text('\$${_payout.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
                 ],
               ),
             ),
-          
-          SizedBox(height: 12),
-          
+          SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: _buildTradeButton(isDark, 'CALL', Icons.arrow_upward, Colors.green),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: _buildTradeButton(isDark, 'PUT', Icons.arrow_downward, Colors.red),
-              ),
+              Expanded(child: _buildTradeButton(isDark, 'CALL', Icons.arrow_upward, AppColors.success)),
+              SizedBox(width: 12),
+              Expanded(child: _buildTradeButton(isDark, 'PUT', Icons.arrow_downward, AppColors.error)),
             ],
           ),
         ],
@@ -493,14 +946,14 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
 
   Widget _buildSymbolSelector(bool isDark) {
     return Container(
-      height: 40,
+      height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _availableSymbols.length,
         itemBuilder: (context, i) {
           final symbol = _availableSymbols[i];
           final isSelected = symbol == _selectedSymbol;
-          
+
           return GestureDetector(
             onTap: () {
               setState(() => _selectedSymbol = symbol);
@@ -508,16 +961,22 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
               _updateProposal();
             },
             child: Container(
-              margin: EdgeInsets.only(right: 6),
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              margin: EdgeInsets.only(right: 8),
+              padding: EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBackground : Colors.grey[200]),
-                borderRadius: BorderRadius.circular(10),
+                gradient: isSelected
+                    ? LinearGradient(colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)])
+                    : null,
+                color: !isSelected ? (isDark ? AppColors.darkBackground : Colors.grey[200]) : null,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
               ),
               alignment: Alignment.center,
-              child: Text(symbol, style: TextStyle(
-                color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
-                fontWeight: FontWeight.w600, fontSize: 12)),
+              child: Text(symbol,
+                  style: TextStyle(
+                      color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13)),
             ),
           );
         },
@@ -526,64 +985,60 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildContractSelector(bool isDark) {
-    return Column(
-      children: _contractCategories.entries.map((category) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: 8, bottom: 4),
-              child: Text(category.key, 
-                style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
-            ),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: category.value.map((contract) {
-                final isSelected = contract['id'] == _contractType;
-                
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _contractType = contract['id']!);
-                    _updateProposal();
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBackground : Colors.grey[200]),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isSelected ? AppColors.primary : 
-                        (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
-                    ),
-                    child: Text('${contract['icon']} ${contract['name']}',
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _contractCategories.entries.expand((category) {
+        return category.value.map((contract) {
+          final isSelected = contract['id'] == _contractType;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() => _contractType = contract['id']!);
+              _updateProposal();
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: isSelected ? LinearGradient(colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)]) : null,
+                color: !isSelected ? (isDark ? AppColors.darkBackground : Colors.grey[200]) : null,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(contract['icon'], size: 16, color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
+                  SizedBox(width: 6),
+                  Text(contract['name'],
                       style: TextStyle(
-                        color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
-                        fontSize: 11, fontWeight: FontWeight.w600)),
-                  ),
-                );
-              }).toList(),
+                          color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
-          ],
-        );
+          );
+        });
       }).toList(),
     );
   }
 
   Widget _buildInputField(bool isDark, String hint, Function(String) onChanged, {bool isNumeric = false}) {
     return Container(
-      height: 38,
+      height: 42,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkBackground : Colors.grey[200],
+        color: isDark ? AppColors.darkBackground : Colors.grey[100],
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
       ),
       child: TextField(
         keyboardType: isNumeric ? TextInputType.numberWithOptions(decimal: true) : TextInputType.number,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 13),
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
         ),
@@ -602,22 +1057,174 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         });
       },
       child: Container(
-        height: 44,
+        height: 50,
         decoration: BoxDecoration(
-          color: color,
+          gradient: LinearGradient(colors: [color, color.withOpacity(0.8)]),
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: Offset(0, 4)),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 18),
-            SizedBox(width: 8),
-            Text(
-              type == 'CALL' ? 'Rise' : 'Fall',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
+            Icon(icon, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text(type == 'CALL' ? 'RISE' : 'FALL',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAdvancedSettings(bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(Icons.tune, color: AppColors.primary, size: 24),
+                  SizedBox(width: 12),
+                  Text('Configurações Avançadas', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  Text('Estratégias de Trading',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                  SizedBox(height: 12),
+                  ..._autoStrategies.entries.map((e) {
+                    final strategy = e.value;
+                    final isSelected = _autoStrategy == e.key;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _autoStrategy = e.key);
+                        if (e.key != 'custom') {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Container(
+                        margin: EdgeInsets.only(bottom: 10),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: isSelected
+                              ? LinearGradient(
+                                  colors: [AppColors.primary.withOpacity(0.2), AppColors.primary.withOpacity(0.1)])
+                              : null,
+                          color: !isSelected ? (isDark ? AppColors.darkBackground : Colors.grey[100]) : null,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primary.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(strategy['icon'], color: isSelected ? AppColors.primary : Colors.grey, size: 24),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(strategy['name'], style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                                  SizedBox(height: 4),
+                                  Text(strategy['description'], style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                            if (strategy['winRate'] > 0)
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.success.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text('${strategy['winRate']}%',
+                                    style: TextStyle(
+                                        fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.success)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  if (_autoStrategy == 'custom') ...[
+                    SizedBox(height: 20),
+                    Text('Parâmetros Personalizados',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                    SizedBox(height: 16),
+                    _buildCustomParameter(
+                        'Multiplicador Martingale', _martingaleMultiplier, 1.5, 5.0, (v) => setState(() => _martingaleMultiplier = v)),
+                    _buildCustomParameter('Incremento D\'Alembert', _dalembertIncrement, 0.1, 2.0,
+                        (v) => setState(() => _dalembertIncrement = v)),
+                    _buildCustomParameter('Máx. Perdas Consecutivas', _maxConsecutiveLosses.toDouble(), 3, 10,
+                        (v) => setState(() => _maxConsecutiveLosses = v.toInt()), isInt: true),
+                    SizedBox(height: 16),
+                    SwitchListTile(
+                      title: Text('Parar ao atingir meta'),
+                      subtitle: Text('Parar trading ao atingir lucro/perda'),
+                      value: _stopOnTarget,
+                      activeColor: AppColors.primary,
+                      onChanged: (v) => setState(() => _stopOnTarget = v),
+                    ),
+                    if (_stopOnTarget) ...[
+                      _buildCustomParameter(
+                          'Meta de Lucro (\$)', _profitTarget, 10, 500, (v) => setState(() => _profitTarget = v)),
+                      _buildCustomParameter(
+                          'Limite de Perda (\$)', _lossLimit, 10, 500, (v) => setState(() => _lossLimit = v)),
+                    ],
+                  ],
+                  SizedBox(height: 20),
+                  Text('Intervalo de Auto-Trading',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _autoTradeInterval.toDouble(),
+                          min: 2,
+                          max: 120,
+                          divisions: 59,
+                          activeColor: AppColors.primary,
+                          label: '$_autoTradeInterval seg',
+                          onChanged: (v) => setState(() => _autoTradeInterval = v.toInt()),
+                        ),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('$_autoTradeInterval s',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -626,105 +1233,365 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     );
   }
 
-  void _showStrategySettings(bool isDark) {
-    AppBottomSheet.show(context, height: 400, child: Padding(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Estratégia', 
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          SizedBox(height: 16),
-          ..._autoStrategies.entries.map((e) {
-            return GestureDetector(
-              onTap: () {
-                setState(() => _autoStrategy = e.key);
-                Navigator.pop(context);
-              },
-              child: Container(
-                margin: EdgeInsets.only(bottom: 8),
-                padding: EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: _autoStrategy == e.key ? AppColors.primary.withOpacity(0.1) : 
-                    (isDark ? AppColors.darkBackground : Colors.grey[100]),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _autoStrategy == e.key ? AppColors.primary : 
-                      (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
-                ),
-                child: Row(
-                  children: [
-                    if (_autoStrategy == e.key) 
-                      Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-                    if (_autoStrategy == e.key) SizedBox(width: 10),
-                    Expanded(child: Text(e.value, 
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    ));
-  }
-
-  Widget _buildTradeHistory(bool isDark) {
+  Widget _buildCustomParameter(String label, double value, double min, double max, Function(double) onChanged,
+      {bool isInt = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        SizedBox(height: 10),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: _tradeHistory.length > 15 ? 15 : _tradeHistory.length,
-          itemBuilder: (context, i) {
-            final trade = _tradeHistory[i];
-            final isWin = trade['status'] == 'won';
-            final profit = trade['profit'] as double;
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(isInt ? value.toInt().toString() : value.toStringAsFixed(2),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          divisions: ((max - min) / (isInt ? 1 : 0.1)).toInt(),
+          activeColor: AppColors.primary,
+          onChanged: onChanged,
+        ),
+        SizedBox(height: 8),
+      ],
+    );
+  }
 
-            return Container(
-              margin: EdgeInsets.only(bottom: 6),
-              padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: isWin ? 
-                  Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3)),
-              ),
+  void _showDetailedHistory(bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: EdgeInsets.all(20),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Row(
+                    children: [
+                      Icon(Icons.history, color: AppColors.primary, size: 24),
+                      SizedBox(width: 12),
+                      Text('Histórico Completo', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                   Container(
-                    width: 30, height: 30,
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: (isWin ? Colors.green : Colors.red).withOpacity(0.15),
+                      color: AppColors.primary.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(isWin ? Icons.trending_up : Icons.trending_down,
-                      color: isWin ? Colors.green : Colors.red, size: 16),
+                    child: Text('${_tradeHistory.length}',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
                   ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${trade['symbol']}',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        Text('\$${(trade['amount'] as double).toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  Text('${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold,
-                      color: isWin ? Colors.green : Colors.red)),
                 ],
               ),
-            );
-          },
+            ),
+            Expanded(
+              child: _tradeHistory.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inbox, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text('Nenhuma operação ainda', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _tradeHistory.length,
+                      itemBuilder: (context, i) => _buildDetailedTradeItem(_tradeHistory[i], isDark),
+                    ),
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildDetailedTradeItem(Map<String, dynamic> trade, bool isDark) {
+    final isWin = trade['status'] == 'won';
+    final profit = trade['profit'] as double;
+    final timestamp = trade['timestamp'] as DateTime;
+    final timeStr =
+        '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}';
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isWin
+              ? [AppColors.success.withOpacity(0.1), AppColors.success.withOpacity(0.05)]
+              : [AppColors.error.withOpacity(0.1), AppColors.error.withOpacity(0.05)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isWin ? AppColors.success.withOpacity(0.3) : AppColors.error.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isWin
+                        ? [AppColors.success, AppColors.success.withOpacity(0.8)]
+                        : [AppColors.error, AppColors.error.withOpacity(0.8)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(isWin ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 20),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(trade['symbol'], style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                        SizedBox(width: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isWin ? AppColors.success.withOpacity(0.2) : AppColors.error.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(trade['type'],
+                              style: TextStyle(
+                                  fontSize: 9, fontWeight: FontWeight.bold, color: isWin ? AppColors.success : AppColors.error)),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text(timeStr, style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isWin ? AppColors.success : AppColors.error)),
+                  Text('Stake: \$${(trade['amount'] as double).toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkBackground.withOpacity(0.5) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.login, size: 14, color: Colors.blue),
+                        SizedBox(width: 4),
+                        Text('Entrada', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text((trade['entryTick'] as double).toStringAsFixed(5),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+                  ],
+                ),
+                Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.logout, size: 14, color: isWin ? AppColors.success : AppColors.error),
+                        SizedBox(width: 4),
+                        Text('Saída', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text((trade['exitTick'] as double).toStringAsFixed(5),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isWin ? AppColors.success : AppColors.error)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.account_balance_wallet, size: 14, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text('Saldo após:', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+              Text('\$${(trade['balance'] as double).toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTradeHistory(bool isDark) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.history, color: AppColors.primary, size: 20),
+                  SizedBox(width: 8),
+                  Text('Últimas Operações', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => _showDetailedHistory(isDark),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Text('Ver tudo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward, size: 12, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: _tradeHistory.length > 5 ? 5 : _tradeHistory.length,
+            itemBuilder: (context, i) {
+              final trade = _tradeHistory[i];
+              final isWin = trade['status'] == 'won';
+              final profit = trade['profit'] as double;
+              final entryTick = trade['entryTick'] as double;
+              final exitTick = trade['exitTick'] as double;
+              final timestamp = trade['timestamp'] as DateTime;
+              final timeStr =
+                  '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}';
+
+              return Container(
+                margin: EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isWin
+                        ? [AppColors.success.withOpacity(0.1), AppColors.success.withOpacity(0.05)]
+                        : [AppColors.error.withOpacity(0.1), AppColors.error.withOpacity(0.05)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isWin ? AppColors.success.withOpacity(0.3) : AppColors.error.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isWin
+                              ? [AppColors.success, AppColors.success.withOpacity(0.8)]
+                              : [AppColors.error, AppColors.error.withOpacity(0.8)],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isWin ? AppColors.success : AppColors.error).withOpacity(0.3),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(isWin ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 20),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(trade['symbol'], style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              SizedBox(width: 6),
+                              Icon(
+                                trade['type'] == 'CALL' ? Icons.arrow_upward : Icons.arrow_downward,
+                                size: 12,
+                                color: isWin ? AppColors.success : AppColors.error,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 2),
+                          Text('$timeStr • ${entryTick.toStringAsFixed(3)} → ${exitTick.toStringAsFixed(3)}',
+                              style: TextStyle(fontSize: 9, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
+                            style:
+                                TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isWin ? AppColors.success : AppColors.error)),
+                        Text('\$${(trade['amount'] as double).toStringAsFixed(2)}', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
