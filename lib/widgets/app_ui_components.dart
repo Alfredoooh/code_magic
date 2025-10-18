@@ -131,6 +131,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLines;
   final Function(String)? onChanged;
   final bool enabled;
+  final VoidCallback? onTap; // ADICIONADO
 
   const AppTextField({
     this.controller,
@@ -142,6 +143,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.onChanged,
     this.enabled = true,
+    this.onTap, // ADICIONADO
     Key? key,
   }) : super(key: key);
 
@@ -165,6 +167,7 @@ class AppTextField extends StatelessWidget {
         maxLines: maxLines,
         onChanged: onChanged,
         enabled: enabled,
+        onTap: onTap, // ADICIONADO
         style: TextStyle(
           color: isDark ? Colors.white : Colors.black,
         ),
