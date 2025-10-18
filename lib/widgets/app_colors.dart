@@ -6,7 +6,7 @@ class AppColors {
   // Cor primária atual (pode ser alterada dinamicamente)
   static Color _primary = const Color(0xFF0066FF);
   static Color get primary => _primary;
-  
+
   static Color get primaryLight => _lighten(_primary, 0.2);
   static Color get primaryDark => _darken(_primary, 0.2);
 
@@ -156,7 +156,7 @@ class AppDesignConfig {
   // Border radius
   static double _borderRadius = 12.0;
   static double get borderRadius => _borderRadius;
-  
+
   static double _cardRadius = 16.0;
   static double get cardRadius => _cardRadius;
 
