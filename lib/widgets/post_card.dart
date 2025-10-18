@@ -1,9 +1,9 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'dart:convert';
 import 'dart:ui';
+import '../widgets/app_ui_components.dart';
 import 'post_card_screens.dart';
 
 class PostCard extends StatefulWidget {
@@ -21,7 +21,7 @@ class PostCard extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _PostCardState createState() => _PostCardState();
+  State<PostCard> createState() => _PostCardState();
 }
 
 class _PostCardState extends State<PostCard> {
@@ -60,8 +60,10 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _showCommentsSheet() {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => CommentsSheet(
         postId: widget.postId,
         isDark: widget.isDark,
@@ -72,7 +74,7 @@ class _PostCardState extends State<PostCard> {
 
   void _showFullScreenImage() {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => FullScreenImageViewer(
           imageUrl: widget.post['image'],
@@ -84,7 +86,7 @@ class _PostCardState extends State<PostCard> {
 
   void _showUserProfile() {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => UserProfileScreen(
           userId: widget.post['userId'],
           isDark: widget.isDark,
@@ -96,7 +98,7 @@ class _PostCardState extends State<PostCard> {
 
   void _showFullDescription() {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => FullDescriptionScreen(
           content: widget.post['content'] ?? '',
@@ -108,85 +110,100 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _showMoreOptions() {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        actions: [
-          if (widget.currentUserId == widget.post['userId'])
-            CupertinoActionSheetAction(
-              child: Text('Excluir Publicação'),
-              isDestructiveAction: true,
-              onPressed: () {
+    AppBottomSheet.show(
+      context,
+      height: 250,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppSectionTitle(
+              text: 'Opções',
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            const SizedBox(height: 20),
+            if (widget.currentUserId == widget.post['userId'])
+              ListTile(
+                leading: const Icon(
+                  Icons.delete,
+                  color: Colors.red,
+                ),
+                title: const Text(
+                  'Excluir Publicação',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete();
+                },
+              ),
+            ListTile(
+              leading: const Icon(
+                Icons.flag,
+                color: Colors.red,
+              ),
+              title: const Text(
+                'Reportar',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
                 Navigator.pop(context);
-                _confirmDelete();
+                _reportPost();
               },
             ),
-          CupertinoActionSheetAction(
-            child: Text('Reportar'),
-            isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(context);
-              _reportPost();
-            },
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          child: Text('Cancelar'),
-          onPressed: () => Navigator.pop(context),
+            const SizedBox(height: 10),
+            AppSecondaryButton(
+              text: 'Cancelar',
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
         ),
       ),
     );
   }
 
   void _confirmDelete() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Excluir Publicação'),
-        content: Text('Esta ação não pode ser desfeita.'),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('Cancelar'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: Text('Excluir'),
-            onPressed: () async {
-              Navigator.pop(context);
-              await FirebaseFirestore.instance.collection('publicacoes').doc(widget.postId).delete();
-            },
-          ),
-        ],
-      ),
+    AppDialogs.showConfirmation(
+      context,
+      'Excluir Publicação',
+      'Esta ação não pode ser desfeita.',
+      onConfirm: () async {
+        await FirebaseFirestore.instance
+            .collection('publicacoes')
+            .doc(widget.postId)
+            .delete();
+      },
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      isDestructive: true,
     );
   }
 
   void _reportPost() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Reportar'),
-        content: Text('Deseja reportar esta publicação?'),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('Cancelar'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: Text('Reportar'),
-            onPressed: () async {
-              Navigator.pop(context);
-              await FirebaseFirestore.instance.collection('reports').add({
-                'postId': widget.postId,
-                'reportedBy': widget.currentUserId,
-                'timestamp': FieldValue.serverTimestamp(),
-              });
-            },
-          ),
-        ],
-      ),
+    AppDialogs.showConfirmation(
+      context,
+      'Reportar',
+      'Deseja reportar esta publicação?',
+      onConfirm: () async {
+        await FirebaseFirestore.instance.collection('reports').add({
+          'postId': widget.postId,
+          'reportedBy': widget.currentUserId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+        
+        if (mounted) {
+          AppDialogs.showSuccess(
+            context,
+            'Reportado',
+            'Publicação reportada com sucesso.',
+          );
+        }
+      },
+      confirmText: 'Reportar',
+      cancelText: 'Cancelar',
+      isDestructive: true,
     );
   }
 
@@ -202,7 +219,7 @@ class _PostCardState extends State<PostCard> {
 
   Widget _buildImage() {
     final imageData = widget.post['image'];
-    if (imageData == null || imageData.isEmpty) return SizedBox.shrink();
+    if (imageData == null || imageData.isEmpty) return const SizedBox.shrink();
 
     return GestureDetector(
       onDoubleTap: _toggleLike,
@@ -240,12 +257,12 @@ class _PostCardState extends State<PostCard> {
   Widget _buildImageError() {
     return Container(
       height: 400,
-      color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFF2F2F7),
+      color: widget.isDark ? AppColors.darkCard : AppColors.lightCard,
       child: Center(
         child: Icon(
-          CupertinoIcons.photo,
+          Icons.image,
           size: 60,
-          color: widget.isDark ? Color(0xFF3A3A3A) : Color(0xFFDBDBDB),
+          color: widget.isDark ? Colors.grey[700] : Colors.grey[300],
         ),
       ),
     );
@@ -253,12 +270,12 @@ class _PostCardState extends State<PostCard> {
 
   Widget _buildDescription() {
     final content = widget.post['content'] ?? '';
-    if (content.isEmpty) return SizedBox.shrink();
+    if (content.isEmpty) return const SizedBox.shrink();
 
     final shouldTruncate = content.length > 100;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: RichText(
         text: TextSpan(
           children: [
@@ -267,25 +284,25 @@ class _PostCardState extends State<PostCard> {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
-                color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                color: widget.isDark ? Colors.white : Colors.black,
               ),
             ),
             TextSpan(
               text: shouldTruncate ? '${content.substring(0, 100)}... ' : content,
               style: TextStyle(
                 fontSize: 13,
-                color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                color: widget.isDark ? Colors.white : Colors.black,
               ),
             ),
             if (shouldTruncate)
               WidgetSpan(
                 child: GestureDetector(
                   onTap: _showFullDescription,
-                  child: Text(
+                  child: const Text(
                     'ver mais',
                     style: TextStyle(
                       fontSize: 13,
-                      color: CupertinoColors.activeBlue,
+                      color: Colors.blue,
                     ),
                   ),
                 ),
@@ -298,7 +315,7 @@ class _PostCardState extends State<PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.isDark ? Color(0xFF000000) : CupertinoColors.white;
+    final bgColor = widget.isDark ? AppColors.darkBackground : Colors.white;
 
     return Container(
       color: bgColor,
@@ -307,17 +324,17 @@ class _PostCardState extends State<PostCard> {
         children: [
           Container(
             height: 0.5,
-            color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
           ),
           Padding(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: _showUserProfile,
                   child: CircleAvatar(
                     radius: 18,
-                    backgroundColor: Color(0xFFFF444F),
+                    backgroundColor: AppColors.primary,
                     backgroundImage: widget.post['userProfileImage'] != null &&
                             widget.post['userProfileImage'].isNotEmpty
                         ? NetworkImage(widget.post['userProfileImage'])
@@ -326,12 +343,16 @@ class _PostCardState extends State<PostCard> {
                             widget.post['userProfileImage'].isEmpty
                         ? Text(
                             (widget.post['userName'] ?? 'U')[0].toUpperCase(),
-                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           )
                         : null,
                   ),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
                     onTap: _showUserProfile,
@@ -340,17 +361,20 @@ class _PostCardState extends State<PostCard> {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
-                        color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                        color: widget.isDark ? Colors.white : Colors.black,
                       ),
                     ),
                   ),
                 ),
-                CupertinoButton(
+                IconButton(
                   padding: EdgeInsets.zero,
-                  minSize: 30,
-                  child: Icon(
-                    CupertinoIcons.ellipsis,
-                    color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                  constraints: const BoxConstraints(
+                    minWidth: 30,
+                    minHeight: 30,
+                  ),
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: widget.isDark ? Colors.white : Colors.black,
                   ),
                   onPressed: _showMoreOptions,
                 ),
@@ -360,37 +384,48 @@ class _PostCardState extends State<PostCard> {
           if (widget.post['image'] != null && widget.post['image'].isNotEmpty)
             _buildImage(),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                CupertinoButton(
+                IconButton(
                   padding: EdgeInsets.zero,
-                  minSize: 24,
-                  child: Icon(
-                    _isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                    color: _isLiked ? CupertinoColors.systemRed : (widget.isDark ? CupertinoColors.white : CupertinoColors.black),
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  icon: Icon(
+                    _isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: _isLiked 
+                        ? Colors.red 
+                        : (widget.isDark ? Colors.white : Colors.black),
                     size: 26,
                   ),
                   onPressed: _toggleLike,
                 ),
-                SizedBox(width: 16),
-                CupertinoButton(
+                const SizedBox(width: 16),
+                IconButton(
                   padding: EdgeInsets.zero,
-                  minSize: 24,
-                  child: Icon(
-                    CupertinoIcons.chat_bubble,
-                    color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  icon: Icon(
+                    Icons.chat_bubble_outline,
+                    color: widget.isDark ? Colors.white : Colors.black,
                     size: 26,
                   ),
                   onPressed: _showCommentsSheet,
                 ),
-                SizedBox(width: 16),
-                CupertinoButton(
+                const SizedBox(width: 16),
+                IconButton(
                   padding: EdgeInsets.zero,
-                  minSize: 24,
-                  child: Icon(
-                    CupertinoIcons.paperplane,
-                    color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  icon: Icon(
+                    Icons.send,
+                    color: widget.isDark ? Colors.white : Colors.black,
                     size: 26,
                   ),
                   onPressed: () {},
@@ -400,13 +435,13 @@ class _PostCardState extends State<PostCard> {
           ),
           if (_likesCount > 0)
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 _likesCount == 1 ? '1 curtida' : '$_likesCount curtidas',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
-                  color: widget.isDark ? CupertinoColors.white : CupertinoColors.black,
+                  color: widget.isDark ? Colors.white : Colors.black,
                 ),
               ),
             ),
@@ -419,17 +454,17 @@ class _PostCardState extends State<PostCard> {
                 .snapshots(),
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
-              if (count == 0) return SizedBox.shrink();
+              if (count == 0) return const SizedBox.shrink();
 
               return Padding(
-                padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
                 child: GestureDetector(
                   onTap: _showCommentsSheet,
                   child: Text(
                     count == 1 ? 'Ver 1 comentário' : 'Ver todos os $count comentários',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF8E8E8E),
+                      color: Colors.grey,
                     ),
                   ),
                 ),
@@ -437,19 +472,19 @@ class _PostCardState extends State<PostCard> {
             },
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(12, 4, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
             child: Text(
               _getTimeAgo(widget.post['timestamp']).toUpperCase(),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 10,
-                color: Color(0xFF8E8E8E),
+                color: Colors.grey,
                 letterSpacing: 0.2,
               ),
             ),
           ),
           Container(
             height: 0.5,
-            color: widget.isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
+            color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
           ),
         ],
       ),
