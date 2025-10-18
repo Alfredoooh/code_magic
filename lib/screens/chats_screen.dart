@@ -1,3 +1,4 @@
+// lib/screens/chats_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,8 +23,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   int _selectedFilter = 0;
   late AnimationController _badgeController;
   late PageController _pageController;
-  bool _isProOrAdmin = false;
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -31,7 +30,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     _pageController = PageController();
     _badgeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 300),
     );
     _loadUserData();
     _setupRealtimeListeners();
@@ -68,18 +67,9 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           .snapshots()
           .listen((doc) {
         if (doc.exists && mounted) {
-          final data = doc.data();
-          setState(() {
-            _userData = data;
-            _isProOrAdmin = (data?['pro'] == true) || (data?['admin'] == true);
-            _isLoading = false;
-          });
-        } else if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() => _userData = doc.data());
         }
       });
-    } else if (mounted) {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -88,7 +78,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     if (user == null) return;
 
     try {
-      // Verificar se já existe uma conversa
       final existingConv = await FirebaseFirestore.instance
           .collection('conversations')
           .where('participants', arrayContains: user.uid)
@@ -98,13 +87,11 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         final data = doc.data();
         final participants = List<String>.from(data['participants'] ?? []);
         if (participants.contains(otherUserId) && participants.length == 2) {
-          // Conversa já existe, navegar para ela
           _navigateToChat(otherUserId);
           return;
         }
       }
 
-      // Criar nova conversa
       await FirebaseFirestore.instance.collection('conversations').add({
         'participants': [user.uid, otherUserId],
         'createdAt': FieldValue.serverTimestamp(),
@@ -116,8 +103,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
       _navigateToChat(otherUserId);
     } catch (e) {
-      print('❌ Erro ao criar conversa: $e');
-      _showErrorDialog('Erro ao criar conversa');
+      AppDialogs.showError(context, 'Erro', 'Erro ao criar conversa');
     }
   }
 
@@ -129,7 +115,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           .get();
 
       if (!otherUserDoc.exists) {
-        _showErrorDialog('Usuário não encontrado');
+        AppDialogs.showError(context, 'Erro', 'Usuário não encontrado');
         return;
       }
 
@@ -146,62 +132,34 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         ),
       );
     } catch (e) {
-      print('❌ Erro ao navegar para chat: $e');
-      _showErrorDialog('Erro ao abrir conversa');
+      AppDialogs.showError(context, 'Erro', 'Erro ao abrir conversa');
     }
   }
 
-  void _showErrorDialog(String message) {
-    AppDialogs.showError(context, 'Erro', message);
-  }
-
   void _showOptionsMenu() {
-    if (!_isProOrAdmin) return;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.darkCard
-              : AppColors.lightCard,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 20),
-              ListTile(
-                leading: Icon(Icons.person_add, color: AppColors.primary),
-                title: Text('Nova Conversa'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showUsersDialog();
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.group_add, color: AppColors.primary),
-                title: Text('Criar Grupo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showCreateGroupDialog();
-                },
-              ),
-              SizedBox(height: 20),
-            ],
+    AppBottomSheet.show(
+      context,
+      height: 200,
+      child: Column(
+        children: [
+          SizedBox(height: 20),
+          ListTile(
+            leading: Icon(Icons.person_add, color: AppColors.primary),
+            title: Text('Nova Conversa'),
+            onTap: () {
+              Navigator.pop(context);
+              _showUsersDialog();
+            },
           ),
-        ),
+          ListTile(
+            leading: Icon(Icons.group_add, color: AppColors.primary),
+            title: Text('Criar Grupo'),
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateGroupDialog();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -212,21 +170,22 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Criar Grupo'),
         content: AppTextField(
           controller: nameController,
           hintText: 'Nome do grupo',
         ),
         actions: [
-          AppSecondaryButton(
-            text: 'Cancelar',
+          TextButton(
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
             onPressed: () {
               nameController.dispose();
               Navigator.pop(context);
             },
           ),
-          AppPrimaryButton(
-            text: 'Criar',
+          TextButton(
+            child: Text('Criar', style: TextStyle(color: AppColors.primary)),
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 final user = widget.currentUser;
@@ -245,8 +204,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                     nameController.dispose();
                     Navigator.pop(context);
                   } catch (e) {
-                    print('❌ Erro ao criar grupo: $e');
-                    _showErrorDialog('Erro ao criar grupo');
+                    AppDialogs.showError(context, 'Erro', 'Erro ao criar grupo');
                   }
                 }
               }
@@ -258,7 +216,8 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   }
 
   void _showUsersDialog() {
-    Navigator.of(context).push(
+    Navigator.push(
+      context,
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => UsersListScreen(
@@ -273,46 +232,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
-
-    // Tela bloqueada para usuários não PRO/Admin
-    if (!_isProOrAdmin) {
-      return Scaffold(
-        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-        body: Center(
-          child: AppCard(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppIconCircle(icon: Icons.lock_outline, size: 60),
-                  SizedBox(height: 24),
-                  AppSectionTitle(text: 'Recursos PRO', fontSize: 24),
-                  SizedBox(height: 12),
-                  Text(
-                    'O acesso aos Chats é exclusivo para usuários PRO e Administradores.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  SizedBox(height: 24),
-                  AppPrimaryButton(
-                    text: 'Atualizar para PRO',
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -371,9 +290,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                 ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : PageView(
                     controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() => _selectedTab = index);
-                    },
+                    onPageChanged: (index) => setState(() => _selectedTab = index),
                     children: [
                       _buildConversationsList(widget.currentUser!, isDark),
                       _buildGroupsList(widget.currentUser!, isDark),
@@ -461,7 +378,9 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : (isDark ? AppColors.darkCard : AppColors.lightCard),
+                    color: isSelected
+                        ? AppColors.primary
+                        : (isDark ? AppColors.darkCard : AppColors.lightCard),
                     borderRadius: BorderRadius.circular(25),
                   ),
                   child: Text(
@@ -492,28 +411,16 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           return Center(child: CircularProgressIndicator(color: AppColors.primary));
         }
 
-        if (snapshot.hasError) {
-          print('❌ Erro no stream: ${snapshot.error}');
-          return _buildEmptyState(
-            icon: Icons.error_outline,
-            title: 'Erro ao carregar',
-            subtitle: 'Tente novamente',
-            isDark: isDark,
-          );
-        }
-
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
             icon: Icons.chat_bubble_outline,
             title: 'Nenhuma conversa',
             subtitle: 'Toque em + para começar',
-            isDark: isDark,
           );
         }
 
         var conversations = snapshot.data!.docs;
 
-        // Filtro de não lidas
         if (_selectedFilter == 1) {
           conversations = conversations.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
@@ -526,7 +433,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
               icon: Icons.mark_chat_read,
               title: 'Tudo lido!',
               subtitle: 'Você não tem mensagens não lidas',
-              isDark: isDark,
             );
           }
         }
@@ -534,7 +440,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         return ListView.separated(
           padding: EdgeInsets.symmetric(vertical: 8),
           itemCount: conversations.length,
-          separatorBuilder: (context, index) => Divider(height: 1),
+          separatorBuilder: (_, __) => Divider(height: 1),
           itemBuilder: (context, index) {
             return _ConversationItem(
               conversation: conversations[index],
@@ -560,22 +466,11 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           return Center(child: CircularProgressIndicator(color: AppColors.primary));
         }
 
-        if (snapshot.hasError) {
-          print('❌ Erro no stream: ${snapshot.error}');
-          return _buildEmptyState(
-            icon: Icons.error_outline,
-            title: 'Erro ao carregar',
-            subtitle: 'Tente novamente',
-            isDark: isDark,
-          );
-        }
-
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
             icon: Icons.group_outlined,
             title: 'Nenhum grupo',
             subtitle: 'Toque em + para criar',
-            isDark: isDark,
           );
         }
 
@@ -584,7 +479,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         return ListView.separated(
           padding: EdgeInsets.symmetric(vertical: 8),
           itemCount: groups.length,
-          separatorBuilder: (context, index) => Divider(height: 1),
+          separatorBuilder: (_, __) => Divider(height: 1),
           itemBuilder: (context, index) {
             final groupData = groups[index].data() as Map<String, dynamic>;
 
@@ -599,7 +494,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => GroupDetailScreen(
+                    builder: (_) => GroupDetailScreen(
                       groupId: groups[index].id,
                       groupName: groupData['name'] ?? 'Grupo',
                     ),
@@ -617,7 +512,6 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     required IconData icon,
     required String title,
     required String subtitle,
-    required bool isDark,
   }) {
     return Center(
       child: Column(
@@ -625,22 +519,15 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         children: [
           Icon(icon, size: 64, color: Colors.grey),
           SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-          ),
+          Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
           SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
+          Text(subtitle, style: TextStyle(fontSize: 16, color: Colors.grey)),
         ],
       ),
     );
   }
 }
 
-// Widget separado para item de conversa
 class _ConversationItem extends StatelessWidget {
   final QueryDocumentSnapshot conversation;
   final User currentUser;
@@ -668,9 +555,7 @@ class _ConversationItem extends StatelessWidget {
     final data = conversation.data() as Map<String, dynamic>;
     final otherUserId = _getOtherUserId(data);
 
-    if (otherUserId.isEmpty) {
-      return SizedBox.shrink();
-    }
+    if (otherUserId.isEmpty) return SizedBox.shrink();
 
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
@@ -687,10 +572,12 @@ class _ConversationItem extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: AppColors.primary,
-                backgroundImage: userData['profile_image'] != null && userData['profile_image'].toString().isNotEmpty
+                backgroundImage: userData['profile_image'] != null &&
+                        userData['profile_image'].toString().isNotEmpty
                     ? NetworkImage(userData['profile_image'])
                     : null,
-                child: userData['profile_image'] == null || userData['profile_image'].toString().isEmpty
+                child: userData['profile_image'] == null ||
+                        userData['profile_image'].toString().isEmpty
                     ? Text(
                         (userData['username'] ?? 'U')[0].toUpperCase(),
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -707,7 +594,12 @@ class _ConversationItem extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.green,
                       shape: BoxShape.circle,
-                      border: Border.all(color: isDark ? AppColors.darkBackground : AppColors.lightBackground, width: 2),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.darkBackground
+                            : AppColors.lightBackground,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -715,7 +607,8 @@ class _ConversationItem extends StatelessWidget {
           ),
           title: Text(
             userData['username'] ?? 'Usuário',
-            style: TextStyle(fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal),
+            style: TextStyle(
+                fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal),
           ),
           subtitle: Text(
             data['lastMessage'] ?? 'Sem mensagens',
@@ -731,7 +624,11 @@ class _ConversationItem extends StatelessWidget {
                   ),
                   child: Text(
                     '$unreadCount',
-                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 )
               : null,
