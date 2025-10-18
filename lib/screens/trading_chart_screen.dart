@@ -1,6 +1,4 @@
-// ====================================================================
-// lib/screens/trading_chart_screen.dart - CORRIGIDO
-// ====================================================================
+// lib/screens/trading_chart_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -24,22 +22,22 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   String _durationType = 't';
   double _stakeAmount = 1.0;
   String? _barrier;
-
+  
   double _currentTick = 0.0;
   double _payout = 0.0;
   String? _proposalId;
-
+  
   double _totalProfit = 0.0;
   double _totalLoss = 0.0;
   int _winCount = 0;
   int _lossCount = 0;
-
+  
   bool _autoTradingEnabled = false;
   String _autoStrategy = 'martingale';
   int _autoTradeCount = 0;
   int _consecutiveLosses = 0;
   Timer? _autoTradeTimer;
-
+  
   List<Map<String, dynamic>> _tradeHistory = [];
   StreamSubscription? _tickSub;
   StreamSubscription? _proposalSub;
@@ -80,19 +78,19 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
       {'id': 'RANGE', 'name': 'Between', 'icon': '↔️'},
       {'id': 'UPORDOWN', 'name': 'Outside', 'icon': '↕️'},
     ],
-    'Stays Between/Goes Outside': [
+    'Stays/Goes': [
       {'id': 'EXPIRYMISS', 'name': 'Stays', 'icon': '🎯'},
       {'id': 'EXPIRYRANGE', 'name': 'Goes', 'icon': '💥'},
     ],
   };
 
   final Map<String, String> _autoStrategies = {
-    'martingale': 'Martingale (Dobrar após perda)',
-    'anti_martingale': 'Anti-Martingale (Dobrar após ganho)',
-    'dalembert': "D'Alembert (+0.35 após perda)",
+    'martingale': 'Martingale (2x após perda)',
+    'anti_martingale': 'Anti-Martingale (2x após ganho)',
+    'dalembert': "D'Alembert (+\$0.35)",
     'fibonacci': 'Fibonacci (Sequência)',
     'fixed': 'Valor Fixo',
-    'percentage': 'Percentual do Saldo (5%)',
+    'percentage': 'Percentual (5%)',
   };
 
   @override
@@ -155,7 +153,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           _totalProfit += profit;
           _winCount++;
           _consecutiveLosses = 0;
-
+          
           if (_autoTradingEnabled && _autoStrategy == 'anti_martingale') {
             _stakeAmount *= 2;
           } else if (_autoStrategy == 'fibonacci' || _autoStrategy == 'dalembert') {
@@ -165,7 +163,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           _totalLoss += profit.abs();
           _lossCount++;
           _consecutiveLosses++;
-
+          
           if (_autoTradingEnabled) {
             _applyLossStrategy();
           }
@@ -199,27 +197,18 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         _stakeAmount = widget.derivService.balance * 0.05;
         break;
     }
-
+    
     if (_stakeAmount < 0.35) _stakeAmount = 0.35;
     if (_stakeAmount > widget.derivService.balance * 0.5) {
       _stakeAmount = widget.derivService.balance * 0.1;
     }
   }
 
-  // ✅ CORREÇÃO: Acesso correto ao accountInfo
   void _updateProposal() {
-    String currency = 'USD';
-    
-    // Obter currency usando o getter público
-    final info = widget.derivService.accountInfoData;
-    if (info != null && info['currency'] != null) {
-      currency = info['currency'];
-    }
-
     widget.derivService.getProposal(
       contractType: _contractType,
       symbol: _selectedSymbol,
-      currency: currency,
+      currency: widget.derivService.accountInfo.value?['currency'] ?? 'USD',
       amount: _stakeAmount,
       duration: _duration,
       durationType: _durationType,
@@ -231,7 +220,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     if (_proposalId != null && _payout > 0) {
       widget.derivService.buyContract(_proposalId!, _payout);
       _autoTradeCount++;
-
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Trade #$_autoTradeCount executado'),
@@ -251,9 +240,9 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           _executeTrade(_contractType);
         }
       });
-
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Auto-trading: ${_autoStrategies[_autoStrategy]}'), 
+        SnackBar(content: Text('Auto: ${_autoStrategies[_autoStrategy]}'), 
           backgroundColor: AppColors.primary),
       );
     } else {
@@ -322,8 +311,13 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildStatsCard(bool isDark) {
-    return AppCard(
+    return Container(
       padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
       child: Row(
         children: [
           Expanded(child: _buildStat('P&L', '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}', 
@@ -358,8 +352,13 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildTickInfo(bool isDark) {
-    return AppCard(
+    return Container(
       padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -372,8 +371,13 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildTradingPanel(bool isDark) {
-    return AppCard(
+    return Container(
       padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -389,17 +393,17 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
             ],
           ),
           SizedBox(height: 12),
-
+          
           Text('Símbolo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
           _buildSymbolSelector(isDark),
           SizedBox(height: 12),
-
+          
           Text('Contratos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
           _buildContractSelector(isDark),
           SizedBox(height: 12),
-
+          
           Row(
             children: [
               Expanded(
@@ -426,7 +430,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
                     SizedBox(height: 6),
                     _buildInputField(isDark, '\$${_stakeAmount.toStringAsFixed(2)}', (v) {
                       if (v.isNotEmpty) {
-                        final amt = double.tryParse(v.replaceAll('\$', ''));
+                        final amt = double.tryParse(v);
                         if (amt != null && amt >= 0.35) {
                           setState(() => _stakeAmount = amt);
                           _updateProposal();
@@ -439,7 +443,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
             ],
           ),
           SizedBox(height: 12),
-
+          
           if (_payout > 0)
             Container(
               padding: EdgeInsets.all(10),
@@ -456,6 +460,20 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
                 ],
               ),
             ),
+          
+          SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildTradeButton(isDark, 'CALL', Icons.arrow_upward, Colors.green),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: _buildTradeButton(isDark, 'PUT', Icons.arrow_downward, Colors.red),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -470,7 +488,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         itemBuilder: (context, i) {
           final symbol = _availableSymbols[i];
           final isSelected = symbol == _selectedSymbol;
-
+          
           return GestureDetector(
             onTap: () {
               setState(() => _selectedSymbol = symbol);
@@ -504,14 +522,14 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
             Padding(
               padding: EdgeInsets.only(top: 8, bottom: 4),
               child: Text(category.key, 
-                style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
             ),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: category.value.map((contract) {
                 final isSelected = contract['id'] == _contractType;
-
+                
                 return GestureDetector(
                   onTap: () {
                     setState(() => _contractType = contract['id']!);
@@ -562,47 +580,78 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     );
   }
 
+  Widget _buildTradeButton(bool isDark, String type, IconData icon, Color color) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _contractType = type);
+        _updateProposal();
+        Future.delayed(Duration(milliseconds: 300), () {
+          _executeTrade(type);
+        });
+      },
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text(
+              type == 'CALL' ? 'Rise' : 'Fall',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showStrategySettings(bool isDark) {
     AppBottomSheet.show(context, height: 400, child: Padding(
       padding: EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppSectionTitle(text: 'Estratégia de Auto-Trading', fontSize: 18),
+          Text('Estratégia', 
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           SizedBox(height: 16),
-          Expanded(
-            child: ListView(
-              children: _autoStrategies.entries.map((e) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _autoStrategy = e.key);
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    margin: EdgeInsets.only(bottom: 8),
-                    padding: EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: _autoStrategy == e.key ? AppColors.primary.withOpacity(0.1) : 
-                        (isDark ? AppColors.darkBackground : Colors.grey[100]),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _autoStrategy == e.key ? AppColors.primary : 
-                          (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
-                    ),
-                    child: Row(
-                      children: [
-                        if (_autoStrategy == e.key) 
-                          Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-                        if (_autoStrategy == e.key) SizedBox(width: 10),
-                        Expanded(child: Text(e.value, 
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
+          ..._autoStrategies.entries.map((e) {
+            return GestureDetector(
+              onTap: () {
+                setState(() => _autoStrategy = e.key);
+                Navigator.pop(context);
+              },
+              child: Container(
+                margin: EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _autoStrategy == e.key ? AppColors.primary.withOpacity(0.1) : 
+                    (isDark ? AppColors.darkBackground : Colors.grey[100]),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _autoStrategy == e.key ? AppColors.primary : 
+                      (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                ),
+                child: Row(
+                  children: [
+                    if (_autoStrategy == e.key) 
+                      Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                    if (_autoStrategy == e.key) SizedBox(width: 10),
+                    Expanded(child: Text(e.value, 
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
         ],
       ),
     ));
@@ -612,7 +661,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppSectionTitle(text: 'Histórico', fontSize: 16),
+        Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         SizedBox(height: 10),
         ListView.builder(
           shrinkWrap: true,
