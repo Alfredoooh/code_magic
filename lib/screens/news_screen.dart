@@ -8,6 +8,7 @@ import 'sheets_viewer_screen.dart';
 import '../models/news_article.dart';
 import '../models/sheet_story.dart';
 import '../services/news_service.dart';
+import '../widgets/app_colors.dart';
 import '../widgets/app_ui_components.dart';
 import '../widgets/post_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,7 +23,7 @@ class NewsScreen extends StatefulWidget {
 class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final NewsService _newsService = NewsService();
-  
+
   List<NewsArticle> _tradingNews = [];
   List<SheetStory> _sheets = [];
   List<QueryDocumentSnapshot> _allSheets = [];
@@ -70,12 +71,13 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
       ]);
 
       final allNews = news.expand((list) => list).toList();
-      
-      // Remove duplicatas
+
+      // Remove duplicatas baseado em título e URL
       final uniqueNews = <String, NewsArticle>{};
       for (var article in allNews) {
-        if (!uniqueNews.containsKey(article.title)) {
-          uniqueNews[article.title] = article;
+        final key = '${article.title}_${article.url}';
+        if (!uniqueNews.containsKey(key)) {
+          uniqueNews[key] = article;
         }
       }
 
@@ -164,16 +166,18 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
       child: TabBar(
         controller: _tabController,
         indicatorColor: AppColors.primary,
-        indicatorWeight: 3,
+        indicatorWeight: 2.5,
         labelColor: AppColors.primary,
-        unselectedLabelColor: Colors.grey,
+        unselectedLabelColor: Colors.grey.shade600,
         labelStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
         ),
         unselectedLabelStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
         ),
         tabs: [
           Tab(text: 'Sheets'),
@@ -191,30 +195,23 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
     }
 
     if (_allSheets.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.article_outlined, size: 80, color: Colors.grey.withOpacity(0.5)),
-            SizedBox(height: 16),
-            Text(
-              'Nenhum sheet disponível',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-          ],
-        ),
+      return _buildEmptyState(
+        icon: Icons.article_outlined,
+        message: 'Nenhum sheet disponível',
+        isDark: isDark,
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadContent,
+      color: AppColors.primary,
       child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: _allSheets.length,
         itemBuilder: (context, index) {
           final post = _allSheets[index].data() as Map<String, dynamic>;
           final postId = _allSheets[index].id;
-          
+
           return PostCard(
             post: post,
             postId: postId,
@@ -234,23 +231,16 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
     }
 
     if (_tradingNews.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.newspaper, size: 80, color: Colors.grey.withOpacity(0.5)),
-            SizedBox(height: 16),
-            Text(
-              'Nenhuma notícia disponível',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-          ],
-        ),
+      return _buildEmptyState(
+        icon: Icons.newspaper_outlined,
+        message: 'Nenhuma notícia disponível',
+        isDark: isDark,
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadContent,
+      color: AppColors.primary,
       child: ListView.builder(
         padding: EdgeInsets.all(16),
         itemCount: _tradingNews.length,
@@ -261,31 +251,67 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String message,
+    required bool isDark,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 64,
+            color: Colors.grey.withOpacity(0.4),
+          ),
+          SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNewsCard(NewsArticle article, bool isDark) {
     return GestureDetector(
       onTap: () => _openNewsDetail(article),
       child: Padding(
         padding: EdgeInsets.only(bottom: 16),
-        child: AppCard(
-          padding: EdgeInsets.zero,
-          borderRadius: 16,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: BorderRadius.circular(AppDesignConfig.cardRadius),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              width: 1,
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (article.imageUrl.isNotEmpty && !article.imageUrl.contains('no_image'))
                 ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(AppDesignConfig.cardRadius),
+                  ),
                   child: Image.network(
                     article.imageUrl,
                     width: double.infinity,
                     height: 200,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: double.infinity,
-                      height: 200,
-                      color: isDark ? AppColors.darkCard : Color(0xFFF2F2F7),
-                      child: Icon(Icons.photo, color: Colors.grey, size: 60),
-                    ),
+                    cacheWidth: 800,
+                    errorBuilder: (_, __, ___) => _buildImagePlaceholder(isDark),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return _buildImagePlaceholder(isDark);
+                    },
                   ),
                 ),
               Padding(
@@ -299,23 +325,32 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             article.source,
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.primary,
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ),
                         Spacer(),
-                        Icon(Icons.access_time, size: 12, color: Colors.grey),
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 13,
+                          color: Colors.grey.shade600,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           article.timeAgo,
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -323,10 +358,11 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                     Text(
                       article.title,
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: isDark ? Colors.white : Colors.black,
                         height: 1.3,
+                        letterSpacing: -0.3,
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -336,9 +372,10 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
                       Text(
                         article.description,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
                           height: 1.4,
+                          fontWeight: FontWeight.w400,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -349,6 +386,21 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 200,
+      color: isDark ? AppColors.darkCard : AppColors.lightCard,
+      child: Center(
+        child: Icon(
+          Icons.image_outlined,
+          color: Colors.grey.shade400,
+          size: 48,
         ),
       ),
     );
