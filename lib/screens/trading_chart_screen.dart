@@ -1,4 +1,3 @@
-// lib/screens/trading_chart_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -22,22 +21,22 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   String _durationType = 't';
   double _stakeAmount = 1.0;
   String? _barrier;
-  
+
   double _currentTick = 0.0;
   double _payout = 0.0;
   String? _proposalId;
-  
+
   double _totalProfit = 0.0;
   double _totalLoss = 0.0;
   int _winCount = 0;
   int _lossCount = 0;
-  
+
   bool _autoTradingEnabled = false;
   String _autoStrategy = 'martingale';
   int _autoTradeCount = 0;
   int _consecutiveLosses = 0;
   Timer? _autoTradeTimer;
-  
+
   List<Map<String, dynamic>> _tradeHistory = [];
   StreamSubscription? _tickSub;
   StreamSubscription? _proposalSub;
@@ -153,7 +152,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           _totalProfit += profit;
           _winCount++;
           _consecutiveLosses = 0;
-          
+
           if (_autoTradingEnabled && _autoStrategy == 'anti_martingale') {
             _stakeAmount *= 2;
           } else if (_autoStrategy == 'fibonacci' || _autoStrategy == 'dalembert') {
@@ -163,7 +162,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           _totalLoss += profit.abs();
           _lossCount++;
           _consecutiveLosses++;
-          
+
           if (_autoTradingEnabled) {
             _applyLossStrategy();
           }
@@ -197,7 +196,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         _stakeAmount = widget.derivService.balance * 0.05;
         break;
     }
-    
+
     if (_stakeAmount < 0.35) _stakeAmount = 0.35;
     if (_stakeAmount > widget.derivService.balance * 0.5) {
       _stakeAmount = widget.derivService.balance * 0.1;
@@ -205,10 +204,22 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   void _updateProposal() {
+    final accountInfo = widget.derivService.accountInfo;
+    String currency = 'USD';
+    
+    // Tentar obter currency do ValueNotifier
+    try {
+      if (accountInfo is ValueNotifier<Map<String, dynamic>?>) {
+        currency = accountInfo.value?['currency'] ?? 'USD';
+      }
+    } catch (e) {
+      print('Erro ao obter currency: $e');
+    }
+
     widget.derivService.getProposal(
       contractType: _contractType,
       symbol: _selectedSymbol,
-      currency: widget.derivService.accountInfo.value?['currency'] ?? 'USD',
+      currency: currency,
       amount: _stakeAmount,
       duration: _duration,
       durationType: _durationType,
@@ -220,7 +231,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     if (_proposalId != null && _payout > 0) {
       widget.derivService.buyContract(_proposalId!, _payout);
       _autoTradeCount++;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Trade #$_autoTradeCount executado'),
@@ -240,7 +251,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
           _executeTrade(_contractType);
         }
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Auto-trading: ${_autoStrategies[_autoStrategy]}'), 
           backgroundColor: AppColors.primary),
@@ -311,13 +322,8 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildStatsCard(bool isDark) {
-    return Container(
+    return AppCard(
       padding: EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      ),
       child: Row(
         children: [
           Expanded(child: _buildStat('P&L', '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}', 
@@ -352,13 +358,8 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildTickInfo(bool isDark) {
-    return Container(
+    return AppCard(
       padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -371,13 +372,8 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   }
 
   Widget _buildTradingPanel(bool isDark) {
-    return Container(
+    return AppCard(
       padding: EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -393,17 +389,17 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
             ],
           ),
           SizedBox(height: 12),
-          
+
           Text('Símbolo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
           _buildSymbolSelector(isDark),
           SizedBox(height: 12),
-          
+
           Text('Contratos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
           _buildContractSelector(isDark),
           SizedBox(height: 12),
-          
+
           Row(
             children: [
               Expanded(
@@ -430,7 +426,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
                     SizedBox(height: 6),
                     _buildInputField(isDark, '\$${_stakeAmount.toStringAsFixed(2)}', (v) {
                       if (v.isNotEmpty) {
-                        final amt = double.tryParse(v);
+                        final amt = double.tryParse(v.replaceAll('\$', ''));
                         if (amt != null && amt >= 0.35) {
                           setState(() => _stakeAmount = amt);
                           _updateProposal();
@@ -443,7 +439,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
             ],
           ),
           SizedBox(height: 12),
-          
+
           if (_payout > 0)
             Container(
               padding: EdgeInsets.all(10),
@@ -474,7 +470,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         itemBuilder: (context, i) {
           final symbol = _availableSymbols[i];
           final isSelected = symbol == _selectedSymbol;
-          
+
           return GestureDetector(
             onTap: () {
               setState(() => _selectedSymbol = symbol);
@@ -515,7 +511,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
               runSpacing: 6,
               children: category.value.map((contract) {
                 final isSelected = contract['id'] == _contractType;
-                
+
                 return GestureDetector(
                   onTap: () {
                     setState(() => _contractType = contract['id']!);
@@ -572,38 +568,41 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Estratégia de Auto-Trading', 
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          AppSectionTitle(text: 'Estratégia de Auto-Trading', fontSize: 18),
           SizedBox(height: 16),
-          ..._autoStrategies.entries.map((e) {
-            return GestureDetector(
-              onTap: () {
-                setState(() => _autoStrategy = e.key);
-                Navigator.pop(context);
-              },
-              child: Container(
-                margin: EdgeInsets.only(bottom: 8),
-                padding: EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: _autoStrategy == e.key ? AppColors.primary.withOpacity(0.1) : 
-                    (isDark ? AppColors.darkBackground : Colors.grey[100]),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _autoStrategy == e.key ? AppColors.primary : 
-                      (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
-                ),
-                child: Row(
-                  children: [
-                    if (_autoStrategy == e.key) 
-                      Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-                    if (_autoStrategy == e.key) SizedBox(width: 10),
-                    Expanded(child: Text(e.value, 
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
+          Expanded(
+            child: ListView(
+              children: _autoStrategies.entries.map((e) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _autoStrategy = e.key);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _autoStrategy == e.key ? AppColors.primary.withOpacity(0.1) : 
+                        (isDark ? AppColors.darkBackground : Colors.grey[100]),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _autoStrategy == e.key ? AppColors.primary : 
+                          (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                    ),
+                    child: Row(
+                      children: [
+                        if (_autoStrategy == e.key) 
+                          Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                        if (_autoStrategy == e.key) SizedBox(width: 10),
+                        Expanded(child: Text(e.value, 
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         ],
       ),
     ));
@@ -613,7 +612,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        AppSectionTitle(text: 'Histórico', fontSize: 16),
         SizedBox(height: 10),
         ListView.builder(
           shrinkWrap: true,
