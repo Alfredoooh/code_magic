@@ -1,10 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import '../widgets/app_ui_components.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -34,55 +34,62 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _pickImage() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        actions: [
-          CupertinoActionSheetAction(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.camera, color: Color(0xFFFF444F)),
-                SizedBox(width: 8),
-                Text(
-                  'Câmera',
-                  style: TextStyle(
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () {
+    AppBottomSheet.show(
+      context,
+      height: 200,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          const AppSectionTitle(text: 'Adicionar Imagem', fontSize: 18),
+          const SizedBox(height: 20),
+          _buildImageOption(
+            icon: Icons.camera_alt_outlined,
+            title: 'Câmera',
+            onTap: () {
               Navigator.pop(context);
               _getImage(ImageSource.camera);
             },
           ),
-          CupertinoActionSheetAction(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.photo, color: Color(0xFFFF444F)),
-                SizedBox(width: 8),
-                Text(
-                  'Galeria',
-                  style: TextStyle(
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () {
+          const Divider(height: 1),
+          _buildImageOption(
+            icon: Icons.photo_library_outlined,
+            title: 'Galeria',
+            onTap: () {
               Navigator.pop(context);
               _getImage(ImageSource.gallery);
             },
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          child: Text('Cancelar'),
-          isDestructiveAction: true,
-          onPressed: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  Widget _buildImageOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -100,12 +107,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (image != null) {
         setState(() => _isProcessingImage = true);
 
-        // Processar imagem em background
-        await Future.delayed(Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 100));
 
         final bytes = await File(image.path).readAsBytes();
         final base64Image = base64Encode(bytes);
-        
+
         String mimeType = 'image/jpeg';
         if (image.path.toLowerCase().endsWith('.png')) {
           mimeType = 'image/png';
@@ -117,15 +123,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
         final dataUrl = 'data:$mimeType;base64,$base64Image';
         final sizeInMB = (dataUrl.length * 0.75) / (1024 * 1024);
-        
+
         setState(() => _isProcessingImage = false);
 
         if (sizeInMB > 5) {
-          _showErrorDialog(
-            'Imagem muito grande!\n\n'
-            'Tamanho: ${sizeInMB.toStringAsFixed(2)} MB\n'
-            'Máximo: 5 MB\n\n'
-            'Escolha uma imagem menor.'
+          AppDialogs.showError(
+            context,
+            'Imagem muito grande!',
+            'Tamanho: ${sizeInMB.toStringAsFixed(2)} MB\nMáximo: 5 MB\n\nEscolha uma imagem menor.',
           );
           return;
         }
@@ -137,7 +142,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
     } catch (e) {
       setState(() => _isProcessingImage = false);
-      _showErrorDialog('Erro ao processar imagem: $e');
+      AppDialogs.showError(context, 'Erro', 'Erro ao processar imagem: $e');
     }
   }
 
@@ -150,7 +155,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _submitPost() async {
     if (_contentController.text.trim().isEmpty) {
-      _showErrorDialog('Escreva algo para publicar.');
+      AppDialogs.showError(context, 'Atenção', 'Escreva algo para publicar.');
       return;
     }
 
@@ -181,68 +186,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       if (!mounted) return;
 
-      Navigator.pop(context, true); // Retorna true para indicar sucesso
-      
-      // Mostrar toast de sucesso
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(CupertinoIcons.check_mark_circled_solid, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Publicação criada com sucesso!'),
-            ],
-          ),
-          backgroundColor: Color(0xFF34C759),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppDialogs.showSuccess(
+        context,
+        'Sucesso',
+        'Publicação criada com sucesso!',
+        onClose: () => Navigator.pop(context, true),
       );
     } catch (e) {
       setState(() => _isSubmitting = false);
-      _showErrorDialog('Erro ao publicar: $e');
+      AppDialogs.showError(context, 'Erro', 'Erro ao publicar: $e');
     }
   }
 
-  void _showErrorDialog(String message) {
-    if (!mounted) return;
-    
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(CupertinoIcons.exclamationmark_triangle, color: Color(0xFFFF3B30), size: 22),
-            SizedBox(width: 8),
-            Text('Erro'),
-          ],
-        ),
-        content: Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(message),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildUserInfo(bool isDark) {
-    return Container(
-      color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-      padding: EdgeInsets.all(16),
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: 0,
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFFF444F),
+              color: AppColors.primary,
             ),
             child: widget.userData['profile_image'] != null &&
                     widget.userData['profile_image'].isNotEmpty
@@ -261,13 +228,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   )
                 : _buildInitial(),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
             widget.userData['username'] ?? 'Usuário',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
         ],
@@ -279,9 +246,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Center(
       child: Text(
         (widget.userData['username'] ?? 'U')[0].toUpperCase(),
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 18,
-          color: CupertinoColors.white,
+          color: Colors.white,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -289,45 +256,34 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Widget _buildContentInput(bool isDark) {
-    return Container(
-      color: isDark ? Color(0xFF000000) : CupertinoColors.white,
-      padding: EdgeInsets.all(16),
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: 0,
       child: Column(
         children: [
-          CupertinoTextField(
+          AppTextField(
             controller: _titleController,
-            placeholder: 'Título (opcional)',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            decoration: BoxDecoration(color: Colors.transparent),
-            padding: EdgeInsets.zero,
-            maxLength: 100,
-            placeholderStyle: TextStyle(
-              color: CupertinoColors.systemGrey,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
+            hintText: 'Título (opcional)',
+            maxLines: 1,
           ),
-          SizedBox(height: 12),
-          CupertinoTextField(
+          const SizedBox(height: 12),
+          AppTextField(
             controller: _contentController,
-            placeholder: 'No que você está pensando?',
-            style: TextStyle(
-              fontSize: 16,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            decoration: BoxDecoration(color: Colors.transparent),
-            padding: EdgeInsets.zero,
-            maxLines: null,
-            minLines: 5,
-            maxLength: 1000,
-            placeholderStyle: TextStyle(
-              color: CupertinoColors.systemGrey,
-              fontSize: 16,
-            ),
+            hintText: 'No que você está pensando?',
+            maxLines: 8,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                '${_contentController.text.length}/1000',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -335,14 +291,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Widget _buildImagePreview() {
-    if (_selectedImage == null) return SizedBox.shrink();
+    if (_selectedImage == null) return const SizedBox.shrink();
 
     return Container(
-      margin: EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
       child: Stack(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: Image.file(
               _selectedImage!,
               width: double.infinity,
@@ -355,14 +311,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             child: GestureDetector(
               onTap: _removeImage,
               child: Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.7),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  CupertinoIcons.xmark,
-                  color: CupertinoColors.white,
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
                   size: 20,
                 ),
               ),
@@ -375,39 +331,51 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Widget _buildAddImageButton(bool isDark) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-          width: 1,
-        ),
-      ),
-      child: CupertinoButton(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        onPressed: _isSubmitting || _isProcessingImage ? null : _pickImage,
-        child: Row(
-          children: [
-            Icon(
-              CupertinoIcons.photo_on_rectangle,
-              color: _isProcessingImage ? CupertinoColors.systemGrey : Color(0xFFFF444F),
-              size: 24,
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _selectedImage != null ? 'Alterar Imagem' : 'Adicionar Imagem',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                  fontWeight: FontWeight.w500,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isSubmitting || _isProcessingImage ? null : _pickImage,
+          borderRadius: BorderRadius.circular(16),
+          child: AppCard(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _isProcessingImage ? Icons.hourglass_empty : Icons.image_outlined,
+                    color: _isProcessingImage ? Colors.grey : AppColors.primary,
+                    size: 24,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedImage != null ? 'Alterar Imagem' : 'Adicionar Imagem',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (_isProcessingImage)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+              ],
             ),
-            if (_isProcessingImage)
-              CupertinoActivityIndicator(),
-          ],
+          ),
         ),
       ),
     );
@@ -417,84 +385,75 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF000000) : CupertinoColors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-            width: 0.5,
-          ),
-        ),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Text('Cancelar', style: TextStyle(color: Color(0xFFFF444F), fontSize: 17)),
-          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-        ),
-        middle: Text(
-          'Nova Publicação',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-        ),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: _isSubmitting
-              ? CupertinoActivityIndicator()
-              : Text(
-                  'Publicar',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: _contentController.text.trim().isEmpty
-                        ? CupertinoColors.systemGrey
-                        : Color(0xFFFF444F),
-                    fontSize: 17,
-                  ),
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Nova Publicação',
+        actions: [
+          if (_isSubmitting)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
                 ),
-          onPressed: _isSubmitting || _contentController.text.trim().isEmpty
-              ? null
-              : _submitPost,
-        ),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _contentController.text.trim().isEmpty ? null : _submitPost,
+              child: Text(
+                'Publicar',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: _contentController.text.trim().isEmpty
+                      ? Colors.grey
+                      : AppColors.primary,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+        ],
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Stack(
           children: [
             ListView(
               padding: EdgeInsets.zero,
               children: [
                 _buildUserInfo(isDark),
-                Container(height: 0.5, color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA)),
+                Container(
+                  height: 0.5,
+                  color: isDark ? AppColors.darkSeparator : AppColors.separator,
+                ),
+                const SizedBox(height: 8),
                 _buildContentInput(isDark),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 _buildImagePreview(),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 _buildAddImageButton(isDark),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
               ],
             ),
             if (_isProcessingImage)
               Container(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withOpacity(0.5),
                 child: Center(
-                  child: Container(
-                    padding: EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CupertinoActivityIndicator(radius: 16),
-                        SizedBox(height: 16),
+                        const CircularProgressIndicator(color: AppColors.primary),
+                        const SizedBox(height: 16),
                         Text(
                           'Processando imagem...',
                           style: TextStyle(
                             fontSize: 16,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            color: isDark ? Colors.white : Colors.black,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
