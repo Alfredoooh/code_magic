@@ -1,9 +1,9 @@
 // lib/screens/marketplace_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
 import '../widgets/trading_panel.dart';
 
@@ -68,7 +68,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      _showError('Preencha email e senha');
+      AppDialogs.showError(context, 'Erro', 'Preencha email e senha');
       return;
     }
 
@@ -82,9 +82,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         _tokenController.text = token;
       }
       Navigator.pop(context);
-      _showSuccess('Login realizado com sucesso!');
+      AppDialogs.showSuccess(context, 'Sucesso', 'Login realizado com sucesso!');
     } catch (e) {
-      _showError('Erro ao fazer login: $e');
+      AppDialogs.showError(context, 'Erro', 'Erro ao fazer login: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -93,7 +93,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Future<void> _connectWithToken() async {
     final token = _tokenController.text.trim();
     if (token.isEmpty) {
-      _showError('Insira um token válido');
+      AppDialogs.showError(context, 'Erro', 'Insira um token válido');
       return;
     }
 
@@ -103,9 +103,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       await _derivService.connectWithToken(token);
       await _storage.write(key: 'deriv_api_token', value: token);
       Navigator.pop(context);
-      _showSuccess('Conectado com sucesso!');
+      AppDialogs.showSuccess(context, 'Sucesso', 'Conectado com sucesso!');
     } catch (e) {
-      _showError('Erro ao conectar: $e');
+      AppDialogs.showError(context, 'Erro', 'Erro ao conectar: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -124,7 +124,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         await _connectWithToken();
       }
     } catch (e) {
-      _showError('OAuth cancelado: $e');
+      AppDialogs.showError(context, 'Erro', 'OAuth cancelado: $e');
     }
   }
 
@@ -141,189 +141,87 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     });
   }
 
-  void _showError(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Erro'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(message),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccess(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Sucesso'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(message),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showLoginSheet(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
-    final isDark = brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.95),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.systemGrey.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+    AppBottomSheet.show(
+      context,
+      height: MediaQuery.of(context).size.height * 0.85,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: 12),
+            AppSectionTitle(
+              text: 'Conectar à Deriv',
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+            ),
+            SizedBox(height: 24),
+            AppSectionTitle(text: 'Login com Email e Senha', fontSize: 17),
+            SizedBox(height: 16),
+            AppTextField(
+              controller: _emailController,
+              hintText: 'Email',
+              keyboardType: TextInputType.emailAddress,
+            ),
+            SizedBox(height: 12),
+            AppPasswordField(
+              controller: _passwordController,
+              hintText: 'Senha',
+            ),
+            SizedBox(height: 16),
+            AppPrimaryButton(
+              text: 'Entrar',
+              onPressed: _loginWithEmailPassword,
+              isLoading: _isLoading,
+            ),
+            SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'OU',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Conectar à Deriv',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
+                ),
+                Expanded(child: Divider()),
+              ],
+            ),
+            SizedBox(height: 24),
+            AppSectionTitle(text: 'Token API', fontSize: 17),
+            SizedBox(height: 16),
+            AppTextField(
+              controller: _tokenController,
+              hintText: 'Cole seu token aqui',
+            ),
+            SizedBox(height: 16),
+            AppPrimaryButton(
+              text: 'Conectar',
+              onPressed: _connectWithToken,
+              isLoading: _isLoading,
+            ),
+            SizedBox(height: 12),
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startOAuthFlow();
+                },
+                child: Text(
+                  'OAuth via Navegador',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
                   ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Login com Email e Senha',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  CupertinoTextField(
-                    controller: _emailController,
-                    placeholder: 'Email',
-                    keyboardType: TextInputType.emailAddress,
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  CupertinoTextField(
-                    controller: _passwordController,
-                    placeholder: 'Senha',
-                    obscureText: true,
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: CupertinoButton(
-                      color: Color(0xFFFF444F),
-                      borderRadius: BorderRadius.circular(12),
-                      onPressed: _isLoading ? null : _loginWithEmailPassword,
-                      child: _isLoading
-                          ? CupertinoActivityIndicator(color: CupertinoColors.white)
-                          : Text('Entrar', style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('OU', style: TextStyle(color: CupertinoColors.systemGrey)),
-                      ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Token API',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  CupertinoTextField(
-                    controller: _tokenController,
-                    placeholder: 'Cole seu token aqui',
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: CupertinoButton(
-                      color: Color(0xFFFF444F),
-                      borderRadius: BorderRadius.circular(12),
-                      onPressed: _isLoading ? null : _connectWithToken,
-                      child: Text('Conectar', style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Center(
-                    child: CupertinoButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _startOAuthFlow();
-                      },
-                      child: Text(
-                        'OAuth via Navegador',
-                        style: TextStyle(color: Color(0xFFFF444F), fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -331,14 +229,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
-    final isDark = brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isConnected = _derivService.isConnected;
     final balance = _derivService.balance;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      child: CustomScrollView(
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      body: CustomScrollView(
         physics: BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
@@ -351,10 +248,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: (isDark ? Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.8),
+                    color: (isDark ? AppColors.darkCard : AppColors.lightCard).withOpacity(0.8),
                     border: Border(
                       bottom: BorderSide(
-                        color: (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey4).withOpacity(0.2),
+                        color: (isDark ? AppColors.darkBorder : AppColors.lightBorder).withOpacity(0.2),
                         width: 0.5,
                       ),
                     ),
@@ -364,7 +261,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     title: Text(
                       'Trading',
                       style: TextStyle(
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        color: isDark ? Colors.white : Colors.black,
                         fontSize: 34,
                         fontWeight: FontWeight.w700,
                       ),
@@ -377,12 +274,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               if (isConnected)
                 Padding(
                   padding: EdgeInsets.only(right: 16),
-                  child: CupertinoButton(
-                    padding: EdgeInsets.zero,
+                  child: IconButton(
                     onPressed: _disconnect,
-                    child: Icon(
-                      CupertinoIcons.power,
-                      color: Color(0xFFFF444F),
+                    icon: Icon(
+                      Icons.power_settings_new,
+                      color: AppColors.primary,
                       size: 28,
                     ),
                   ),
@@ -418,14 +314,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       padding: EdgeInsets.all(32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
+          colors: [AppColors.primary, Color(0xFFFF6B6B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFFF444F).withOpacity(0.3),
+            color: AppColors.primary.withOpacity(0.3),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -433,14 +329,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       ),
       child: Column(
         children: [
-          Icon(CupertinoIcons.chart_bar_alt_fill, size: 64, color: CupertinoColors.white),
+          Icon(Icons.bar_chart, size: 64, color: Colors.white),
           SizedBox(height: 20),
           Text(
             'Bem-vindo ao Trading',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w800,
-              color: CupertinoColors.white,
+              color: Colors.white,
             ),
             textAlign: TextAlign.center,
           ),
@@ -449,7 +345,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             'Negocie nos mercados financeiros com a Deriv',
             style: TextStyle(
               fontSize: 16,
-              color: CupertinoColors.white.withOpacity(0.9),
+              color: Colors.white.withOpacity(0.9),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -462,36 +358,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget _buildFeaturesList(bool isDark) {
     return Column(
       children: [
-        _buildFeatureItem(isDark, CupertinoIcons.speedometer, 'Trading em Tempo Real', 'Execute ordens instantaneamente'),
+        _buildFeatureItem(isDark, Icons.speed, 'Trading em Tempo Real', 'Execute ordens instantaneamente'),
         SizedBox(height: 16),
-        _buildFeatureItem(isDark, CupertinoIcons.chart_bar_square_fill, 'Múltiplos Mercados', 'Forex, Synthetics, Stocks e mais'),
+        _buildFeatureItem(isDark, Icons.bar_chart, 'Múltiplos Mercados', 'Forex, Synthetics, Stocks e mais'),
         SizedBox(height: 16),
-        _buildFeatureItem(isDark, CupertinoIcons.lock_shield_fill, 'Seguro', 'Powered by Deriv API'),
+        _buildFeatureItem(isDark, Icons.security, 'Seguro', 'Powered by Deriv API'),
       ],
     );
   }
 
   Widget _buildFeatureItem(bool isDark, IconData icon, String title, String subtitle) {
-    return Container(
+    return AppCard(
       padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
-          width: 1,
-        ),
-      ),
       child: Row(
         children: [
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Color(0xFFFF444F).withOpacity(0.15),
+              color: AppColors.primary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: Color(0xFFFF444F), size: 28),
+            child: Icon(icon, color: AppColors.primary, size: 28),
           ),
           SizedBox(width: 16),
           Expanded(
@@ -503,7 +391,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -511,7 +399,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: CupertinoColors.systemGrey,
+                    color: Colors.grey,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -524,34 +412,30 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildConnectButton(bool isDark) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: () => _showLoginSheet(context),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: Color(0xFFFF444F),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFFFF444F).withOpacity(0.3),
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () => _showLoginSheet(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.symmetric(vertical: 18),
+          elevation: 8,
+          shadowColor: AppColors.primary.withOpacity(0.3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(CupertinoIcons.link, color: CupertinoColors.white, size: 22),
+            Icon(Icons.link, size: 22),
             SizedBox(width: 12),
             Text(
               'Conectar Conta Deriv',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: CupertinoColors.white,
               ),
             ),
           ],
@@ -565,14 +449,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
+          colors: [AppColors.primary, Color(0xFFFF6B6B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFFF444F).withOpacity(0.3),
+            color: AppColors.primary.withOpacity(0.3),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -587,7 +471,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Text(
                 'Saldo Disponível',
                 style: TextStyle(
-                  color: CupertinoColors.white.withOpacity(0.9),
+                  color: Colors.white.withOpacity(0.9),
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -595,13 +479,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.white.withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   accountType?.toUpperCase() ?? 'DEMO',
                   style: TextStyle(
-                    color: CupertinoColors.white,
+                    color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -615,18 +499,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             style: TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w800,
-              color: CupertinoColors.white,
+              color: Colors.white,
             ),
           ),
           SizedBox(height: 16),
           Row(
             children: [
-              Icon(CupertinoIcons.checkmark_seal_fill, color: CupertinoColors.white, size: 16),
+              Icon(Icons.check_circle, color: Colors.white, size: 16),
               SizedBox(width: 8),
               Text(
                 loginId ?? 'Conta conectada',
                 style: TextStyle(
-                  color: CupertinoColors.white.withOpacity(0.9),
+                  color: Colors.white.withOpacity(0.9),
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
