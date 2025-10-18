@@ -1,11 +1,12 @@
 // lib/screens/marketplace_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
-import '../widgets/trading_panel.dart';
+import 'trading_chart_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   @override
@@ -112,19 +113,56 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _startOAuthFlow() async {
+    setState(() => _isLoading = true);
+    
     try {
+      // URL OAuth com redirect correto
+      final authUrl = Uri.https('oauth.deriv.com', '/oauth2/authorize', {
+        'app_id': '71954',
+        'redirect_uri': 'https://alfredoooh.github.io/database/oauth-redirect/',
+        'response_type': 'token',
+        'scope': 'trade read',
+      });
+
       final result = await FlutterWebAuth2.authenticate(
-        url: 'https://oauth.deriv.com/oauth2/authorize?app_id=71954&redirect_uri=https://alfredoooh.github.io/database/oauth-redirect/&response_type=token&scope=trade read',
+        url: authUrl.toString(),
         callbackUrlScheme: 'com.nexa.madeeasy',
       );
+      
+      // Parse do resultado (pode vir como query ou fragment)
       final uri = Uri.parse(result);
-      final token = uri.queryParameters['access_token'] ?? uri.queryParameters['token'];
-      if (token != null) {
+      
+      // Tenta pegar o token de diferentes formas
+      String? token;
+      
+      // Primeiro tenta nos query parameters
+      token = uri.queryParameters['token'] ?? 
+              uri.queryParameters['access_token'];
+      
+      // Se não encontrou, tenta no fragment (após #)
+      if (token == null && uri.fragment.isNotEmpty) {
+        final fragmentParams = Uri.splitQueryString(uri.fragment);
+        token = fragmentParams['token'] ?? fragmentParams['access_token'];
+      }
+      
+      if (token != null && token.isNotEmpty) {
         _tokenController.text = token;
         await _connectWithToken();
+      } else {
+        throw Exception('Token não encontrado na resposta OAuth');
       }
     } catch (e) {
-      AppDialogs.showError(context, 'Erro', 'OAuth cancelado: $e');
+      if (mounted) {
+        AppDialogs.showError(
+          context, 
+          'Erro OAuth', 
+          'Falha na autenticação: ${e.toString()}'
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -299,7 +337,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ] else ...[
                   _buildBalanceCard(isDark, balance, _currency, _loginId, _accountType),
                   SizedBox(height: 24),
-                  TradingPanel(derivService: _derivService),
+                  _buildQuickAccessButton(isDark),
                 ],
               ]),
             ),
@@ -519,6 +557,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuickAccessButton(bool isDark) {
+    return AppPrimaryButton(
+      text: 'Iniciar Trading',
+      onPressed: () {
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => TradingChartScreen(derivService: _derivService),
+          ),
+        );
+      },
     );
   }
 }
