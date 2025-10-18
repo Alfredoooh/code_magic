@@ -1,3 +1,4 @@
+// lib/screens/news_detail_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,11 +13,13 @@ class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
   final List<NewsArticle>? allArticles;
   final int? currentIndex;
+  // REMOVIDO: final bool isDark;
 
   const NewsDetailScreen({
     required this.article,
     this.allArticles,
     this.currentIndex,
+    // REMOVIDO: required this.isDark,
     Key? key,
   }) : super(key: key);
 
@@ -248,7 +251,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark; // OBTÉM isDark do Theme
     final hasMultipleArticles = articles.length > 1;
 
     return Scaffold(
