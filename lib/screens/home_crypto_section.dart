@@ -1,17 +1,24 @@
 // lib/screens/home_crypto_section.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../widgets/app_ui_components.dart';
 
 class CryptoData {
   final String symbol;
+  final String name;
   final double price;
   final double priceChange;
+  final double volume24h;
   final List<double> sparkline;
 
   CryptoData({
     required this.symbol,
+    required this.name,
     required this.price,
     required this.priceChange,
+    required this.volume24h,
     required this.sparkline,
   });
 
@@ -19,6 +26,7 @@ class CryptoData {
     final symbol = json['symbol'].toString().replaceAll('USDT', '');
     final price = double.parse(json['lastPrice'].toString());
     final priceChange = double.parse(json['priceChangePercent'].toString());
+    final volume = double.parse(json['quoteVolume'].toString());
 
     List<double> sparkline = [];
     for (int i = 0; i < 20; i++) {
@@ -27,14 +35,42 @@ class CryptoData {
 
     return CryptoData(
       symbol: symbol,
+      name: _getCryptoName(symbol),
       price: price,
       priceChange: priceChange,
+      volume24h: volume,
       sparkline: sparkline,
     );
   }
+
+  static String _getCryptoName(String symbol) {
+    final names = {
+      'BTC': 'Bitcoin',
+      'ETH': 'Ethereum',
+      'BNB': 'BNB',
+      'SOL': 'Solana',
+      'XRP': 'XRP',
+      'ADA': 'Cardano',
+      'DOGE': 'Dogecoin',
+      'MATIC': 'Polygon',
+      'DOT': 'Polkadot',
+      'AVAX': 'Avalanche',
+      'LINK': 'Chainlink',
+      'UNI': 'Uniswap',
+      'LTC': 'Litecoin',
+      'ATOM': 'Cosmos',
+      'TRX': 'Tron',
+      'SHIB': 'Shiba Inu',
+      'APT': 'Aptos',
+      'ARB': 'Arbitrum',
+      'OP': 'Optimism',
+      'FTM': 'Fantom',
+    };
+    return names[symbol] ?? symbol;
+  }
 }
 
-class HomeCryptoSection extends StatelessWidget {
+class HomeCryptoSection extends StatefulWidget {
   final List<CryptoData> cryptoData;
   final bool loadingCrypto;
   final bool isDark;
@@ -51,6 +87,43 @@ class HomeCryptoSection extends StatelessWidget {
     required this.onViewMore,
     Key? key,
   }) : super(key: key);
+
+  @override
+  _HomeCryptoSectionState createState() => _HomeCryptoSectionState();
+}
+
+class _HomeCryptoSectionState extends State<HomeCryptoSection> {
+  Timer? _updateTimer;
+  Map<String, double> _previousPrices = {};
+  Map<String, bool> _priceIncreasing = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _startRealTimeUpdates();
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startRealTimeUpdates() {
+    _updateTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      if (mounted) {
+        setState(() {
+          for (var crypto in widget.cryptoData) {
+            if (_previousPrices.containsKey(crypto.symbol)) {
+              _priceIncreasing[crypto.symbol] = 
+                  crypto.price > _previousPrices[crypto.symbol]!;
+            }
+            _previousPrices[crypto.symbol] = crypto.price;
+          }
+        });
+      }
+    });
+  }
 
   // Ícones oficiais em PNG de alta qualidade
   static final Map<String, String> cryptoIcons = {
@@ -96,41 +169,64 @@ class HomeCryptoSection extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Criptomoedas',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              AppSectionTitle(text: 'Criptomoedas', fontSize: 24),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'AO VIVO',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
         SizedBox(height: 16),
-        loadingCrypto
+        widget.loadingCrypto
             ? Center(
                 child: Padding(
                   padding: EdgeInsets.all(40),
-                  child: CupertinoActivityIndicator(),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               )
             : Column(
                 children: [
                   Container(
-                    height: 100,
+                    height: 120,
                     child: PageView.builder(
-                      controller: pageController,
+                      controller: widget.pageController,
                       physics: BouncingScrollPhysics(),
-                      itemCount: cryptoData.length + 1,
+                      itemCount: widget.cryptoData.length + 1,
                       itemBuilder: (context, index) {
-                        if (index == cryptoData.length) {
+                        if (index == widget.cryptoData.length) {
                           return Padding(
                             padding: EdgeInsets.only(right: 12),
                             child: _buildViewMoreCard(),
                           );
                         }
-                        final crypto = cryptoData[index];
+                        final crypto = widget.cryptoData[index];
                         final iconUrl = cryptoIcons[crypto.symbol] ?? '';
                         return Padding(
                           padding: EdgeInsets.only(right: 12),
@@ -149,161 +245,274 @@ class HomeCryptoSection extends StatelessWidget {
 
   Widget _buildCryptoCard(CryptoData crypto, String iconUrl) {
     final isPositive = crypto.priceChange >= 0;
+    final isPriceIncreasing = _priceIncreasing[crypto.symbol] ?? true;
 
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(24), // Bordas mais curvadas
-        border: Border.all(
-          color: isDark 
-              ? Color(0xFF2C2C2E) 
-              : CupertinoColors.systemGrey6,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Ícone oficial da criptomoeda
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF8F8F8),
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: isDark 
-                    ? Color(0xFF2C2C2E) 
-                    : CupertinoColors.systemGrey5,
-                width: 1,
-              ),
-            ),
-            child: Center(
-              child: iconUrl.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(26),
-                      child: Image.network(
-                        iconUrl,
-                        width: 36,
-                        height: 36,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return CupertinoActivityIndicator();
-                        },
-                        errorBuilder: (context, error, stack) => Icon(
-                          CupertinoIcons.money_dollar_circle_fill,
-                          color: Color(0xFFFF444F),
-                          size: 28,
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      child: AppCard(
+        padding: EdgeInsets.all(16),
+        borderRadius: 24,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Ícone oficial da criptomoeda com par USDT
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: widget.isDark ? Color(0xFF0E0E0E) : Color(0xFFF8F8F8),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: widget.isDark 
+                              ? Color(0xFF2C2C2E) 
+                              : Colors.grey.shade300,
+                          width: 1,
                         ),
                       ),
-                    )
-                  : Icon(
-                      CupertinoIcons.money_dollar_circle_fill,
-                      color: Color(0xFFFF444F),
-                      size: 28,
+                      child: Center(
+                        child: iconUrl.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(24),
+                                child: Image.network(
+                                  iconUrl,
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.contain,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.primary,
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stack) => Icon(
+                                    Icons.currency_bitcoin,
+                                    color: AppColors.primary,
+                                    size: 24,
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                Icons.currency_bitcoin,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
+                      ),
                     ),
-            ),
-          ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  crypto.symbol,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    letterSpacing: 0.3,
+                    // Par USDT (Tether)
+                    Positioned(
+                      right: -4,
+                      bottom: -4,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: widget.isDark ? AppColors.darkCard : Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: widget.isDark ? AppColors.darkBackground : Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: Image.network(
+                            cryptoIcons['USDT']!,
+                            width: 16,
+                            height: 16,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stack) => Icon(
+                              Icons.attach_money,
+                              color: Colors.green,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            crypto.symbol,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: widget.isDark ? Colors.white : Colors.black,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          Text(
+                            '/USDT',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          // Indicador de movimento em tempo real
+                          AnimatedContainer(
+                            duration: Duration(milliseconds: 500),
+                            child: Icon(
+                              isPriceIncreasing 
+                                  ? Icons.trending_up 
+                                  : Icons.trending_down,
+                              size: 14,
+                              color: isPriceIncreasing 
+                                  ? Colors.green 
+                                  : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        crypto.name,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  '\$${crypto.price.toStringAsFixed(crypto.price < 1 ? 6 : 2)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: CupertinoColors.systemGrey,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: (isPositive ? Colors.green : Colors.red)
+                        .withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive 
+                            ? Icons.arrow_upward 
+                            : Icons.arrow_downward,
+                        size: 12,
+                        color: isPositive ? Colors.green : Colors.red,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '${crypto.priceChange.abs().toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          color: isPositive ? Colors.green : Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: (isPositive 
-                  ? CupertinoColors.systemGreen 
-                  : CupertinoColors.systemRed).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+            SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Preço',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '\$${crypto.price.toStringAsFixed(crypto.price < 1 ? 6 : 2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: widget.isDark ? Colors.white : Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Volume 24h',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '\$${(crypto.volume24h / 1000000).toStringAsFixed(1)}M',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: widget.isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            child: Text(
-              '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
-              style: TextStyle(
-                color: isPositive 
-                    ? CupertinoColors.systemGreen 
-                    : CupertinoColors.systemRed,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildViewMoreCard() {
     return GestureDetector(
-      onTap: onViewMore,
+      onTap: widget.onViewMore,
       child: Container(
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              CupertinoColors.activeBlue.withOpacity(0.1),
-              CupertinoColors.activeBlue.withOpacity(0.05),
+              Colors.blue.withOpacity(0.1),
+              Colors.blue.withOpacity(0.05),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(24), // Bordas mais curvadas
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: CupertinoColors.activeBlue.withOpacity(0.3),
+            color: Colors.blue.withOpacity(0.3),
             width: 1.5,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoColors.activeBlue.withOpacity(0.1),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                CupertinoIcons.arrow_right_circle_fill,
-                color: CupertinoColors.activeBlue,
+                Icons.arrow_forward_rounded,
+                color: Colors.blue,
                 size: 36,
               ),
               SizedBox(height: 8),
               Text(
                 'Ver mais',
                 style: TextStyle(
-                  color: CupertinoColors.activeBlue,
+                  color: Colors.blue,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -319,17 +528,17 @@ class HomeCryptoSection extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
-        cryptoData.length + 1,
+        widget.cryptoData.length + 1,
         (index) => AnimatedContainer(
           duration: Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-          width: currentPage == index ? 24 : 8,
+          width: widget.currentPage == index ? 24 : 8,
           height: 8,
           margin: EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: currentPage == index
-                ? CupertinoColors.activeBlue
-                : CupertinoColors.systemGrey.withOpacity(0.3),
+            color: widget.currentPage == index
+                ? AppColors.primary
+                : Colors.grey.withOpacity(0.3),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
