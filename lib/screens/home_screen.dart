@@ -3,11 +3,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../widgets/app_ui_components.dart';
 import '../services/language_service.dart';
 import 'admin_panel_screen.dart';
 import 'news_detail_screen.dart';
@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSubscription;
   String? _lastSeenPostId;
   bool _hasShownWelcomeBack = false;
-  
+
   // Infinite scrolling
   List<QueryDocumentSnapshot> _posts = [];
   bool _loadingMorePosts = false;
@@ -191,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (snapshot.docs.isNotEmpty) {
         final latestPostId = snapshot.docs.first.id;
         if (latestPostId != _lastSeenPostId && _scrollController.hasClients && _scrollController.offset > 100) {
-          // Apenas mostra o banner, não atualiza automaticamente
           setState(() {
             _newPostsCount = (_newPostsCount + 1);
             _showNewPostsBanner = true;
@@ -201,10 +200,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  void _listenToNewPosts() {
-    // Removido - não atualiza automaticamente
-  }
-
   void _scrollToTop() {
     _scrollController.animateTo(
       0,
@@ -212,7 +207,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       curve: Curves.easeInOut,
     );
 
-    // Recarrega os posts quando clica no banner
     _loadInitialPosts();
 
     setState(() {
@@ -227,7 +221,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final offset = _scrollController.offset;
       final maxScroll = _scrollController.position.maxScrollExtent;
 
-      // Carrega mais posts quando chega perto do fim
       if (offset >= maxScroll - 200 && !_loadingMorePosts && _hasMorePosts) {
         _loadMorePosts();
       }
@@ -296,34 +289,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _showWelcomeBackMessage(String username) {
     Future.delayed(Duration(milliseconds: 500), () {
       if (mounted) {
-        showCupertinoDialog(
-          context: context,
-          barrierDismissible: true,
-          builder: (context) => CupertinoAlertDialog(
-            title: Text('🎉'),
-            content: Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Text(
-                'Bem-vindo de volta, $username!',
-                style: TextStyle(fontSize: 17),
-              ),
-            ),
-            actions: [
-              CupertinoDialogAction(
-                isDefaultAction: true,
-                child: Text('Continuar'),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
+        AppDialogs.showSuccess(
+          context,
+          '🎉',
+          'Bem-vindo de volta, $username!',
         );
       }
     });
   }
 
   void _showUserDrawer() {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => UserDrawer(
         userData: _userData,
         onThemeChanged: widget.onThemeChanged,
@@ -375,39 +354,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _showNoTokensDialog() {
     final username = _userData?['username'] ?? 'Usuário';
 
-    showCupertinoDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Olá, $username!'),
-        content: Padding(
-          padding: EdgeInsets.only(top: 12),
-          child: Text(
-            'Os seus tokens estão esgotados. Adquira saldo para obter mais tokens e continuar usando todos os recursos do aplicativo.',
-            style: TextStyle(fontSize: 15),
+    AppDialogs.showConfirmation(
+      context,
+      'Olá, $username!',
+      'Os seus tokens estão esgotados. Adquira saldo para obter mais tokens e continuar usando todos os recursos do aplicativo.',
+      onConfirm: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlansScreen(),
+            fullscreenDialog: true,
           ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: Text('Cancelar'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            child: Text('Continuar'),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                CupertinoPageRoute(
-                  builder: (context) => PlansScreen(),
-                  fullscreenDialog: true,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+        );
+      },
+      confirmText: 'Continuar',
+      cancelText: 'Cancelar',
     );
   }
 
@@ -415,32 +376,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isPro = _userData?['pro'] == true;
 
     if (!isPro) {
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text('Recursos PRO'),
-          content: Text('Apenas usuários PRO podem criar publicações. Atualize sua conta para desbloquear este recurso.'),
-          actions: [
-            CupertinoDialogAction(
-              child: Text('Entendi'),
-              onPressed: () => Navigator.pop(context),
+      AppDialogs.showConfirmation(
+        context,
+        'Recursos PRO',
+        'Apenas usuários PRO podem criar publicações. Atualize sua conta para desbloquear este recurso.',
+        onConfirm: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PlansScreen(),
+              fullscreenDialog: true,
             ),
-            CupertinoDialogAction(
-              child: Text('Atualizar para PRO'),
-              isDefaultAction: true,
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (context) => PlansScreen(),
-                    fullscreenDialog: true,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+          );
+        },
+        confirmText: 'Atualizar para PRO',
+        cancelText: 'Entendi',
       );
       return;
     }
@@ -450,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     Navigator.push(
       context,
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => CreatePostScreen(
           userData: _userData ?? {},
         ),
@@ -466,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     Navigator.push(
       context,
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => NewsDetailScreen(
           article: article,
           allArticles: _newsArticles,
@@ -481,68 +431,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _showOptionsBottomSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: CupertinoColors.systemGrey,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 20),
-              _buildModalOption(
-                icon: CupertinoIcons.arrow_up_circle_fill,
-                label: 'Enviar',
-                isDark: isDark,
-                onPressed: () => Navigator.pop(context),
-              ),
-              _buildModalOption(
-                icon: CupertinoIcons.add_circled_solid,
-                label: 'Criar Publicação',
-                isDark: isDark,
-                onPressed: () {
-                  Navigator.pop(context);
-                  _handleCreatePost();
-                },
-              ),
-              _buildModalOption(
-                icon: CupertinoIcons.arrow_down_circle_fill,
-                label: 'Receber',
-                isDark: isDark,
-                onPressed: () => Navigator.pop(context),
-              ),
-              _buildModalOption(
-                icon: CupertinoIcons.ellipsis_circle_fill,
-                label: 'Mais Opções',
-                isDark: isDark,
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (context) => MoreOptionsScreen(),
-                      fullscreenDialog: true,
-                    ),
-                  );
-                },
-              ),
-              SizedBox(height: 12),
-            ],
+    AppBottomSheet.show(
+      context,
+      height: 350,
+      child: Column(
+        children: [
+          SizedBox(height: 20),
+          _buildModalOption(
+            icon: Icons.arrow_upward_rounded,
+            label: 'Enviar',
+            isDark: isDark,
+            onPressed: () => Navigator.pop(context),
           ),
-        ),
+          _buildModalOption(
+            icon: Icons.add_circle,
+            label: 'Criar Publicação',
+            isDark: isDark,
+            onPressed: () {
+              Navigator.pop(context);
+              _handleCreatePost();
+            },
+          ),
+          _buildModalOption(
+            icon: Icons.arrow_downward_rounded,
+            label: 'Receber',
+            isDark: isDark,
+            onPressed: () => Navigator.pop(context),
+          ),
+          _buildModalOption(
+            icon: Icons.more_horiz,
+            label: 'Mais Opções',
+            isDark: isDark,
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MoreOptionsScreen(),
+                  fullscreenDialog: true,
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -553,22 +484,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required bool isDark,
     required VoidCallback onPressed,
   }) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
+    return InkWell(
+      onTap: onPressed,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
         child: Row(
           children: [
-            Icon(icon, color: CupertinoColors.systemBlue, size: 24),
+            Icon(icon, color: AppColors.primary, size: 24),
             SizedBox(width: 16),
             Text(
               label,
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
           ],
@@ -579,8 +509,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   ImageProvider? _getProfileImage(String? profileImage, String username) {
     if (profileImage == null || profileImage.isEmpty) return null;
-    
-    // Verifica se é base64
+
     if (profileImage.startsWith('data:image')) {
       try {
         final base64String = profileImage.split(',')[1];
@@ -590,8 +519,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return null;
       }
     }
-    
-    // Se não for base64, trata como URL
+
     return NetworkImage(profileImage);
   }
 
@@ -603,7 +531,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return WillPopScope(
       onWillPop: () async {
-        // Apenas volta ao topo, não recarrega
         if (_scrollController.hasClients && _scrollController.offset > 0) {
           _scrollController.animateTo(
             0,
@@ -613,32 +540,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         return false;
       },
-      child: CupertinoPageScaffold(
-        backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
-        child: Stack(
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        body: Stack(
           children: [
-            CustomScrollView(
-              controller: _scrollController,
-              physics: BouncingScrollPhysics(),
-              slivers: [
-                CupertinoSliverNavigationBar(
-                  backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : Color(0xFFF5F5F5).withOpacity(0.9),
-                  border: null,
-                  largeTitle: Text(username),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        child: Icon(
-                          CupertinoIcons.search,
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          size: 22,
+            RefreshIndicator(
+              onRefresh: () async {
+                await Future.wait([
+                  _loadUserData(),
+                  _loadInitialPosts(),
+                  HomeScreenHelper.loadNews((articles, loading) {
+                    if (mounted) setState(() {
+                      _newsArticles = articles;
+                      _loadingNews = loading;
+                    });
+                  }),
+                  HomeScreenHelper.loadStats((messages, groups) {
+                    if (mounted) setState(() {
+                      _messageCount = messages;
+                      _groupCount = groups;
+                    });
+                  }),
+                  HomeScreenHelper.loadCrypto Data((data, loading) {
+                    if (mounted) setState(() {
+                      _cryptoData = data;
+                      _loadingCrypto = loading;
+                    });
+                  }),
+                ]);
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: BouncingScrollPhysics(),
+                slivers: [
+                  SliverAppBar(
+                    backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                    elevation: 0,
+                    pinned: false,
+                    floating: true,
+                    expandedHeight: 60,
+                    flexibleSpace: FlexibleSpaceBar(
+                      titlePadding: EdgeInsets.only(left: 16, bottom: 16),
+                      title: Text(
+                        username,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.search,
+                          color: isDark ? Colors.white : Colors.black,
+                          size: 24,
                         ),
                         onPressed: () {
                           Navigator.push(
                             context,
-                            CupertinoPageRoute(
+                            MaterialPageRoute(
                               builder: (context) => SearchScreen(),
                               fullscreenDialog: true,
                             ),
@@ -646,211 +608,179 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         },
                       ),
                       SizedBox(width: 8),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Color(0xFFFF444F),
-                          backgroundImage: _getProfileImage(profileImage, username),
-                          child: _getProfileImage(profileImage, username) == null
-                              ? Text(
-                                  username[0].toUpperCase(),
-                                  style: TextStyle(fontSize: 14, color: CupertinoColors.white, fontWeight: FontWeight.bold),
-                                )
-                              : null,
+                      Padding(
+                        padding: EdgeInsets.only(right: 16),
+                        child: GestureDetector(
+                          onTap: _showUserDrawer,
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.primary,
+                            backgroundImage: _getProfileImage(profileImage, username),
+                            child: _getProfileImage(profileImage, username) == null
+                                ? Text(
+                                    username[0].toUpperCase(),
+                                    style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+                                  )
+                                : null,
+                          ),
                         ),
-                        onPressed: _showUserDrawer,
                       ),
                     ],
                   ),
-                ),
-                CupertinoSliverRefreshControl(
-                  onRefresh: () async {
-                    await Future.wait([
-                      _loadUserData(),
-                      _loadInitialPosts(),
-                      HomeScreenHelper.loadNews((articles, loading) {
-                        if (mounted) setState(() {
-                          _newsArticles = articles;
-                          _loadingNews = loading;
-                        });
-                      }),
-                      HomeScreenHelper.loadStats((messages, groups) {
-                        if (mounted) setState(() {
-                          _messageCount = messages;
-                          _groupCount = groups;
-                        });
-                      }),
-                      HomeScreenHelper.loadCryptoData((data, loading) {
-                        if (mounted) setState(() {
-                          _cryptoData = data;
-                          _loadingCrypto = loading;
-                        });
-                      }),
-                    ]);
-                  },
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.all(16),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      WalletCard(
-                        userData: _userData,
-                        cardStyle: _cardStyle,
-                        showCustomizeButton: false,
-                      ),
-                      SizedBox(height: 16),
-                      _buildActionButton(isDark),
-                      SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              icon: CupertinoIcons.chat_bubble_2_fill,
-                              title: 'Mensagens',
-                              value: '$_messageCount',
-                              color: CupertinoColors.systemBlue,
-                              isDark: isDark,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatCard(
-                              icon: CupertinoIcons.group_solid,
-                              title: 'Grupos',
-                              value: '$_groupCount',
-                              color: CupertinoColors.systemGreen,
-                              isDark: isDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 24),
-                      crypto_section.HomeCryptoSection(
-                        cryptoData: _cryptoData,
-                        loadingCrypto: _loadingCrypto,
-                        isDark: isDark,
-                        pageController: _cryptoPageController,
-                        currentPage: _currentCryptoPage,
-                        onViewMore: () {
-                          Navigator.push(
-                            context,
-                            CupertinoPageRoute(
-                              builder: (context) => CryptoListScreen(),
-                              fullscreenDialog: true,
-                            ),
-                          );
-                        },
-                      ),
-                      if (_showNews) ...[
-                        SizedBox(height: 32),
-                        Text(
-                          'Últimas Notícias',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          ),
+                  SliverPadding(
+                    padding: EdgeInsets.all(16),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        WalletCard(
+                          userData: _userData,
+                          cardStyle: _cardStyle,
+                          showCustomizeButton: false,
                         ),
                         SizedBox(height: 16),
-                        _loadingNews
-                            ? Center(child: CupertinoActivityIndicator(radius: 16))
-                            : Column(
-                                children: [
-                                  Container(
-                                    height: 140,
-                                    child: PageView.builder(
-                                      controller: _newsPageController,
-                                      physics: BouncingScrollPhysics(),
-                                      itemCount: _newsArticles.length,
-                                      itemBuilder: (context, index) {
-                                        final article = _newsArticles[index];
-                                        return Padding(
-                                          padding: EdgeInsets.only(right: 12),
-                                          child: GestureDetector(
-                                            onTap: () => _handleNewsClick(article, index),
-                                            child: HomeScreenHelper.buildNewsCard(
-                                              article: article,
-                                              isDark: isDark,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(height: 12),
-                                  HomeWidgets.buildPageIndicator(
-                                    count: _newsArticles.length,
-                                    currentPage: _currentNewsPage,
-                                    isDark: isDark,
-                                  ),
-                                ],
+                        _buildActionButton(isDark),
+                        SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: Icons.chat_bubble,
+                                title: 'Mensagens',
+                                value: '$_messageCount',
+                                color: Colors.blue,
+                                isDark: isDark,
                               ),
-                      ],
-                    ]),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: Icons.group,
+                                title: 'Grupos',
+                                value: '$_groupCount',
+                                color: Colors.green,
+                                isDark: isDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        crypto_section.HomeCryptoSection(
+                          cryptoData: _cryptoData,
+                          loadingCrypto: _loadingCrypto,
+                          isDark: isDark,
+                          pageController: _cryptoPageController,
+                          currentPage: _currentCryptoPage,
+                          onViewMore: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CryptoListScreen(),
+                                fullscreenDialog: true,
+                              ),
+                            );
+                          },
+                        ),
+                        if (_showNews) ...[
+                          SizedBox(height: 32),
+                          AppSectionTitle(
+                            text: 'Últimas Notícias',
+                            fontSize: 24,
+                          ),
+                          SizedBox(height: 16),
+                          _loadingNews
+                              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+                              : Column(
+                                  children: [
+                                    Container(
+                                      height: 140,
+                                      child: PageView.builder(
+                                        controller: _newsPageController,
+                                        physics: BouncingScrollPhysics(),
+                                        itemCount: _newsArticles.length,
+                                        itemBuilder: (context, index) {
+                                          final article = _newsArticles[index];
+                                          return Padding(
+                                            padding: EdgeInsets.only(right: 12),
+                                            child: GestureDetector(
+                                              onTap: () => _handleNewsClick(article, index),
+                                              child: HomeScreenHelper.buildNewsCard(
+                                                article: article,
+                                                isDark: isDark,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(height: 12),
+                                    HomeWidgets.buildPageIndicator(
+                                      count: _newsArticles.length,
+                                      currentPage: _currentNewsPage,
+                                      isDark: isDark,
+                                    ),
+                                  ],
+                                ),
+                        ],
+                      ]),
+                    ),
                   ),
-                ),
-                SliverPersistentHeader(
-                  pinned: false,
-                  floating: true,
-                  delegate: _SliverAppBarDelegate(
-                    minHeight: 60,
-                    maxHeight: 60,
-                    child: Container(
-                      color: isDark ? Color(0xFF000000).withOpacity(0.9) : Color(0xFFF5F5F5).withOpacity(0.9),
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text(
-                        'Sheets',
-                        style: TextStyle(
+                  SliverPersistentHeader(
+                    pinned: false,
+                    floating: true,
+                    delegate: _SliverAppBarDelegate(
+                      minHeight: 60,
+                      maxHeight: 60,
+                      child: Container(
+                        color: isDark ? AppColors.darkBackground.withOpacity(0.9) : AppColors.lightBackground.withOpacity(0.9),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: AppSectionTitle(
+                          text: 'Sheets',
                           fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
                         ),
                       ),
                     ),
                   ),
-                ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index < _posts.length) {
-                        final post = _posts[index].data() as Map<String, dynamic>;
-                        final postId = _posts[index].id;
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: 0),
-                          child: PostCard(
-                            post: post,
-                            postId: postId,
-                            isDark: isDark,
-                            currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                          ),
-                        );
-                      } else if (_loadingMorePosts) {
-                        return Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(child: CupertinoActivityIndicator(radius: 16)),
-                        );
-                      } else if (!_hasMorePosts) {
-                        return Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32),
-                          child: Center(
-                            child: Text(
-                              'Não há mais publicações',
-                              style: TextStyle(
-                                color: CupertinoColors.systemGrey,
-                                fontSize: 15,
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        if (index < _posts.length) {
+                          final post = _posts[index].data() as Map<String, dynamic>;
+                          final postId = _posts[index].id;
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 0),
+                            child: PostCard(
+                              post: post,
+                              postId: postId,
+                              isDark: isDark,
+                              currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                            ),
+                          );
+                        } else if (_loadingMorePosts) {
+                          return Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                          );
+                        } else if (!_hasMorePosts) {
+                          return Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: Center(
+                              child: Text(
+                                'Não há mais publicações',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 15,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }
-                      return SizedBox.shrink();
-                    },
-                    childCount: _posts.length + 1,
+                          );
+                        }
+                        return SizedBox.shrink();
+                      },
+                      childCount: _posts.length + 1,
+                    ),
                   ),
-                ),
-                SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-              ],
+                  SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                ],
+              ),
             ),
             if (_showNewPostsBanner)
               Positioned(
@@ -862,12 +792,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                      borderRadius: BorderRadius.circular(25),
                       border: Border.all(
-                        color: CupertinoColors.systemBlue.withOpacity(0.3),
+                        color: Colors.blue.withOpacity(0.3),
                         width: 1,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -886,7 +823,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: isDark ? Color(0xFF000000) : CupertinoColors.white,
+                                        color: isDark ? AppColors.darkBackground : Colors.white,
                                         width: 2,
                                       ),
                                     ),
@@ -905,15 +842,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           child: Text(
                             '${_newPostsCount} ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
                             style: TextStyle(
-                              color: CupertinoColors.systemBlue,
+                              color: Colors.blue,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         Icon(
-                          CupertinoIcons.arrow_up,
-                          color: CupertinoColors.systemBlue,
+                          Icons.arrow_upward,
+                          color: Colors.blue,
                           size: 18,
                         ),
                       ],
@@ -927,48 +864,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
-    return Padding(
-      padding: EdgeInsets.all(32),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(CupertinoIcons.doc_text, size: 60, color: CupertinoColors.systemGrey),
-            SizedBox(height: 16),
-            Text('Nenhuma publicação ainda', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 16)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildActionButton(bool isDark) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: 56,
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
+      child: ElevatedButton(
         onPressed: _showOptionsBottomSheet,
-        child: Container(
-          decoration: BoxDecoration(
-            color: CupertinoColors.activeBlue,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: CupertinoColors.activeBlue.withOpacity(0.3),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shadowColor: Colors.blue.withOpacity(0.3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
           ),
-          alignment: Alignment.center,
-          child: Text(
-            'Começar',
-            style: TextStyle(
-              color: CupertinoColors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-            ),
+        ),
+        child: Text(
+          'Começar',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -985,7 +900,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.only(
           topLeft: title == 'Mensagens' ? Radius.circular(25) : Radius.circular(1),
           bottomLeft: title == 'Mensagens' ? Radius.circular(25) : Radius.circular(1),
@@ -1006,7 +921,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 title,
                 style: TextStyle(
                   fontSize: 11,
-                  color: CupertinoColors.systemGrey,
+                  color: Colors.grey,
                 ),
               ),
               Text(
@@ -1014,7 +929,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  color: isDark ? Colors.white : Colors.black,
                 ),
               ),
             ],
