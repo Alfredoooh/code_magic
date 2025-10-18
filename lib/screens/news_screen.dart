@@ -1136,7 +1136,7 @@ class _NewsScreenState extends State<NewsScreen> {
           article: article,
           allArticles: filteredNews,
           currentIndex: filteredNews.indexOf(article),
-          isDark: isDark,
+          //isDark: isDark,
         ),
       ),
     );
