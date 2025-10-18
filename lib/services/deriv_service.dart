@@ -32,6 +32,9 @@ class DerivService {
   int _lossCount = 0;
   List<Map<String, dynamic>> _contractHistory = [];
 
+  // ✅ CORREÇÃO: Getter público para acessar accountInfo
+  Map<String, dynamic>? get accountInfoData => _accountInfo;
+
   Stream<bool> get connectionState => _connectionController.stream;
   Stream<double> get balanceStream => _balanceController.stream;
   Stream<Map<String, dynamic>?> get accountInfo => _accountController.stream;
