@@ -267,11 +267,11 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
 
   // CORRIGIDO: Retorna o widget TradingChartWidget ao invés de chamar como método
   Widget _buildChartWidget(bool isDark) {
-    return TradingChartWidget(
-      symbol: _selectedSymbol ?? 'R_10',
-      tradeHistory: _tradeHistory,
-    );
-  }
+  return TradingChartWidget(
+    symbol: _selectedSymbol ?? 'R_10',
+    tradeHistory: _tradeHistory,
+  );
+}
 
   Widget _buildAutoTradingToggle(bool isDark) {
     return AppCard(
