@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../widgets/app_colors.dart';
 import '../widgets/app_ui_components.dart';
 import 'home_widgets.dart' hide SearchScreen, CryptoListScreen;
 import 'home_crypto_section.dart' as crypto_section;
@@ -611,7 +612,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             color: isDark ? AppColors.darkCard : AppColors.lightCard,
             borderRadius: BorderRadius.circular(25),
             border: Border.all(
-              color: Colors.blue.withOpacity(0.3),
+              color: AppColors.info.withOpacity(0.3),
               width: 1,
             ),
             boxShadow: [
@@ -629,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Text(
                   '$_newPostsCount ${_newPostsCount == 1 ? 'nova publicação' : 'novas publicações'}',
                   style: TextStyle(
-                    color: Colors.blue,
+                    color: AppColors.info,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -637,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               Icon(
                 Icons.arrow_upward,
-                color: Colors.blue,
+                color: AppColors.info,
                 size: 18,
               ),
             ],
