@@ -1,5 +1,5 @@
+// lib/screens/main_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,8 +9,7 @@ import 'chats_screen.dart';
 import 'marketplace_screen.dart';
 import 'news_screen.dart';
 import 'goals_screen.dart';
-import 'more_screen.dart';
-import '../services/language_service.dart';
+import '../widgets/app_ui_components.dart';
 
 class MainScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -57,10 +56,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       curve: Curves.easeInOutCubic,
     ));
 
-    _navigatorKeys = List.generate(
-      5,
-      (index) => GlobalKey<NavigatorState>(),
-    );
+    _navigatorKeys = List.generate(5, (index) => GlobalKey<NavigatorState>());
 
     _screens = [
       HomeScreen(
@@ -68,18 +64,21 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         onLocaleChanged: widget.onLocaleChanged,
         currentLocale: widget.currentLocale,
       ),
+      GoalsScreen(),
       MarketplaceScreen(),
       NewsScreen(),
-      GoalsScreen(),
-      ChatsScreen(),
+      ChatsScreen(currentUser: FirebaseAuth.instance.currentUser),
     ];
   }
 
   void _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
         setState(() => _userData = doc.data());
       }
     }
@@ -88,10 +87,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void _updateUserStatus(bool online) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'isOnline': online,
-        'last_seen': FieldValue.serverTimestamp(),
-      });
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'isOnline': online,
+          'last_seen': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {}
     }
   }
 
@@ -99,24 +103,55 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     final hasSeenWarning = prefs.getBool('hasSeenTradingWarning') ?? false;
 
-    if (!hasSeenWarning) {
+    if (!hasSeenWarning && mounted) {
       Future.delayed(Duration(milliseconds: 800), () {
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => TradingWarningScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOutCubic;
-              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              var offsetAnimation = animation.drive(tween);
-              return SlideTransition(position: offsetAnimation, child: child);
-            },
-            transitionDuration: Duration(milliseconds: 400),
-          ),
-        );
+        if (!mounted) return;
+        _showTradingWarning();
       });
     }
+  }
+
+  void _showTradingWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text('Aviso Importante'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Trading envolve riscos significativos. Este aplicativo é apenas para fins educacionais.',
+              style: TextStyle(fontSize: 15, height: 1.5),
+            ),
+            SizedBox(height: 16),
+            Text(
+              '• Nunca invista mais do que pode perder\n• Busque conhecimento antes de operar\n• Consulte profissionais certificados',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          AppPrimaryButton(
+            text: 'Entendi',
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('hasSeenTradingWarning', true);
+              Navigator.pop(context);
+            },
+            height: 48,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -127,7 +162,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Future<bool> _onWillPop() async {
-    final isFirstRouteInCurrentTab = !await _navigatorKeys[_currentIndex].currentState!.maybePop();
+    final isFirstRouteInCurrentTab =
+        !await _navigatorKeys[_currentIndex].currentState!.maybePop();
 
     if (isFirstRouteInCurrentTab) {
       if (_currentIndex != 0) {
@@ -157,20 +193,23 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       bool currentCanPop = false;
       try {
         if (navigatorState != null) currentCanPop = navigatorState.canPop();
-      } catch (_) {
-        currentCanPop = false;
-      }
+      } catch (_) {}
 
       bool rootCanPop = false;
       try {
         rootCanPop = Navigator.of(context, rootNavigator: true).canPop();
-      } catch (_) {
-        rootCanPop = false;
-      }
+      } catch (_) {}
 
-      final shouldShow = !(currentCanPop || rootCanPop);
+      // Verifica se há um dialog aberto
+      bool hasDialog = false;
+      try {
+        hasDialog = ModalRoute.of(context)?.isCurrent == false;
+      } catch (_) {}
 
-      if (_showBottomBar != shouldShow) {
+      // Mostra bottom bar se não houver navegação ou se for apenas um dialog
+      final shouldShow = !(currentCanPop || (rootCanPop && !hasDialog));
+
+      if (_showBottomBar != shouldShow && mounted) {
         setState(() => _showBottomBar = shouldShow);
       }
 
@@ -212,9 +251,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                 ],
                 onGenerateRoute: (routeSettings) {
-                  return MaterialPageRoute(
-                    builder: (context) => _screens[index],
-                  );
+                  return MaterialPageRoute(builder: (_) => _screens[index]);
                 },
               ),
             );
@@ -226,7 +263,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             duration: Duration(milliseconds: 260),
             curve: Curves.easeInOut,
             height: _showBottomBar ? null : 0.0,
-            child: _showBottomBar ? _buildBottomBar(context, isDark) : SizedBox.shrink(),
+            child: _showBottomBar
+                ? _buildBottomBar(context, isDark)
+                : SizedBox.shrink(),
           ),
         ),
       ),
@@ -234,82 +273,168 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomBar(BuildContext context, bool isDark) {
-    final bgColor = isDark ? Color(0xFF1C1C1E).withOpacity(0.75) : Colors.white.withOpacity(0.75);
-
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
         child: Container(
           decoration: BoxDecoration(
-            color: bgColor,
+            color: isDark
+                ? AppColors.darkCard.withOpacity(0.9)
+                : AppColors.lightCard.withOpacity(0.9),
             border: Border(
               top: BorderSide(
-                color: isDark
-                    ? Colors.white.withOpacity(0.1)
-                    : Colors.black.withOpacity(0.1),
+                color: isDark ? AppColors.darkSeparator : AppColors.separator,
                 width: 0.5,
               ),
             ),
           ),
-          child: Theme(
-            data: Theme.of(context).copyWith(
-              navigationBarTheme: NavigationBarThemeData(
-                backgroundColor: Colors.transparent,
-                indicatorColor: Color(0xFFFF444F).withOpacity(0.15),
-                labelTextStyle: MaterialStateProperty.resolveWith((states) {
-                  if (states.contains(MaterialState.selected)) {
-                    return TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFFF444F),
-                    );
-                  }
-                  return TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white70 : Colors.black54,
-                  );
-                }),
-                iconTheme: MaterialStateProperty.resolveWith((states) {
-                  if (states.contains(MaterialState.selected)) {
-                    return IconThemeData(
-                      size: 24,
-                      color: Color(0xFFFF444F),
-                    );
-                  }
-                  return IconThemeData(
-                    size: 24,
-                    color: isDark ? Colors.white70 : Colors.black54,
-                  );
-                }),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              height: 65,
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home_rounded,
+                    label: 'Início',
+                    index: 0,
+                    isDark: isDark,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.track_changes_outlined,
+                    activeIcon: Icons.track_changes_rounded,
+                    label: 'Metas',
+                    index: 1,
+                    isDark: isDark,
+                  ),
+                  _buildCenterNavItem(isDark),
+                  _buildNavItem(
+                    icon: Icons.article_outlined,
+                    activeIcon: Icons.article_rounded,
+                    label: 'Sheets',
+                    index: 3,
+                    isDark: isDark,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.chat_bubble_outline,
+                    activeIcon: Icons.chat_bubble_rounded,
+                    label: 'Conversas',
+                    index: 4,
+                    isDark: isDark,
+                  ),
+                ],
               ),
             ),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: _onTabTapped,
-              destinations: [
-                NavigationDestination(
-                  icon: Icon(Icons.home_rounded),
-                  label: 'Início',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int index,
+    required bool isDark,
+  }) {
+    final isActive = _currentIndex == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabTapped(index),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isActive ? activeIcon : icon,
+                color: isActive
+                    ? AppColors.primary
+                    : (isDark ? Colors.white60 : Colors.black54),
+                size: 24,
+              ),
+              SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  color: isActive
+                      ? AppColors.primary
+                      : (isDark ? Colors.white60 : Colors.black54),
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.shopping_bag_rounded),
-                  label: 'Negociar',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCenterNavItem(bool isDark) {
+    final isActive = _currentIndex == 2;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabTapped(2),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isActive
+                        ? [AppColors.primary, AppColors.primary.withOpacity(0.8)]
+                        : [
+                            isDark ? AppColors.darkBorder : Colors.grey[300]!,
+                            isDark ? AppColors.darkBorder : Colors.grey[300]!,
+                          ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
+                      : [],
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.newspaper_rounded),
-                  label: 'Atualidade',
+                child: Icon(
+                  Icons.trending_up_rounded,
+                  color: isActive
+                      ? Colors.white
+                      : (isDark ? Colors.white60 : Colors.black54),
+                  size: 22,
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.track_changes_rounded),
-                  label: 'Metas',
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Negociar',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  color: isActive
+                      ? AppColors.primary
+                      : (isDark ? Colors.white60 : Colors.black54),
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.chat_bubble_rounded),
-                  label: 'Conversas',
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
