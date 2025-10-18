@@ -1,7 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/app_ui_components.dart';
 
 class UsersListScreen extends StatefulWidget {
   final User? currentUser;
@@ -33,27 +33,31 @@ class _UsersListScreenState extends State<UsersListScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : CupertinoColors.white.withOpacity(0.9),
-        border: null,
-        middle: Text('Usuários'),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(CupertinoIcons.back, color: isDark ? CupertinoColors.white : CupertinoColors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: const AppSecondaryAppBar(
+        title: 'Usuários',
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
-              child: CupertinoSearchTextField(
+              padding: const EdgeInsets.all(16),
+              child: AppTextField(
                 controller: _searchController,
-                placeholder: 'Buscar usuários',
-                style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black),
+                hintText: 'Buscar usuários...',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
                 onChanged: (value) {
                   setState(() => _searchQuery = value.toLowerCase());
                 },
@@ -61,22 +65,33 @@ class _UsersListScreenState extends State<UsersListScreen> {
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .snapshots(),
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CupertinoActivityIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    );
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return Center(
-                      child: Text(
-                        'Nenhum usuário encontrado',
-                        style: TextStyle(
-                          color: CupertinoColors.systemGrey,
-                          fontSize: 16,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AppIconCircle(
+                            icon: Icons.people_outline,
+                            size: 60,
+                            iconColor: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum usuário encontrado',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -99,25 +114,25 @@ class _UsersListScreenState extends State<UsersListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            CupertinoIcons.search,
-                            size: 64,
-                            color: CupertinoColors.systemGrey,
+                          AppIconCircle(
+                            icon: Icons.search_off,
+                            size: 60,
+                            iconColor: Colors.grey,
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Text(
                             'Nenhum resultado',
                             style: TextStyle(
-                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                              color: isDark ? Colors.white : Colors.black,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             'Tente buscar outro usuário',
                             style: TextStyle(
-                              color: CupertinoColors.systemGrey,
+                              color: Colors.grey[600],
                               fontSize: 14,
                             ),
                           ),
@@ -126,10 +141,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
                     );
                   }
 
-                  return ListView.builder(
-                    padding: EdgeInsets.zero,
-                    physics: BouncingScrollPhysics(),
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    physics: const BouncingScrollPhysics(),
                     itemCount: users.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final userData = users[index].data() as Map<String, dynamic>;
                       final userId = users[index].id;
@@ -140,127 +156,16 @@ class _UsersListScreenState extends State<UsersListScreen> {
                       final isPro = userData['pro'] == true;
                       final isAdmin = userData['admin'] == true;
 
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: isDark 
-                                  ? CupertinoColors.systemGrey6.darkColor
-                                  : CupertinoColors.systemGrey6,
-                              width: 0.5,
-                            ),
-                          ),
-                        ),
-                        child: CupertinoListTile(
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          leading: Stack(
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFFFF444F),
-                                ),
-                                child: profileImage.isNotEmpty
-                                    ? ClipOval(
-                                        child: Image.network(
-                                          profileImage,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Center(
-                                            child: Text(
-                                              username[0].toUpperCase(),
-                                              style: TextStyle(
-                                                fontSize: 22,
-                                                color: CupertinoColors.white,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          username[0].toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 22,
-                                            color: CupertinoColors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                              if (isOnline)
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: CupertinoColors.activeGreen,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                                        width: 2.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  username,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 17,
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                  ),
-                                ),
-                              ),
-                              if (isPro)
-                                Padding(
-                                  padding: EdgeInsets.only(left: 4),
-                                  child: Icon(
-                                    CupertinoIcons.checkmark_seal_fill,
-                                    color: CupertinoColors.activeBlue,
-                                    size: 16,
-                                  ),
-                                ),
-                              if (isAdmin)
-                                Padding(
-                                  padding: EdgeInsets.only(left: 4),
-                                  child: Icon(
-                                    CupertinoIcons.shield_fill,
-                                    color: Color(0xFFFF444F),
-                                    size: 16,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          subtitle: Text(
-                            isOnline ? 'Online' : email,
-                            style: TextStyle(
-                              color: isOnline ? CupertinoColors.activeGreen : CupertinoColors.systemGrey,
-                              fontSize: 15,
-                            ),
-                          ),
-                          trailing: Icon(
-                            CupertinoIcons.chat_bubble_fill,
-                            color: Color(0xFFFF444F),
-                            size: 24,
-                          ),
-                          onTap: () {
-                            if (widget.onUserSelected != null) {
-                              Navigator.pop(context);
-                              widget.onUserSelected!(userId);
-                            }
-                          },
-                        ),
+                      return _buildUserCard(
+                        context,
+                        isDark,
+                        userId,
+                        username,
+                        email,
+                        profileImage,
+                        isOnline,
+                        isPro,
+                        isAdmin,
                       );
                     },
                   );
@@ -268,6 +173,201 @@ class _UsersListScreenState extends State<UsersListScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(
+    BuildContext context,
+    bool isDark,
+    String userId,
+    String username,
+    String email,
+    String profileImage,
+    bool isOnline,
+    bool isPro,
+    bool isAdmin,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (widget.onUserSelected != null) {
+            Navigator.pop(context);
+            widget.onUserSelected!(userId);
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: AppCard(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Stack(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary,
+                    ),
+                    child: profileImage.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              profileImage,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(
+                                  username[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              username[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                  ),
+                  if (isOnline)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                            width: 2.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            username,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isPro) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'PRO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (isAdmin) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'ADMIN',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (isOnline) ...[
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Online',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ] else ...[
+                          Flexible(
+                            child: Text(
+                              email,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
