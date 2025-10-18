@@ -19,7 +19,6 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   Timer? _updateTimer;
   String _selectedMarket = 'Criptomoedas';
 
-  // Ícones PNG dos mercados (URLs do repositório de ícones)
   final Map<String, String> _marketIcons = {
     'Criptomoedas': 'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
     'Forex': 'https://cdn-icons-png.flaticon.com/512/2917/2917995.png',
@@ -202,10 +201,11 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
               padding: const EdgeInsets.all(16),
               child: GestureDetector(
                 onTap: _openSearchScreen,
-                child: AppTextField(
-                  hintText: 'Pesquisar...',
-                  enabled: false,
-                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                child: AbsorbPointer(
+                  child: AppTextField(
+                    hintText: 'Pesquisar...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  ),
                 ),
               ),
             ),
@@ -222,7 +222,6 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                               AppIconCircle(
                                 icon: Icons.search_off,
                                 size: 60,
-                                iconColor: Colors.grey,
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -398,7 +397,6 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   }
 }
 
-// Search Screen
 class SearchScreen extends StatefulWidget {
   final List<CryptoData> cryptos;
 
@@ -417,6 +415,12 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     _filteredCryptos = widget.cryptos;
     _searchController.addListener(_filterCryptos);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _filterCryptos() {
@@ -449,7 +453,6 @@ class _SearchScreenState extends State<SearchScreen> {
               child: AppTextField(
                 controller: _searchController,
                 hintText: 'Digite para pesquisar...',
-                autofocus: true,
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -543,7 +546,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-// Crypto Detail Screen
 class CryptoDetailScreen extends StatefulWidget {
   final CryptoData crypto;
 
@@ -692,7 +694,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Price Header
               AppCard(
                 padding: const EdgeInsets.all(20),
                 borderRadius: 0,
@@ -774,7 +775,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // Chart Section
               _buildSection('Gráfico de Preço', isDark,
                   SizedBox(
                     height: 400,
@@ -783,7 +783,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // Technical Analysis Section
               _buildSection('Análise Técnica', isDark,
                   SizedBox(
                     height: 400,
@@ -792,7 +791,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // News Section
               _buildSection('Notícias e Timeline', isDark,
                   SizedBox(
                     height: 400,
@@ -801,7 +799,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // Market Stats
               _buildSection(
                 'Estatísticas de Mercado',
                 isDark,
