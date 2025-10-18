@@ -449,7 +449,6 @@ class _SearchScreenState extends State<SearchScreen> {
               child: AppTextField(
                 controller: _searchController,
                 hintText: 'Digite para pesquisar...',
-                autofocus: true,
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
