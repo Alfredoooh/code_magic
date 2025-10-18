@@ -24,24 +24,18 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     super.dispose();
   }
 
-  // Função para converter Base64 em ImageProvider
   ImageProvider? _getImageFromBase64(String? imageData) {
     if (imageData == null || imageData.isEmpty) return null;
 
     try {
-      // Se for data URL (data:image/...)
       if (imageData.startsWith('data:image')) {
         final base64String = imageData.split(',')[1];
         final bytes = base64Decode(base64String);
         return MemoryImage(bytes);
-      }
-      // Se for Base64 puro
-      else if (imageData.length > 100) {
+      } else if (imageData.length > 100) {
         final bytes = base64Decode(imageData);
         return MemoryImage(bytes);
-      }
-      // Se for URL normal
-      else if (imageData.startsWith('http')) {
+      } else if (imageData.startsWith('http')) {
         return NetworkImage(imageData);
       }
     } catch (e) {
@@ -127,7 +121,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => const StatisticsModal(),
+      builder: (context) => StatisticsModal(),
     );
   }
 
@@ -136,7 +130,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => const SettingsModal(),
+      builder: (context) => SettingsModal(),
     );
   }
 
@@ -145,7 +139,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => const ReportsModal(),
+      builder: (context) => ReportsModal(),
     );
   }
 
@@ -166,7 +160,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       ),
       body: Column(
         children: [
-          // Search Bar
           Container(
             padding: const EdgeInsets.all(16),
             color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -190,7 +183,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               },
             ),
           ),
-          // Users List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('users').snapshots(),
@@ -292,7 +284,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Avatar com suporte a Base64
               Stack(
                 children: [
                   CircleAvatar(
@@ -330,7 +321,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 ],
               ),
               const SizedBox(width: 12),
-              // User Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,7 +402,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   ],
                 ),
               ),
-              // Chevron
               Icon(
                 Icons.chevron_right,
                 color: Colors.grey[400],
