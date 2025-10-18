@@ -265,6 +265,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     );
   }
 
+  // CORRIGIDO: Retorna o widget TradingChartWidget ao invés de chamar como método
   Widget _buildChartWidget(bool isDark) {
     return TradingChartWidget(
       symbol: _selectedSymbol ?? 'R_10',
@@ -393,7 +394,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
         ...(_tradeHistory.reversed.take(10).map((trade) {
           final isWin = trade['status'] == 'won';
           final profit = trade['profit'] as double;
-          
+
           return Container(
             margin: EdgeInsets.only(bottom: 12),
             padding: EdgeInsets.all(16),
