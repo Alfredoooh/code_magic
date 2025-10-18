@@ -15,7 +15,8 @@ import 'user_drawer.dart';
 import 'search_screen.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
-import 'crypto_list_screen.dart' hide SearchScreen;
+import 'crypto_list_screen.dart';
+import 'search_screen.dart';
 import 'plans_screen.dart';
 import 'home_screen_helper.dart';
 
@@ -479,10 +480,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
         SizedBox(width: 8),
-        HomeWidgets.buildProfileAvatar(
-          profileImage: profileImage,
-          username: username,
+GestureDetector(
           onTap: _showUserDrawer,
+          child: Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary,
+              backgroundImage: profileImage != null && profileImage.isNotEmpty
+                  ? NetworkImage(profileImage)
+                  : null,
+              child: profileImage == null || profileImage.isEmpty
+                  ? Text(
+                      username[0].toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
         ),
       ],
     );
