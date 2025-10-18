@@ -1,13 +1,10 @@
-import 'dart:ui';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/app_ui_components.dart';
 import 'chat_detail_screen.dart';
 import 'group_detail_screen.dart';
 import 'users_list_screen.dart';
-import 'chats_widgets/conversation_list_item.dart';
-import 'chats_widgets/group_list_item.dart';
 
 class ChatsScreen extends StatefulWidget {
   final User? currentUser;
@@ -19,17 +16,12 @@ class ChatsScreen extends StatefulWidget {
 }
 
 class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStateMixin {
-  static const Color primaryColor = Color(0xFFFF444F);
-
   int _activeUsers = 0;
   Map<String, dynamic>? _userData;
   int _selectedTab = 0;
   int _selectedFilter = 0;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
   late AnimationController _badgeController;
   late PageController _pageController;
-  final ScrollController _scrollController = ScrollController();
   bool _isProOrAdmin = false;
   bool _isLoading = true;
 
@@ -47,10 +39,8 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
-    _searchController.dispose();
     _badgeController.dispose();
     _pageController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -84,8 +74,12 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             _isProOrAdmin = (data?['pro'] == true) || (data?['admin'] == true);
             _isLoading = false;
           });
+        } else if (mounted) {
+          setState(() => _isLoading = false);
         }
       });
+    } else if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -101,32 +95,17 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           .get();
 
       for (var doc in existingConv.docs) {
-        final participants = List<String>.from(doc.data()['participants'] ?? []);
+        final data = doc.data();
+        final participants = List<String>.from(data['participants'] ?? []);
         if (participants.contains(otherUserId) && participants.length == 2) {
           // Conversa já existe, navegar para ela
-          final otherUserDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(otherUserId)
-              .get();
-          
-          final otherUserData = otherUserDoc.data();
-          
-          Navigator.push(
-            context,
-            CupertinoPageRoute(
-              builder: (context) => ChatDetailScreen(
-                recipientId: otherUserId,
-                recipientName: otherUserData?['username'] ?? 'Usuário',
-                recipientImage: otherUserData?['profile_image'] ?? '',
-              ),
-            ),
-          );
+          _navigateToChat(otherUserId);
           return;
         }
       }
 
       // Criar nova conversa
-      final conversationRef = await FirebaseFirestore.instance.collection('conversations').add({
+      await FirebaseFirestore.instance.collection('conversations').add({
         'participants': [user.uid, otherUserId],
         'createdAt': FieldValue.serverTimestamp(),
         'lastMessage': '',
@@ -135,17 +114,30 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         'unreadCount_$otherUserId': 0,
       });
 
-      // Navegar para a conversa
+      _navigateToChat(otherUserId);
+    } catch (e) {
+      print('❌ Erro ao criar conversa: $e');
+      _showErrorDialog('Erro ao criar conversa');
+    }
+  }
+
+  Future<void> _navigateToChat(String otherUserId) async {
+    try {
       final otherUserDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(otherUserId)
           .get();
-      
+
+      if (!otherUserDoc.exists) {
+        _showErrorDialog('Usuário não encontrado');
+        return;
+      }
+
       final otherUserData = otherUserDoc.data();
-      
+
       Navigator.push(
         context,
-        CupertinoPageRoute(
+        MaterialPageRoute(
           builder: (context) => ChatDetailScreen(
             recipientId: otherUserId,
             recipientName: otherUserData?['username'] ?? 'Usuário',
@@ -154,59 +146,61 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
         ),
       );
     } catch (e) {
-      print('Erro ao criar conversa: $e');
+      print('❌ Erro ao navegar para chat: $e');
+      _showErrorDialog('Erro ao abrir conversa');
     }
+  }
+
+  void _showErrorDialog(String message) {
+    AppDialogs.showError(context, 'Erro', message);
   }
 
   void _showOptionsMenu() {
     if (!_isProOrAdmin) return;
-    
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text(
-          'Novas Conversas',
-          style: TextStyle(
-            fontSize: 13,
-            color: CupertinoColors.systemGrey,
-          ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkCard
+              : AppColors.lightCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showUsersDialog();
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.person_add, color: primaryColor),
-                const SizedBox(width: 8),
-                Text('Nova Conversa', style: TextStyle(color: primaryColor)),
-              ],
-            ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 20),
+              ListTile(
+                leading: Icon(Icons.person_add, color: AppColors.primary),
+                title: Text('Nova Conversa'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showUsersDialog();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.group_add, color: AppColors.primary),
+                title: Text('Criar Grupo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showCreateGroupDialog();
+                },
+              ),
+              SizedBox(height: 20),
+            ],
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showCreateGroupDialog();
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.group, color: primaryColor),
-                const SizedBox(width: 8),
-                Text('Criar Grupo', style: TextStyle(color: primaryColor)),
-              ],
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDefaultAction: true,
-          child: const Text('Cancelar'),
         ),
       ),
     );
@@ -214,36 +208,25 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
   void _showCreateGroupDialog() {
     final nameController = TextEditingController();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Criar Grupo'),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: CupertinoTextField(
-            controller: nameController,
-            placeholder: 'Nome do grupo',
-            placeholderStyle: const TextStyle(color: CupertinoColors.systemGrey),
-            style: TextStyle(color: isDark ? CupertinoColors.white : CupertinoColors.black),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.all(12),
-          ),
+      builder: (context) => AlertDialog(
+        title: Text('Criar Grupo'),
+        content: AppTextField(
+          controller: nameController,
+          hintText: 'Nome do grupo',
         ),
         actions: [
-          CupertinoDialogAction(
+          AppSecondaryButton(
+            text: 'Cancelar',
             onPressed: () {
               nameController.dispose();
               Navigator.pop(context);
             },
-            child: const Text('Cancelar'),
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
+          AppPrimaryButton(
+            text: 'Criar',
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 final user = widget.currentUser;
@@ -262,12 +245,12 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                     nameController.dispose();
                     Navigator.pop(context);
                   } catch (e) {
-                    print('Erro ao criar grupo: $e');
+                    print('❌ Erro ao criar grupo: $e');
+                    _showErrorDialog('Erro ao criar grupo');
                   }
                 }
               }
             },
-            child: const Text('Criar'),
           ),
         ],
       ),
@@ -276,7 +259,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
   void _showUsersDialog() {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => UsersListScreen(
           currentUser: widget.currentUser,
@@ -292,350 +275,201 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_isLoading) {
-      return CupertinoPageScaffold(
-        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
-        child: Center(child: CupertinoActivityIndicator(radius: 20)),
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
     // Tela bloqueada para usuários não PRO/Admin
     if (!_isProOrAdmin) {
-      return CupertinoPageScaffold(
-        backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
-        child: Stack(
-          children: [
-            // Conteúdo blur
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                color: (isDark ? Colors.black : Colors.white).withOpacity(0.3),
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        body: Center(
+          child: AppCard(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppIconCircle(icon: Icons.lock_outline, size: 60),
+                  SizedBox(height: 24),
+                  AppSectionTitle(text: 'Recursos PRO', fontSize: 24),
+                  SizedBox(height: 12),
+                  Text(
+                    'O acesso aos Chats é exclusivo para usuários PRO e Administradores.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  SizedBox(height: 24),
+                  AppPrimaryButton(
+                    text: 'Atualizar para PRO',
+                    onPressed: () {},
+                  ),
+                ],
               ),
             ),
-            // Mensagem centralizada
-            Center(
-              child: Container(
-                margin: EdgeInsets.all(32),
-                padding: EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      CupertinoIcons.lock_shield_fill,
-                      size: 64,
-                      color: primaryColor,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Recursos PRO',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'O acesso aos Chats é exclusivo para usuários PRO e Administradores.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: CupertinoColors.systemGrey,
-                        height: 1.4,
-                      ),
-                    ),
-                    SizedBox(height: 24),
-                    CupertinoButton.filled(
-                      child: Text('Atualizar para PRO'),
-                      onPressed: () {
-                        // Navegar para tela de planos
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
-      child: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: BouncingScrollPhysics(),
-          slivers: [
-            CupertinoSliverNavigationBar(
-              backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : CupertinoColors.white.withOpacity(0.9),
-              border: null,
-              largeTitle: Text('Conversas'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    minSize: 32,
-                    onPressed: _showUsersDialog,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Icon(
-                          CupertinoIcons.person_2,
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          size: 24,
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppPrimaryAppBar(
+        title: 'Conversas',
+        actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: Icon(Icons.people),
+                onPressed: _showUsersDialog,
+              ),
+              if (_activeUsers > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: ScaleTransition(
+                    scale: CurvedAnimation(
+                      parent: _badgeController,
+                      curve: Curves.elasticOut,
+                    ),
+                    child: Container(
+                      padding: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: BoxConstraints(minWidth: 18, minHeight: 18),
+                      child: Text(
+                        _activeUsers > 99 ? '99+' : '$_activeUsers',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
                         ),
-                        if (_activeUsers > 0)
-                          Positioned(
-                            right: -6,
-                            top: -4,
-                            child: ScaleTransition(
-                              scale: CurvedAnimation(
-                                parent: _badgeController,
-                                curve: Curves.elasticOut,
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  _activeUsers > 99 ? '99+' : '$_activeUsers',
-                                  style: const TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    minSize: 32,
-                    onPressed: _showOptionsMenu,
-                    child: Icon(
-                      CupertinoIcons.plus_circle_fill,
-                      color: primaryColor,
-                      size: 28,
-                    ),
+                ),
+            ],
+          ),
+          IconButton(
+            icon: Icon(Icons.add_circle, color: AppColors.primary),
+            onPressed: _showOptionsMenu,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          _buildSegmentedControl(isDark),
+          _buildFilterButtons(isDark),
+          Expanded(
+            child: widget.currentUser == null
+                ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() => _selectedTab = index);
+                    },
+                    children: [
+                      _buildConversationsList(widget.currentUser!, isDark),
+                      _buildGroupsList(widget.currentUser!, isDark),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            CupertinoSliverRefreshControl(
-              onRefresh: () async {
-                await _loadUserData();
-              },
-            ),
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  _buildSegmentedControl(isDark),
-                  _buildFilterButtons(isDark),
-                ],
-              ),
-            ),
-            SliverFillRemaining(
-              child: widget.currentUser == null
-                  ? const Center(child: CupertinoActivityIndicator(radius: 15))
-                  : PageView(
-                      controller: _pageController,
-                      physics: BouncingScrollPhysics(),
-                      onPageChanged: (index) {
-                        setState(() => _selectedTab = index);
-                      },
-                      children: [
-                        _buildConversationsList(widget.currentUser!, isDark),
-                        _buildGroupsList(widget.currentUser!, isDark),
-                      ],
-                    ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSegmentedControl(bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() => _selectedTab = 0);
-                  _pageController.animateToPage(
-                    0,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _selectedTab == 0
-                        ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
-                    boxShadow: _selectedTab == 0
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    'Chats',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _selectedTab == 0
-                          ? (isDark ? CupertinoColors.white : CupertinoColors.black)
-                          : CupertinoColors.systemGrey,
-                      fontWeight: _selectedTab == 0 ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 13,
-                    ),
+      padding: EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedTab = 0);
+                _pageController.animateToPage(0,
+                    duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedTab == 0 ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Text(
+                  'Chats',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedTab == 0 ? Colors.white : Colors.grey,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() => _selectedTab = 1);
-                  _pageController.animateToPage(
-                    1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _selectedTab == 1
-                        ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
-                    boxShadow: _selectedTab == 1
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    'Grupos',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _selectedTab == 1
-                          ? (isDark ? CupertinoColors.white : CupertinoColors.black)
-                          : CupertinoColors.systemGrey,
-                      fontWeight: _selectedTab == 1 ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 13,
-                    ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedTab = 1);
+                _pageController.animateToPage(1,
+                    duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedTab == 1 ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Text(
+                  'Grupos',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedTab == 1 ? Colors.white : Colors.grey,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildFilterButtons(bool isDark) {
-    final filters = [
-      {'label': 'Todas', 'icon': CupertinoIcons.globe},
-      {'label': 'Não lidas', 'icon': CupertinoIcons.circle_fill},
-      {'label': 'Recentes', 'icon': CupertinoIcons.time},
-    ];
+    final filters = ['Todas', 'Não lidas', 'Recentes'];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        physics: BouncingScrollPhysics(),
         child: Row(
           children: List.generate(filters.length, (index) {
             final isSelected = _selectedFilter == index;
             return Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: 8),
               child: GestureDetector(
                 onTap: () => setState(() => _selectedFilter = index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? primaryColor
-                        : (isDark ? const Color(0xFF1C1C1E) : CupertinoColors.systemGrey6),
-                    borderRadius: BorderRadius.circular(24),
+                    color: isSelected ? AppColors.primary : (isDark ? AppColors.darkCard : AppColors.lightCard),
+                    borderRadius: BorderRadius.circular(25),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        filters[index]['icon'] as IconData,
-                        size: 16,
-                        color: isSelected
-                            ? CupertinoColors.white
-                            : CupertinoColors.systemGrey,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        filters[index]['label'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected
-                              ? CupertinoColors.white
-                              : CupertinoColors.systemGrey,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    filters[index],
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -655,12 +489,22 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CupertinoActivityIndicator(radius: 15));
+          return Center(child: CircularProgressIndicator(color: AppColors.primary));
+        }
+
+        if (snapshot.hasError) {
+          print('❌ Erro no stream: ${snapshot.error}');
+          return _buildEmptyState(
+            icon: Icons.error_outline,
+            title: 'Erro ao carregar',
+            subtitle: 'Tente novamente',
+            isDark: isDark,
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
-            icon: CupertinoIcons.chat_bubble_2,
+            icon: Icons.chat_bubble_outline,
             title: 'Nenhuma conversa',
             subtitle: 'Toque em + para começar',
             isDark: isDark,
@@ -676,26 +520,27 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             final unreadCount = data['unreadCount_${currentUser.uid}'] ?? 0;
             return unreadCount > 0;
           }).toList();
+
+          if (conversations.isEmpty) {
+            return _buildEmptyState(
+              icon: Icons.mark_chat_read,
+              title: 'Tudo lido!',
+              subtitle: 'Você não tem mensagens não lidas',
+              isDark: isDark,
+            );
+          }
         }
 
-        if (conversations.isEmpty) {
-          return _buildEmptyState(
-            icon: CupertinoIcons.tray,
-            title: 'Nenhuma conversa encontrada',
-            subtitle: 'Não há conversas com esse filtro',
-            isDark: isDark,
-          );
-        }
-
-        return ListView.builder(
-          padding: EdgeInsets.zero,
-          physics: BouncingScrollPhysics(),
+        return ListView.separated(
+          padding: EdgeInsets.symmetric(vertical: 8),
           itemCount: conversations.length,
+          separatorBuilder: (context, index) => Divider(height: 1),
           itemBuilder: (context, index) {
-            return ConversationListItem(
+            return _ConversationItem(
               conversation: conversations[index],
               currentUser: currentUser,
               isDark: isDark,
+              onTap: _navigateToChat,
             );
           },
         );
@@ -712,12 +557,22 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CupertinoActivityIndicator(radius: 15));
+          return Center(child: CircularProgressIndicator(color: AppColors.primary));
+        }
+
+        if (snapshot.hasError) {
+          print('❌ Erro no stream: ${snapshot.error}');
+          return _buildEmptyState(
+            icon: Icons.error_outline,
+            title: 'Erro ao carregar',
+            subtitle: 'Tente novamente',
+            isDark: isDark,
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
-            icon: CupertinoIcons.group,
+            icon: Icons.group_outlined,
             title: 'Nenhum grupo',
             subtitle: 'Toque em + para criar',
             isDark: isDark,
@@ -726,14 +581,31 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
         final groups = snapshot.data!.docs;
 
-        return ListView.builder(
-          padding: EdgeInsets.zero,
-          physics: BouncingScrollPhysics(),
+        return ListView.separated(
+          padding: EdgeInsets.symmetric(vertical: 8),
           itemCount: groups.length,
+          separatorBuilder: (context, index) => Divider(height: 1),
           itemBuilder: (context, index) {
-            return GroupListItem(
-              group: groups[index],
-              isDark: isDark,
+            final groupData = groups[index].data() as Map<String, dynamic>;
+
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.group, color: Colors.white),
+              ),
+              title: Text(groupData['name'] ?? 'Grupo'),
+              subtitle: Text(groupData['lastMessage'] ?? 'Sem mensagens'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GroupDetailScreen(
+                      groupId: groups[index].id,
+                      groupName: groupData['name'] ?? 'Grupo',
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -747,37 +619,125 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     required String subtitle,
     required bool isDark,
   }) {
-    return Container(
-      color: isDark ? CupertinoColors.black : CupertinoColors.systemGroupedBackground,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 64,
-              color: CupertinoColors.systemGrey,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: CupertinoColors.systemGrey,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+// Widget separado para item de conversa
+class _ConversationItem extends StatelessWidget {
+  final QueryDocumentSnapshot conversation;
+  final User currentUser;
+  final bool isDark;
+  final Function(String) onTap;
+
+  const _ConversationItem({
+    required this.conversation,
+    required this.currentUser,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  String _getOtherUserId(Map<String, dynamic> data) {
+    final participants = data['participants'];
+    if (participants is List) {
+      final list = List<String>.from(participants);
+      return list.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = conversation.data() as Map<String, dynamic>;
+    final otherUserId = _getOtherUserId(data);
+
+    if (otherUserId.isEmpty) {
+      return SizedBox.shrink();
+    }
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return SizedBox.shrink();
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final unreadCount = data['unreadCount_${currentUser.uid}'] ?? 0;
+
+        return ListTile(
+          leading: Stack(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.primary,
+                backgroundImage: userData['profile_image'] != null && userData['profile_image'].toString().isNotEmpty
+                    ? NetworkImage(userData['profile_image'])
+                    : null,
+                child: userData['profile_image'] == null || userData['profile_image'].toString().isEmpty
+                    ? Text(
+                        (userData['username'] ?? 'U')[0].toUpperCase(),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      )
+                    : null,
+              ),
+              if (userData['isOnline'] == true)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: isDark ? AppColors.darkBackground : AppColors.lightBackground, width: 2),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          title: Text(
+            userData['username'] ?? 'Usuário',
+            style: TextStyle(fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal),
+          ),
+          subtitle: Text(
+            data['lastMessage'] ?? 'Sem mensagens',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: unreadCount > 0
+              ? Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$unreadCount',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                )
+              : null,
+          onTap: () => onTap(otherUserId),
+        );
+      },
     );
   }
 }
