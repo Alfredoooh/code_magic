@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/app_ui_components.dart';
-import 'home_widgets.dart';
+import 'home_widgets.dart' hide SearchScreen, CryptoListScreen;
 import 'home_crypto_section.dart' as crypto_section;
 import 'home_news_section.dart';
 import 'home_posts_section.dart';
@@ -16,7 +16,6 @@ import 'search_screen.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import 'crypto_list_screen.dart';
-import 'search_screen.dart';
 import 'plans_screen.dart';
 import 'home_screen_helper.dart';
 
@@ -117,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _setupScrollListeners() {
     _scrollController.addListener(_onScroll);
-    
+
     _newsPageController.addListener(() {
       if (_newsPageController.page != null) {
         final newPage = _newsPageController.page!.round();
@@ -480,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
         SizedBox(width: 8),
-GestureDetector(
+        GestureDetector(
           onTap: _showUserDrawer,
           child: Padding(
             padding: EdgeInsets.only(right: 16),
