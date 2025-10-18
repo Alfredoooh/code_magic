@@ -83,16 +83,28 @@ class HomeNewsSection extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 12),
-                      HomeWidgets.buildPageIndicator(
-                        count: newsArticles.length,
-                        currentPage: currentPage,
-                        isDark: isDark,
+Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          newsArticles.length,
+                          (index) => Container(
+                            margin: EdgeInsets.symmetric(horizontal: 4),
+                            width: index == currentPage ? 24 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: index == currentPage
+                                  ? AppColors.primary
+                                  : (isDark ? Colors.grey[700] : Colors.grey[400]),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-      ],
-    );
-  }
+                ],
+              );
+            }
 
   Widget _buildEmptyState() {
     return Container(
