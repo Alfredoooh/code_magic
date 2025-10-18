@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/news_article.dart';
+import '../widgets/app_ui_components.dart';
 import 'news_detail_screen.dart';
 
 class BookmarksScreen extends StatelessWidget {
@@ -16,49 +17,24 @@ class BookmarksScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return CupertinoPageScaffold(
-        backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark
-              ? Color(0xFF1C1C1E).withOpacity(0.95)
-              : CupertinoColors.white.withOpacity(0.95),
-          leading: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: Icon(
-              CupertinoIcons.back,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-              size: 24,
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          middle: Text(
-            'Favoritos',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-          ),
-          border: null,
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppSecondaryAppBar(
+          title: 'Favoritos',
         ),
-        child: Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                CupertinoIcons.person_crop_circle_badge_xmark,
+              AppIconCircle(
+                icon: Icons.person_off_outlined,
                 size: 80,
-                color: CupertinoColors.systemGrey,
               ),
               SizedBox(height: 20),
-              Text(
-                'Faça login para ver seus favoritos',
-                style: TextStyle(
-                  color: CupertinoColors.systemGrey,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
+              AppSectionTitle(
+                text: 'Faça login para ver seus favoritos',
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
               ),
             ],
           ),
@@ -66,32 +42,12 @@ class BookmarksScreen extends StatelessWidget {
       );
     }
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark
-            ? Color(0xFF1C1C1E).withOpacity(0.95)
-            : CupertinoColors.white.withOpacity(0.95),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            CupertinoIcons.back,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            size: 24,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        middle: Text(
-          'Favoritos',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-        ),
-        border: null,
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Favoritos',
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')
@@ -102,45 +58,41 @@ class BookmarksScreen extends StatelessWidget {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(
-                child: CupertinoActivityIndicator(radius: 15),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
               );
             }
 
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.bookmark,
-                      size: 80,
-                      color: CupertinoColors.systemGrey,
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      'Nenhum favorito ainda',
-                      style: TextStyle(
-                        color: isDark
-                            ? CupertinoColors.white.withOpacity(0.7)
-                            : CupertinoColors.black.withOpacity(0.6),
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AppIconCircle(
+                        icon: Icons.bookmark_border,
+                        size: 80,
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 40),
-                      child: Text(
+                      SizedBox(height: 20),
+                      AppSectionTitle(
+                        text: 'Nenhum favorito ainda',
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
                         'Adicione notícias aos favoritos para vê-las aqui',
                         style: TextStyle(
-                          color: CupertinoColors.systemGrey,
+                          color: Colors.grey,
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }
@@ -159,19 +111,15 @@ class BookmarksScreen extends StatelessWidget {
                           width: 4,
                           height: 24,
                           decoration: BoxDecoration(
-                            color: Color(0xFFFF444F),
+                            color: AppColors.primary,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                         SizedBox(width: 12),
-                        Text(
-                          '${bookmarks.length} ${bookmarks.length == 1 ? "Favorito" : "Favoritos"}',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                            letterSpacing: -0.5,
-                          ),
+                        AppSectionTitle(
+                          text: '${bookmarks.length} ${bookmarks.length == 1 ? "Favorito" : "Favoritos"}',
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
                         ),
                       ],
                     ),
@@ -259,48 +207,16 @@ class _BookmarkCard extends StatelessWidget {
           .doc(docId)
           .delete();
 
-      showCupertinoDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (context) => CupertinoAlertDialog(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                CupertinoIcons.check_mark_circled_solid,
-                color: CupertinoColors.systemGreen,
-                size: 24,
-              ),
-              SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  'Removido dos favoritos',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-        ),
+      AppDialogs.showSuccess(
+        context,
+        'Sucesso',
+        'Removido dos favoritos',
       );
-
-      Future.delayed(Duration(seconds: 1), () {
-        if (Navigator.of(context, rootNavigator: true).canPop()) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-      });
     } catch (e) {
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text('Erro'),
-          content: Text('Não foi possível remover o favorito'),
-          actions: [
-            CupertinoDialogAction(
-              child: Text('OK'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
+      AppDialogs.showError(
+        context,
+        'Erro',
+        'Não foi possível remover o favorito',
       );
     }
   }
@@ -323,7 +239,7 @@ class _BookmarkCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.share, size: 20, color: Color(0xFFFF444F)),
+                Icon(CupertinoIcons.share, size: 20, color: AppColors.primary),
                 SizedBox(width: 8),
                 Text('Compartilhar'),
               ],
@@ -333,7 +249,14 @@ class _BookmarkCard extends StatelessWidget {
             isDestructiveAction: true,
             onPressed: () {
               Navigator.of(context).pop();
-              _removeBookmark(context);
+              AppDialogs.showConfirmation(
+                context,
+                'Remover Favorito',
+                'Deseja realmente remover esta notícia dos favoritos?',
+                onConfirm: () => _removeBookmark(context),
+                confirmText: 'Remover',
+                isDestructive: true,
+              );
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -383,7 +306,6 @@ class _BookmarkCard extends StatelessWidget {
                 article: article,
                 allArticles: [article],
                 currentIndex: 0,
-                isDark: isDark,
               ),
               fullscreenDialog: true,
             ),
@@ -392,24 +314,14 @@ class _BookmarkCard extends StatelessWidget {
           print('Erro ao abrir notícia: $e');
         }
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 15,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
+      child: AppCard(
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (imageUrl.isNotEmpty)
               ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 child: Image.network(
                   imageUrl,
                   height: 200,
@@ -417,11 +329,11 @@ class _BookmarkCard extends StatelessWidget {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stack) => Container(
                     height: 200,
-                    color: isDark ? Color(0xFF2C2C2E) : CupertinoColors.systemGrey6,
+                    color: isDark ? AppColors.darkCard : Color(0xFFF2F2F7),
                     child: Icon(
                       CupertinoIcons.photo,
                       size: 60,
-                      color: CupertinoColors.systemGrey,
+                      color: Colors.grey,
                     ),
                   ),
                 ),
@@ -436,13 +348,13 @@ class _BookmarkCard extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Color(0xFFFF444F).withOpacity(0.15),
+                          color: AppColors.primary.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           category.toUpperCase(),
                           style: TextStyle(
-                            color: Color(0xFFFF444F),
+                            color: AppColors.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
@@ -450,15 +362,15 @@ class _BookmarkCard extends StatelessWidget {
                         ),
                       ),
                       Spacer(),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        minSize: 0,
-                        onPressed: () => _showActionSheet(context),
-                        child: Icon(
+                      IconButton(
+                        icon: Icon(
                           CupertinoIcons.ellipsis_circle_fill,
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          color: isDark ? Colors.white : Colors.black,
                           size: 26,
                         ),
+                        onPressed: () => _showActionSheet(context),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
                       ),
                     ],
                   ),
@@ -468,7 +380,7 @@ class _BookmarkCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      color: isDark ? Colors.white : Colors.black,
                       height: 1.3,
                       letterSpacing: -0.5,
                     ),
@@ -480,7 +392,7 @@ class _BookmarkCard extends StatelessWidget {
                     description,
                     style: TextStyle(
                       fontSize: 15,
-                      color: CupertinoColors.systemGrey,
+                      color: Colors.grey,
                       height: 1.5,
                       fontWeight: FontWeight.w500,
                     ),
@@ -490,8 +402,7 @@ class _BookmarkCard extends StatelessWidget {
                   SizedBox(height: 18),
                   Container(
                     height: 1,
-                    color: (isDark ? CupertinoColors.white : CupertinoColors.black)
-                        .withOpacity(0.08),
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
                   ),
                   SizedBox(height: 14),
                   Row(
@@ -505,7 +416,7 @@ class _BookmarkCard extends StatelessWidget {
                           errorBuilder: (context, error, stack) => Icon(
                             CupertinoIcons.news,
                             size: 20,
-                            color: Color(0xFFFF444F),
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
@@ -516,7 +427,7 @@ class _BookmarkCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFFF444F),
+                            color: AppColors.primary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -526,14 +437,14 @@ class _BookmarkCard extends StatelessWidget {
                       Icon(
                         CupertinoIcons.bookmark_solid,
                         size: 15,
-                        color: CupertinoColors.systemGrey,
+                        color: Colors.grey,
                       ),
                       SizedBox(width: 6),
                       Text(
                         _getTimeAgo(savedAt),
                         style: TextStyle(
                           fontSize: 13,
-                          color: CupertinoColors.systemGrey,
+                          color: Colors.grey,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
