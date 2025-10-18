@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/app_ui_components.dart';
 import 'admin_panel_screen.dart';
 import 'profile_screen.dart';
 import 'user_drawer_settings.dart';
@@ -110,9 +110,7 @@ class _UserDrawerState extends State<UserDrawer> {
     if (uid == null) return;
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).update(payload);
-    } catch (e) {
-      // opcional: print('Falha ao atualizar usuário: $e');
-    }
+    } catch (e) {}
   }
 
   void _debouncedWrite(Map<String, dynamic> payload) {
@@ -152,10 +150,8 @@ class _UserDrawerState extends State<UserDrawer> {
     _debouncedWrite({'language': lang});
   }
 
-  // Função para converter base64 em Uint8List
   Uint8List? _decodeBase64Image(String base64String) {
     try {
-      // Remove o prefixo "data:image/...;base64," se existir
       String cleanBase64 = base64String;
       if (base64String.contains(',')) {
         cleanBase64 = base64String.split(',').last;
@@ -171,7 +167,7 @@ class _UserDrawerState extends State<UserDrawer> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
-      color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+      color: isDark ? AppColors.darkBackground : AppColors.lightCard,
       child: SizedBox(
         width: MediaQuery.of(context).size.width,
         height: MediaQuery.of(context).size.height,
@@ -196,10 +192,10 @@ class _UserDrawerState extends State<UserDrawer> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+        color: isDark ? AppColors.darkBackground : AppColors.lightCard,
         border: Border(
           bottom: BorderSide(
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
             width: 0.5,
           ),
         ),
@@ -210,20 +206,11 @@ class _UserDrawerState extends State<UserDrawer> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Ajustes',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                ),
-              ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                minSize: 30,
-                child: Icon(
-                  CupertinoIcons.xmark,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              AppSectionTitle(text: 'Ajustes', fontSize: 28),
+              IconButton(
+                icon: Icon(
+                  Icons.close,
+                  color: isDark ? Colors.white : Colors.black,
                   size: 24,
                 ),
                 onPressed: () => Navigator.pop(context),
@@ -238,7 +225,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 height: 60,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFFFF444F),
+                  color: AppColors.primary,
                 ),
                 child: _buildProfileImage(profileImage, displayName),
               ),
@@ -252,7 +239,7 @@ class _UserDrawerState extends State<UserDrawer> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        color: isDark ? Colors.white : Colors.black,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -262,7 +249,7 @@ class _UserDrawerState extends State<UserDrawer> {
                       email,
                       style: const TextStyle(
                         fontSize: 13,
-                        color: CupertinoColors.systemGrey,
+                        color: Colors.grey,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -284,14 +271,13 @@ class _UserDrawerState extends State<UserDrawer> {
           displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
           style: const TextStyle(
             fontSize: 24,
-            color: CupertinoColors.white,
+            color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
       );
     }
 
-    // Verifica se é base64
     if (profileImage.startsWith('data:image') || !profileImage.startsWith('http')) {
       final imageBytes = _decodeBase64Image(profileImage);
       if (imageBytes != null) {
@@ -304,7 +290,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
                 style: const TextStyle(
                   fontSize: 24,
-                  color: CupertinoColors.white,
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -314,7 +300,6 @@ class _UserDrawerState extends State<UserDrawer> {
       }
     }
 
-    // Se for URL normal
     return ClipOval(
       child: Image.network(
         profileImage,
@@ -324,7 +309,7 @@ class _UserDrawerState extends State<UserDrawer> {
             displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
             style: const TextStyle(
               fontSize: 24,
-              color: CupertinoColors.white,
+              color: Colors.white,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -335,7 +320,7 @@ class _UserDrawerState extends State<UserDrawer> {
 
   Widget _buildBody(bool isDark) {
     if (_loading) {
-      return const Center(child: CupertinoActivityIndicator());
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final isAdmin = _userDoc?['admin'] == true;
@@ -345,32 +330,32 @@ class _UserDrawerState extends State<UserDrawer> {
       children: [
         if (isAdmin)
           _buildMenuItem(
-            icon: CupertinoIcons.shield_fill,
+            icon: Icons.shield,
             title: 'Painel Admin',
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                CupertinoPageRoute(builder: (_) => const AdminPanelScreen()),
+                MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
               );
             },
             isDark: isDark,
           ),
         _buildMenuItem(
-          icon: CupertinoIcons.person_fill,
+          icon: Icons.person,
           title: 'Perfil',
           subtitle: 'Ver perfil',
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
               context,
-              CupertinoPageRoute(builder: (_) => const ProfileScreen()),
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
           },
           isDark: isDark,
         ),
         _buildMenuItem(
-          icon: CupertinoIcons.settings,
+          icon: Icons.settings,
           title: 'Configurações',
           subtitle: 'Tema, idioma e estilo',
           onTap: () => UserDrawerSettings.showSettingsModal(
@@ -388,13 +373,13 @@ class _UserDrawerState extends State<UserDrawer> {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
-            borderRadius: BorderRadius.circular(12),
+            color: isDark ? AppColors.darkCard : AppColors.lightBackground,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             children: [
               _buildSwitchRow(
-                icon: CupertinoIcons.circle_grid_hex_fill,
+                icon: Icons.circle,
                 title: 'Presença Online',
                 subtitle: _isOnline ? 'Visível como online' : 'Indisponível',
                 value: _isOnline,
@@ -403,7 +388,7 @@ class _UserDrawerState extends State<UserDrawer> {
               ),
               const SizedBox(height: 16),
               _buildSwitchRow(
-                icon: CupertinoIcons.news_solid,
+                icon: Icons.newspaper,
                 title: 'Mostrar Notícias',
                 subtitle: 'Exibir no ecrã principal',
                 value: _showNews,
@@ -428,57 +413,59 @@ class _UserDrawerState extends State<UserDrawer> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
             width: 0.5,
           ),
         ),
       ),
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        onPressed: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF444F).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
               ),
-              child: Icon(
-                icon,
-                color: const Color(0xFFFF444F),
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: CupertinoColors.systemGrey,
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey, size: 20),
-          ],
+              const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -494,7 +481,7 @@ class _UserDrawerState extends State<UserDrawer> {
   }) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFFFF444F), size: 22),
+        Icon(icon, color: AppColors.primary, size: 22),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -505,7 +492,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  color: isDark ? Colors.white : Colors.black,
                 ),
               ),
               const SizedBox(height: 2),
@@ -513,15 +500,15 @@ class _UserDrawerState extends State<UserDrawer> {
                 subtitle,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: CupertinoColors.systemGrey,
+                  color: Colors.grey,
                 ),
               ),
             ],
           ),
         ),
-        CupertinoSwitch(
+        Switch(
           value: value,
-          activeColor: const Color(0xFFFF444F),
+          activeColor: AppColors.primary,
           onChanged: onChanged,
         ),
       ],
@@ -534,7 +521,7 @@ class _UserDrawerState extends State<UserDrawer> {
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
             width: 0.5,
           ),
         ),
@@ -542,97 +529,74 @@ class _UserDrawerState extends State<UserDrawer> {
       child: Column(
         children: [
           // Botão Feedback
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
-            borderRadius: BorderRadius.circular(100),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                CupertinoPageRoute(
-                  builder: (_) => FeedbackScreen(
-                    currentLocale: _currentLocale,
-                    isDark: isDark,
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FeedbackScreen(
+                      currentLocale: _currentLocale,
+                      isDark: isDark,
+                    ),
                   ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? AppColors.darkCard : AppColors.lightBackground,
+                foregroundColor: isDark ? Colors.white : Colors.black,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
                 ),
-              );
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.chat_bubble_text_fill,
-                  size: 20,
-                  color: const Color(0xFFFF444F),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _getFeedbackText(_currentLocale),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.chat_bubble,
+                    size: 20,
+                    color: AppColors.primary,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(
+                    _getFeedbackText(_currentLocale),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
           // Botão Sair
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            color: CupertinoColors.destructiveRed,
-            borderRadius: BorderRadius.circular(100),
+          AppPrimaryButton(
+            text: _getLogoutText(_currentLocale),
             onPressed: () async {
-              showCupertinoDialog(
-                context: context,
-                builder: (context) => CupertinoAlertDialog(
-                  title: Text(_getLogoutTitle(_currentLocale)),
-                  content: Text(_getLogoutMessage(_currentLocale)),
-                  actions: [
-                    CupertinoDialogAction(
-                      child: Text(_getCancelText(_currentLocale)),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    CupertinoDialogAction(
-                      isDestructiveAction: true,
-                      child: Text(_getLogoutText(_currentLocale)),
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        try {
-                          final uid = FirebaseAuth.instance.currentUser?.uid;
-                          if (uid != null) {
-                            await FirebaseFirestore.instance.collection('users').doc(uid).update({'isOnline': false});
-                          }
-                        } catch (_) {}
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
+              AppDialogs.showConfirmation(
+                context,
+                _getLogoutTitle(_currentLocale),
+                _getLogoutMessage(_currentLocale),
+                onConfirm: () async {
+                  try {
+                    final uid = FirebaseAuth.instance.currentUser?.uid;
+                    if (uid != null) {
+                      await FirebaseFirestore.instance.collection('users').doc(uid).update({'isOnline': false});
+                    }
+                  } catch (_) {}
+                  await FirebaseAuth.instance.signOut();
+                  if (mounted) Navigator.pop(context);
+                },
+                confirmText: _getLogoutText(_currentLocale),
+                cancelText: _getCancelText(_currentLocale),
+                isDestructive: true,
               );
             },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  CupertinoIcons.square_arrow_right,
-                  size: 20,
-                  color: CupertinoColors.white,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _getLogoutText(_currentLocale),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: CupertinoColors.white,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
