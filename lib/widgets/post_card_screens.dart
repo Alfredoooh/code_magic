@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'dart:convert';
-import '../widgets/app_ui_components.dart';
+import 'app_ui_components.dart';
 import 'post_card.dart';
 
 class FullDescriptionScreen extends StatelessWidget {
