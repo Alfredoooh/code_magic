@@ -12,7 +12,7 @@ import 'home_posts_section.dart';
 import 'home_stats_section.dart';
 import 'home_action_button.dart';
 import 'user_drawer.dart';
-import 'search_screen.dart';
+import '../widgets/search_screen.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
 import 'crypto_list_screen.dart';
