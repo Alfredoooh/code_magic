@@ -561,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       _groupCount = groups;
                     });
                   }),
-                  HomeScreenHelper.loadCrypto Data((data, loading) {
+                  HomeScreenHelper.loadCryptoData((data, loading) {
                     if (mounted) setState(() {
                       _cryptoData = data;
                       _loadingCrypto = loading;
