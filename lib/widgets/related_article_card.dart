@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/news_article.dart';
-import '../widgets/app_ui_components.dart';
+import 'app_ui_components.dart';
 
 class RelatedArticleCard extends StatelessWidget {
   final NewsArticle article;
