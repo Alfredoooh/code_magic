@@ -1,9 +1,9 @@
 // lib/screens/marketplace_screen.dart
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
 import 'trading_chart_screen.dart';
@@ -16,107 +16,68 @@ class MarketplaceScreen extends StatefulWidget {
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final DerivService _derivService = DerivService();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _tokenController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isChecking = true;
   String? _accountType;
   String? _currency;
   String? _loginId;
+  double? _balance;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedCredentials();
-    _derivService.connectionState.listen((state) {
-      if (mounted) setState(() {});
-    });
-    _derivService.accountInfo.listen((info) {
-      if (mounted && info != null) {
-        setState(() {
-          _accountType = info['account_type'];
-          _currency = info['currency'];
-          _loginId = info['loginid'];
-        });
-      }
-    });
+    _initializeConnection();
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _tokenController.dispose();
     _derivService.dispose();
     super.dispose();
   }
 
-  Future<void> _loadSavedCredentials() async {
+  /// Inicialização otimizada - verifica conexão existente
+  Future<void> _initializeConnection() async {
     try {
       final token = await _storage.read(key: 'deriv_api_token');
+      
       if (token != null && token.isNotEmpty) {
-        _tokenController.text = token;
+        // Conecta silenciosamente em background
         await _derivService.connectWithToken(token);
+        
+        // Escuta mudanças de estado
+        _derivService.accountInfo.listen((info) {
+          if (mounted && info != null) {
+            setState(() {
+              _accountType = info['account_type'];
+              _currency = info['currency'];
+              _loginId = info['loginid'];
+            });
+          }
+        });
+
+        _derivService.balanceStream.listen((balance) {
+          if (mounted) {
+            setState(() => _balance = balance);
+          }
+        });
       }
     } catch (e) {
-      debugPrint('Error loading credentials: $e');
-    }
-  }
-
-  Future<void> _loginWithEmailPassword() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      AppDialogs.showError(context, 'Erro', 'Preencha email e senha');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await _derivService.loginWithCredentials(email, password);
-      final token = _derivService.currentToken;
-      if (token != null) {
-        await _storage.write(key: 'deriv_api_token', value: token);
-        _tokenController.text = token;
+      debugPrint('Erro ao carregar credenciais: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isChecking = false);
       }
-      Navigator.pop(context);
-      AppDialogs.showSuccess(context, 'Sucesso', 'Login realizado com sucesso!');
-    } catch (e) {
-      AppDialogs.showError(context, 'Erro', 'Erro ao fazer login: $e');
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _connectWithToken() async {
-    final token = _tokenController.text.trim();
-    if (token.isEmpty) {
-      AppDialogs.showError(context, 'Erro', 'Insira um token válido');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await _derivService.connectWithToken(token);
-      await _storage.write(key: 'deriv_api_token', value: token);
-      Navigator.pop(context);
-      AppDialogs.showSuccess(context, 'Sucesso', 'Conectado com sucesso!');
-    } catch (e) {
-      AppDialogs.showError(context, 'Erro', 'Erro ao conectar: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
+  /// OAuth Flow otimizado
   Future<void> _startOAuthFlow() async {
-    setState(() => _isLoading = true);
+    if (_isLoading) return;
     
+    setState(() => _isLoading = true);
+
     try {
-      // URL OAuth com redirect correto
       final authUrl = Uri.https('oauth.deriv.com', '/oauth2/authorize', {
         'app_id': '71954',
         'redirect_uri': 'https://alfredoooh.github.io/database/oauth-redirect/',
@@ -128,35 +89,36 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         url: authUrl.toString(),
         callbackUrlScheme: 'com.nexa.madeeasy',
       );
-      
-      // Parse do resultado (pode vir como query ou fragment)
+
       final uri = Uri.parse(result);
-      
-      // Tenta pegar o token de diferentes formas
-      String? token;
-      
-      // Primeiro tenta nos query parameters
-      token = uri.queryParameters['token'] ?? 
-              uri.queryParameters['access_token'];
-      
-      // Se não encontrou, tenta no fragment (após #)
+      String? token = uri.queryParameters['token'] ?? 
+                     uri.queryParameters['access_token'];
+
       if (token == null && uri.fragment.isNotEmpty) {
         final fragmentParams = Uri.splitQueryString(uri.fragment);
         token = fragmentParams['token'] ?? fragmentParams['access_token'];
       }
-      
+
       if (token != null && token.isNotEmpty) {
-        _tokenController.text = token;
-        await _connectWithToken();
+        await _storage.write(key: 'deriv_api_token', value: token);
+        await _derivService.connectWithToken(token);
+        
+        if (mounted) {
+          AppDialogs.showSuccess(
+            context, 
+            'Conectado!', 
+            'Sua conta foi conectada com sucesso',
+          );
+        }
       } else {
-        throw Exception('Token não encontrado na resposta OAuth');
+        throw Exception('Token não recebido');
       }
     } catch (e) {
       if (mounted) {
         AppDialogs.showError(
           context, 
-          'Erro OAuth', 
-          'Falha na autenticação: ${e.toString()}'
+          'Erro', 
+          'Falha ao conectar: ${e.toString()}',
         );
       }
     } finally {
@@ -166,98 +128,189 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
+  /// Desconectar e limpar cache
   Future<void> _disconnect() async {
     await _storage.delete(key: 'deriv_api_token');
     _derivService.disconnect();
-    setState(() {
-      _accountType = null;
-      _currency = null;
-      _loginId = null;
-      _emailController.clear();
-      _passwordController.clear();
-      _tokenController.clear();
-    });
+    
+    if (mounted) {
+      setState(() {
+        _accountType = null;
+        _currency = null;
+        _loginId = null;
+        _balance = null;
+      });
+    }
   }
 
-  void _showLoginSheet(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  /// Abre página de registro
+  Future<void> _openRegisterPage() async {
+    const url = 'https://deriv.com/signup/';
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
-    AppBottomSheet.show(
-      context,
-      height: MediaQuery.of(context).size.height * 0.85,
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isConnected = _derivService.isConnected;
+
+    // Loading inicial
+    if (_isChecking) {
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 3,
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppPrimaryAppBar(
+        title: 'Trading',
+        actions: isConnected ? [
+          IconButton(
+            icon: Icon(
+              Icons.power_settings_new,
+              color: AppColors.primary,
+            ),
+            onPressed: () {
+              AppDialogs.showConfirmation(
+                context,
+                'Desconectar',
+                'Deseja desconectar sua conta Deriv?',
+                onConfirm: _disconnect,
+                isDestructive: true,
+                confirmText: 'Desconectar',
+              );
+            },
+            splashRadius: 24,
+          ),
+        ] : null,
+      ),
+      body: isConnected ? _buildConnectedView(isDark) : _buildDisconnectedView(isDark),
+    );
+  }
+
+  /// Tela quando NÃO está conectado
+  Widget _buildDisconnectedView(bool isDark) {
+    return SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.all(24),
+        physics: BouncingScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: 12),
-            AppSectionTitle(
-              text: 'Conectar à Deriv',
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
+            SizedBox(height: 40),
+            
+            // Ícone principal
+            AppIconCircle(
+              icon: Icons.account_balance_wallet_outlined,
+              size: 64,
+              iconColor: AppColors.primary,
             ),
-            SizedBox(height: 24),
-            AppSectionTitle(text: 'Login com Email e Senha', fontSize: 17),
+            
+            SizedBox(height: 32),
+            
+            // Título
+            Text(
+              'Conecte-se à sua conta\npara continuar',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
+                height: 1.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
             SizedBox(height: 16),
-            AppTextField(
-              controller: _emailController,
-              hintText: 'Email',
-              keyboardType: TextInputType.emailAddress,
+            
+            // Subtítulo
+            Text(
+              'Acesse sua carteira Deriv e comece\na negociar nos mercados financeiros',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 12),
-            AppPasswordField(
-              controller: _passwordController,
-              hintText: 'Senha',
-            ),
-            SizedBox(height: 16),
+            
+            SizedBox(height: 48),
+            
+            // Botão conectar
             AppPrimaryButton(
-              text: 'Entrar',
-              onPressed: _loginWithEmailPassword,
+              text: 'Conectar Conta Deriv',
+              onPressed: _isLoading ? null : _startOAuthFlow,
               isLoading: _isLoading,
+              height: 56,
             ),
-            SizedBox(height: 24),
+            
+            SizedBox(height: 20),
+            
+            // Botão registrar
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'OU',
-                    style: TextStyle(color: Colors.grey),
+                Text(
+                  'Não tem uma conta? ',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
                   ),
                 ),
-                Expanded(child: Divider()),
+                InkWell(
+                  onTap: _openRegisterPage,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      'Registrar',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-            SizedBox(height: 24),
-            AppSectionTitle(text: 'Token API', fontSize: 17),
-            SizedBox(height: 16),
-            AppTextField(
-              controller: _tokenController,
-              hintText: 'Cole seu token aqui',
+            
+            SizedBox(height: 60),
+            
+            // Cards de recursos
+            _buildFeatureCard(
+              isDark,
+              Icons.speed_outlined,
+              'Trading em Tempo Real',
+              'Execute operações instantaneamente',
             ),
+            
             SizedBox(height: 16),
-            AppPrimaryButton(
-              text: 'Conectar',
-              onPressed: _connectWithToken,
-              isLoading: _isLoading,
+            
+            _buildFeatureCard(
+              isDark,
+              Icons.bar_chart_rounded,
+              'Múltiplos Mercados',
+              'Forex, Synthetics, Stocks e mais',
             ),
-            SizedBox(height: 12),
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _startOAuthFlow();
-                },
-                child: Text(
-                  'OAuth via Navegador',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+            
+            SizedBox(height: 16),
+            
+            _buildFeatureCard(
+              isDark,
+              Icons.security_outlined,
+              'Seguro e Confiável',
+              'Powered by Deriv API',
             ),
           ],
         ),
@@ -265,159 +318,30 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isConnected = _derivService.isConnected;
-    final balance = _derivService.balance;
-
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: CustomScrollView(
-        physics: BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 120,
-            pinned: true,
-            stretch: true,
-            backgroundColor: Colors.transparent,
-            flexibleSpace: ClipRRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: (isDark ? AppColors.darkCard : AppColors.lightCard).withOpacity(0.8),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: (isDark ? AppColors.darkBorder : AppColors.lightBorder).withOpacity(0.2),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: FlexibleSpaceBar(
-                    titlePadding: EdgeInsets.only(left: 20, bottom: 16),
-                    title: Text(
-                      'Trading',
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              if (isConnected)
-                Padding(
-                  padding: EdgeInsets.only(right: 16),
-                  child: IconButton(
-                    onPressed: _disconnect,
-                    icon: Icon(
-                      Icons.power_settings_new,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          SliverPadding(
-            padding: EdgeInsets.all(20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                if (!isConnected) ...[
-                  SizedBox(height: 40),
-                  _buildWelcomeCard(isDark),
-                  SizedBox(height: 32),
-                  _buildFeaturesList(isDark),
-                  SizedBox(height: 32),
-                  _buildConnectButton(isDark),
-                ] else ...[
-                  _buildBalanceCard(isDark, balance, _currency, _loginId, _accountType),
-                  SizedBox(height: 24),
-                  _buildQuickAccessButton(isDark),
-                ],
-              ]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWelcomeCard(bool isDark) {
+  Widget _buildFeatureCard(bool isDark, IconData icon, String title, String subtitle) {
     return Container(
-      padding: EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, Color(0xFFFF6B6B)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.bar_chart, size: 64, color: Colors.white),
-          SizedBox(height: 20),
-          Text(
-            'Bem-vindo ao Trading',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Negocie nos mercados financeiros com a Deriv',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.9),
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeaturesList(bool isDark) {
-    return Column(
-      children: [
-        _buildFeatureItem(isDark, Icons.speed, 'Trading em Tempo Real', 'Execute ordens instantaneamente'),
-        SizedBox(height: 16),
-        _buildFeatureItem(isDark, Icons.bar_chart, 'Múltiplos Mercados', 'Forex, Synthetics, Stocks e mais'),
-        SizedBox(height: 16),
-        _buildFeatureItem(isDark, Icons.security, 'Seguro', 'Powered by Deriv API'),
-      ],
-    );
-  }
-
-  Widget _buildFeatureItem(bool isDark, IconData icon, String title, String subtitle) {
-    return AppCard(
       padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
+      ),
       child: Row(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(14),
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 28),
+            child: Icon(
+              icon,
+              color: AppColors.primary,
+              size: 24,
+            ),
           ),
           SizedBox(width: 16),
           Expanded(
@@ -427,8 +351,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                     color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
@@ -438,7 +362,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -449,128 +372,112 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildConnectButton(bool isDark) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () => _showLoginSheet(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(vertical: 18),
-          elevation: 8,
-          shadowColor: AppColors.primary.withOpacity(0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+  /// Tela quando ESTÁ conectado
+  Widget _buildConnectedView(bool isDark) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        physics: BouncingScrollPhysics(),
+        padding: EdgeInsets.all(24),
+        child: Column(
           children: [
-            Icon(Icons.link, size: 22),
-            SizedBox(width: 12),
-            Text(
-              'Conectar Conta Deriv',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+            // Card de saldo
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, Color(0xFFFF6B6B)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: Offset(0, 10),
+                  ),
+                ],
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Saldo Disponível',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _accountType?.toUpperCase() ?? 'DEMO',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    '${_currency ?? 'USD'} ${_balance?.toStringAsFixed(2) ?? '0.00'}',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        _loginId ?? 'Conectado',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            SizedBox(height: 24),
+            
+            // Botão de trading
+            AppPrimaryButton(
+              text: 'Iniciar Trading',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (context) => TradingChartScreen(
+                      derivService: _derivService,
+                    ),
+                  ),
+                );
+              },
+              height: 56,
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildBalanceCard(bool isDark, double? balance, String? currency, String? loginId, String? accountType) {
-    return Container(
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, Color(0xFFFF6B6B)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Saldo Disponível',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  accountType?.toUpperCase() ?? 'DEMO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Text(
-            '${currency ?? 'USD'} ${balance?.toStringAsFixed(2) ?? '0.00'}',
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white, size: 16),
-              SizedBox(width: 8),
-              Text(
-                loginId ?? 'Conta conectada',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAccessButton(bool isDark) {
-    return AppPrimaryButton(
-      text: 'Iniciar Trading',
-      onPressed: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            builder: (context) => TradingChartScreen(derivService: _derivService),
-          ),
-        );
-      },
     );
   }
 }
