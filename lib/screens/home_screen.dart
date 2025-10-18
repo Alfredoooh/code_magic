@@ -15,7 +15,7 @@ import 'user_drawer.dart';
 import '../widgets/search_screen.dart';
 import '../models/news_article.dart';
 import '../widgets/wallet_card.dart';
-import 'crypto_list_screen.dart';
+import 'crypto_list_screen.dart' as crypto;
 import 'plans_screen.dart';
 import 'home_screen_helper.dart';
 
@@ -538,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CryptoListScreen(),
+                  builder: (context) => crypto.CryptoListScreen(),
                   fullscreenDialog: true,
                 ),
               );
