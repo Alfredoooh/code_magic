@@ -2,10 +2,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:http/http.dart' as http;
 
 class DerivService {
   static const int appId = 71954;
   static const String wsUrl = 'wss://ws.derivws.com/websockets/v3?app_id=$appId';
+  static const String authUrl = 'https://oauth.deriv.com/oauth2/authorize';
 
   WebSocketChannel? _channel;
   final StreamController<bool> _connectionController = StreamController<bool>.broadcast();
@@ -22,8 +24,8 @@ class DerivService {
   Map<String, dynamic>? _accountInfo;
   List<Map<String, dynamic>> _activeSymbols = [];
   String? _forgetTickId;
-  
-  // P&L Tracking
+  String? _forgetProposalId;
+
   double _totalProfit = 0.0;
   double _totalLoss = 0.0;
   int _winCount = 0;
@@ -56,58 +58,179 @@ class DerivService {
       _channel!.stream.listen(
         (message) => _handleMessage(message),
         onError: (error) {
+          print('WebSocket error: $error');
           _isConnected = false;
           _connectionController.add(false);
         },
         onDone: () {
+          print('WebSocket connection closed');
           _isConnected = false;
           _connectionController.add(false);
         },
       );
     } catch (e) {
+      print('Connection error: $e');
       _isConnected = false;
       _connectionController.add(false);
       rethrow;
     }
   }
 
+  /// Login com TOKEN (OAuth)
   Future<void> connectWithToken(String token) async {
+    if (token.isEmpty) {
+      throw Exception('Token vazio');
+    }
+    
     _currentToken = token;
     _connect();
     await Future.delayed(Duration(milliseconds: 500));
     _sendMessage({'authorize': token});
   }
 
-  Future<void> loginWithCredentials(String email, String password) async {
-    _connect();
-    await Future.delayed(Duration(milliseconds: 500));
+  /// Login com EMAIL e PASSWORD
+  Future<Map<String, dynamic>> loginWithCredentials(String email, String password) async {
+    try {
+      // Passo 1: Conectar ao WebSocket
+      _connect();
+      await Future.delayed(Duration(milliseconds: 500));
 
-    _sendMessage({
-      'authorize': email,
-      'password': password,
-    });
+      // Passo 2: Obter token via API REST
+      final response = await http.post(
+        Uri.parse('https://api.deriv.com/api_token'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'api_token': 1,
+          'new_token': email,
+          'new_token_scopes': ['read', 'trade', 'payments', 'admin'],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data['error'] != null) {
+          throw Exception(data['error']['message']);
+        }
+
+        // Usar token obtido
+        if (data['api_token'] != null && data['api_token']['token'] != null) {
+          final token = data['api_token']['token'];
+          _currentToken = token;
+          
+          // Autorizar com o token
+          _sendMessage({'authorize': token});
+          
+          return {'success': true, 'token': token};
+        }
+      }
+
+      // Método alternativo: Tentar autorização direta com senha
+      _sendMessage({
+        'authorize': email,
+        'password': password,
+      });
+
+      // Aguardar resposta de autorização
+      await Future.delayed(Duration(seconds: 2));
+
+      if (_isConnected) {
+        return {'success': true, 'message': 'Login realizado com sucesso'};
+      } else {
+        throw Exception('Falha na autenticação');
+      }
+
+    } catch (e) {
+      print('Login error: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Obter token de API via credenciais
+  Future<String?> getApiTokenFromCredentials(String email, String password) async {
+    try {
+      // Conectar temporariamente
+      _connect();
+      await Future.delayed(Duration(milliseconds: 500));
+
+      // Tentar obter token
+      final completer = Completer<String?>();
+      StreamSubscription? sub;
+
+      sub = _channel!.stream.listen((message) {
+        final data = jsonDecode(message);
+        
+        if (data['msg_type'] == 'authorize' && data['authorize'] != null) {
+          final token = data['authorize']['token'];
+          if (token != null && !completer.isCompleted) {
+            completer.complete(token);
+            sub?.cancel();
+          }
+        } else if (data['error'] != null && !completer.isCompleted) {
+          completer.complete(null);
+          sub?.cancel();
+        }
+      });
+
+      // Tentar autorização
+      _sendMessage({
+        'authorize': email,
+        'password': password,
+      });
+
+      // Timeout de 5 segundos
+      return await completer.future.timeout(
+        Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+
+    } catch (e) {
+      print('Get token error: $e');
+      return null;
+    }
   }
 
   void _handleMessage(dynamic message) {
     try {
       final data = jsonDecode(message);
+      print('Received: ${data['msg_type']}');
 
-      if (data['msg_type'] == 'authorize') {
-        _handleAuthorize(data);
-      } else if (data['msg_type'] == 'balance') {
-        _handleBalance(data);
-      } else if (data['msg_type'] == 'active_symbols') {
-        _handleActiveSymbols(data);
-      } else if (data['msg_type'] == 'tick') {
-        _handleTick(data);
-      } else if (data['msg_type'] == 'proposal') {
-        _handleProposal(data);
-      } else if (data['msg_type'] == 'buy') {
-        _handleBuy(data);
-      } else if (data['msg_type'] == 'proposal_open_contract') {
-        _handleContract(data);
-      } else if (data['error']) {
+      if (data['error'] != null) {
         print('Deriv API Error: ${data['error']['message']}');
+        if (data['error']['code'] == 'InvalidToken' || data['error']['code'] == 'AuthorizationRequired') {
+          _isConnected = false;
+          _connectionController.add(false);
+        }
+        return;
+      }
+
+      switch (data['msg_type']) {
+        case 'authorize':
+          _handleAuthorize(data);
+          break;
+        case 'balance':
+          _handleBalance(data);
+          break;
+        case 'active_symbols':
+          _handleActiveSymbols(data);
+          break;
+        case 'tick':
+          _handleTick(data);
+          break;
+        case 'proposal':
+          _handleProposal(data);
+          break;
+        case 'buy':
+          _handleBuy(data);
+          break;
+        case 'proposal_open_contract':
+          _handleContract(data);
+          break;
+        case 'api_token':
+          print('API Token received');
+          break;
       }
     } catch (e) {
       print('Error parsing message: $e');
@@ -123,7 +246,7 @@ class DerivService {
       _accountInfo = {
         'loginid': authData['loginid'],
         'currency': authData['currency'],
-        'balance': authData['balance']?.toDouble() ?? 0.0,
+        'balance': (authData['balance'] ?? 0).toDouble(),
         'account_type': authData['account_type'] ?? 'demo',
         'email': authData['email'],
       };
@@ -138,6 +261,8 @@ class DerivService {
 
       getActiveSymbols();
       subscribeToBalance();
+      
+      print('Authorized: ${_accountInfo!['loginid']}');
     }
   }
 
@@ -145,7 +270,7 @@ class DerivService {
     if (data['balance'] != null) {
       final balanceData = data['balance'];
       if (balanceData is Map) {
-        _balance = (balanceData['balance'] ?? balanceData['amount'] ?? 0.0).toDouble();
+        _balance = ((balanceData['balance'] ?? balanceData['amount'] ?? 0) as num).toDouble();
       } else {
         _balance = (balanceData as num).toDouble();
       }
@@ -156,6 +281,7 @@ class DerivService {
   void _handleActiveSymbols(Map<String, dynamic> data) {
     if (data['active_symbols'] != null) {
       _activeSymbols = List<Map<String, dynamic>>.from(data['active_symbols']);
+      print('Loaded ${_activeSymbols.length} symbols');
     }
   }
 
@@ -174,19 +300,17 @@ class DerivService {
   void _handleBuy(Map<String, dynamic> data) {
     if (data['buy'] != null) {
       final buyData = data['buy'];
-      
-      // Track contract for P&L
+
       _contractHistory.add({
         'contract_id': buyData['contract_id'],
-        'buy_price': buyData['buy_price']?.toDouble() ?? 0.0,
-        'payout': buyData['payout']?.toDouble() ?? 0.0,
+        'buy_price': (buyData['buy_price'] ?? 0).toDouble(),
+        'payout': (buyData['payout'] ?? 0).toDouble(),
         'timestamp': DateTime.now().toIso8601String(),
         'status': 'open',
       });
-      
+
       _contractController.add(buyData);
-      
-      // Subscribe to contract updates
+
       if (buyData['contract_id'] != null) {
         _sendMessage({
           'proposal_open_contract': 1,
@@ -200,13 +324,12 @@ class DerivService {
   void _handleContract(Map<String, dynamic> data) {
     if (data['proposal_open_contract'] != null) {
       final contract = data['proposal_open_contract'];
-      
-      // Update P&L when contract closes
+
       if (contract['status'] == 'sold' || contract['status'] == 'won' || contract['status'] == 'lost') {
-        final buyPrice = contract['buy_price']?.toDouble() ?? 0.0;
-        final sellPrice = contract['sell_price']?.toDouble() ?? contract['bid_price']?.toDouble() ?? 0.0;
+        final buyPrice = (contract['buy_price'] ?? 0).toDouble();
+        final sellPrice = (contract['sell_price'] ?? contract['bid_price'] ?? 0).toDouble();
         final profit = sellPrice - buyPrice;
-        
+
         if (profit > 0) {
           _totalProfit += profit;
           _winCount++;
@@ -214,16 +337,14 @@ class DerivService {
           _totalLoss += profit.abs();
           _lossCount++;
         }
-        
-        // Update contract history
+
         final index = _contractHistory.indexWhere((c) => c['contract_id'] == contract['contract_id']);
         if (index != -1) {
           _contractHistory[index]['status'] = contract['status'];
           _contractHistory[index]['sell_price'] = sellPrice;
           _contractHistory[index]['profit'] = profit;
         }
-        
-        // Emit P&L update
+
         _plController.add({
           'total_profit': _totalProfit,
           'total_loss': _totalLoss,
@@ -233,14 +354,16 @@ class DerivService {
           'win_rate': (_winCount + _lossCount) > 0 ? (_winCount / (_winCount + _lossCount)) * 100 : 0.0,
         });
       }
-      
+
       _contractController.add(contract);
     }
   }
 
   void _sendMessage(Map<String, dynamic> message) {
     if (_channel != null) {
-      _channel!.sink.add(jsonEncode(message));
+      final jsonMessage = jsonEncode(message);
+      print('Sending: $jsonMessage');
+      _channel!.sink.add(jsonMessage);
     }
   }
 
@@ -269,6 +392,13 @@ class DerivService {
     });
   }
 
+  void forgetProposal() {
+    if (_forgetProposalId != null) {
+      _sendMessage({'forget': _forgetProposalId});
+      _forgetProposalId = null;
+    }
+  }
+
   void getProposal({
     required String contractType,
     required String symbol,
@@ -278,6 +408,8 @@ class DerivService {
     required String durationType,
     String? barrier,
   }) {
+    forgetProposal();
+
     final proposal = {
       'proposal': 1,
       'amount': amount,
@@ -290,7 +422,7 @@ class DerivService {
       'subscribe': 1,
     };
 
-    if (barrier != null) {
+    if (barrier != null && barrier.isNotEmpty) {
       proposal['barrier'] = barrier;
     }
 
@@ -301,12 +433,6 @@ class DerivService {
     _sendMessage({
       'buy': proposalId,
       'price': price,
-    });
-  }
-
-  void getOpenContracts() {
-    _sendMessage({
-      'portfolio': 1,
     });
   }
 
@@ -322,7 +448,7 @@ class DerivService {
     _winCount = 0;
     _lossCount = 0;
     _contractHistory.clear();
-    
+
     _plController.add({
       'total_profit': 0.0,
       'total_loss': 0.0,
@@ -335,6 +461,7 @@ class DerivService {
 
   void disconnect() {
     _forgetTickId = null;
+    _forgetProposalId = null;
     _channel?.sink.close();
     _channel = null;
     _isConnected = false;
