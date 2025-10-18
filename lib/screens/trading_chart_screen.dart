@@ -22,6 +22,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   String _durationType = 't';
   double _stakeAmount = 1.0;
   String? _barrier;
+  String _currency = 'USD';
   
   double _currentTick = 0.0;
   double _payout = 0.0;
@@ -42,6 +43,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
   StreamSubscription? _tickSub;
   StreamSubscription? _proposalSub;
   StreamSubscription? _contractSub;
+  StreamSubscription? _accountSub;
 
   final List<String> _availableSymbols = [
     'R_10', 'R_25', 'R_50', 'R_75', 'R_100',
@@ -106,11 +108,21 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     _tickSub?.cancel();
     _proposalSub?.cancel();
     _contractSub?.cancel();
+    _accountSub?.cancel();
     _autoTradeTimer?.cancel();
     super.dispose();
   }
 
   void _setupListeners() {
+    // Escutar mudanças de conta para obter moeda
+    _accountSub = widget.derivService.accountInfo.listen((accountInfo) {
+      if (mounted && accountInfo != null) {
+        setState(() {
+          _currency = accountInfo['currency'] ?? 'USD';
+        });
+      }
+    });
+
     _tickSub = widget.derivService.tickStream.listen((tick) {
       if (mounted) {
         setState(() => _currentTick = (tick['quote'] ?? 0).toDouble());
@@ -208,7 +220,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> {
     widget.derivService.getProposal(
       contractType: _contractType,
       symbol: _selectedSymbol,
-      currency: widget.derivService.accountInfo.value?['currency'] ?? 'USD',
+      currency: _currency,
       amount: _stakeAmount,
       duration: _duration,
       durationType: _durationType,
