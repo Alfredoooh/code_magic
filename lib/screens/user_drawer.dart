@@ -1,3 +1,4 @@
+// lib/screens/user_drawer.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -360,7 +361,7 @@ class _UserDrawerState extends State<UserDrawer> {
           subtitle: 'Tema, idioma e estilo',
           onTap: () => UserDrawerSettings.showSettingsModal(
             context,
-            isDark: isDark,
+            // ✅ REMOVIDO: isDark: isDark,
             currentLocale: _currentLocale,
             cardStyle: _cardStyle,
             onThemeChanged: _safeUpdateTheme,
@@ -539,7 +540,7 @@ class _UserDrawerState extends State<UserDrawer> {
                   MaterialPageRoute(
                     builder: (_) => FeedbackScreen(
                       currentLocale: _currentLocale,
-                      isDark: isDark,
+                      // ✅ REMOVIDO: isDark: isDark,
                     ),
                   ),
                 );
