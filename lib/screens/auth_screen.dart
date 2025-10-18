@@ -189,29 +189,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: _navigateToLearn,
-                              child: Text(
-                                'Aprender',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      SizedBox(height: 40),
 
-                      Spacer(),
-
-                      // Logo do app
+                      // Logo do app SEM CONTAINER
                       Image.asset(
                         'assets/icon/icon.png',
                         width: 100,
@@ -303,8 +283,24 @@ class _AuthScreenState extends State<AuthScreen> {
 
                       Spacer(),
 
+                      // BOTÃO "SABER MAIS" NO BOTTOM
                       Padding(
-                        padding: EdgeInsets.only(bottom: 24, top: 20),
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: TextButton(
+                          onPressed: _navigateToLearn,
+                          child: Text(
+                            'Saber mais',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Padding(
+                        padding: EdgeInsets.only(bottom: 24),
                         child: Text(
                           'from nexa',
                           style: TextStyle(
@@ -335,7 +331,7 @@ class LearnScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppSecondaryAppBar(
-        title: 'Aprender',
+        title: 'Saber mais',
       ),
       body: SafeArea(
         child: Center(
@@ -347,8 +343,6 @@ class LearnScreen extends StatelessWidget {
                 AppIconCircle(
                   icon: Icons.book,
                   size: 80,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  iconColor: AppColors.primary,
                 ),
                 SizedBox(height: 24),
                 Text(
