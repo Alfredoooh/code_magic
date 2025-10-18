@@ -20,12 +20,13 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   Timer? _updateTimer;
   String _selectedMarket = 'Criptomoedas';
 
+  // Ícones PNG dos mercados (URLs reais do Flaticon)
   final Map<String, String> _marketIcons = {
-    'Criptomoedas': 'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
-    'Forex': 'https://cdn-icons-png.flaticon.com/512/2917/2917995.png',
-    'Ações': 'https://cdn-icons-png.flaticon.com/512/3135/3135706.png',
-    'Commodities': 'https://cdn-icons-png.flaticon.com/512/2721/2721288.png',
-    'Índices': 'https://cdn-icons-png.flaticon.com/512/3050/3050156.png',
+    'Criptomoedas': 'https://cdn-icons-png.flaticon.com/512/6001/6001527.png', // Bitcoin icon
+    'Forex': 'https://cdn-icons-png.flaticon.com/512/8968/8968458.png', // Currency exchange
+    'Ações': 'https://cdn-icons-png.flaticon.com/512/3588/3588592.png', // Stock market
+    'Commodities': 'https://cdn-icons-png.flaticon.com/512/2331/2331966.png', // Gold bar
+    'Índices': 'https://cdn-icons-png.flaticon.com/512/9195/9195886.png', // Chart graph
   };
 
   @override
@@ -175,7 +176,7 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   void _openSearchScreen() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => SearchScreen(cryptos: _allCryptos),
+        builder: (context) => CryptoSearchScreen(cryptos: _allCryptos),
       ),
     );
   }
@@ -202,11 +203,10 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
               padding: const EdgeInsets.all(16),
               child: GestureDetector(
                 onTap: _openSearchScreen,
-                child: AbsorbPointer(
-                  child: AppTextField(
-                    hintText: 'Pesquisar...',
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                  ),
+                child: AppTextField(
+                  hintText: 'Pesquisar...',
+                  enabled: false,
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 ),
               ),
             ),
@@ -223,6 +223,7 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                               AppIconCircle(
                                 icon: Icons.search_off,
                                 size: 60,
+                                iconColor: Colors.grey,
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -398,16 +399,17 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   }
 }
 
-class SearchScreen extends StatefulWidget {
+// Search Screen (renomeada para evitar conflito com widgets/search_screen.dart)
+class CryptoSearchScreen extends StatefulWidget {
   final List<CryptoData> cryptos;
 
-  const SearchScreen({Key? key, required this.cryptos}) : super(key: key);
+  const CryptoSearchScreen({Key? key, required this.cryptos}) : super(key: key);
 
   @override
-  _SearchScreenState createState() => _SearchScreenState();
+  _CryptoSearchScreenState createState() => _CryptoSearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _CryptoSearchScreenState extends State<CryptoSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<CryptoData> _filteredCryptos = [];
 
@@ -416,12 +418,6 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     _filteredCryptos = widget.cryptos;
     _searchController.addListener(_filterCryptos);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   void _filterCryptos() {
@@ -435,6 +431,12 @@ class _SearchScreenState extends State<SearchScreen> {
             .toList();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -547,6 +549,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
+// Crypto Detail Screen
 class CryptoDetailScreen extends StatefulWidget {
   final CryptoData crypto;
 
@@ -695,6 +698,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Price Header
               AppCard(
                 padding: const EdgeInsets.all(20),
                 borderRadius: 0,
@@ -776,6 +780,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
+              // Chart Section
               _buildSection('Gráfico de Preço', isDark,
                   SizedBox(
                     height: 400,
@@ -784,6 +789,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
+              // Technical Analysis Section
               _buildSection('Análise Técnica', isDark,
                   SizedBox(
                     height: 400,
@@ -792,6 +798,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
+              // News Section
               _buildSection('Notícias e Timeline', isDark,
                   SizedBox(
                     height: 400,
@@ -800,6 +807,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               const SizedBox(height: 16),
 
+              // Market Stats
               _buildSection(
                 'Estatísticas de Mercado',
                 isDark,
