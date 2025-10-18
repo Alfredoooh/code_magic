@@ -11,8 +11,11 @@ import 'sheets_viewer_screen.dart';
 import '../models/news_article.dart';
 import '../models/sheet_story.dart';
 import '../services/news_service.dart';
+import '../widgets/app_ui_components.dart';
 
 class NewsScreen extends StatefulWidget {
+  const NewsScreen({Key? key}) : super(key: key);
+
   @override
   _NewsScreenState createState() => _NewsScreenState();
 }
@@ -94,7 +97,8 @@ class _NewsScreenState extends State<NewsScreen> {
   Future _checkProStatus() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (mounted) {
         setState(() {
           isPro = doc.data()?['pro'] == true;
@@ -145,7 +149,8 @@ class _NewsScreenState extends State<NewsScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['sheets'] != null) {
-          final sheetsList = (data['sheets'] as List).map((s) => SheetStory.fromJson(s)).toList();
+          final sheetsList =
+              (data['sheets'] as List).map((s) => SheetStory.fromJson(s)).toList();
           setState(() {
             sheets = sheetsList;
             hasSheets = sheets.isNotEmpty;
@@ -187,7 +192,8 @@ class _NewsScreenState extends State<NewsScreen> {
           article = NewsArticle(
             title: article.title,
             description: article.description,
-            imageUrl: 'https://alfredoooh.github.io/database/gallery/no_image.png',
+            imageUrl:
+                'https://alfredoooh.github.io/database/gallery/no_image.png',
             url: article.url,
             source: article.source,
             publishedAt: article.publishedAt,
@@ -210,20 +216,50 @@ class _NewsScreenState extends State<NewsScreen> {
 
   void _categorizeNews() {
     final featuredKeywords = [
-      'trump', 'elon musk', 'apple', 'bitcoin', 'tesla', 'microsoft', 'google', 'amazon', 
-      'meta', 'nvidia', 'fed', 'wall street', 'stock market', 'economy', 'trade', 'inflation',
-      'cryptocurrency', 'ai', 'artificial intelligence', 'china', 'russia', 'ukraine', 'europe',
-      'japan', 'india', 'uk', 'france', 'germany', 'nasdaq', 'dow jones', 's&p 500'
+      'trump',
+      'elon musk',
+      'apple',
+      'bitcoin',
+      'tesla',
+      'microsoft',
+      'google',
+      'amazon',
+      'meta',
+      'nvidia',
+      'fed',
+      'wall street',
+      'stock market',
+      'economy',
+      'trade',
+      'inflation',
+      'cryptocurrency',
+      'ai',
+      'artificial intelligence',
+      'china',
+      'russia',
+      'ukraine',
+      'europe',
+      'japan',
+      'india',
+      'uk',
+      'france',
+      'germany',
+      'nasdaq',
+      'dow jones',
+      's&p 500'
     ];
 
     featuredNews = allNews.where((article) {
       final titleLower = article.title.toLowerCase();
       final descLower = article.description.toLowerCase();
-      return featuredKeywords.any((keyword) => titleLower.contains(keyword) || descLower.contains(keyword));
+      return featuredKeywords.any(
+          (keyword) => titleLower.contains(keyword) || descLower.contains(keyword));
     }).take(5).toList();
 
-    final remaining = allNews.where((article) => !featuredNews.contains(article)).toList();
-    noImageNews = remaining.where((article) => article.imageUrl.contains('no_image.png')).toList();
+    final remaining =
+        allNews.where((article) => !featuredNews.contains(article)).toList();
+    noImageNews =
+        remaining.where((article) => article.imageUrl.contains('no_image.png')).toList();
     final withImages = remaining.where((article) => !article.imageUrl.contains('no_image.png')).toList();
     mediumNews = withImages.take((withImages.length * 0.4).round()).toList();
     lowNews = withImages.skip(mediumNews.length).toList();
@@ -234,7 +270,10 @@ class _NewsScreenState extends State<NewsScreen> {
     if (selectedCategory == 'all') {
       filtered = allNews;
     } else {
-      filtered = allNews.where((news) => news.category.toLowerCase() == selectedCategory.toLowerCase()).toList();
+      filtered = allNews
+          .where((news) =>
+              news.category.toLowerCase() == selectedCategory.toLowerCase())
+          .toList();
     }
 
     if (selectedFilter == 'trending') {
@@ -253,20 +292,50 @@ class _NewsScreenState extends State<NewsScreen> {
 
   void _categorizeFilteredNews() {
     final featuredKeywords = [
-      'trump', 'elon musk', 'apple', 'bitcoin', 'tesla', 'microsoft', 'google', 'amazon',
-      'meta', 'nvidia', 'fed', 'wall street', 'stock market', 'economy', 'trade', 'inflation',
-      'cryptocurrency', 'ai', 'artificial intelligence', 'china', 'russia', 'ukraine', 'europe',
-      'japan', 'india', 'uk', 'france', 'germany', 'nasdaq', 'dow jones', 's&p 500'
+      'trump',
+      'elon musk',
+      'apple',
+      'bitcoin',
+      'tesla',
+      'microsoft',
+      'google',
+      'amazon',
+      'meta',
+      'nvidia',
+      'fed',
+      'wall street',
+      'stock market',
+      'economy',
+      'trade',
+      'inflation',
+      'cryptocurrency',
+      'ai',
+      'artificial intelligence',
+      'china',
+      'russia',
+      'ukraine',
+      'europe',
+      'japan',
+      'india',
+      'uk',
+      'france',
+      'germany',
+      'nasdaq',
+      'dow jones',
+      's&p 500'
     ];
 
     featuredNews = filteredNews.where((article) {
       final titleLower = article.title.toLowerCase();
       final descLower = article.description.toLowerCase();
-      return featuredKeywords.any((keyword) => titleLower.contains(keyword) || descLower.contains(keyword));
+      return featuredKeywords.any(
+          (keyword) => titleLower.contains(keyword) || descLower.contains(keyword));
     }).take(5).toList();
 
-    final remaining = filteredNews.where((article) => !featuredNews.contains(article)).toList();
-    noImageNews = remaining.where((article) => article.imageUrl.contains('no_image.png')).toList();
+    final remaining =
+        filteredNews.where((article) => !featuredNews.contains(article)).toList();
+    noImageNews =
+        remaining.where((article) => article.imageUrl.contains('no_image.png')).toList();
     final withImages = remaining.where((article) => !article.imageUrl.contains('no_image.png')).toList();
     mediumNews = withImages.take((withImages.length * 0.4).round()).toList();
     lowNews = withImages.skip(mediumNews.length).toList();
@@ -281,207 +350,159 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      child: Stack(
-        children: [
-          CustomScrollView(
-            controller: _scrollController,
-            physics: BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                backgroundColor: isDark ? Color(0xFF000000).withOpacity(0.9) : Color(0xFFF2F2F7).withOpacity(0.9),
-                flexibleSpace: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF000000).withOpacity(0.75) : Color(0xFFF2F2F7).withOpacity(0.75),
+    return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppPrimaryAppBar(
+        title: 'Atualidade',
+        actions: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isPro)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: AppSectionTitle(
+                    text: 'PRO',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              if (isLoadingSheets)
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                )
+              else if (hasSheets)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0, right: 12.0),
+                  child: Icon(Icons.check_circle, color: Colors.green, size: 22),
+                ),
+            ],
+          )
+        ],
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: loadAllContent,
+              child: ListView(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (hasSheets && sheets.isNotEmpty) _buildSheetsSection(isDark),
+                  _buildCategoriesSection(isDark),
+                  SizedBox(height: 8),
+                  _buildFiltersSection(isDark),
+                  SizedBox(height: 12),
+                  if (isLoading)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40.0),
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        ),
                       ),
-                      child: FlexibleSpaceBar(
-                        centerTitle: false,
-                        titlePadding: EdgeInsets.only(left: 20, bottom: 16),
-                        title: Text(
-                          'Atualidade',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                            fontSize: 28,
-                          ),
+                    )
+                  else
+                    _buildNewsContent(isDark),
+                  if (isLoadingMore)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(AppColors.primary),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                actions: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!isPro)
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)]),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'PRO',
-                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      if (isLoadingSheets)
-                        Padding(
-                          padding: EdgeInsets.only(left: 12, right: 16),
-                          child: CupertinoActivityIndicator(radius: 10),
-                        )
-                      else if (hasSheets)
-                        Padding(
-                          padding: EdgeInsets.only(left: 12, right: 16),
-                          child: Icon(CupertinoIcons.checkmark_circle_fill, color: CupertinoColors.systemGreen, size: 22),
-                        ),
-                    ],
-                  ),
+                  SizedBox(height: 100),
                 ],
               ),
-              if (hasSheets && sheets.isNotEmpty)
-                SliverToBoxAdapter(child: _buildSheetsSection(isDark)),
-              SliverToBoxAdapter(child: _buildCategoriesSection(isDark)),
-              SliverToBoxAdapter(child: _buildFiltersSection(isDark)),
-              if (isPro)
-                CupertinoSliverRefreshControl(onRefresh: loadAllContent)
-              else
-                SliverToBoxAdapter(child: SizedBox.shrink()),
-              if (isPro)
-                SliverPadding(
-                  padding: EdgeInsets.all(16),
-                  sliver: isLoading
-                      ? SliverFillRemaining(
-                          child: Center(
-                            child: CupertinoActivityIndicator(radius: 15, color: Color(0xFFFF444F)),
-                          ),
-                        )
-                      : _buildNewsList(isDark),
-                ),
-            ],
-          ),
-          if (!isPro) _buildBlurOverlay(isDark),
-          if (showScrollToTop && isPro)
-            Positioned(
-              bottom: 90,
-              right: 16,
-              child: GestureDetector(
-                onTap: _scrollToTop,
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Color(0xFFFF444F),
-                    borderRadius: BorderRadius.circular(25),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFFFF444F).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
+            ),
+            if (!isPro) _buildProOverlay(context, isDark),
+            if (showScrollToTop && isPro)
+              Positioned(
+                bottom: 90,
+                right: 16,
+                child: GestureDetector(
+                  onTap: _scrollToTop,
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(Icons.arrow_upward, color: Colors.white, size: 24),
                   ),
-                  child: Icon(CupertinoIcons.arrow_up, color: Colors.white, size: 24),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildBlurOverlay(bool isDark) {
+  Widget _buildProOverlay(BuildContext context, bool isDark) {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withOpacity(0.45),
         child: Center(
-          child: Container(
-            margin: EdgeInsets.symmetric(horizontal: 32),
-            padding: EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: isDark ? Color(0xFF1A1A1A) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 30,
-                  offset: Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(CupertinoIcons.lock_shield_fill, size: 70, color: Color(0xFFFF444F)),
-                SizedBox(height: 24),
-                Text(
-                  'Conteúdo Não Disponível',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
+          child: AppCard(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppIconCircle(
+                    icon: Icons.lock_outline,
+                    size: 60,
                   ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Esta seção é exclusiva para',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  'membros PRO',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFFF444F),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 28),
-                Container(
-                  width: double.infinity,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)]),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFFFF444F).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(CupertinoIcons.star_fill, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Atualizar para PRO',
-                          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
-                        ),
-                      ],
+                  SizedBox(height: 16),
+                  Text(
+                    'Conteúdo Não Disponível',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
-                    onPressed: () {},
                   ),
-                ),
-              ],
+                  SizedBox(height: 8),
+                  Text(
+                    'Esta seção é exclusiva para\nmembros PRO',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.8),
+                      fontSize: 15,
+                    ),
+                  ),
+                  SizedBox(height: 18),
+                  AppPrimaryButton(
+                    text: 'Atualizar para PRO',
+                    onPressed: () {
+                      // implementar fluxo PRO
+                    },
+                    isLoading: false,
+                    height: 48,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -490,25 +511,25 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildSheetsSection(bool isDark) {
-    return Container(
+    return SizedBox(
       height: 110,
-      margin: EdgeInsets.only(top: 12, bottom: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.symmetric(horizontal: 4),
         itemCount: sheets.length,
         itemBuilder: (context, index) {
           final sheet = sheets[index];
           return GestureDetector(
             onTap: () {
               Navigator.of(context).push(
-                CupertinoPageRoute(
-                  builder: (context) => SheetsViewerScreen(sheets: sheets, initialIndex: index),
+                MaterialPageRoute(
+                  builder: (context) =>
+                      SheetsViewerScreen(sheets: sheets, initialIndex: index),
                 ),
               );
             },
-            child: Container(
-              margin: EdgeInsets.only(right: 12),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12.0),
               child: Column(
                 children: [
                   Container(
@@ -517,29 +538,29 @@ class _NewsScreenState extends State<NewsScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        colors: [Color(0xFFFF444F), Color(0xFFFF6B6B)],
+                        colors: [AppColors.primary, Color(0xFFFF6B6B)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: Color(0xFFFF444F).withOpacity(0.3),
+                          color: AppColors.primary.withOpacity(0.3),
                           blurRadius: 8,
                           offset: Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: sheet.imageUrl.isNotEmpty
-                        ? ClipOval(
-                            child: Image.network(
+                    child: ClipOval(
+                      child: sheet.imageUrl.isNotEmpty
+                          ? Image.network(
                               sheet.imageUrl,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stack) =>
-                                  Icon(CupertinoIcons.photo, color: Colors.white, size: 30),
-                            ),
-                          )
-                        : Icon(CupertinoIcons.photo, color: Colors.white, size: 30),
+                                  Icon(Icons.photo, color: Colors.white, size: 30),
+                            )
+                          : Icon(Icons.photo, color: Colors.white, size: 30),
+                    ),
                   ),
                   SizedBox(height: 6),
                   SizedBox(
@@ -566,18 +587,17 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildCategoriesSection(bool isDark) {
-    return Container(
+    return SizedBox(
       height: 50,
-      margin: EdgeInsets.symmetric(vertical: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.symmetric(horizontal: 4),
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = selectedCategory == category['id'];
           return Padding(
-            padding: EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 8.0),
             child: GestureDetector(
               onTap: () {
                 setState(() {
@@ -586,14 +606,14 @@ class _NewsScreenState extends State<NewsScreen> {
                 });
               },
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? Color(0xFFFF444F) : (isDark ? Color(0xFF1C1C1E) : Colors.white),
+                  color: isSelected ? AppColors.primary : (isDark ? AppColors.darkCard : AppColors.lightCard),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: Color(0xFFFF444F).withOpacity(0.3),
+                            color: AppColors.primary.withOpacity(0.25),
                             blurRadius: 8,
                             offset: Offset(0, 2),
                           ),
@@ -619,18 +639,17 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildFiltersSection(bool isDark) {
-    return Container(
+    return SizedBox(
       height: 50,
-      margin: EdgeInsets.only(bottom: 12),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.symmetric(horizontal: 4),
         itemCount: filters.length,
         itemBuilder: (context, index) {
           final filter = filters[index];
           final isSelected = selectedFilter == filter['id'];
           return Padding(
-            padding: EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 8.0),
             child: GestureDetector(
               onTap: () {
                 setState(() {
@@ -639,13 +658,13 @@ class _NewsScreenState extends State<NewsScreen> {
                 });
               },
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? Color(0xFFFF444F).withOpacity(0.15) : (isDark ? Color(0xFF1C1C1E) : Colors.white),
+                  color: isSelected ? AppColors.primary.withOpacity(0.12) : (isDark ? AppColors.darkCard : AppColors.lightCard),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? Color(0xFFFF444F) : (isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA)),
-                    width: 1.5,
+                    color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                    width: 1.2,
                   ),
                 ),
                 child: Row(
@@ -654,13 +673,13 @@ class _NewsScreenState extends State<NewsScreen> {
                     Icon(
                       _getFilterIcon(filter['icon']!),
                       size: 18,
-                      color: isSelected ? Color(0xFFFF444F) : (isDark ? Colors.white70 : Colors.black54),
+                      color: isSelected ? AppColors.primary : (isDark ? Colors.white70 : Colors.black54),
                     ),
-                    SizedBox(width: 6),
+                    SizedBox(width: 8),
                     Text(
                       filter['name']!,
                       style: TextStyle(
-                        color: isSelected ? Color(0xFFFF444F) : (isDark ? Colors.white70 : Colors.black54),
+                        color: isSelected ? AppColors.primary : (isDark ? Colors.white70 : Colors.black54),
                         fontSize: 14,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                       ),
@@ -678,54 +697,42 @@ class _NewsScreenState extends State<NewsScreen> {
   IconData _getFilterIcon(String icon) {
     switch (icon) {
       case 'flame':
-        return CupertinoIcons.flame_fill;
+        return Icons.local_fire_department;
       case 'clock':
-        return CupertinoIcons.clock_fill;
+        return Icons.access_time;
       case 'star':
-        return CupertinoIcons.star_fill;
+        return Icons.star;
       default:
-        return CupertinoIcons.globe;
+        return Icons.public;
     }
   }
 
-  Widget _buildNewsList(bool isDark) {
+  Widget _buildNewsContent(bool isDark) {
     if (filteredNews.isEmpty) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(CupertinoIcons.news, size: 80, color: CupertinoColors.systemGrey),
-              SizedBox(height: 16),
-              Text(
-                'Nenhuma notícia encontrada',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: CupertinoColors.systemGrey,
-                ),
-              ),
-            ],
-          ),
+      return Center(
+        child: Column(
+          children: [
+            SizedBox(height: 60),
+            Icon(Icons.article, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Nenhuma notícia encontrada',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+            SizedBox(height: 40),
+          ],
         ),
       );
     }
 
-    return SliverList(
-      delegate: SliverChildListDelegate([
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         if (featuredNews.isNotEmpty) ...[
           Row(
             children: [
-              Text(
-                'Destaques',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              SizedBox(width: 12),
+              AppSectionTitle(text: 'Destaques', fontSize: 22, fontWeight: FontWeight.w700),
+              SizedBox(width: 8),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
@@ -735,177 +742,115 @@ class _NewsScreenState extends State<NewsScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(CupertinoIcons.checkmark_seal_fill, color: Colors.white, size: 14),
+                    Icon(Icons.verified, color: Colors.white, size: 14),
                     SizedBox(width: 6),
-                    Text(
-                      'DESTAQUE',
-                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                    ),
+                    Text('DESTAQUE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
             ],
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 12),
           ...featuredNews.map((article) => _buildFeaturedCard(article, isDark)),
-          SizedBox(height: 32),
+          SizedBox(height: 20),
         ],
         if (noImageNews.isNotEmpty) ...[
-          Text(
-            'Notícias do Google & DuckDuckGo',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black,
-              letterSpacing: -0.5,
-            ),
-          ),
-          SizedBox(height: 16),
-          Container(
+          AppSectionTitle(text: 'Notícias do Google & DuckDuckGo', fontSize: 20, fontWeight: FontWeight.w700),
+          SizedBox(height: 12),
+          SizedBox(
             height: 130,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: noImageNews.length,
-              itemBuilder: (context, index) => _buildSmallCard(noImageNews[index], isDark),
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: _buildSmallCard(noImageNews[index], isDark),
+              ),
             ),
           ),
-          SizedBox(height: 32),
+          SizedBox(height: 20),
         ],
         if (mediumNews.isNotEmpty) ...[
-          Text(
-            'Notícias em Destaque',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black,
-              letterSpacing: -0.5,
-            ),
-          ),
-          SizedBox(height: 16),
+          AppSectionTitle(text: 'Notícias em Destaque', fontSize: 20, fontWeight: FontWeight.w700),
+          SizedBox(height: 12),
           ...mediumNews.map((article) => _buildMediumCard(article, isDark)),
-          SizedBox(height: 32),
+          SizedBox(height: 20),
         ],
         if (lowNews.isNotEmpty) ...[
-          Text(
-            'Mais Notícias',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black,
-              letterSpacing: -0.5,
-            ),
-          ),
-          SizedBox(height: 16),
-          Container(
+          AppSectionTitle(text: 'Mais Notícias', fontSize: 20, fontWeight: FontWeight.w700),
+          SizedBox(height: 12),
+          SizedBox(
             height: 210,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: lowNews.length,
-              itemBuilder: (context, index) => _buildLowCard(lowNews[index], isDark),
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: _buildLowCard(lowNews[index], isDark),
+              ),
             ),
           ),
         ],
-        if (isLoadingMore)
-          Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: CupertinoActivityIndicator(radius: 15, color: Color(0xFFFF444F))),
-          ),
-        SizedBox(height: 80),
-      ]),
+      ],
     );
   }
 
   Widget _buildSmallCard(NewsArticle article, bool isDark) {
     return GestureDetector(
       onTap: () => _openArticleDetail(article),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-          child: Container(
-            width: 210,
-            margin: EdgeInsets.only(right: 12),
-            padding: EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: (isDark ? Color(0xFF1C1C1E) : Colors.white).withOpacity(0.85),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            _getFaviconUrl(article.source),
-                            width: 16,
-                            height: 16,
-                            errorBuilder: (context, error, stack) =>
-                                Icon(CupertinoIcons.news, size: 16, color: CupertinoColors.systemGrey),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            article.source,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFFF444F),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+      child: AppCard(
+        child: Container(
+          width: 210,
+          padding: EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.network(
+                      _getFaviconUrl(article.source),
+                      width: 16,
+                      height: 16,
+                      errorBuilder: (context, error, stack) =>
+                          Icon(Icons.article, size: 16, color: Colors.grey),
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      article.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black,
-                        height: 1.3,
-                        letterSpacing: -0.2,
-                      ),
-                      maxLines: 3,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      article.source,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Icon(CupertinoIcons.time, size: 12, color: CupertinoColors.systemGrey),
-                    SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        article.timeAgo,
-                        style: TextStyle(fontSize: 11, color: CupertinoColors.systemGrey, fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              Text(
+                article.title,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Spacer(),
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 12, color: Colors.grey),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      article.timeAgo,
+                      style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              )
+            ],
           ),
         ),
       ),
@@ -915,30 +860,21 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildFeaturedCard(NewsArticle article, bool isDark) {
     return GestureDetector(
       onTap: () => _openArticleDetail(article),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 20),
+      child: SizedBox(
         height: 420,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+        child: AppCard(
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                article.imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => Container(
-                  color: isDark ? Color(0xFF1C1C1E) : CupertinoColors.systemGrey5,
-                  child: Icon(CupertinoIcons.photo, size: 70, color: CupertinoColors.systemGrey),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  article.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    child: Icon(Icons.photo, size: 70, color: Colors.grey),
+                  ),
                 ),
               ),
               Container(
@@ -946,47 +882,35 @@ class _NewsScreenState extends State<NewsScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.95)],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
                     stops: [0.3, 1.0],
                   ),
                 ),
               ),
               Positioned(
-                top: 20,
-                left: 20,
+                top: 12,
+                left: 12,
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: [Color(0xFF0084FF), Color(0xFF00A3FF)]),
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFF0084FF).withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(CupertinoIcons.checkmark_seal_fill, color: Colors.white, size: 16),
+                      Icon(Icons.verified, color: Colors.white, size: 14),
                       SizedBox(width: 6),
-                      Text(
-                        'DESTAQUE',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
-                      ),
+                      Text('DESTAQUE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),
                 ),
               ),
               Positioned(
-                bottom: 24,
-                left: 24,
-                right: 24,
+                bottom: 16,
+                left: 16,
+                right: 16,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
@@ -997,63 +921,41 @@ class _NewsScreenState extends State<NewsScreen> {
                             width: 24,
                             height: 24,
                             errorBuilder: (context, error, stack) =>
-                                Icon(CupertinoIcons.news, color: Colors.white, size: 24),
+                                Icon(Icons.article, color: Colors.white, size: 24),
                           ),
                         ),
                         SizedBox(width: 10),
                         Text(
                           article.source,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.95),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ],
-                    ),
-                    SizedBox(height: 14),
-                    Text(
-                      article.title,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 12),
                     Text(
+                      article.title,
+                      style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
                       article.description,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 15,
-                        height: 1.4,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 14),
+                    SizedBox(height: 10),
                     Row(
                       children: [
-                        Icon(CupertinoIcons.time, color: Colors.white.withOpacity(0.8), size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          article.timeAgo,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        Icon(Icons.access_time, color: Colors.white70, size: 14),
+                        SizedBox(width: 8),
+                        Text(article.timeAgo, style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
                       ],
-                    ),
+                    )
                   ],
                 ),
-              ),
+              )
             ],
           ),
         ),
@@ -1064,122 +966,81 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildMediumCard(NewsArticle article, bool isDark) {
     return GestureDetector(
       onTap: () => _openArticleDetail(article),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-          child: Container(
-            margin: EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: (isDark ? Color(0xFF1C1C1E) : Colors.white).withOpacity(0.85),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 15,
-                  offset: Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  child: Image.network(
-                    article.imageUrl,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                child: Image.network(
+                  article.imageUrl,
+                  width: double.infinity,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
                     width: double.infinity,
                     height: 220,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => Container(
-                      width: double.infinity,
-                      height: 220,
-                      color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
-                      child: Icon(CupertinoIcons.photo, size: 60, color: CupertinoColors.systemGrey),
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    child: Icon(Icons.photo, size: 60, color: Colors.grey),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: Image.network(
+                            _getFaviconUrl(article.source),
+                            width: 20,
+                            height: 20,
+                            errorBuilder: (context, error, stack) =>
+                                Icon(Icons.article, size: 20, color: Colors.grey),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            article.source,
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    SizedBox(height: 12),
+                    Text(
+                      article.title,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      article.description,
+                      style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 14, color: Colors.grey),
+                        SizedBox(width: 6),
+                        Text(article.timeAgo, style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      ],
+                    )
+                  ],
                 ),
-                Padding(
-                  padding: EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
-                            child: Image.network(
-                              _getFaviconUrl(article.source),
-                              width: 20,
-                              height: 20,
-                              errorBuilder: (context, error, stack) =>
-                                  Icon(CupertinoIcons.news, size: 20, color: CupertinoColors.systemGrey),
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              article.source,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFF444F),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 14),
-                      Text(
-                        article.title,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black,
-                          height: 1.3,
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        article.description,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: CupertinoColors.systemGrey,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Icon(CupertinoIcons.time, size: 15, color: CupertinoColors.systemGrey),
-                          SizedBox(width: 6),
-                          Text(
-                            article.timeAgo,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: CupertinoColors.systemGrey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1189,125 +1050,78 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildLowCard(NewsArticle article, bool isDark) {
     return GestureDetector(
       onTap: () => _openArticleDetail(article),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-          child: Container(
-            width: 290,
-            margin: EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: (isDark ? Color(0xFF1C1C1E) : Colors.white).withOpacity(0.85),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                  child: Image.network(
-                    article.imageUrl,
+      child: AppCard(
+        child: Container(
+          width: 290,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+                child: Image.network(
+                  article.imageUrl,
+                  width: 110,
+                  height: 210,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
                     width: 110,
                     height: 210,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => Container(
-                      width: 110,
-                      height: 210,
-                      color: isDark ? Color(0xFF0E0E0E) : CupertinoColors.systemGrey6,
-                      child: Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey, size: 40),
-                    ),
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    child: Icon(Icons.photo, size: 40, color: Colors.grey),
                   ),
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Image.network(
-                                    _getFaviconUrl(article.source),
-                                    width: 18,
-                                    height: 18,
-                                    errorBuilder: (context, error, stack) =>
-                                        Icon(CupertinoIcons.news, size: 18, color: CupertinoColors.systemGrey),
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    article.source,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFFF444F),
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.network(
+                              _getFaviconUrl(article.source),
+                              width: 18,
+                              height: 18,
+                              errorBuilder: (context, error, stack) =>
+                                  Icon(Icons.article, size: 18, color: Colors.grey),
                             ),
-                            SizedBox(height: 10),
-                            Text(
-                              article.title,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black,
-                                height: 1.3,
-                                letterSpacing: -0.2,
-                              ),
-                              maxLines: 5,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              article.source,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Icon(CupertinoIcons.time, size: 13, color: CupertinoColors.systemGrey),
-                            SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                article.timeAgo,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: CupertinoColors.systemGrey,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        article.title,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+                        maxLines: 5,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Spacer(),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 13, color: Colors.grey),
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(article.timeAgo, style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                          )
+                        ],
+                      )
+                    ],
                   ),
                 ),
-              ],
-            ),
+              )
+            ],
           ),
         ),
       ),
@@ -1317,7 +1131,7 @@ class _NewsScreenState extends State<NewsScreen> {
   void _openArticleDetail(NewsArticle article) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => NewsDetailScreen(
           article: article,
           allArticles: filteredNews,
