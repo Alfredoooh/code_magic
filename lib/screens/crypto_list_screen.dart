@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
+import '../widgets/app_ui_components.dart';
 
 class CryptoListScreen extends StatefulWidget {
   const CryptoListScreen({Key? key}) : super(key: key);
@@ -18,6 +18,15 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   bool _loading = true;
   Timer? _updateTimer;
   String _selectedMarket = 'Criptomoedas';
+
+  // Ícones PNG dos mercados (URLs do repositório de ícones)
+  final Map<String, String> _marketIcons = {
+    'Criptomoedas': 'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
+    'Forex': 'https://cdn-icons-png.flaticon.com/512/2917/2917995.png',
+    'Ações': 'https://cdn-icons-png.flaticon.com/512/3135/3135706.png',
+    'Commodities': 'https://cdn-icons-png.flaticon.com/512/2721/2721288.png',
+    'Índices': 'https://cdn-icons-png.flaticon.com/512/3050/3050156.png',
+  };
 
   @override
   void initState() {
@@ -69,93 +78,95 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
     }
   }
 
-  void _showMarketMenu(BuildContext context, bool isDark) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: Text(
-          'Selecionar Mercado',
-          style: TextStyle(
-            fontSize: 13,
-            color: CupertinoColors.systemGrey,
-          ),
+  void _showMarketMenu(BuildContext context) {
+    AppBottomSheet.show(
+      context,
+      height: 480,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            const AppSectionTitle(text: 'Selecionar Mercado', fontSize: 18),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                children: _marketIcons.entries.map((entry) {
+                  return _buildMarketOption(entry.key, entry.value);
+                }).toList(),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              setState(() => _selectedMarket = 'Criptomoedas');
-              Navigator.pop(context);
-            },
+      ),
+    );
+  }
+
+  Widget _buildMarketOption(String market, String iconUrl) {
+    final isSelected = _selectedMarket == market;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() => _selectedMarket = market);
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+              border: Border.all(
+                color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.3),
+                width: isSelected ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(CupertinoIcons.bitcoin_circle_fill, size: 22),
-                SizedBox(width: 8),
-                Text('Criptomoedas'),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withOpacity(0.15)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.network(
+                    iconUrl,
+                    width: 24,
+                    height: 24,
+                    color: isSelected ? AppColors.primary : Colors.grey,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.category_outlined,
+                      color: isSelected ? AppColors.primary : Colors.grey,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    market,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? AppColors.primary : null,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
               ],
             ),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              setState(() => _selectedMarket = 'Forex');
-              Navigator.pop(context);
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(CupertinoIcons.money_dollar_circle, size: 22),
-                SizedBox(width: 8),
-                Text('Forex'),
-              ],
-            ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              setState(() => _selectedMarket = 'Ações');
-              Navigator.pop(context);
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(CupertinoIcons.chart_bar_square, size: 22),
-                SizedBox(width: 8),
-                Text('Ações'),
-              ],
-            ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              setState(() => _selectedMarket = 'Commodities');
-              Navigator.pop(context);
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(CupertinoIcons.cube_box, size: 22),
-                SizedBox(width: 8),
-                Text('Commodities'),
-              ],
-            ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              setState(() => _selectedMarket = 'Índices');
-              Navigator.pop(context);
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(CupertinoIcons.graph_circle, size: 22),
-                SizedBox(width: 8),
-                Text('Índices'),
-              ],
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDestructiveAction: true,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
         ),
       ),
     );
@@ -163,19 +174,8 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
 
   void _openSearchScreen() {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            SearchScreen(cryptos: _allCryptos),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
+      MaterialPageRoute(
+        builder: (context) => SearchScreen(cryptos: _allCryptos),
       ),
     );
   }
@@ -184,125 +184,75 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop();
-        return false;
-      },
-      child: CupertinoPageScaffold(
-        backgroundColor: isDark ? const Color(0xFF0E0E0E) : const Color(0xFFF5F5F5),
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-          leading: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: Icon(
-              CupertinoIcons.back,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            onPressed: () => Navigator.of(context).pop(),
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: _selectedMarket,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => _showMarketMenu(context),
           ),
-          middle: Text(
-            _selectedMarket,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-          ),
-          trailing: CupertinoButton(
-            padding: EdgeInsets.zero,
-            child: Icon(
-              CupertinoIcons.ellipsis_circle,
-              color: isDark ? CupertinoColors.white : CupertinoColors.black,
-              size: 28,
-            ),
-            onPressed: () => _showMarketMenu(context, isDark),
-          ),
-          border: null,
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: GestureDetector(
-                  onTap: _openSearchScreen,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(
-                          CupertinoIcons.search,
-                          color: CupertinoColors.systemGrey,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Pesquisar...',
-                          style: TextStyle(
-                            color: CupertinoColors.systemGrey,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: _openSearchScreen,
+                child: AppTextField(
+                  hintText: 'Pesquisar...',
+                  enabled: false,
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 ),
               ),
-              Expanded(
-                child: _loading
-                    ? const Center(child: CupertinoActivityIndicator(radius: 20))
-                    : _filteredCryptos.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(
-                                  CupertinoIcons.search,
-                                  size: 60,
-                                  color: CupertinoColors.systemGrey,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Nenhum item encontrado',
-                                  style: TextStyle(
-                                    color: CupertinoColors.systemGrey,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : CustomScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            slivers: [
-                              CupertinoSliverRefreshControl(
-                                onRefresh: _loadAllCryptos,
+            ),
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    )
+                  : _filteredCryptos.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AppIconCircle(
+                                icon: Icons.search_off,
+                                size: 60,
+                                iconColor: Colors.grey,
                               ),
-                              SliverPadding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                sliver: SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) {
-                                      final crypto = _filteredCryptos[index];
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
-                                        child: _buildCryptoCard(crypto, isDark, index + 1),
-                                      );
-                                    },
-                                    childCount: _filteredCryptos.length,
-                                  ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Nenhum item encontrado',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
                                 ),
                               ),
-                              const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
                             ],
                           ),
-              ),
-            ],
-          ),
+                        )
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          onRefresh: _loadAllCryptos,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _filteredCryptos.length,
+                            itemBuilder: (context, index) {
+                              final crypto = _filteredCryptos[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildCryptoCard(crypto, isDark, index + 1),
+                              );
+                            },
+                          ),
+                        ),
+            ),
+          ],
         ),
       ),
     );
@@ -312,56 +262,41 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
     final isPositive = crypto.priceChange >= 0;
 
     return GestureDetector(
-      onTap: () => _showCryptoDetail(crypto, isDark),
-      child: Container(
+      onTap: () => _showCryptoDetail(crypto),
+      child: AppCard(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
         child: Row(
           children: [
             Container(
-              width: 30,
+              width: 28,
               alignment: Alignment.center,
               child: Text(
                 '$rank',
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: CupertinoColors.systemGrey,
+                  color: Colors.grey,
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Container(
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFFF444F).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(22),
               ),
+              padding: const EdgeInsets.all(8),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(22),
                 child: Image.network(
                   'https://cryptologos.cc/logos/${crypto.symbol.toLowerCase()}-${crypto.symbol.toLowerCase()}-logo.png',
-                  width: 32,
-                  height: 32,
                   errorBuilder: (context, error, stack) => Image.network(
                     'https://s2.coinmarketcap.com/static/img/coins/64x64/${_getCoinMarketCapId(crypto.symbol)}.png',
-                    width: 32,
-                    height: 32,
-                    errorBuilder: (context, error, stack) => const Icon(
-                      CupertinoIcons.bitcoin_circle_fill,
-                      color: Color(0xFFFF444F),
-                      size: 32,
+                    errorBuilder: (context, error, stack) => Image.network(
+                      'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -375,17 +310,17 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                   Text(
                     crypto.symbol,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     '\$${crypto.price < 1 ? crypto.price.toStringAsFixed(6) : crypto.price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: CupertinoColors.systemGrey,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
@@ -398,27 +333,35 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: isPositive
-                        ? CupertinoColors.systemGreen.withOpacity(0.1)
-                        : CupertinoColors.systemRed.withOpacity(0.1),
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      color: isPositive
-                          ? CupertinoColors.systemGreen
-                          : CupertinoColors.systemRed,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                        color: isPositive ? Colors.green : Colors.red,
+                        size: 18,
+                      ),
+                      Text(
+                        '${crypto.priceChange.abs().toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          color: isPositive ? Colors.green : Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   '24h',
                   style: TextStyle(
-                    fontSize: 11,
-                    color: CupertinoColors.systemGrey,
+                    fontSize: 10,
+                    color: Colors.grey[600],
                   ),
                 ),
               ],
@@ -445,9 +388,9 @@ class _CryptoListScreenState extends State<CryptoListScreen> {
     return ids[symbol] ?? '1';
   }
 
-  void _showCryptoDetail(CryptoData crypto, bool isDark) {
+  void _showCryptoDetail(CryptoData crypto) {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => CryptoDetailScreen(crypto: crypto),
         fullscreenDialog: true,
       ),
@@ -493,34 +436,42 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF0E0E0E) : const Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Text('Cancelar'),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: CupertinoSearchTextField(
-          controller: _searchController,
-          placeholder: 'Pesquisar...',
-          autofocus: true,
-          style: TextStyle(
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-          backgroundColor: isDark ? const Color(0xFF2A2A2A) : CupertinoColors.systemGrey6,
-        ),
-        border: null,
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: const AppSecondaryAppBar(
+        title: 'Pesquisar',
       ),
-      child: SafeArea(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _filteredCryptos.length,
-          itemBuilder: (context, index) {
-            final crypto = _filteredCryptos[index];
-            return _buildSearchResult(crypto, isDark);
-          },
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppTextField(
+                controller: _searchController,
+                hintText: 'Digite para pesquisar...',
+                autofocus: true,
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                        },
+                      )
+                    : null,
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _filteredCryptos.length,
+                itemBuilder: (context, index) {
+                  final crypto = _filteredCryptos[index];
+                  return _buildSearchResult(crypto, isDark);
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -529,62 +480,64 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSearchResult(CryptoData crypto, bool isDark) {
     final isPositive = crypto.priceChange >= 0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.network(
-                'https://cryptologos.cc/logos/${crypto.symbol.toLowerCase()}-${crypto.symbol.toLowerCase()}-logo.png',
-                errorBuilder: (context, error, stack) => const Icon(
-                  CupertinoIcons.bitcoin_circle_fill,
-                  color: Color(0xFFFF444F),
-                  size: 28,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AppCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.network(
+                  'https://cryptologos.cc/logos/${crypto.symbol.toLowerCase()}-${crypto.symbol.toLowerCase()}-logo.png',
+                  errorBuilder: (context, error, stack) => Image.network(
+                    'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  crypto.symbol,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    crypto.symbol,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
                   ),
-                ),
-                Text(
-                  '\$${crypto.price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: CupertinoColors.systemGrey,
+                  Text(
+                    '\$${crypto.price.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Text(
-            '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
-            style: TextStyle(
-              color: isPositive ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+            Text(
+              '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
+              style: TextStyle(
+                color: isPositive ? Colors.green : Colors.red,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -605,7 +558,7 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
   late WebViewController _newsController;
   late WebViewController _technicalController;
   String _signal = 'NEUTRO';
-  Color _signalColor = CupertinoColors.systemGrey;
+  Color _signalColor = Colors.grey;
 
   @override
   void initState() {
@@ -617,20 +570,19 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
   void _calculateSignal() {
     if (widget.crypto.priceChange > 5) {
       _signal = 'COMPRAR';
-      _signalColor = CupertinoColors.systemGreen;
+      _signalColor = Colors.green;
     } else if (widget.crypto.priceChange < -5) {
       _signal = 'VENDER';
-      _signalColor = CupertinoColors.systemRed;
+      _signalColor = Colors.red;
     } else {
       _signal = 'NEUTRO';
-      _signalColor = CupertinoColors.systemGrey;
+      _signalColor = Colors.grey;
     }
   }
 
   void _initWebViews() {
     final symbol = 'BINANCE:${widget.crypto.symbol}USDT';
 
-    // Chart Widget
     _chartController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadHtmlString('''
@@ -666,7 +618,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
         </html>
       ''');
 
-    // News Widget
     _newsController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadHtmlString('''
@@ -696,7 +647,6 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
         </html>
       ''');
 
-    // Technical Analysis Widget
     _technicalController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadHtmlString('''
@@ -731,63 +681,29 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF0E0E0E) : const Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(CupertinoIcons.back, color: isDark ? CupertinoColors.white : CupertinoColors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  'https://cryptologos.cc/logos/${widget.crypto.symbol.toLowerCase()}-${widget.crypto.symbol.toLowerCase()}-logo.png',
-                  errorBuilder: (context, error, stack) => const Icon(
-                    CupertinoIcons.bitcoin_circle_fill,
-                    color: Color(0xFFFF444F),
-                    size: 24,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              widget.crypto.symbol,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-              ),
-            ),
-          ],
-        ),
-        border: null,
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: widget.crypto.symbol,
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Price Header
-              Container(
+              AppCard(
                 padding: const EdgeInsets.all(20),
-                color: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
+                borderRadius: 0,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Preço Atual',
                       style: TextStyle(
                         fontSize: 14,
-                        color: CupertinoColors.systemGrey,
+                        color: Colors.grey[600],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -797,9 +713,9 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
                         Text(
                           '\$${widget.crypto.price < 1 ? widget.crypto.price.toStringAsFixed(6) : widget.crypto.price.toStringAsFixed(2)}',
                           style: TextStyle(
-                            fontSize: 36,
+                            fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            color: isDark ? Colors.white : Colors.black,
                           ),
                         ),
                         Container(
@@ -811,13 +727,21 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
                           ),
                           child: Column(
                             children: [
-                              Icon(_signal == 'COMPRAR' ? CupertinoIcons.arrow_up : _signal == 'VENDER' ? CupertinoIcons.arrow_down : CupertinoIcons.minus, color: _signalColor, size: 20),
+                              Icon(
+                                _signal == 'COMPRAR'
+                                    ? Icons.trending_up
+                                    : _signal == 'VENDER'
+                                        ? Icons.trending_down
+                                        : Icons.remove,
+                                color: _signalColor,
+                                size: 20,
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 _signal,
                                 style: TextStyle(
                                   color: _signalColor,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -831,17 +755,15 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: widget.crypto.priceChange >= 0
-                            ? CupertinoColors.systemGreen.withOpacity(0.1)
-                            : CupertinoColors.systemRed.withOpacity(0.1),
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '${widget.crypto.priceChange >= 0 ? '+' : ''}${widget.crypto.priceChange.toStringAsFixed(2)}% (24h)',
                         style: TextStyle(
-                          color: widget.crypto.priceChange >= 0
-                              ? CupertinoColors.systemGreen
-                              : CupertinoColors.systemRed,
-                          fontSize: 16,
+                          color: widget.crypto.priceChange >= 0 ? Colors.green : Colors.red,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -854,48 +776,52 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
 
               // Chart Section
               _buildSection('Gráfico de Preço', isDark,
-                Container(
-                  height: 400,
-                  child: WebViewWidget(controller: _chartController),
-                ),
-              ),
+                  SizedBox(
+                    height: 400,
+                    child: WebViewWidget(controller: _chartController),
+                  )),
 
               const SizedBox(height: 16),
 
               // Technical Analysis Section
               _buildSection('Análise Técnica', isDark,
-                Container(
-                  height: 400,
-                  child: WebViewWidget(controller: _technicalController),
-                ),
-              ),
+                  SizedBox(
+                    height: 400,
+                    child: WebViewWidget(controller: _technicalController),
+                  )),
 
               const SizedBox(height: 16),
 
               // News Section
               _buildSection('Notícias e Timeline', isDark,
-                Container(
-                  height: 400,
-                  child: WebViewWidget(controller: _newsController),
-                ),
-              ),
+                  SizedBox(
+                    height: 400,
+                    child: WebViewWidget(controller: _newsController),
+                  )),
 
               const SizedBox(height: 16),
 
               // Market Stats
-              _buildSection('Estatísticas de Mercado', isDark,
-                Container(
+              _buildSection(
+                'Estatísticas de Mercado',
+                isDark,
+                Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
                       _buildStatRow('Volume 24h', '\$${_formatNumber(widget.crypto.volume)}', isDark),
                       const Divider(height: 24),
-                      _buildStatRow('Máxima 24h', '\$${widget.crypto.high24h.toStringAsFixed(2)}', isDark),
+                      _buildStatRow(
+                          'Máxima 24h', '\$${widget.crypto.high24h.toStringAsFixed(2)}', isDark),
                       const Divider(height: 24),
-                      _buildStatRow('Mínima 24h', '\$${widget.crypto.low24h.toStringAsFixed(2)}', isDark),
+                      _buildStatRow(
+                          'Mínima 24h', '\$${widget.crypto.low24h.toStringAsFixed(2)}', isDark),
                       const Divider(height: 24),
-                      _buildStatRow('Variação 24h', '${widget.crypto.priceChange >= 0 ? '+' : ''}${widget.crypto.priceChange.toStringAsFixed(2)}%', isDark,
-                        valueColor: widget.crypto.priceChange >= 0 ? CupertinoColors.systemGreen : CupertinoColors.systemRed),
+                      _buildStatRow(
+                          'Variação 24h',
+                          '${widget.crypto.priceChange >= 0 ? '+' : ''}${widget.crypto.priceChange.toStringAsFixed(2)}%',
+                          isDark,
+                          valueColor: widget.crypto.priceChange >= 0 ? Colors.green : Colors.red),
                     ],
                   ),
                 ),
@@ -912,33 +838,18 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
   Widget _buildSection(String title, bool isDark, Widget child) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A1A) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? CupertinoColors.white : CupertinoColors.black,
-              ),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppSectionTitle(text: title, fontSize: 17),
             ),
-          ),
-          child,
-        ],
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -949,17 +860,17 @@ class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 16,
-            color: CupertinoColors.systemGrey,
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.grey[600],
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: valueColor ?? (isDark ? CupertinoColors.white : CupertinoColors.black),
+            color: valueColor ?? (isDark ? Colors.white : Colors.black),
           ),
         ),
       ],
