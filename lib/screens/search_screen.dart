@@ -1,15 +1,14 @@
-// lib/screens/search_screen.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/app_ui_components.dart';
 import '../widgets/post_card.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
 
   @override
-  _SearchScreenState createState() => _SearchScreenState();
+  State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
@@ -27,42 +26,39 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? Color(0xFF0E0E0E) : Color(0xFFF5F5F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            CupertinoIcons.back,
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: Text(
-          'Pesquisar',
-          style: TextStyle(
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        border: null,
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Pesquisar',
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
-              child: CupertinoSearchTextField(
+              padding: const EdgeInsets.all(16),
+              child: AppTextField(
                 controller: _searchController,
-                placeholder: 'Pesquisar sheets e usuários...',
-                style: TextStyle(
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                hintText: 'Pesquisar sheets e usuários...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Colors.grey,
                 ),
-                placeholderStyle: TextStyle(
-                  color: CupertinoColors.systemGrey,
-                ),
-                backgroundColor: isDark ? Color(0xFF1A1A1A) : CupertinoColors.white,
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.clear,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                            _isSearching = false;
+                          });
+                        },
+                      )
+                    : null,
+                keyboardType: TextInputType.text,
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value.toLowerCase();
@@ -87,17 +83,22 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            CupertinoIcons.search,
+          AppIconCircle(
+            icon: Icons.search,
             size: 80,
-            color: CupertinoColors.systemGrey,
           ),
-          SizedBox(height: 16),
-          Text(
-            'Pesquise por sheets ou usuários',
+          const SizedBox(height: 24),
+          AppSectionTitle(
+            text: 'Pesquise por sheets ou usuários',
+            fontSize: 16,
+            fontWeight: FontWeight.normal,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Digite algo na barra de pesquisa',
             style: TextStyle(
-              fontSize: 16,
-              color: CupertinoColors.systemGrey,
+              fontSize: 14,
+              color: Colors.grey,
             ),
           ),
         ],
@@ -114,7 +115,11 @@ class _SearchScreenState extends State<SearchScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CupertinoActivityIndicator(radius: 16));
+          return const Center(
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data == null) {
@@ -122,13 +127,13 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final allPosts = snapshot.data!.docs;
-        
+
         final filteredPosts = allPosts.where((doc) {
-          final post = doc.data() as Map<String, dynamic>;
+          final post = doc.data();
           final content = (post['content'] ?? '').toString().toLowerCase();
           final username = (post['username'] ?? '').toString().toLowerCase();
           final displayName = (post['displayName'] ?? '').toString().toLowerCase();
-          
+
           return content.contains(_searchQuery) ||
               username.contains(_searchQuery) ||
               displayName.contains(_searchQuery);
@@ -139,16 +144,16 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         return ListView.builder(
-          physics: BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 16),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           itemCount: filteredPosts.length,
           itemBuilder: (context, index) {
             final docSnap = filteredPosts[index];
-            final post = docSnap.data() as Map<String, dynamic>;
+            final post = docSnap.data();
             final postId = docSnap.id;
-            
+
             return Padding(
-              padding: EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 12),
               child: PostCard(
                 post: post,
                 postId: postId,
@@ -167,26 +172,28 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            CupertinoIcons.search_circle,
+          AppIconCircle(
+            icon: Icons.search_off,
             size: 80,
-            color: CupertinoColors.systemGrey,
           ),
-          SizedBox(height: 16),
-          Text(
-            'Nenhum resultado encontrado',
-            style: TextStyle(
-              fontSize: 16,
-              color: CupertinoColors.systemGrey,
-            ),
+          const SizedBox(height: 24),
+          AppSectionTitle(
+            text: 'Nenhum resultado encontrado',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             'Tente pesquisar com outros termos',
             style: TextStyle(
               fontSize: 14,
-              color: CupertinoColors.systemGrey2,
+              color: Colors.grey,
             ),
+          ),
+          const SizedBox(height: 24),
+          AppInfoCard(
+            icon: Icons.lightbulb_outline,
+            text: 'Dica: Pesquise por nome de usuário, conteúdo ou hashtags',
           ),
         ],
       ),
