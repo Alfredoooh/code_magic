@@ -1,384 +1,327 @@
-// lib/screens/home_widgets.dart
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:webview_flutter/webview_flutter.dart';
 import '../widgets/app_ui_components.dart';
-import '../models/news_article.dart';
-import 'news_detail_screen.dart';
 
-class HomeWidgets {
-  // ==================== CRYPTO ICONS ====================
-  
-  static const Map<String, String> _cryptoNames = {
-    'btc': 'bitcoin',
-    'eth': 'ethereum',
-    'bnb': 'bnb',
-    'sol': 'solana',
-    'xrp': 'xrp',
-    'ada': 'cardano',
-    'doge': 'dogecoin',
-    'dot': 'polkadot',
-    'matic': 'polygon',
-    'ltc': 'litecoin',
-    'trx': 'tron',
-    'avax': 'avalanche',
-    'link': 'chainlink',
-    'uni': 'uniswap',
-    'atom': 'cosmos',
+class CryptoListScreen extends StatefulWidget {
+  const CryptoListScreen({Key? key}) : super(key: key);
+
+  @override
+  _CryptoListScreenState createState() => _CryptoListScreenState();
+}
+
+class _CryptoListScreenState extends State<CryptoListScreen> {
+  List<CryptoData> _allCryptos = [];
+  List<CryptoData> _filteredCryptos = [];
+  bool _loading = true;
+  Timer? _updateTimer;
+  String _selectedMarket = 'Criptomoedas';
+
+  // Ícones PNG dos mercados (URLs reais do Flaticon)
+  final Map<String, String> _marketIcons = {
+    'Criptomoedas': 'https://cdn-icons-png.flaticon.com/512/6001/6001527.png', // Bitcoin icon
+    'Forex': 'https://cdn-icons-png.flaticon.com/512/8968/8968458.png', // Currency exchange
+    'Ações': 'https://cdn-icons-png.flaticon.com/512/3588/3588592.png', // Stock market
+    'Commodities': 'https://cdn-icons-png.flaticon.com/512/2331/2331966.png', // Gold bar
+    'Índices': 'https://cdn-icons-png.flaticon.com/512/9195/9195886.png', // Chart graph
   };
 
-  static String getCryptoIcon(String symbol) {
-    final clean = symbol.replaceAll('USDT', '').toLowerCase();
-    final name = _cryptoNames[clean] ?? clean;
-    return 'https://cryptologos.cc/logos/$name-$clean-logo.png';
+  @override
+  void initState() {
+    super.initState();
+    _loadAllCryptos();
+    _updateTimer = Timer.periodic(const Duration(seconds: 10), (_) => _loadAllCryptos());
   }
 
-  static Widget buildCryptoIcon(String symbol, {double size = 32}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size / 2),
-      child: Image.network(
-        getCryptoIcon(symbol),
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.currency_bitcoin,
-            color: AppColors.primary,
-            size: size * 0.6,
-          ),
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
   }
 
-  // ==================== PROFILE AVATAR ====================
-  
-  static Widget buildProfileAvatar({
-    required String? profileImage,
-    required String username,
-    required VoidCallback onTap,
-    double radius = 18,
-  }) {
-    final imageProvider = _getProfileImage(profileImage);
+  Future<void> _loadAllCryptos() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.binance.com/api/v3/ticker/24hr'),
+      );
 
-    return Padding(
-      padding: EdgeInsets.only(right: 16),
-      child: GestureDetector(
-        onTap: onTap,
-        child: CircleAvatar(
-          radius: radius,
-          backgroundColor: AppColors.primary,
-          backgroundImage: imageProvider,
-          child: imageProvider == null
-              ? Text(
-                  username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                  style: TextStyle(
-                    fontSize: radius * 0.8,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
-        ),
-      ),
-    );
-  }
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final usdtPairs = data
+            .where((coin) =>
+                coin['symbol'].toString().endsWith('USDT') &&
+                !coin['symbol'].toString().contains('DOWN') &&
+                !coin['symbol'].toString().contains('UP') &&
+                !coin['symbol'].toString().contains('BEAR') &&
+                !coin['symbol'].toString().contains('BULL'))
+            .toList();
 
-  static ImageProvider? _getProfileImage(String? profileImage) {
-    if (profileImage == null || profileImage.isEmpty) return null;
+        usdtPairs.sort((a, b) => double.parse(b['quoteVolume'].toString())
+            .compareTo(double.parse(a['quoteVolume'].toString())));
 
-    if (profileImage.startsWith('data:image')) {
-      try {
-        final bytes = base64Decode(profileImage.split(',')[1]);
-        return MemoryImage(bytes);
-      } catch (_) {
-        return null;
+        if (mounted) {
+          setState(() {
+            _allCryptos = usdtPairs.take(100).map((coin) => CryptoData.fromBinance(coin)).toList();
+            _filteredCryptos = _allCryptos;
+            _loading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
       }
     }
-
-    return NetworkImage(profileImage);
   }
 
-  // ==================== PAGE INDICATOR ====================
-  
-  static Widget buildPageIndicator({
-    required int count,
-    required int currentPage,
-    required bool isDark,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(count, (i) {
-        final isActive = currentPage == i;
-        return AnimatedContainer(
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          width: isActive ? 24 : 8,
-          height: 8,
-          margin: EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(
-            color: isActive ? AppColors.primary : Colors.grey.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: isActive ? [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ] : null,
-          ),
-        );
-      }),
-    );
-  }
-
-  // ==================== STATS CARD ====================
-  
-  static Widget buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-    required bool isDark,
-  }) {
-    return AppCard(
-      padding: EdgeInsets.all(20),
-      borderRadius: 24,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 28),
-          ),
-          SizedBox(height: 16),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : Colors.black,
-              letterSpacing: -0.5,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== NEWS CARD ====================
-  
-  static Widget buildNewsCard({
-    required NewsArticle article,
-    required int index,
-    required bool isDark,
-    required BuildContext context,
-    required List<NewsArticle> allArticles,
-  }) {
-    return GestureDetector(
-      onTap: () => _navigateToNewsDetail(context, article, allArticles, index),
-      child: AppCard(
-        padding: EdgeInsets.zero,
-        borderRadius: 24,
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: _buildNewsContent(article, isDark),
-              ),
-            ),
-            if (article.imageUrl.isNotEmpty)
-              _buildNewsImage(article, isDark),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _buildNewsContent(NewsArticle article, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'Notícia',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-        SizedBox(height: 12),
-        Text(
-          article.title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black,
-            height: 1.3,
-            letterSpacing: -0.2,
-          ),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        SizedBox(height: 8),
-        Text(
-          article.description,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            height: 1.3,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        SizedBox(height: 8),
-        Row(
-          children: [
-            Icon(Icons.access_time, size: 12, color: Colors.grey),
-            SizedBox(width: 4),
-            Text(
-              'Há 2 horas',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  static Widget _buildNewsImage(NewsArticle article, bool isDark) {
-    return Container(
-      width: 120,
-      height: 160,
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(24),
-              bottomRight: Radius.circular(24),
-            ),
-            child: Image.network(
-              article.imageUrl,
-              width: 120,
-              height: 160,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: isDark ? Color(0xFF0E0E0E) : Color(0xFFF2F2F7),
-                child: Icon(Icons.photo, color: Colors.grey, size: 40),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              child: Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static void _navigateToNewsDetail(
-    BuildContext context,
-    NewsArticle article,
-    List<NewsArticle> allArticles,
-    int index,
-  ) {
-    Navigator.push(
+  void _showMarketMenu(BuildContext context) {
+    AppBottomSheet.show(
       context,
-      MaterialPageRoute(
-        builder: (_) => NewsDetailScreen(
-          article: article,
-          allArticles: allArticles,
-          currentIndex: index,
+      height: 480,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            const AppSectionTitle(text: 'Selecionar Mercado', fontSize: 18),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                children: _marketIcons.entries.map((entry) {
+                  return _buildMarketOption(entry.key, entry.value);
+                }).toList(),
+              ),
+            ),
+          ],
         ),
-        fullscreenDialog: true,
       ),
     );
   }
 
-  // ==================== CRYPTO CARD ====================
-  
-  static Widget buildCryptoCard({
-    required String symbol,
-    required String name,
-    required double price,
-    required double change,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    final isPositive = change >= 0;
+  Widget _buildMarketOption(String market, String iconUrl) {
+    final isSelected = _selectedMarket == market;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() => _selectedMarket = market);
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+              border: Border.all(
+                color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.3),
+                width: isSelected ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withOpacity(0.15)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.network(
+                    iconUrl,
+                    width: 24,
+                    height: 24,
+                    color: isSelected ? AppColors.primary : Colors.grey,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.category_outlined,
+                      color: isSelected ? AppColors.primary : Colors.grey,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    market,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? AppColors.primary : null,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openSearchScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SearchScreen(cryptos: _allCryptos),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: _selectedMarket,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => _showMarketMenu(context),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: _openSearchScreen,
+                child: AppTextField(
+                  hintText: 'Pesquisar...',
+                  enabled: false,
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    )
+                  : _filteredCryptos.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AppIconCircle(
+                                icon: Icons.search_off,
+                                size: 60,
+                                iconColor: Colors.grey,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Nenhum item encontrado',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          onRefresh: _loadAllCryptos,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _filteredCryptos.length,
+                            itemBuilder: (context, index) {
+                              final crypto = _filteredCryptos[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildCryptoCard(crypto, isDark, index + 1),
+                              );
+                            },
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCryptoCard(CryptoData crypto, bool isDark, int rank) {
+    final isPositive = crypto.priceChange >= 0;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => _showCryptoDetail(crypto),
       child: AppCard(
-        padding: EdgeInsets.all(16),
-        borderRadius: 20,
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            buildCryptoIcon(symbol, size: 40),
-            SizedBox(width: 12),
+            Container(
+              width: 28,
+              alignment: Alignment.center,
+              child: Text(
+                '$rank',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Image.network(
+                  'https://cryptologos.cc/logos/${crypto.symbol.toLowerCase()}-${crypto.symbol.toLowerCase()}-logo.png',
+                  errorBuilder: (context, error, stack) => Image.network(
+                    'https://s2.coinmarketcap.com/static/img/coins/64x64/${_getCoinMarketCapId(crypto.symbol)}.png',
+                    errorBuilder: (context, error, stack) => Image.network(
+                      'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    symbol.replaceAll('USDT', ''),
+                    crypto.symbol,
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
+                  const SizedBox(height: 3),
                   Text(
-                    name,
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    '\$${crypto.price < 1 ? crypto.price.toStringAsFixed(6) : crypto.price.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ],
               ),
@@ -386,15 +329,41 @@ class HomeWidgets {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '\$${price.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : Colors.black,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isPositive
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                        color: isPositive ? Colors.green : Colors.red,
+                        size: 18,
+                      ),
+                      Text(
+                        '${crypto.priceChange.abs().toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          color: isPositive ? Colors.green : Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                _buildChangeIndicator(change, isPositive),
+                const SizedBox(height: 4),
+                Text(
+                  '24h',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[600],
+                  ),
+                ),
               ],
             ),
           ],
@@ -403,68 +372,104 @@ class HomeWidgets {
     );
   }
 
-  static Widget _buildChangeIndicator(double change, bool isPositive) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: (isPositive ? Colors.green : Colors.red).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-            size: 12,
-            color: isPositive ? Colors.green : Colors.red,
-          ),
-          SizedBox(width: 4),
-          Text(
-            '${change.abs().toStringAsFixed(2)}%',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isPositive ? Colors.green : Colors.red,
-            ),
-          ),
-        ],
+  String _getCoinMarketCapId(String symbol) {
+    final Map<String, String> ids = {
+      'BTC': '1',
+      'ETH': '1027',
+      'BNB': '1839',
+      'XRP': '52',
+      'ADA': '2010',
+      'DOGE': '74',
+      'SOL': '5426',
+      'DOT': '6636',
+      'MATIC': '3890',
+      'AVAX': '5805',
+    };
+    return ids[symbol] ?? '1';
+  }
+
+  void _showCryptoDetail(CryptoData crypto) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CryptoDetailScreen(crypto: crypto),
+        fullscreenDialog: true,
       ),
     );
   }
+}
 
-  // ==================== QUICK ACTION BUTTON ====================
-  
-  static Widget buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AppCard(
-        padding: EdgeInsets.all(16),
-        borderRadius: 20,
+// Search Screen
+class SearchScreen extends StatefulWidget {
+  final List<CryptoData> cryptos;
+
+  const SearchScreen({Key? key, required this.cryptos}) : super(key: key);
+
+  @override
+  _SearchScreenState createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<CryptoData> _filteredCryptos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredCryptos = widget.cryptos;
+    _searchController.addListener(_filterCryptos);
+  }
+
+  void _filterCryptos() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredCryptos = widget.cryptos;
+      } else {
+        _filteredCryptos = widget.cryptos
+            .where((crypto) => crypto.symbol.toLowerCase().contains(query))
+            .toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: const AppSecondaryAppBar(
+        title: 'Pesquisar',
+      ),
+      body: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppTextField(
+                controller: _searchController,
+                hintText: 'Digite para pesquisar...',
+                autofocus: true,
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                        },
+                      )
+                    : null,
               ),
-              child: Icon(icon, color: AppColors.primary, size: 28),
             ),
-            SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black,
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _filteredCryptos.length,
+                itemBuilder: (context, index) {
+                  final crypto = _filteredCryptos[index];
+                  return _buildSearchResult(crypto, isDark);
+                },
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -472,160 +477,450 @@ class HomeWidgets {
     );
   }
 
-  // ==================== PROMO CARD ====================
-  
-  static Widget buildPromoCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
+  Widget _buildSearchResult(CryptoData crypto, bool isDark) {
+    final isPositive = crypto.priceChange >= 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AppCard(
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.network(
+                  'https://cryptologos.cc/logos/${crypto.symbol.toLowerCase()}-${crypto.symbol.toLowerCase()}-logo.png',
+                  errorBuilder: (context, error, stack) => Image.network(
+                    'https://cdn-icons-png.flaticon.com/512/7385/7385505.png',
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    crypto.symbol,
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
-                  SizedBox(height: 8),
                   Text(
-                    description,
+                    '\$${crypto.price.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
-                      height: 1.3,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Explorar',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward, color: Colors.white, size: 16),
-                      ],
+                      fontSize: 13,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(width: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
+            Text(
+              '${isPositive ? '+' : ''}${crypto.priceChange.toStringAsFixed(2)}%',
+              style: TextStyle(
+                color: isPositive ? Colors.green : Colors.red,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
               ),
-              child: Icon(icon, color: Colors.white, size: 40),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  // ==================== EMPTY STATE ====================
-  
-  static Widget buildEmptyState({
-    required String message,
-    IconData icon = Icons.inbox_outlined,
-    VoidCallback? onAction,
-    String? actionText,
-  }) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 80, color: Colors.grey.withOpacity(0.5)),
-          SizedBox(height: 16),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 16),
-          ),
-          if (onAction != null && actionText != null) ...[
-            SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: onAction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+// Crypto Detail Screen
+class CryptoDetailScreen extends StatefulWidget {
+  final CryptoData crypto;
+
+  const CryptoDetailScreen({Key? key, required this.crypto}) : super(key: key);
+
+  @override
+  _CryptoDetailScreenState createState() => _CryptoDetailScreenState();
+}
+
+class _CryptoDetailScreenState extends State<CryptoDetailScreen> {
+  late WebViewController _chartController;
+  late WebViewController _newsController;
+  late WebViewController _technicalController;
+  String _signal = 'NEUTRO';
+  Color _signalColor = Colors.grey;
+
+  @override
+  void initState() {
+    super.initState();
+    _initWebViews();
+    _calculateSignal();
+  }
+
+  void _calculateSignal() {
+    if (widget.crypto.priceChange > 5) {
+      _signal = 'COMPRAR';
+      _signalColor = Colors.green;
+    } else if (widget.crypto.priceChange < -5) {
+      _signal = 'VENDER';
+      _signalColor = Colors.red;
+    } else {
+      _signal = 'NEUTRO';
+      _signalColor = Colors.grey;
+    }
+  }
+
+  void _initWebViews() {
+    final symbol = 'BINANCE:${widget.crypto.symbol}USDT';
+
+    _chartController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadHtmlString('''
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>body { margin: 0; padding: 0; }</style>
+          </head>
+          <body>
+            <div class="tradingview-widget-container">
+              <div id="tradingview_chart"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+              <script type="text/javascript">
+                new TradingView.widget({
+                  "width": "100%",
+                  "height": 400,
+                  "symbol": "$symbol",
+                  "interval": "D",
+                  "timezone": "Etc/UTC",
+                  "theme": "dark",
+                  "style": "1",
+                  "locale": "br",
+                  "toolbar_bg": "#f1f3f6",
+                  "enable_publishing": false,
+                  "hide_side_toolbar": false,
+                  "allow_symbol_change": true,
+                  "container_id": "tradingview_chart"
+                });
+              </script>
+            </div>
+          </body>
+        </html>
+      ''');
+
+    _newsController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadHtmlString('''
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>body { margin: 0; padding: 0; }</style>
+          </head>
+          <body>
+            <div class="tradingview-widget-container">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+              {
+                "feedMode": "symbol",
+                "symbol": "$symbol",
+                "colorTheme": "dark",
+                "isTransparent": false,
+                "displayMode": "regular",
+                "width": "100%",
+                "height": 400,
+                "locale": "br"
+              }
+              </script>
+            </div>
+          </body>
+        </html>
+      ''');
+
+    _technicalController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadHtmlString('''
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>body { margin: 0; padding: 0; }</style>
+          </head>
+          <body>
+            <div class="tradingview-widget-container">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+              {
+                "interval": "1m",
+                "width": "100%",
+                "isTransparent": false,
+                "height": 400,
+                "symbol": "$symbol",
+                "showIntervalTabs": true,
+                "locale": "br",
+                "colorTheme": "dark"
+              }
+              </script>
+            </div>
+          </body>
+        </html>
+      ''');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: widget.crypto.symbol,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Price Header
+              AppCard(
+                padding: const EdgeInsets.all(20),
+                borderRadius: 0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Preço Atual',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '\$${widget.crypto.price < 1 ? widget.crypto.price.toStringAsFixed(6) : widget.crypto.price.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _signalColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _signalColor, width: 2),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                _signal == 'COMPRAR'
+                                    ? Icons.trending_up
+                                    : _signal == 'VENDER'
+                                        ? Icons.trending_down
+                                        : Icons.remove,
+                                color: _signalColor,
+                                size: 20,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _signal,
+                                style: TextStyle(
+                                  color: _signalColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: widget.crypto.priceChange >= 0
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${widget.crypto.priceChange >= 0 ? '+' : ''}${widget.crypto.priceChange.toStringAsFixed(2)}% (24h)',
+                        style: TextStyle(
+                          color: widget.crypto.priceChange >= 0 ? Colors.green : Colors.red,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Text(actionText),
-            ),
-          ],
-        ],
+
+              const SizedBox(height: 16),
+
+              // Chart Section
+              _buildSection('Gráfico de Preço', isDark,
+                  SizedBox(
+                    height: 400,
+                    child: WebViewWidget(controller: _chartController),
+                  )),
+
+              const SizedBox(height: 16),
+
+              // Technical Analysis Section
+              _buildSection('Análise Técnica', isDark,
+                  SizedBox(
+                    height: 400,
+                    child: WebViewWidget(controller: _technicalController),
+                  )),
+
+              const SizedBox(height: 16),
+
+              // News Section
+              _buildSection('Notícias e Timeline', isDark,
+                  SizedBox(
+                    height: 400,
+                    child: WebViewWidget(controller: _newsController),
+                  )),
+
+              const SizedBox(height: 16),
+
+              // Market Stats
+              _buildSection(
+                'Estatísticas de Mercado',
+                isDark,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _buildStatRow('Volume 24h', '\$${_formatNumber(widget.crypto.volume)}', isDark),
+                      const Divider(height: 24),
+                      _buildStatRow(
+                          'Máxima 24h', '\$${widget.crypto.high24h.toStringAsFixed(2)}', isDark),
+                      const Divider(height: 24),
+                      _buildStatRow(
+                          'Mínima 24h', '\$${widget.crypto.low24h.toStringAsFixed(2)}', isDark),
+                      const Divider(height: 24),
+                      _buildStatRow(
+                          'Variação 24h',
+                          '${widget.crypto.priceChange >= 0 ? '+' : ''}${widget.crypto.priceChange.toStringAsFixed(2)}%',
+                          isDark,
+                          valueColor: widget.crypto.priceChange >= 0 ? Colors.green : Colors.red),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  // ==================== NOTIFICATION BADGE ====================
-  
-  static Widget buildNotificationBadge({
-    required int count,
-  }) {
-    if (count == 0) return SizedBox.shrink();
-
+  Widget _buildSection(String title, bool isDark, Widget child) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.red,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      constraints: BoxConstraints(minWidth: 18, minHeight: 18),
-      child: Center(
-        child: Text(
-          count > 99 ? '99+' : count.toString(),
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-          ),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppSectionTitle(text: title, fontSize: 17),
+            ),
+            child,
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatRow(String label, String value, bool isDark, {Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.grey[600],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? (isDark ? Colors.white : Colors.black),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatNumber(double number) {
+    if (number >= 1000000000) {
+      return '${(number / 1000000000).toStringAsFixed(2)}B';
+    } else if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(2)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(2)}K';
+    }
+    return number.toStringAsFixed(2);
+  }
+}
+
+class CryptoData {
+  final String symbol;
+  final double price;
+  final double priceChange;
+  final double volume;
+  final double high24h;
+  final double low24h;
+
+  CryptoData({
+    required this.symbol,
+    required this.price,
+    required this.priceChange,
+    required this.volume,
+    required this.high24h,
+    required this.low24h,
+  });
+
+  factory CryptoData.fromBinance(Map<String, dynamic> json) {
+    final symbol = json['symbol'].toString().replaceAll('USDT', '');
+    final price = double.parse(json['lastPrice'].toString());
+    final priceChange = double.parse(json['priceChangePercent'].toString());
+    final volume = double.parse(json['quoteVolume'].toString());
+    final high24h = double.parse(json['highPrice'].toString());
+    final low24h = double.parse(json['lowPrice'].toString());
+
+    return CryptoData(
+      symbol: symbol,
+      price: price,
+      priceChange: priceChange,
+      volume: volume,
+      high24h: high24h,
+      low24h: low24h,
     );
   }
 }
