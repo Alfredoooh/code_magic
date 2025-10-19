@@ -265,8 +265,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         title: 'Detalhes',
         actions: [
           if (_isLoadingBookmark)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: SizedBox(
                 width: 20,
                 height: 20,
@@ -458,7 +458,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                         _getFaviconUrl(article.source),
                         width: 20,
                         height: 20,
-                        errorBuilder: (context, error, stack) => const Icon(
+                        errorBuilder: (context, error, stack) => Icon(
                           Icons.language,
                           size: 20,
                           color: AppColors.primary,
@@ -468,7 +468,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     const SizedBox(width: 8),
                     Text(
                       article.source,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.primary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -554,7 +554,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                               color: AppColors.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.info_outline,
                               color: AppColors.primary,
                               size: 20,
