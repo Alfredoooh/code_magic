@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 import 'change_password_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -22,8 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   bool _saving = false;
   String? _profileImageBase64;
-
-  static const Color primaryColor = Color(0xFFFF444F);
 
   @override
   void initState() {
@@ -58,53 +58,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Color(0xFF1C1C1E)
-              : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+    AppBottomSheet.show(
+      context,
+      height: 200,
+      child: Column(
+        children: [
+          SizedBox(height: 8),
+          AppSectionTitle(text: 'Escolher Foto', fontSize: 18),
+          SizedBox(height: 20),
+          ListTile(
+            leading: Icon(Icons.camera_alt, color: AppColors.primary),
+            title: Text('Câmera'),
+            onTap: () {
+              Navigator.pop(context);
+              _getImage(ImageSource.camera);
+            },
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(height: 12),
-              Container(
-                width: 36,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              SizedBox(height: 20),
-              ListTile(
-                leading: Icon(Icons.camera_alt, color: primaryColor),
-                title: Text('Câmera'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _getImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.photo_library, color: primaryColor),
-                title: Text('Galeria'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _getImage(ImageSource.gallery);
-                },
-              ),
-              SizedBox(height: 8),
-            ],
+          ListTile(
+            leading: Icon(Icons.photo_library, color: AppColors.primary),
+            title: Text('Galeria'),
+            onTap: () {
+              Navigator.pop(context);
+              _getImage(ImageSource.gallery);
+            },
           ),
-        ),
+        ],
       ),
     );
   }
@@ -123,24 +101,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context: context,
           barrierDismissible: false,
           builder: (context) => Center(
-            child: Container(
-              padding: EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Processando imagem...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+            child: AppCard(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: AppColors.primary),
+                    SizedBox(height: 16),
+                    Text('Processando imagem...'),
+                  ],
+                ),
               ),
             ),
           ),
@@ -161,7 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final sizeInMB = (dataUrl.length * 0.75) / (1024 * 1024);
 
         if (sizeInMB > 2) {
-          _showErrorDialog('Imagem muito grande! Tamanho máximo: 2 MB');
+          AppDialogs.showError(context, 'Erro', 'Imagem muito grande! Tamanho máximo: 2 MB');
           return;
         }
 
@@ -171,13 +142,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       Navigator.pop(context);
-      _showErrorDialog('Erro ao processar imagem');
+      AppDialogs.showError(context, 'Erro', 'Erro ao processar imagem');
     }
   }
 
   Future<void> _saveProfile() async {
     if (_usernameController.text.trim().isEmpty) {
-      _showErrorDialog('Por favor, insira um nome de usuário');
+      AppDialogs.showError(context, 'Erro', 'Por favor, insira um nome de usuário');
       return;
     }
 
@@ -194,31 +165,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 28),
-                SizedBox(width: 8),
-                Text('Sucesso!'),
-              ],
-            ),
-            content: Text('Perfil atualizado com sucesso'),
-            actions: [
-              TextButton(
-                child: Text('OK', style: TextStyle(color: primaryColor)),
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
+        AppDialogs.showSuccess(
+          context,
+          'Sucesso!',
+          'Perfil atualizado com sucesso',
+          onClose: () => Navigator.pop(context),
         );
       }
     } catch (e) {
-      _showErrorDialog('Erro ao salvar perfil');
+      AppDialogs.showError(context, 'Erro', 'Erro ao salvar perfil');
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -226,55 +181,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Erro'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            child: Text('OK', style: TextStyle(color: primaryColor)),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _startAccountDeletion() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.red, size: 28),
-            SizedBox(width: 8),
-            Text('Excluir Conta?'),
-          ],
-        ),
-        content: Text(
-          'Esta ação é permanente e irreversível.\n\n'
-          'Todos os seus dados serão perdidos:\n'
-          '• Publicações\n'
-          '• Tokens\n'
-          '• Configurações\n\n'
-          'Deseja continuar?',
-        ),
-        actions: [
-          TextButton(
-            child: Text('Cancelar'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          TextButton(
-            child: Text('Excluir', style: TextStyle(color: Colors.red)),
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteAccount();
-            },
-          ),
-        ],
-      ),
+    AppDialogs.showConfirmation(
+      context,
+      'Excluir Conta?',
+      'Esta ação é permanente e irreversível.\n\n'
+      'Todos os seus dados serão perdidos:\n'
+      '• Publicações\n'
+      '• Tokens\n'
+      '• Configurações\n\n'
+      'Deseja continuar?',
+      onConfirm: _deleteAccount,
+      isDestructive: true,
+      confirmText: 'Excluir',
     );
   }
 
@@ -283,24 +202,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
-        child: Container(
-          padding: EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Colors.white),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Excluindo conta...',
-                style: TextStyle(color: Colors.white),
-              ),
-            ],
+        child: AppCard(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                SizedBox(height: 16),
+                Text('Excluindo conta...'),
+              ],
+            ),
           ),
         ),
       ),
@@ -319,29 +231,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       Navigator.pop(context);
 
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Text('Conta Excluída'),
-          content: Text('Sua conta foi excluída permanentemente'),
-          actions: [
-            TextButton(
-              child: Text('OK', style: TextStyle(color: primaryColor)),
-              onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-            ),
-          ],
-        ),
+      AppDialogs.showSuccess(
+        context,
+        'Conta Excluída',
+        'Sua conta foi excluída permanentemente',
+        onClose: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
       );
     } catch (e) {
       Navigator.pop(context);
 
       if (e.toString().contains('requires-recent-login')) {
-        _showErrorDialog('Sua sessão expirou. Faça login novamente.');
+        AppDialogs.showError(context, 'Erro', 'Sua sessão expirou. Faça login novamente.');
       } else {
-        _showErrorDialog('Erro ao excluir conta');
+        AppDialogs.showError(context, 'Erro', 'Erro ao excluir conta');
       }
     }
   }
@@ -393,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       height: 100,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: primaryColor.withOpacity(0.2),
+        color: AppColors.primary.withOpacity(0.2),
       ),
       clipBehavior: Clip.hardEdge,
       child: imageWidget,
@@ -405,22 +309,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF2F2F7),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: primaryColor, size: 24),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Editar Perfil',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black,
-          ),
-        ),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Editar Perfil',
         actions: [
           if (_saving)
             Center(
@@ -431,7 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(primaryColor),
+                    valueColor: AlwaysStoppedAnimation(AppColors.primary),
                   ),
                 ),
               ),
@@ -442,27 +333,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text(
                 'Salvar',
                 style: TextStyle(
-                  color: primaryColor,
+                  color: AppColors.primary,
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-            height: 0.5,
-          ),
-        ),
       ),
       body: SafeArea(
         child: _loading
             ? Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(primaryColor),
-                ),
+                child: CircularProgressIndicator(color: AppColors.primary),
               )
             : ListView(
                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -482,10 +364,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Container(
                                   padding: EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: primaryColor,
+                                    color: AppColors.primary,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: isDark ? Color(0xFF000000) : Colors.white,
+                                      color: isDark ? AppColors.darkBackground : Colors.white,
                                       width: 3,
                                     ),
                                   ),
@@ -503,7 +385,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           'Alterar foto',
                           style: TextStyle(
-                            color: primaryColor,
+                            color: AppColors.primary,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -520,65 +402,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Container(
-                            padding: EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.grid_on, color: primaryColor, size: 28),
-                                SizedBox(height: 12),
-                                Text(
-                                  '0',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white : Colors.black,
+                          child: AppCard(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.grid_on, color: AppColors.primary, size: 28),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    '0',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : Colors.black,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Publicações',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Publicações',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                         SizedBox(width: 12),
                         Expanded(
-                          child: Container(
-                            padding: EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.monetization_on, color: primaryColor, size: 28),
-                                SizedBox(height: 12),
-                                Text(
-                                  '${_userData?['tokens'] ?? 0}',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white : Colors.black,
+                          child: AppCard(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.monetization_on, color: AppColors.primary, size: 28),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    '${_userData?['tokens'] ?? 0}',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : Colors.black,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Tokens',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Tokens',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -591,11 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Form
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                    child: AppCard(
                       child: Column(
                         children: [
                           Padding(
@@ -603,76 +477,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'NOME',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
+                                AppFieldLabel(text: 'NOME'),
                                 SizedBox(height: 8),
-                                TextField(
+                                AppTextField(
                                   controller: _usernameController,
+                                  hintText: 'Nome de usuário',
                                   maxLength: 30,
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white : Colors.black,
-                                    fontSize: 17,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'Nome de usuário',
-                                    hintStyle: TextStyle(color: Colors.grey),
-                                    filled: true,
-                                    fillColor: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    contentPadding: EdgeInsets.all(12),
-                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          Container(
-                            height: 0.5,
-                            color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
+                          Divider(
+                            height: 1,
+                            color: isDark ? AppColors.darkSeparator : AppColors.separator,
                           ),
                           Padding(
                             padding: EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'BIOGRAFIA',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
+                                AppFieldLabel(text: 'BIOGRAFIA'),
                                 SizedBox(height: 8),
-                                TextField(
+                                AppTextField(
                                   controller: _bioController,
+                                  hintText: 'Escreva algo sobre você',
                                   maxLines: 3,
                                   maxLength: 150,
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white : Colors.black,
-                                    fontSize: 17,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'Escreva algo sobre você',
-                                    hintStyle: TextStyle(color: Colors.grey),
-                                    filled: true,
-                                    fillColor: isDark ? Color(0xFF2C2C2E) : Color(0xFFF2F2F7),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    contentPadding: EdgeInsets.all(12),
-                                  ),
                                 ),
                               ],
                             ),
@@ -687,83 +517,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Account Info
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.mail, color: primaryColor, size: 20),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'EMAIL',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey,
+                    child: AppCard(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.mail, color: AppColors.primary, size: 20),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      AppFieldLabel(text: 'EMAIL'),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        _userData?['email'] ?? 'Não informado',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: isDark ? Colors.white : Colors.black,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      _userData?['email'] ?? 'Não informado',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: isDark ? Colors.white : Colors.black,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 16),
-                          Container(
-                            height: 0.5,
-                            color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-                          ),
-                          SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Icon(Icons.star, color: primaryColor, size: 20),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'STATUS',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey,
+                              ],
+                            ),
+                            SizedBox(height: 16),
+                            Divider(
+                              height: 1,
+                              color: isDark ? AppColors.darkSeparator : AppColors.separator,
+                            ),
+                            SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.star, color: AppColors.primary, size: 20),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      AppFieldLabel(text: 'STATUS'),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        (_userData?['pro'] == true) ? 'PRO' : 'FREEMIUM',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: (_userData?['pro'] == true)
+                                              ? Color(0xFFFCAF45)
+                                              : Colors.grey,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      (_userData?['pro'] == true) ? 'PRO' : 'FREEMIUM',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: (_userData?['pro'] == true)
-                                            ? Color(0xFFFCAF45)
-                                            : Colors.grey,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -782,28 +595,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         );
                       },
-                      child: Container(
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.lock_outline, color: primaryColor, size: 20),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Alterar Senha',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : Colors.black,
+                      child: AppCard(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(Icons.lock_outline, color: AppColors.primary, size: 20),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Alterar Senha',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : Colors.black,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-                          ],
+                              Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -814,16 +625,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Delete Account
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: TextButton(
+                    child: AppSecondaryButton(
+                      text: 'Excluir Conta',
                       onPressed: _startAccountDeletion,
-                      child: Text(
-                        'Excluir Conta',
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      textColor: Colors.red,
                     ),
                   ),
 
