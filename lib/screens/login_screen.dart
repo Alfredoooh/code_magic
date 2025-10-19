@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
+import '../widgets/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   final DerivService derivService;
