@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../widgets/app_ui_components.dart';
 import '../widgets/app_colors.dart';
-import 'crypto_detail_screen.dart';
+import 'crypto_detail_screen2.dart';
 
 class CryptoListScreen extends StatefulWidget {
   const CryptoListScreen({Key? key}) : super(key: key);
