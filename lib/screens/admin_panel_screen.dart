@@ -1,9 +1,9 @@
-// admin_panel_screen.dart - Redesenhado com UI Components
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import '../models/user_model.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 import 'admin_modals.dart';
 import 'admin_user_edit.dart';
 
