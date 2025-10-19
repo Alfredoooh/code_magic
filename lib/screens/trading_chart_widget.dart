@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import '../widgets/app_ui_components.dart';
 import '../services/deriv_service.dart';
 import '../widgets/trading_chart_widget.dart';
+import '../widgets/app_colors.dart';
 
 class TradingChartScreen extends StatefulWidget {
   final DerivService derivService;
