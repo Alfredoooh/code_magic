@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/app_colors.dart';
 import '../widgets/app_ui_components.dart';
 import 'chat_detail_screen.dart';
 import 'group_detail_screen.dart';
@@ -137,55 +138,125 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
   }
 
   void _showOptionsMenu() {
-    AppBottomSheet.show(
-      context,
-      height: 200,
-      child: Column(
-        children: [
-          SizedBox(height: 20),
-          ListTile(
-            leading: Icon(Icons.person_add, color: AppColors.primary),
-            title: Text('Nova Conversa'),
-            onTap: () {
-              Navigator.pop(context);
-              _showUsersDialog();
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.group_add, color: AppColors.primary),
-            title: Text('Criar Grupo'),
-            onTap: () {
-              Navigator.pop(context);
-              _showCreateGroupDialog();
-            },
-          ),
-        ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.person_add_rounded, color: AppColors.primary),
+              ),
+              title: Text(
+                'Nova Conversa',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showUsersDialog();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.group_add_rounded, color: Colors.blue),
+              ),
+              title: Text(
+                'Criar Grupo',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showCreateGroupDialog();
+              },
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
 
   void _showCreateGroupDialog() {
     final nameController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Criar Grupo'),
+        backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Criar Grupo',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
         content: AppTextField(
           controller: nameController,
           hintText: 'Nome do grupo',
+          prefixIcon: Icon(Icons.group_rounded, size: 20),
         ),
         actions: [
           TextButton(
-            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             onPressed: () {
               nameController.dispose();
               Navigator.pop(context);
             },
           ),
           TextButton(
-            child: Text('Criar', style: TextStyle(color: AppColors.primary)),
+            child: Text(
+              'Criar',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 final user = widget.currentUser;
@@ -203,6 +274,11 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                     });
                     nameController.dispose();
                     Navigator.pop(context);
+                    AppDialogs.showSuccess(
+                      context,
+                      'Sucesso!',
+                      'Grupo criado com sucesso!',
+                    );
                   } catch (e) {
                     AppDialogs.showError(context, 'Erro', 'Erro ao criar grupo');
                   }
@@ -242,7 +318,10 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: Icon(Icons.people),
+                icon: Icon(
+                  Icons.people_rounded,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
                 onPressed: _showUsersDialog,
               ),
               if (_activeUsers > 0)
@@ -255,10 +334,17 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                       curve: Curves.elasticOut,
                     ),
                     child: Container(
-                      padding: EdgeInsets.all(4),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
+                        color: Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFFFF3B30).withOpacity(0.4),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       constraints: BoxConstraints(minWidth: 18, minHeight: 18),
                       child: Text(
@@ -266,7 +352,8 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -276,7 +363,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             ],
           ),
           IconButton(
-            icon: Icon(Icons.add_circle, color: AppColors.primary),
+            icon: Icon(Icons.add_circle_rounded, color: AppColors.primary),
             onPressed: _showOptionsMenu,
           ),
         ],
@@ -290,6 +377,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
                 ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : PageView(
                     controller: _pageController,
+                    physics: BouncingScrollPhysics(),
                     onPageChanged: (index) => setState(() => _selectedTab = index),
                     children: [
                       _buildConversationsList(widget.currentUser!, isDark),
@@ -304,53 +392,102 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
   Widget _buildSegmentedControl(bool isDark) {
     return Container(
-      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
             child: GestureDetector(
               onTap: () {
                 setState(() => _selectedTab = 0);
-                _pageController.animateToPage(0,
-                    duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
+                _pageController.animateToPage(
+                  0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
               },
-              child: Container(
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
                 padding: EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _selectedTab == 0 ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(25),
+                  gradient: _selectedTab == 0
+                      ? LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _selectedTab == 0
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ]
+                      : [],
                 ),
                 child: Text(
                   'Chats',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _selectedTab == 0 ? Colors.white : Colors.grey,
-                    fontWeight: FontWeight.w600,
+                    color: _selectedTab == 0 ? Colors.white : Colors.grey.shade600,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
             ),
           ),
-          SizedBox(width: 8),
+          SizedBox(width: 4),
           Expanded(
             child: GestureDetector(
               onTap: () {
                 setState(() => _selectedTab = 1);
-                _pageController.animateToPage(1,
-                    duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
+                _pageController.animateToPage(
+                  1,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
               },
-              child: Container(
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
                 padding: EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _selectedTab == 1 ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(25),
+                  gradient: _selectedTab == 1
+                      ? LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _selectedTab == 1
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ]
+                      : [],
                 ),
                 child: Text(
                   'Grupos',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _selectedTab == 1 ? Colors.white : Colors.grey,
-                    fontWeight: FontWeight.w600,
+                    color: _selectedTab == 1 ? Colors.white : Colors.grey.shade600,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
@@ -368,6 +505,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        physics: BouncingScrollPhysics(),
         child: Row(
           children: List.generate(filters.length, (index) {
             final isSelected = _selectedFilter == index;
@@ -375,19 +513,33 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
               padding: EdgeInsets.only(right: 8),
               child: GestureDetector(
                 onTap: () => setState(() => _selectedFilter = index),
-                child: Container(
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : (isDark ? AppColors.darkCard : AppColors.lightCard),
-                    borderRadius: BorderRadius.circular(25),
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [AppColors.primary, AppColors.primaryLight],
+                          )
+                        : null,
+                    color: !isSelected
+                        ? (isDark ? AppColors.darkCard : AppColors.lightCard)
+                        : null,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                      width: 1,
+                    ),
                   ),
                   child: Text(
                     filters[index],
                     style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey,
-                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : Colors.grey.shade600,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
@@ -413,9 +565,10 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
-            icon: Icons.chat_bubble_outline,
+            icon: Icons.chat_bubble_outline_rounded,
             title: 'Nenhuma conversa',
             subtitle: 'Toque em + para começar',
+            isDark: isDark,
           );
         }
 
@@ -430,17 +583,23 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
           if (conversations.isEmpty) {
             return _buildEmptyState(
-              icon: Icons.mark_chat_read,
+              icon: Icons.mark_chat_read_rounded,
               title: 'Tudo lido!',
               subtitle: 'Você não tem mensagens não lidas',
+              isDark: isDark,
             );
           }
         }
 
         return ListView.separated(
           padding: EdgeInsets.symmetric(vertical: 8),
+          physics: BouncingScrollPhysics(),
           itemCount: conversations.length,
-          separatorBuilder: (_, __) => Divider(height: 1),
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            color: isDark ? AppColors.darkSeparator : AppColors.separator,
+            indent: 72,
+          ),
           itemBuilder: (context, index) {
             return _ConversationItem(
               conversation: conversations[index],
@@ -471,6 +630,7 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
             icon: Icons.group_outlined,
             title: 'Nenhum grupo',
             subtitle: 'Toque em + para criar',
+            isDark: isDark,
           );
         }
 
@@ -478,18 +638,44 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
 
         return ListView.separated(
           padding: EdgeInsets.symmetric(vertical: 8),
+          physics: BouncingScrollPhysics(),
           itemCount: groups.length,
-          separatorBuilder: (_, __) => Divider(height: 1),
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            color: isDark ? AppColors.darkSeparator : AppColors.separator,
+            indent: 72,
+          ),
           itemBuilder: (context, index) {
             final groupData = groups[index].data() as Map<String, dynamic>;
 
             return ListTile(
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: CircleAvatar(
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.group, color: Colors.white),
+                radius: 28,
+                backgroundColor: AppColors.primary.withOpacity(0.15),
+                child: Icon(
+                  Icons.group_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
               ),
-              title: Text(groupData['name'] ?? 'Grupo'),
-              subtitle: Text(groupData['lastMessage'] ?? 'Sem mensagens'),
+              title: Text(
+                groupData['name'] ?? 'Grupo',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              subtitle: Text(
+                groupData['lastMessage'] ?? 'Sem mensagens',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               onTap: () {
                 Navigator.push(
                   context,
@@ -512,16 +698,44 @@ class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStat
     required IconData icon,
     required String title,
     required String subtitle,
+    required bool isDark,
   }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.15),
+                  AppColors.primary.withOpacity(0.05),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 64, color: AppColors.primary),
+          ),
+          SizedBox(height: 24),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black,
+              letterSpacing: -0.5,
+            ),
+          ),
           SizedBox(height: 8),
-          Text(subtitle, style: TextStyle(fontSize: 16, color: Colors.grey)),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -566,11 +780,14 @@ class _ConversationItem extends StatelessWidget {
 
         final userData = snapshot.data!.data() as Map<String, dynamic>;
         final unreadCount = data['unreadCount_${currentUser.uid}'] ?? 0;
+        final isOnline = userData['isOnline'] == true;
 
         return ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Stack(
             children: [
               CircleAvatar(
+                radius: 28,
                 backgroundColor: AppColors.primary,
                 backgroundImage: userData['profile_image'] != null &&
                         userData['profile_image'].toString().isNotEmpty
@@ -580,25 +797,29 @@ class _ConversationItem extends StatelessWidget {
                         userData['profile_image'].toString().isEmpty
                     ? Text(
                         (userData['username'] ?? 'U')[0].toUpperCase(),
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
                       )
                     : null,
               ),
-              if (userData['isOnline'] == true)
+              if (isOnline)
                 Positioned(
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    width: 12,
-                    height: 12,
+                    width: 14,
+                    height: 14,
                     decoration: BoxDecoration(
-                      color: Colors.green,
+                      color: Color(0xFFFF3B30),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isDark
                             ? AppColors.darkBackground
                             : AppColors.lightBackground,
-                        width: 2,
+                        width: 2.5,
                       ),
                     ),
                   ),
@@ -608,27 +829,48 @@ class _ConversationItem extends StatelessWidget {
           title: Text(
             userData['username'] ?? 'Usuário',
             style: TextStyle(
-                fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal),
+              fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 16,
+              letterSpacing: -0.3,
+            ),
           ),
-          subtitle: Text(
-            data['lastMessage'] ?? 'Sem mensagens',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          subtitle: Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              data['lastMessage'] ?? 'Sem mensagens',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
           ),
           trailing: unreadCount > 0
               ? Container(
-                  padding: EdgeInsets.all(6),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
+                    color: Color(0xFFFF3B30),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFFFF3B30).withOpacity(0.4),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
+                  constraints: BoxConstraints(minWidth: 22),
                   child: Text(
-                    '$unreadCount',
+                    unreadCount > 99 ? '99+' : '$unreadCount',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 )
               : null,
