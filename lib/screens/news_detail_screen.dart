@@ -7,6 +7,7 @@ import '../models/news_article.dart';
 import '../widgets/app_ui_components.dart';
 import 'bookmarks_screen.dart';
 import '../widgets/related_article_card.dart';
+import '../widgets/app_colors.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
