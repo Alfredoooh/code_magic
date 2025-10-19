@@ -1,4 +1,3 @@
-// lib/screens/user_drawer_settings.dart
 import 'package:flutter/material.dart';
 import '../widgets/app_ui_components.dart';
 import '../widgets/app_colors.dart';
@@ -76,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppSectionTitle(text: '🎨 Aparência', fontSize: 20),
+              AppSectionTitle(text: 'Aparência', fontSize: 20),
               SizedBox(height: 16),
               _buildSettingCard(
                 context: context,
@@ -105,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 isDark: isDark,
               ),
               SizedBox(height: 32),
-              AppSectionTitle(text: '⚙️ Preferências', fontSize: 20),
+              AppSectionTitle(text: 'Preferências', fontSize: 20),
               SizedBox(height: 16),
               _buildSettingCard(
                 context: context,
@@ -174,7 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 20),
           ],
         ),
       ),
@@ -224,7 +223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             ListTile(
               leading: Icon(Icons.light_mode_rounded, color: AppColors.primary),
-              title: Text('☀️ Claro'),
+              title: Text('Claro'),
               onTap: () {
                 setState(() => _currentTheme = 'light');
                 widget.onThemeChanged('light');
@@ -233,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             ListTile(
               leading: Icon(Icons.dark_mode_rounded, color: AppColors.primary),
-              title: Text('🌙 Escuro'),
+              title: Text('Escuro'),
               onTap: () {
                 setState(() => _currentTheme = 'dark');
                 widget.onThemeChanged('dark');
@@ -257,18 +256,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             AppSectionTitle(text: 'Escolha o idioma', fontSize: 18),
             SizedBox(height: 24),
-            _buildLanguageOption('🇵🇹', 'Português', 'pt'),
+            _buildLanguageOption(Icons.translate_rounded, 'Português', 'pt'),
             SizedBox(height: 12),
-            _buildLanguageOption('🇺🇸', 'English', 'en'),
+            _buildLanguageOption(Icons.translate_rounded, 'English', 'en'),
             SizedBox(height: 12),
-            _buildLanguageOption('🇪🇸', 'Español', 'es'),
+            _buildLanguageOption(Icons.translate_rounded, 'Español', 'es'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLanguageOption(String flag, String name, String code) {
+  Widget _buildLanguageOption(IconData icon, String name, String code) {
     final isSelected = _currentLocale == code;
     return InkWell(
       onTap: () {
@@ -288,7 +287,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: Row(
           children: [
-            Text(flag, style: TextStyle(fontSize: 24)),
+            Icon(icon, size: 24, color: isSelected ? AppColors.primary : null),
             SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -300,7 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-            if (isSelected) Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+            if (isSelected) Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
           ],
         ),
       ),
@@ -326,10 +325,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 childAspectRatio: 1.1,
                 physics: BouncingScrollPhysics(),
                 children: [
-                  _buildStyleOption('modern', 'Moderno', Icons.credit_card),
-                  _buildStyleOption('gradient', 'Gradiente', Icons.gradient),
-                  _buildStyleOption('minimal', 'Minimalista', Icons.rectangle_outlined),
-                  _buildStyleOption('glass', 'Vidro', Icons.auto_awesome),
+                  _buildStyleOption('modern', 'Moderno', Icons.credit_card_rounded),
+                  _buildStyleOption('gradient', 'Gradiente', Icons.gradient_rounded),
+                  _buildStyleOption('minimal', 'Minimalista', Icons.rectangle_rounded),
+                  _buildStyleOption('glass', 'Vidro', Icons.auto_awesome_rounded),
                 ],
               ),
             ),
@@ -394,7 +393,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             if (isSelected) ...[
               SizedBox(height: 4),
-              Icon(Icons.check_circle, size: 16, color: AppColors.primary),
+              Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
             ],
           ],
         ),
@@ -459,6 +458,7 @@ class ColorPickerScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final entry = AppColors.colorPalette.entries.elementAt(index);
           final colorKey = entry.key;
+          // Avoid explicit 'ColorScheme' type to prevent conflict with Flutter's ColorScheme
           final colorScheme = entry.value;
 
           return _buildColorOption(
@@ -475,7 +475,7 @@ class ColorPickerScreen extends StatelessWidget {
   Widget _buildColorOption(
     BuildContext context,
     String colorKey,
-    ColorScheme colorScheme,
+    dynamic colorScheme,
     bool isDark,
   ) {
     return InkWell(
@@ -505,10 +505,7 @@ class ColorPickerScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              colorScheme.emoji,
-              style: TextStyle(fontSize: 48),
-            ),
+            Icon(Icons.color_lens_rounded, size: 48, color: Colors.white),
             SizedBox(height: 12),
             Text(
               colorScheme.name,
