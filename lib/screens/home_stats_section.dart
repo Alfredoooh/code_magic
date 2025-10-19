@@ -1,6 +1,7 @@
 // lib/screens/home_stats_section.dart
 import 'package:flutter/material.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class HomeStatsSection extends StatelessWidget {
   final int messageCount;
