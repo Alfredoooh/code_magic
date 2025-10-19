@@ -1,7 +1,8 @@
-// lib/screens/forgot_password_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);
@@ -25,12 +26,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailController.text.trim();
 
     if (email.isEmpty) {
-      _showErrorDialog('Erro', 'Por favor, digite seu email');
+      AppDialogs.showError(context, 'Erro', 'Por favor, digite seu email');
       return;
     }
 
     if (!_isValidEmail(email)) {
-      _showErrorDialog('Erro', 'Por favor, digite um email válido');
+      AppDialogs.showError(context, 'Erro', 'Por favor, digite um email válido');
       return;
     }
 
@@ -67,10 +68,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           errorMessage = 'Erro: ${e.message}';
       }
 
-      _showErrorDialog('Erro', errorMessage);
+      AppDialogs.showError(context, 'Erro', errorMessage);
     } catch (e) {
       setState(() => _isLoading = false);
-      _showErrorDialog('Erro', 'Erro inesperado. Tente novamente.');
+      AppDialogs.showError(context, 'Erro', 'Erro inesperado. Tente novamente.');
     }
   }
 
@@ -79,55 +80,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return emailRegex.hasMatch(email);
   }
 
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            child: Text(
-              'OK',
-              style: TextStyle(color: Color(0xFFFF444F)),
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.mail, color: Color(0xFFFF444F), size: 28),
-            SizedBox(width: 8),
-            Text('Email Enviado!'),
-          ],
-        ),
-        content: Text(
-          'Enviamos um link de recuperação para:\n\n${_emailController.text}\n\n'
-          'Verifique sua caixa de entrada e spam.\n\n'
-          'O link expira em 1 hora.',
-          style: TextStyle(fontSize: 15),
-        ),
-        actions: [
-          TextButton(
-            child: Text(
-              'Entendi',
-              style: TextStyle(color: Color(0xFFFF444F)),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
+    AppDialogs.showSuccess(
+      context,
+      'Email Enviado!',
+      'Enviamos um link de recuperação para:\n\n${_emailController.text}\n\n'
+      'Verifique sua caixa de entrada e spam.\n\n'
+      'O link expira em 1 hora.',
     );
   }
 
@@ -149,58 +108,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _emailSent = true;
       });
 
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Email Reenviado'),
-          content: Text('Um novo email foi enviado com sucesso!'),
-          actions: [
-            TextButton(
-              child: Text('OK', style: TextStyle(color: Color(0xFFFF444F))),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
+      AppDialogs.showSuccess(
+        context,
+        'Email Reenviado',
+        'Um novo email foi enviado com sucesso!',
       );
     } catch (e) {
       setState(() => _isLoading = false);
-      _showErrorDialog('Erro', 'Não foi possível reenviar o email');
+      AppDialogs.showError(context, 'Erro', 'Não foi possível reenviar o email');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Color(0xFFFF444F);
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios,
-            color: primaryColor,
-            size: 24,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Recuperar Senha',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(
-            color: isDark ? Color(0xFF1C1C1E) : Color(0xFFE5E5EA),
-            height: 0.5,
-          ),
-        ),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppSecondaryAppBar(
+        title: 'Recuperar Senha',
       ),
       body: SafeArea(
         child: GestureDetector(
@@ -213,28 +139,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 SizedBox(height: 40),
 
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.lock_reset,
-                    size: 60,
-                    color: primaryColor,
-                  ),
+                AppIconCircle(
+                  icon: Icons.lock_reset,
+                  size: 60,
+                  iconColor: AppColors.primary,
                 ),
 
                 SizedBox(height: 24),
 
-                Text(
-                  'Problemas para entrar?',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
+                AppSectionTitle(
+                  text: 'Problemas para entrar?',
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
 
                 SizedBox(height: 12),
@@ -255,205 +171,78 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 SizedBox(height: 32),
 
                 if (!_emailSent) ...[
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-                        width: 1,
-                      ),
-                    ),
-                    child: TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      autocorrect: false,
-                      textCapitalization: TextCapitalization.none,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black,
-                        fontSize: 16,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Email',
-                        hintStyle: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 16,
-                        ),
-                        prefixIcon: Padding(
-                          padding: EdgeInsets.only(left: 12, right: 8),
-                          child: Icon(
-                            Icons.mail_outline,
-                            color: Colors.grey,
-                            size: 20,
-                          ),
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(16),
-                      ),
+                  AppTextField(
+                    controller: _emailController,
+                    hintText: 'Email',
+                    keyboardType: TextInputType.emailAddress,
+                    prefixIcon: Icon(
+                      Icons.mail_outline,
+                      color: Colors.grey,
                     ),
                   ),
 
                   SizedBox(height: 24),
 
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _sendPasswordResetEmail,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isLoading ? Colors.grey : primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
-                              ),
-                            )
-                          : Text(
-                              'Enviar Link de Recuperação',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
+                  AppPrimaryButton(
+                    text: 'Enviar Link de Recuperação',
+                    onPressed: _sendPasswordResetEmail,
+                    isLoading: _isLoading,
                   ),
                 ] else ...[
-                  Container(
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 60,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Email Enviado!',
-                          style: TextStyle(
+                  AppCard(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 60,
+                          ),
+                          SizedBox(height: 16),
+                          AppSectionTitle(
+                            text: 'Email Enviado!',
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
                           ),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'Enviamos um link para:\n${_emailController.text}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _resendEmail,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Enviamos um link para:\n${_emailController.text}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
                             ),
-                            child: _isLoading
-                                ? SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                                    ),
-                                  )
-                                : Text(
-                                    'Reenviar Email',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 24),
+                          AppPrimaryButton(
+                            text: 'Reenviar Email',
+                            onPressed: _resendEmail,
+                            isLoading: _isLoading,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
 
                 SizedBox(height: 32),
 
-                Container(
-                  height: 0.5,
-                  color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
+                Divider(
+                  color: isDark ? AppColors.darkSeparator : AppColors.separator,
+                  thickness: 0.5,
                 ),
 
                 SizedBox(height: 32),
 
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: primaryColor,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Dicas Importantes',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 12),
-                      _buildTipItem(
-                        '• Verifique sua caixa de spam/lixo eletrônico',
-                        isDark,
-                      ),
-                      _buildTipItem(
-                        '• O link expira em 1 hora após o envio',
-                        isDark,
-                      ),
-                      _buildTipItem(
-                        '• Use o mesmo navegador para abrir o link',
-                        isDark,
-                      ),
-                      _buildTipItem(
-                        '• Verifique se digitou o email corretamente',
-                        isDark,
-                      ),
-                      _buildTipItem(
-                        '• Aguarde alguns minutos para o email chegar',
-                        isDark,
-                      ),
-                    ],
-                  ),
+                AppInfoCard(
+                  icon: Icons.info_outline,
+                  text: 'Dicas Importantes:\n\n'
+                      '• Verifique sua caixa de spam/lixo eletrônico\n'
+                      '• O link expira em 1 hora após o envio\n'
+                      '• Use o mesmo navegador para abrir o link\n'
+                      '• Verifique se digitou o email corretamente\n'
+                      '• Aguarde alguns minutos para o email chegar',
                 ),
 
                 SizedBox(height: 32),
@@ -463,13 +252,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     onPressed: () => Navigator.pop(context),
                     icon: Icon(
                       Icons.arrow_back,
-                      color: primaryColor,
+                      color: AppColors.primary,
                       size: 18,
                     ),
                     label: Text(
                       'Voltar para Login',
                       style: TextStyle(
-                        color: primaryColor,
+                        color: AppColors.primary,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -481,20 +270,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTipItem(String text, bool isDark) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 14,
-          color: Colors.grey,
-          height: 1.4,
         ),
       ),
     );
