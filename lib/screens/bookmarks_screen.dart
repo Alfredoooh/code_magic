@@ -56,7 +56,7 @@ class BookmarksScreen extends StatelessWidget {
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(
                   color: AppColors.primary,
                 ),
@@ -375,7 +375,7 @@ class _BookmarkCard extends StatelessWidget {
                         ),
                         child: Text(
                           category.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.primary,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -432,7 +432,7 @@ class _BookmarkCard extends StatelessWidget {
                           _getFaviconUrl(source),
                           width: 18,
                           height: 18,
-                          errorBuilder: (context, error, stack) => const Icon(
+                          errorBuilder: (context, error, stack) => Icon(
                             Icons.language,
                             size: 18,
                             color: AppColors.primary,
@@ -443,7 +443,7 @@ class _BookmarkCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           source,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.primary,
