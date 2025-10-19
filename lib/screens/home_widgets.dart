@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class CryptoListScreen extends StatefulWidget {
   const CryptoListScreen({Key? key}) : super(key: key);
