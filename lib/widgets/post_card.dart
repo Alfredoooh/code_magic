@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'app_ui_components.dart';
 import 'post_card_screens.dart';
+import 'app_colors.dart';
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
