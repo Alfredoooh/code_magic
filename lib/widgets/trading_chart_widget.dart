@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:madeeasy/widgets/app_colors.dart'; // <-- usa sua AppColors existente
 
 /// TradingChartWidget com:
 /// - suporte a stream de ticks (tickStream)
@@ -54,14 +55,6 @@ class Candle {
   });
 }
 
-/// Minimal AppColors shim if your project already has AppColors remove this block
-class AppColors {
-  static Color primary = const Color(0xFF2F80ED);
-  static Color success = const Color(0xFF16A34A);
-  static Color error = const Color(0xFFEF4444);
-  static Color warning = const Color(0xFFF59E0B);
-}
-
 class _TradingChartWidgetState extends State<TradingChartWidget>
     with SingleTickerProviderStateMixin {
   final List<double> _priceData = [];
@@ -81,7 +74,7 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
 
   final Map<int, String> _patterns = {};
 
-  // SMA / EMA precomputadas (alinhadas com data index). Nulls for indices without value.
+  // SMA / EMA precomputadas (alinhadas com data index). Nulls for indices sem valor.
   List<double?> _sma = [];
   List<double?> _ema = [];
 
@@ -274,7 +267,6 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
 
   // Tooltip helpers
   void _showTooltipAt(Offset localPos, Size size) {
-    // find nearest data index
     final visible = _priceData;
     if (visible.isEmpty) return;
 
@@ -358,7 +350,6 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
                   );
                 },
               ),
-              // header and controls (symbol, price, toggles)
               Positioned(
                 top: 12,
                 left: 12,
@@ -378,10 +369,7 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
                           ),
                         ],
                       ),
-                      child: Text(
-                        widget.symbol,
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
+                      child: Text(widget.symbol, style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                     ),
                     SizedBox(width: 10),
                     Expanded(
@@ -450,8 +438,6 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
                   ],
                 ),
               ),
-
-              // tooltip (positioned)
               if (_showTooltip)
                 LayoutBuilder(builder: (context, constraints) {
                   final left = (_tooltipPos.dx + 8).clamp(8.0, constraints.maxWidth - 180.0);
@@ -464,27 +450,19 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
                       child: Container(
                         width: 180,
                         padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.75),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.75), borderRadius: BorderRadius.circular(8)),
                         child: Text(_tooltipText, style: TextStyle(color: Colors.white, fontSize: 12)),
                       ),
                     ),
                   );
                 }),
-
-              // trade counter bottom-right
               if (widget.tradeHistory.isNotEmpty)
                 Positioned(
                   bottom: 12,
                   right: 12,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(8)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -525,7 +503,7 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Chart painter
+/// Chart painter (linha + candles + markers + indicadores)
 class _ChartPainter extends CustomPainter {
   final List<double> data;
   final List<Candle> candles;
@@ -565,7 +543,6 @@ class _ChartPainter extends CustomPainter {
     _paintTradeMarkers(canvas, size);
     _paintPatterns(canvas, size);
 
-    // draw SMA/EMA on top of line (only meaningful in line mode)
     if (!showCandles) _paintSMAEMA(canvas, size);
   }
 
@@ -603,7 +580,6 @@ class _ChartPainter extends CustomPainter {
       points.add(Offset(x, y));
     }
 
-    // gradient fill
     final fillPath = Path()..moveTo(points.first.dx, size.height);
     for (final p in points) fillPath.lineTo(p.dx, p.dy);
     fillPath.lineTo(points.last.dx, size.height);
@@ -612,7 +588,6 @@ class _ChartPainter extends CustomPainter {
     final grad = LinearGradient(colors: [AppColors.primary.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter);
     canvas.drawPath(fillPath, Paint()..shader = grad.createShader(Rect.fromLTWH(0, 0, size.width, size.height)));
 
-    // smooth path
     final path = Path()..moveTo(points.first.dx, points.first.dy);
     for (int i = 1; i < points.length; i++) {
       final p0 = points[i - 1];
@@ -624,13 +599,9 @@ class _ChartPainter extends CustomPainter {
       path.cubicTo(cp1x, cp1y, cp2x, cp2y, p1.dx, p1.dy);
     }
 
-    // shadow stroke
     canvas.drawPath(path, Paint()..color = AppColors.primary.withOpacity(0.12)..style = PaintingStyle.stroke..strokeWidth = 6..maskFilter = MaskFilter.blur(BlurStyle.normal, 6));
-
-    // main stroke
     canvas.drawPath(path, Paint()..color = AppColors.primary..style = PaintingStyle.stroke..strokeWidth = 2.2..strokeCap = StrokeCap.round);
 
-    // last point pulse
     final last = points.last;
     final pulse = 6.0 + math.sin(animation * math.pi * 2) * 2;
     canvas.drawCircle(last, pulse, Paint()..color = AppColors.primary.withOpacity(0.18));
@@ -651,18 +622,16 @@ class _ChartPainter extends CustomPainter {
     final chartH = size.height - padding * 2;
     final stepX = chartW / (data.length - 1);
 
-    // draw SMA
     final smaPoints = <Offset>[];
     for (int i = 0; i < sma.length; i++) {
       final v = sma[i];
       if (v == null) {
-        smaPoints.add(Offset(padding + i * stepX, padding + chartH)); // placeholder off-chart
+        smaPoints.add(Offset(padding + i * stepX, padding + chartH));
       } else {
         final y = padding + chartH - ((v - minPrice) / range) * chartH;
         smaPoints.add(Offset(padding + i * stepX, y));
       }
     }
-    // SMA stroke
     final pSMA = Paint()..color = Colors.yellowAccent.withOpacity(0.95)..style = PaintingStyle.stroke..strokeWidth = 1.6;
     final pathSMA = Path();
     bool started = false;
@@ -681,7 +650,6 @@ class _ChartPainter extends CustomPainter {
     }
     canvas.drawPath(pathSMA, pSMA);
 
-    // draw EMA
     final emaPoints = <Offset>[];
     for (int i = 0; i < ema.length; i++) {
       final v = ema[i];
@@ -787,7 +755,6 @@ class _ChartPainter extends CustomPainter {
         tp.layout();
         tp.paint(canvas, Offset(x - tp.width / 2, y - 22));
 
-        // horizontal guide line
         final pPaint = Paint()..color = Colors.blueAccent.withOpacity(0.18)..strokeWidth = 1.0;
         _drawDashedLine(canvas, Offset(padding, y), Offset(size.width - padding, y), pPaint, dash: 4, gap: 4);
       }
