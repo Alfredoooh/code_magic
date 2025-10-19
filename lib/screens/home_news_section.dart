@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/app_ui_components.dart';
 import '../models/news_article.dart';
+import '../widgets/app_colors.dart';
 import 'home_widgets.dart';
 import 'home_screen_helper.dart';
 import 'news_detail_screen.dart';
