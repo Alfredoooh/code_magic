@@ -512,7 +512,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(
+                  return Center(
                     child: CircularProgressIndicator(
                       color: AppColors.primary,
                     ),
@@ -562,7 +562,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 16,
                             backgroundColor: AppColors.primary,
                             child: Text(
@@ -634,7 +634,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
               top: false,
               child: Row(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 16,
                     backgroundColor: AppColors.primary,
                     child: Text(
@@ -667,7 +667,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   ),
                   if (_controller.text.trim().isNotEmpty)
                     _isSubmitting
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
@@ -677,7 +677,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                           )
                         : TextButton(
                             onPressed: _submitComment,
-                            child: const Text(
+                            child: Text(
                               'Publicar',
                               style: TextStyle(
                                 color: AppColors.primary,
