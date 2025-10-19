@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class TradingWarningScreen extends StatefulWidget {
   @override
@@ -54,7 +56,7 @@ class _TradingWarningScreenState extends State<TradingWarningScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF000000) : Colors.white,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -66,30 +68,26 @@ class _TradingWarningScreenState extends State<TradingWarningScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(height: 50),
-                  
+
                   // Warning Icon
-                  Icon(
-                    Icons.warning_rounded,
-                    color: Color(0xFFFF444F),
+                  AppIconCircle(
+                    icon: Icons.warning_rounded,
                     size: 64,
+                    iconColor: Colors.red,
+                    backgroundColor: Colors.red.withOpacity(0.1),
                   ),
-                  
+
                   SizedBox(height: 40),
-                  
+
                   // Title
-                  Text(
-                    'Aviso Importante',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
-                      letterSpacing: -1,
-                      height: 1.1,
-                    ),
+                  AppSectionTitle(
+                    text: 'Aviso Importante',
+                    fontSize: 38,
+                    fontWeight: FontWeight.bold,
                   ),
-                  
+
                   SizedBox(height: 20),
-                  
+
                   // Main warning text
                   Text(
                     'Operações em qualquer corretora podem garantir ganhos ou perdas. Por tanto, apelamos que use as ferramentas do app para controlar os riscos e não ganhar emoção ao ponto de perder todos os seus fundos.',
@@ -100,97 +98,78 @@ class _TradingWarningScreenState extends State<TradingWarningScreen>
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  
+
                   SizedBox(height: 44),
-                  
+
                   // Information sections
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          _buildInfoSection(
+                          _buildInfoCard(
                             icon: Icons.shield_outlined,
                             title: 'Gestão de Risco',
                             description: 'Nunca invista mais do que pode perder. Defina stop-loss e take-profit para proteger seu capital e minimizar perdas potenciais.',
                             isDark: isDark,
                           ),
-                          
-                          SizedBox(height: 28),
-                          
-                          _buildInfoSection(
+
+                          SizedBox(height: 16),
+
+                          _buildInfoCard(
                             icon: Icons.psychology_outlined,
                             title: 'Controle Emocional',
                             description: 'Decisões emocionais levam a perdas significativas. Mantenha-se disciplinado, siga sua estratégia e não deixe o medo ou ganância controlar suas operações.',
                             isDark: isDark,
                           ),
-                          
-                          SizedBox(height: 28),
-                          
-                          _buildInfoSection(
+
+                          SizedBox(height: 16),
+
+                          _buildInfoCard(
                             icon: Icons.school_outlined,
                             title: 'Educação Contínua',
                             description: 'Aprenda constantemente sobre análise técnica, gestão de risco e psicologia do trading. O conhecimento é sua melhor ferramenta.',
                             isDark: isDark,
                           ),
-                          
-                          SizedBox(height: 28),
-                          
-                          _buildInfoSection(
+
+                          SizedBox(height: 16),
+
+                          _buildInfoCard(
                             icon: Icons.account_balance_outlined,
                             title: 'Diversificação',
                             description: 'Não coloque todos os seus fundos em uma única operação. Diversifique seu portfólio para reduzir riscos e aumentar oportunidades.',
                             isDark: isDark,
                           ),
-                          
-                          SizedBox(height: 28),
-                          
-                          _buildInfoSection(
+
+                          SizedBox(height: 16),
+
+                          _buildInfoCard(
                             icon: Icons.access_time_outlined,
                             title: 'Paciência e Disciplina',
                             description: 'O trading bem-sucedido requer tempo e paciência. Não force operações e espere as melhores oportunidades conforme sua estratégia.',
                             isDark: isDark,
                           ),
-                          
-                          SizedBox(height: 28),
-                          
-                          _buildInfoSection(
+
+                          SizedBox(height: 16),
+
+                          _buildInfoCard(
                             icon: Icons.trending_up_outlined,
                             title: 'Expectativas Realistas',
                             description: 'Lucros consistentes levam tempo. Evite promessas de ganhos rápidos e foque em crescimento sustentável a longo prazo.',
                             isDark: isDark,
                           ),
-                          
+
                           SizedBox(height: 20),
                         ],
                       ),
                     ),
                   ),
-                  
+
                   // Continue Button
                   Padding(
                     padding: EdgeInsets.only(bottom: 20, top: 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _handleDismiss,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFFFF444F),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Text(
-                          'Entendi',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
+                    child: AppPrimaryButton(
+                      text: 'Entendi',
+                      onPressed: _handleDismiss,
                     ),
                   ),
                 ],
@@ -202,47 +181,48 @@ class _TradingWarningScreenState extends State<TradingWarningScreen>
     );
   }
 
-  Widget _buildInfoSection({
+  Widget _buildInfoCard({
     required IconData icon,
     required String title,
     required String description,
     required bool isDark,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          color: Color(0xFFFF444F),
-          size: 28,
-        ),
-        SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black,
-                  letterSpacing: -0.2,
-                ),
+    return AppCard(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              color: AppColors.primary,
+              size: 28,
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppSectionTitle(
+                    text: title,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 6),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.5,
-                  color: isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.65),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
