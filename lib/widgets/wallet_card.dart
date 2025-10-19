@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app_ui_components.dart';
+import 'app_colors.dart';
 
 class WalletCard extends StatelessWidget {
   final Map<String, dynamic>? userData;
