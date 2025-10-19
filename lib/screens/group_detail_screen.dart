@@ -1,638 +1,882 @@
-// lib/screens/group_detail_screen.dart
+// lib/screens/chats_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../widgets/app_colors.dart';
 import '../widgets/app_ui_components.dart';
+import 'chat_detail_screen.dart';
+import 'group_detail_screen.dart';
+import 'users_list_screen.dart';
 
-class GroupDetailScreen extends StatefulWidget {
-  final String groupId;
-  final String groupName;
+class ChatsScreen extends StatefulWidget {
+  final User? currentUser;
 
-  const GroupDetailScreen({
-    required this.groupId,
-    required this.groupName,
-    Key? key,
-  }) : super(key: key);
+  const ChatsScreen({Key? key, this.currentUser}) : super(key: key);
 
   @override
-  _GroupDetailScreenState createState() => _GroupDetailScreenState();
+  _ChatsScreenState createState() => _ChatsScreenState();
 }
 
-class _GroupDetailScreenState extends State<GroupDetailScreen> {
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
+class _ChatsScreenState extends State<ChatsScreen> with SingleTickerProviderStateMixin {
+  int _activeUsers = 0;
   Map<String, dynamic>? _userData;
-  Map<String, dynamic>? _groupData;
-  bool _isLoading = true;
-  bool _isSending = false;
+  int _selectedTab = 0;
+  int _selectedFilter = 0;
+  late AnimationController _badgeController;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    _initializeGroup();
+    _pageController = PageController();
+    _badgeController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300),
+    );
+    _loadUserData();
+    _setupRealtimeListeners();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    _focusNode.dispose();
+    _badgeController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  Future<void> _initializeGroup() async {
-    await _loadUserData();
-    await _loadGroupData();
-    if (mounted) setState(() => _isLoading = false);
+  void _setupRealtimeListeners() {
+    FirebaseFirestore.instance
+        .collection('users')
+        .where('isOnline', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _activeUsers = snapshot.docs.length;
+          _badgeController.forward(from: 0);
+        });
+      }
+    });
   }
 
   Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = widget.currentUser;
     if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (doc.exists && mounted) setState(() => _userData = doc.data());
-      } catch (e) {
-        print('❌ Erro ao carregar usuário: $e');
-      }
-    }
-  }
-
-  Future<void> _loadGroupData() async {
-    try {
-      final doc = await FirebaseFirestore.instance.collection('groups').doc(widget.groupId).get();
-      if (doc.exists && mounted) setState(() => _groupData = doc.data());
-    } catch (e) {
-      print('❌ Erro ao carregar grupo: $e');
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    if (_controller.text.trim().isEmpty || _isSending) return;
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    if (_groupData != null) {
-      final members = List.from(_groupData!['members'] ?? []);
-      if (!members.contains(currentUser.uid)) {
-        AppDialogs.showError(context, 'Erro', 'Você não é membro deste grupo');
-        return;
-      }
-    }
-
-    if (_userData?['pro'] != true) {
-      if ((_userData?['tokens'] ?? 0) <= 0) {
-        AppDialogs.showError(context, 'Tokens insuficientes', 'Você não tem tokens.');
-        return;
-      }
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
-          'tokens': FieldValue.increment(-1),
-        });
-        if (_userData != null) _userData!['tokens'] = (_userData!['tokens'] ?? 0) - 1;
-      } catch (e) {
-        print('❌ Erro ao decrementar tokens: $e');
-      }
-    }
-
-    setState(() => _isSending = true);
-    final messageText = _controller.text.trim();
-    _controller.clear();
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('groups')
-          .doc(widget.groupId)
-          .collection('messages')
-          .add({
-        'text': messageText,
-        'senderId': currentUser.uid,
-        'senderName': _userData?['username'] ?? 'Usuário',
-        'timestamp': FieldValue.serverTimestamp(),
-        'edited': false,
-      });
-
-      await FirebaseFirestore.instance.collection('groups').doc(widget.groupId).update({
-        'lastMessage': messageText,
-        'lastMessageTime': FieldValue.serverTimestamp(),
-      });
-
-      _scrollToBottom();
-    } catch (e) {
-      print('❌ Erro ao enviar mensagem: $e');
-      AppDialogs.showError(context, 'Erro', 'Não foi possível enviar a mensagem.');
-    } finally {
-      if (mounted) setState(() => _isSending = false);
-    }
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      Future.delayed(Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(0, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+        if (doc.exists && mounted) {
+          setState(() => _userData = doc.data());
         }
       });
     }
   }
 
-  void _editMessage(String messageId, String currentText, DateTime timestamp) {
-    final now = DateTime.now();
-    final diff = now.difference(timestamp);
-    if (diff.inMinutes > 5) {
-      AppDialogs.showError(context, 'Tempo excedido', 'Não é possível editar após 5 minutos.');
-      return;
-    }
+  Future<void> _createConversation(String otherUserId) async {
+    final user = widget.currentUser;
+    if (user == null) return;
 
-    final controller = TextEditingController(text: currentText);
+    try {
+      final existingConv = await FirebaseFirestore.instance
+          .collection('conversations')
+          .where('participants', arrayContains: user.uid)
+          .get();
+
+      for (var doc in existingConv.docs) {
+        final data = doc.data();
+        final participants = List<String>.from(data['participants'] ?? []);
+        if (participants.contains(otherUserId) && participants.length == 2) {
+          _navigateToChat(otherUserId);
+          return;
+        }
+      }
+
+      await FirebaseFirestore.instance.collection('conversations').add({
+        'participants': [user.uid, otherUserId],
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'unreadCount_${user.uid}': 0,
+        'unreadCount_$otherUserId': 0,
+      });
+
+      _navigateToChat(otherUserId);
+    } catch (e) {
+      AppDialogs.showError(context, 'Erro', 'Erro ao criar conversa');
+    }
+  }
+
+  Future<void> _navigateToChat(String otherUserId) async {
+    try {
+      final otherUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .get();
+
+      if (!otherUserDoc.exists) {
+        AppDialogs.showError(context, 'Erro', 'Usuário não encontrado');
+        return;
+      }
+
+      final otherUserData = otherUserDoc.data();
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatDetailScreen(
+            recipientId: otherUserId,
+            recipientName: otherUserData?['username'] ?? 'Usuário',
+            recipientImage: otherUserData?['profile_image'] ?? '',
+          ),
+        ),
+      );
+    } catch (e) {
+      AppDialogs.showError(context, 'Erro', 'Erro ao abrir conversa');
+    }
+  }
+
+  void _showOptionsMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.person_add_rounded, color: AppColors.primary),
+              ),
+              title: Text(
+                'Nova Conversa',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showUsersDialog();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.group_add_rounded, color: Colors.blue),
+              ),
+              title: Text(
+                'Criar Grupo',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showCreateGroupDialog();
+              },
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateGroupDialog() {
+    final nameController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar Mensagem'),
+        backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Criar Grupo',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
         content: AppTextField(
-          controller: controller,
-          hintText: 'Digite a nova mensagem',
-          maxLines: 3,
+          controller: nameController,
+          hintText: 'Nome do grupo',
+          prefixIcon: Icon(Icons.group_rounded, size: 20),
         ),
         actions: [
-          AppSecondaryButton(
-            text: 'Cancelar',
+          TextButton(
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             onPressed: () {
-              controller.dispose();
+              nameController.dispose();
               Navigator.pop(context);
             },
           ),
-          AppPrimaryButton(
-            text: 'Salvar',
-            onPressed: () async {
-              if (controller.text.trim().isNotEmpty) {
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('groups')
-                      .doc(widget.groupId)
-                      .collection('messages')
-                      .doc(messageId)
-                      .update({
-                    'text': controller.text.trim(),
-                    'edited': true,
-                  });
-                  controller.dispose();
-                  Navigator.pop(context);
-                } catch (e) {
-                  print('❌ Erro ao editar: $e');
-                }
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _deleteMessage(String messageId) {
-    AppDialogs.showConfirmation(
-      context,
-      'Excluir Mensagem',
-      'Tem certeza que deseja excluir esta mensagem?',
-      onConfirm: () async {
-        try {
-          await FirebaseFirestore.instance
-              .collection('groups')
-              .doc(widget.groupId)
-              .collection('messages')
-              .doc(messageId)
-              .delete();
-        } catch (e) {
-          print('❌ Erro ao excluir: $e');
-        }
-      },
-      isDestructive: true,
-    );
-  }
-
-  void _showMessageOptions(String messageId, String messageText, DateTime timestamp, bool isMe) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : AppColors.lightCard,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                SizedBox(height: 20),
-                if (isMe) ...[
-                  ListTile(
-                    leading: Icon(Icons.edit, color: AppColors.primary),
-                    title: Text('Editar'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _editMessage(messageId, messageText, timestamp);
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text('Excluir', style: TextStyle(color: Colors.red)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _deleteMessage(messageId);
-                    },
-                  ),
-                ],
-                ListTile(
-                  leading: Icon(Icons.copy, color: AppColors.primary),
-                  title: Text('Copiar'),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: messageText));
-                    Navigator.pop(context);
-                    AppDialogs.showSuccess(context, 'Copiado', 'Mensagem copiada!');
-                  },
-                ),
-                SizedBox(height: 20),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showGroupInfo() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    AppBottomSheet.show(
-      context,
-      height: MediaQuery.of(context).size.height * 0.7,
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              children: [
-                AppIconCircle(icon: Icons.group, size: 80),
-                SizedBox(height: 16),
-                AppSectionTitle(text: widget.groupName, fontSize: 24),
-                SizedBox(height: 8),
-                StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('groups').doc(widget.groupId).snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return SizedBox.shrink();
-                    final groupData = snapshot.data!.data() as Map<String, dynamic>?;
-                    final members = List.from(groupData?['members'] ?? []);
-                    return Text(
-                      '${members.length} ${members.length == 1 ? 'membro' : 'membros'}',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('MEMBROS', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
-              ],
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('groups').doc(widget.groupId).snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator(color: AppColors.primary));
-                }
-
-                final groupData = snapshot.data!.data() as Map<String, dynamic>?;
-                final members = List<String>.from(groupData?['members'] ?? []);
-
-                if (members.isEmpty) {
-                  return Center(child: Text('Nenhum membro', style: TextStyle(color: Colors.grey)));
-                }
-
-                return ListView.separated(
-                  padding: EdgeInsets.zero,
-                  itemCount: members.length,
-                  separatorBuilder: (context, index) => Divider(height: 1, indent: 72),
-                  itemBuilder: (context, index) {
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance.collection('users').doc(members[index]).get(),
-                      builder: (context, userSnapshot) {
-                        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                          return SizedBox.shrink();
-                        }
-
-                        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                        final isOnline = userData['isOnline'] == true;
-                        final isCreator = members[index] == groupData?['createdBy'];
-
-                        return ListTile(
-                          leading: Stack(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: AppColors.primary,
-                                backgroundImage: userData['profile_image'] != null && userData['profile_image'].isNotEmpty
-                                    ? NetworkImage(userData['profile_image'])
-                                    : null,
-                                child: userData['profile_image'] == null || userData['profile_image'].isEmpty
-                                    ? Text(
-                                        (userData['username'] ?? 'U')[0].toUpperCase(),
-                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                                      )
-                                    : null,
-                              ),
-                              if (isOnline)
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: isDark ? AppColors.darkBackground : AppColors.lightBackground, width: 2),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          title: Row(
-                            children: [
-                              Text(userData['username'] ?? 'Usuário', style: TextStyle(fontWeight: FontWeight.w600)),
-                              if (isCreator) ...[
-                                SizedBox(width: 8),
-                                Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text('ADMIN', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ],
-                          ),
-                          subtitle: Text(isOnline ? 'Online' : 'Offline', style: TextStyle(fontSize: 13, color: isOnline ? Colors.green : Colors.grey)),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageText(String text, bool isMe, bool isDark) {
-    final urlPattern = RegExp(r'(https?://[^\s]+)', caseSensitive: false);
-    List<InlineSpan> spans = [];
-
-    text.split(' ').forEach((word) {
-      if (urlPattern.hasMatch(word)) {
-        spans.add(WidgetSpan(
-          child: GestureDetector(
-            onTap: () async {
-              try {
-                final uri = Uri.parse(word);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              } catch (e) {
-                print('❌ Erro ao abrir URL: $e');
-              }
-            },
+          TextButton(
             child: Text(
-              word + ' ',
-              style: TextStyle(color: isMe ? Colors.white : Colors.blue, decoration: TextDecoration.underline, fontSize: 16),
+              'Criar',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            onPressed: () async {
+              if (nameController.text.trim().isNotEmpty) {
+                final user = widget.currentUser;
+                if (user != null) {
+                  try {
+                    await FirebaseFirestore.instance.collection('groups').add({
+                      'name': nameController.text.trim(),
+                      'createdBy': user.uid,
+                      'creatorName': _userData?['username'] ?? 'Usuário',
+                      'members': [user.uid],
+                      'timestamp': FieldValue.serverTimestamp(),
+                      'lastMessage': '',
+                      'lastMessageTime': FieldValue.serverTimestamp(),
+                      'groupImage': '',
+                    });
+                    nameController.dispose();
+                    Navigator.pop(context);
+                    AppDialogs.showSuccess(
+                      context,
+                      'Sucesso!',
+                      'Grupo criado com sucesso!',
+                    );
+                  } catch (e) {
+                    AppDialogs.showError(context, 'Erro', 'Erro ao criar grupo');
+                  }
+                }
+              }
+            },
           ),
-        ));
-      } else if (word.startsWith('*') && word.endsWith('*') && word.length > 2) {
-        spans.add(TextSpan(
-          text: word.substring(1, word.length - 1) + ' ',
-          style: TextStyle(fontWeight: FontWeight.bold, color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black), fontSize: 16),
-        ));
-      } else if (word.startsWith('_') && word.endsWith('_') && word.length > 2) {
-        spans.add(TextSpan(
-          text: word.substring(1, word.length - 1) + ' ',
-          style: TextStyle(fontStyle: FontStyle.italic, color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black), fontSize: 16),
-        ));
-      } else {
-        spans.add(TextSpan(text: word + ' ', style: TextStyle(color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black), fontSize: 16)));
-      }
-    });
+        ],
+      ),
+    );
+  }
 
-    return RichText(text: TextSpan(children: spans));
+  void _showUsersDialog() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => UsersListScreen(
+          currentUser: widget.currentUser,
+          userData: _userData,
+          onUserSelected: _createConversation,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppSecondaryAppBar(
-        title: widget.groupName,
+      appBar: AppPrimaryAppBar(
+        title: 'Conversas',
         actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.people_rounded,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                onPressed: _showUsersDialog,
+              ),
+              if (_activeUsers > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: ScaleTransition(
+                    scale: CurvedAnimation(
+                      parent: _badgeController,
+                      curve: Curves.elasticOut,
+                    ),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFFFF3B30).withOpacity(0.4),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      constraints: BoxConstraints(minWidth: 18, minHeight: 18),
+                      child: Text(
+                        _activeUsers > 99 ? '99+' : '$_activeUsers',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
-            icon: Icon(Icons.info_outline),
-            onPressed: _showGroupInfo,
+            icon: Icon(Icons.add_circle_rounded, color: AppColors.primary),
+            onPressed: _showOptionsMenu,
           ),
         ],
       ),
       body: Column(
         children: [
+          _buildSegmentedControl(isDark),
+          _buildFilterButtons(isDark),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('groups')
-                  .doc(widget.groupId)
-                  .collection('messages')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator(color: AppColors.primary));
-                }
+            child: widget.currentUser == null
+                ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : PageView(
+                    controller: _pageController,
+                    physics: BouncingScrollPhysics(),
+                    onPageChanged: (index) => setState(() => _selectedTab = index),
+                    children: [
+                      _buildConversationsList(widget.currentUser!, isDark),
+                      _buildGroupsList(widget.currentUser!, isDark),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('Nenhuma mensagem', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                      ],
-                    ),
-                  );
-                }
-
-                final messages = snapshot.data!.docs;
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final messageDoc = messages[index];
-                    final message = messageDoc.data() as Map<String, dynamic>;
-                    final isMe = message['senderId'] == currentUser?.uid;
-                    final timestamp = message['timestamp'] as Timestamp?;
-                    final isEdited = message['edited'] == true;
-
-                    if (timestamp == null) return SizedBox.shrink();
-
-                    return GestureDetector(
-                      onLongPress: () {
-                        if (isMe) {
-                          HapticFeedback.mediumImpact();
-                          _showMessageOptions(messageDoc.id, message['text'], timestamp.toDate(), isMe);
-                        }
-                      },
-                      child: Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Flexible(
-                              child: Container(
-                                padding: EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: isMe ? AppColors.primary : (isDark ? AppColors.darkCard : AppColors.lightCard),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(20),
-                                    topRight: Radius.circular(20),
-                                    bottomLeft: isMe ? Radius.circular(20) : Radius.circular(4),
-                                    bottomRight: isMe ? Radius.circular(4) : Radius.circular(20),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (!isMe)
-                                      Padding(
-                                        padding: EdgeInsets.only(bottom: 4),
-                                        child: Text(
-                                          message['senderName'] ?? 'Usuário',
-                                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.primary),
-                                        ),
-                                      ),
-                                    _buildMessageText(message['text'] ?? '', isMe, isDark),
-                                    if (isEdited)
-                                      Padding(
-                                        padding: EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          'editado',
-                                          style: TextStyle(fontSize: 11, color: isMe ? Colors.white70 : Colors.grey, fontStyle: FontStyle.italic),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+  Widget _buildSegmentedControl(bool isDark) {
+    return Container(
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedTab = 0);
+                _pageController.animateToPage(
+                  0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
                 );
               },
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: _selectedTab == 0
+                      ? LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _selectedTab == 0
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Text(
+                  'Chats',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedTab == 0 ? Colors.white : Colors.grey.shade600,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
             ),
           ),
-          // INPUT FLUTUANTE IDÊNTICO
-          Container(
-            margin: EdgeInsets.all(16),
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
+          SizedBox(width: 4),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedTab = 1);
+                _pageController.animateToPage(
+                  1,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: _selectedTab == 1
+                      ? LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _selectedTab == 1
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ]
+                      : [],
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    maxLines: null,
-                    style: TextStyle(fontSize: 16),
-                    decoration: InputDecoration(
-                      hintText: 'Mensagem',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
+                child: Text(
+                  'Grupos',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedTab == 1 ? Colors.white : Colors.grey.shade600,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    _sendMessage();
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _isSending ? Colors.grey : AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _isSending
-                        ? Padding(
-                            padding: EdgeInsets.all(10),
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Icon(Icons.arrow_upward, color: Colors.white, size: 20),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterButtons(bool isDark) {
+    final filters = ['Todas', 'Não lidas', 'Recentes'];
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: BouncingScrollPhysics(),
+        child: Row(
+          children: List.generate(filters.length, (index) {
+            final isSelected = _selectedFilter == index;
+            return Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedFilter = index),
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [AppColors.primary, AppColors.primaryLight],
+                          )
+                        : null,
+                    color: !isSelected
+                        ? (isDark ? AppColors.darkCard : AppColors.lightCard)
+                        : null,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    filters[index],
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.grey.shade600,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConversationsList(User currentUser, bool isDark) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('conversations')
+          .where('participants', arrayContains: currentUser.uid)
+          .orderBy('lastMessageTime', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: AppColors.primary));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'Nenhuma conversa',
+            subtitle: 'Toque em + para começar',
+            isDark: isDark,
+          );
+        }
+
+        var conversations = snapshot.data!.docs;
+
+        if (_selectedFilter == 1) {
+          conversations = conversations.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final unreadCount = data['unreadCount_${currentUser.uid}'] ?? 0;
+            return unreadCount > 0;
+          }).toList();
+
+          if (conversations.isEmpty) {
+            return _buildEmptyState(
+              icon: Icons.mark_chat_read_rounded,
+              title: 'Tudo lido!',
+              subtitle: 'Você não tem mensagens não lidas',
+              isDark: isDark,
+            );
+          }
+        }
+
+        return ListView.separated(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          physics: BouncingScrollPhysics(),
+          itemCount: conversations.length,
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            color: isDark ? AppColors.darkSeparator : AppColors.separator,
+            indent: 72,
+          ),
+          itemBuilder: (context, index) {
+            return _ConversationItem(
+              conversation: conversations[index],
+              currentUser: currentUser,
+              isDark: isDark,
+              onTap: _navigateToChat,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupsList(User currentUser, bool isDark) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('groups')
+          .where('members', arrayContains: currentUser.uid)
+          .orderBy('lastMessageTime', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: AppColors.primary));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.group_outlined,
+            title: 'Nenhum grupo',
+            subtitle: 'Toque em + para criar',
+            isDark: isDark,
+          );
+        }
+
+        final groups = snapshot.data!.docs;
+
+        return ListView.separated(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          physics: BouncingScrollPhysics(),
+          itemCount: groups.length,
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            color: isDark ? AppColors.darkSeparator : AppColors.separator,
+            indent: 72,
+          ),
+          itemBuilder: (context, index) {
+            final groupData = groups[index].data() as Map<String, dynamic>;
+
+            return ListTile(
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: CircleAvatar(
+                radius: 28,
+                backgroundColor: AppColors.primary.withOpacity(0.15),
+                child: Icon(
+                  Icons.group_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+              ),
+              title: Text(
+                groupData['name'] ?? 'Grupo',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              subtitle: Text(
+                groupData['lastMessage'] ?? 'Sem mensagens',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GroupDetailScreen(
+                      groupId: groups[index].id,
+                      groupName: groupData['name'] ?? 'Grupo',
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isDark,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.15),
+                  AppColors.primary.withOpacity(0.05),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 64, color: AppColors.primary),
+          ),
+          SizedBox(height: 24),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black,
+              letterSpacing: -0.5,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConversationItem extends StatelessWidget {
+  final QueryDocumentSnapshot conversation;
+  final User currentUser;
+  final bool isDark;
+  final Function(String) onTap;
+
+  const _ConversationItem({
+    required this.conversation,
+    required this.currentUser,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  String _getOtherUserId(Map<String, dynamic> data) {
+    final participants = data['participants'];
+    if (participants is List) {
+      final list = List<String>.from(participants);
+      return list.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = conversation.data() as Map<String, dynamic>;
+    final otherUserId = _getOtherUserId(data);
+
+    if (otherUserId.isEmpty) return SizedBox.shrink();
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return SizedBox.shrink();
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final unreadCount = data['unreadCount_${currentUser.uid}'] ?? 0;
+        final isOnline = userData['isOnline'] == true;
+
+        return ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Stack(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: AppColors.primary,
+                backgroundImage: userData['profile_image'] != null &&
+                        userData['profile_image'].toString().isNotEmpty
+                    ? NetworkImage(userData['profile_image'])
+                    : null,
+                child: userData['profile_image'] == null ||
+                        userData['profile_image'].toString().isEmpty
+                    ? Text(
+                        (userData['username'] ?? 'U')[0].toUpperCase(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      )
+                    : null,
+              ),
+              if (isOnline)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFF3B30),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.darkBackground
+                            : AppColors.lightBackground,
+                        width: 2.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          title: Text(
+            userData['username'] ?? 'Usuário',
+            style: TextStyle(
+              fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 16,
+              letterSpacing: -0.3,
+            ),
+          ),
+          subtitle: Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              data['lastMessage'] ?? 'Sem mensagens',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+          trailing: unreadCount > 0
+              ? Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFF3B30),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFFFF3B30).withOpacity(0.4),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  constraints: BoxConstraints(minWidth: 22),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : null,
+          onTap: () => onTap(otherUserId),
+        );
+      },
     );
   }
 }
