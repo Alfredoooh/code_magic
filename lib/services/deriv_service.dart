@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:http/http.dart' as http;
 
 class DerivService {
   static const int appId = 71954;
@@ -51,6 +50,7 @@ class DerivService {
 
   void _connect() {
     try {
+      // Fechar canal anterior se existir
       _channel?.sink.close();
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
@@ -67,6 +67,7 @@ class DerivService {
           _connectionController.add(false);
         },
       );
+      print('WebSocket connecting to $wsUrl');
     } catch (e) {
       print('Connection error: $e');
       _isConnected = false;
@@ -80,22 +81,29 @@ class DerivService {
     if (token.isEmpty) {
       throw Exception('Token vazio');
     }
-    
-    print('Conectando com token: ${token.substring(0, 10)}...');
+
+    print('Conectando com token: ${token.length > 10 ? token.substring(0, 10) + '...' : token}');
     _currentToken = token;
-    _connect();
-    await Future.delayed(Duration(milliseconds: 800));
+    if (_channel == null) {
+      _connect();
+      // aguardar um pouco para o websocket estabelecer
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
+    // Envia authorize com token
     _sendMessage({'authorize': token});
+    // Não aguardamos bloqueantemente; o _handleAuthorize tratará o resto
   }
 
   /// OBTER TOKEN A PARTIR DE EMAIL/PASSWORD
+  /// Tenta obter token via websocket listening à resposta "authorize".
   Future<String?> getApiTokenFromCredentials(String email, String password) async {
     try {
-      print('Tentando obter token com credenciais...');
-      
-      // Conectar temporariamente
-      _connect();
-      await Future.delayed(Duration(milliseconds: 800));
+      print('Tentando obter token com credenciais (via websocket listener)...');
+
+      if (_channel == null) {
+        _connect();
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
 
       final completer = Completer<String?>();
       StreamSubscription? sub;
@@ -103,31 +111,39 @@ class DerivService {
 
       sub = _channel!.stream.listen((message) {
         if (completed) return;
-        
         try {
           final data = jsonDecode(message);
-          print('Resposta recebida: ${data['msg_type']}');
-          
+          // debug print do tipo de mensagem
+          print('getApiTokenFromCredentials - msg_type: ${data['msg_type'] ?? 'no-msg_type'}');
+
+          if (data['error'] != null && !completed) {
+            completed = true;
+            final errMsg = data['error']['message'] ?? jsonEncode(data['error']);
+            print('getApiTokenFromCredentials - API error: $errMsg');
+            completer.complete(null);
+            sub?.cancel();
+            return;
+          }
+
           if (data['msg_type'] == 'authorize' && data['authorize'] != null) {
-            final token = data['authorize']['token'];
+            // Se a API retornar authorize com token, capturamos
+            final auth = data['authorize'];
+            final token = auth['token'] ?? auth['authorize'] ?? auth['token'];
             if (token != null && !completed) {
               completed = true;
-              print('Token obtido com sucesso');
+              print('getApiTokenFromCredentials - token obtido via authorize');
               completer.complete(token);
               sub?.cancel();
             }
-          } else if (data['error'] != null && !completed) {
-            completed = true;
-            print('Erro: ${data['error']['message']}');
-            completer.complete(null);
-            sub?.cancel();
           }
         } catch (e) {
-          print('Erro ao processar mensagem: $e');
+          print('Erro ao processar mensagem em getApiTokenFromCredentials: $e');
         }
+      }, onError: (err) {
+        print('Stream error em getApiTokenFromCredentials: $err');
       });
 
-      // Enviar credenciais
+      // Enviar tentativa (atenção: dependendo da API, authorize com email+password pode não ser suportado)
       _sendMessage({
         'authorize': email,
         'password': password,
@@ -135,16 +151,15 @@ class DerivService {
 
       // Timeout de 10 segundos
       final token = await completer.future.timeout(
-        Duration(seconds: 10),
+        const Duration(seconds: 10),
         onTimeout: () {
-          print('Timeout ao obter token');
+          print('Timeout ao obter token via websocket');
           return null;
         },
       );
 
       sub?.cancel();
       return token;
-
     } catch (e) {
       print('Erro ao obter token: $e');
       return null;
@@ -152,36 +167,32 @@ class DerivService {
   }
 
   /// LOGIN DIRETO COM EMAIL/PASSWORD (Fallback)
+  /// Observação: muitas APIs não aceitam email+password no websocket 'authorize'.
+  /// Aqui fazemos uma tentativa consistente reutilizando getApiTokenFromCredentials.
   Future<Map<String, dynamic>> loginWithCredentials(String email, String password) async {
     try {
-      print('Login direto com credenciais...');
-      
-      _connect();
-      await Future.delayed(Duration(milliseconds: 800));
+      print('loginWithCredentials: tentando obter token via getApiTokenFromCredentials...');
+      final token = await getApiTokenFromCredentials(email, password);
 
-      _sendMessage({
-        'authorize': email,
-        'password': password,
-      });
-
-      // Aguardar conexão
-      await Future.delayed(Duration(seconds: 3));
-
-      if (_isConnected) {
+      if (token != null && token.isNotEmpty) {
+        // guardamos token e conectamos com ele
+        _currentToken = token;
+        await connectWithToken(token);
+        // não garantimos que já tenha recebido authorize response, mas consideramos sucesso ao obter token
         return {
           'success': true,
-          'token': _currentToken,
-          'message': 'Login realizado'
+          'token': token,
+          'message': 'Login realizado (token obtido)'
         };
       } else {
+        print('loginWithCredentials: não obteve token via websocket.');
         return {
           'success': false,
-          'error': 'Falha na autenticação'
+          'error': 'Falha ao obter token com email/senha'
         };
       }
-
     } catch (e) {
-      print('Erro no login: $e');
+      print('Erro no loginWithCredentials: $e');
       return {
         'success': false,
         'error': e.toString()
@@ -194,9 +205,9 @@ class DerivService {
       final data = jsonDecode(message);
 
       if (data['error'] != null) {
-        print('API Error: ${data['error']['message']} (${data['error']['code']})');
-        
-        if (data['error']['code'] == 'InvalidToken' || 
+        print('API Error: ${data['error']['message']} (${data['error']['code'] ?? 'no-code'})');
+
+        if (data['error']['code'] == 'InvalidToken' ||
             data['error']['code'] == 'AuthorizationRequired') {
           _isConnected = false;
           _connectionController.add(false);
@@ -225,6 +236,10 @@ class DerivService {
           break;
         case 'proposal_open_contract':
           _handleContract(data);
+          break;
+        default:
+          // mensagem desconhecida: opcionalmente logar
+          // print('Unhandled msg_type: ${data['msg_type']}');
           break;
       }
     } catch (e) {
@@ -322,10 +337,10 @@ class DerivService {
     if (data['proposal_open_contract'] != null) {
       final contract = data['proposal_open_contract'];
 
-      if (contract['status'] == 'sold' || 
-          contract['status'] == 'won' || 
+      if (contract['status'] == 'sold' ||
+          contract['status'] == 'won' ||
           contract['status'] == 'lost') {
-        
+
         final buyPrice = (contract['buy_price'] ?? 0).toDouble();
         final sellPrice = (contract['sell_price'] ?? contract['bid_price'] ?? 0).toDouble();
         final profit = sellPrice - buyPrice;
@@ -362,9 +377,16 @@ class DerivService {
   }
 
   void _sendMessage(Map<String, dynamic> message) {
-    if (_channel != null) {
-      final jsonMessage = jsonEncode(message);
-      _channel!.sink.add(jsonMessage);
+    final jsonMessage = jsonEncode(message);
+    if (_channel == null) {
+      print('Channel fechado. Tentando reconectar antes de enviar: $jsonMessage');
+      _connect();
+    }
+    try {
+      _channel?.sink.add(jsonMessage);
+      print('Sent: $jsonMessage');
+    } catch (e) {
+      print('Erro ao enviar mensagem: $e');
     }
   }
 
