@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _tokenController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _rememberMe = false;
   String _selectedMethod = 'oauth'; // 'oauth', 'credentials', 'token'
@@ -43,17 +43,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final savedEmail = await _storage.read(key: 'deriv_email');
     final savedToken = await _storage.read(key: 'deriv_api_token');
     final savedRemember = await _storage.read(key: 'deriv_remember');
-    
+
     if (savedEmail != null && savedRemember == 'true') {
       setState(() {
         _emailController.text = savedEmail;
         _rememberMe = true;
       });
     }
-    
+
     if (savedToken != null) {
+      // NÃO sobrescrever o token real com uma versão truncada.
+      // Mantenha o token real para que o botão "Conectar com Token" funcione corretamente.
       setState(() {
-        _tokenController.text = savedToken.substring(0, 20) + '...';
+        _tokenController.text = savedToken;
       });
     }
   }
@@ -61,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
   /// LOGIN COM OAUTH
   Future<void> _loginWithOAuth() async {
     if (_isLoading) return;
-    
+
     setState(() => _isLoading = true);
 
     try {
@@ -88,11 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (token != null && token.isNotEmpty) {
         await _storage.write(key: 'deriv_api_token', value: token);
         await widget.derivService.connectWithToken(token);
-        
+
         if (mounted) {
           AppDialogs.showSuccess(
-            context, 
-            'Conectado!', 
+            context,
+            'Conectado!',
             'Login OAuth realizado com sucesso',
             onClose: () => Navigator.pop(context),
           );
@@ -125,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _storage.write(key: 'deriv_api_token', value: token);
       await widget.derivService.connectWithToken(token);
-      
+
       if (mounted) {
         AppDialogs.showSuccess(
           context,
@@ -158,11 +160,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Primeiro tente obter token via websocket-based helper
       final token = await widget.derivService.getApiTokenFromCredentials(email, password);
-      
+
       if (token != null && token.isNotEmpty) {
         await _storage.write(key: 'deriv_api_token', value: token);
-        
+
         if (_rememberMe) {
           await _storage.write(key: 'deriv_email', value: email);
           await _storage.write(key: 'deriv_remember', value: 'true');
@@ -172,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         await widget.derivService.connectWithToken(token);
-        
+
         if (mounted) {
           AppDialogs.showSuccess(
             context,
@@ -182,13 +185,16 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
+        // Fallback: usar método de login direto do serviço que tentará novamente
         final result = await widget.derivService.loginWithCredentials(email, password);
-        
+        debugPrint('loginWithCredentials result: $result');
+
         if (result['success'] == true) {
           if (result['token'] != null) {
             await _storage.write(key: 'deriv_api_token', value: result['token']);
+            await widget.derivService.connectWithToken(result['token']);
           }
-          
+
           if (_rememberMe) {
             await _storage.write(key: 'deriv_email', value: email);
             await _storage.write(key: 'deriv_remember', value: 'true');
@@ -203,12 +209,14 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          throw Exception(result['error'] ?? 'Credenciais inválidas');
+          final serverMsg = result['error'] ?? 'Credenciais inválidas';
+          throw Exception(serverMsg);
         }
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Erro login credentials: $e\n$st');
       if (mounted) {
-        AppDialogs.showError(context, 'Erro', 'Verifique suas credenciais');
+        AppDialogs.showError(context, 'Erro', e.toString());
       }
     } finally {
       if (mounted) {
@@ -231,15 +239,15 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             children: [
               SizedBox(height: 20),
-              
+
               AppIconCircle(
                 icon: Icons.account_balance_wallet_outlined,
                 size: 60,
                 iconColor: AppColors.primary,
               ),
-              
+
               SizedBox(height: 24),
-              
+
               Text(
                 'Conecte sua conta',
                 style: TextStyle(
@@ -248,21 +256,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: isDark ? Colors.white : Colors.black,
                 ),
               ),
-              
+
               SizedBox(height: 8),
-              
+
               Text(
                 'Escolha o método de login',
                 style: TextStyle(fontSize: 15, color: Colors.grey),
               ),
-              
+
               SizedBox(height: 32),
-              
+
               // Selector de método
               _buildMethodSelector(isDark),
-              
+
               SizedBox(height: 32),
-              
+
               // Conteúdo baseado no método selecionado
               if (_selectedMethod == 'oauth') _buildOAuthContent(isDark),
               if (_selectedMethod == 'token') _buildTokenContent(isDark),
@@ -297,7 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildMethodOption(bool isDark, String method, String title, IconData icon, String subtitle) {
     final isSelected = _selectedMethod == method;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
