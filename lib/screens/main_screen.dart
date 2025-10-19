@@ -10,6 +10,7 @@ import 'marketplace_screen.dart';
 import 'news_screen.dart';
 import 'goals_screen.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class MainScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
