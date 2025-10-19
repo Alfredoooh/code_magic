@@ -41,12 +41,12 @@ class WalletCard extends StatelessWidget {
               crossAxisSpacing: 12,
               childAspectRatio: 1.1,
               children: [
-                _buildStyleOption(context, 'aurora', 'Aurora', Icons.auto_awesome, isDark),
-                _buildStyleOption(context, 'ocean', 'Ocean', Icons.waves, isDark),
-                _buildStyleOption(context, 'carbon', 'Carbon', Icons.layers, isDark),
-                _buildStyleOption(context, 'sunset', 'Sunset', Icons.wb_sunny, isDark),
-                _buildStyleOption(context, 'midnight', 'Midnight', Icons.nightlight, isDark),
-                _buildStyleOption(context, 'emerald', 'Emerald', Icons.eco, isDark),
+                _buildStyleOption(context, 'aurora', 'Aurora', Icons.auto_awesome_rounded, isDark),
+                _buildStyleOption(context, 'ocean', 'Ocean', Icons.waves_rounded, isDark),
+                _buildStyleOption(context, 'carbon', 'Carbon', Icons.layers_rounded, isDark),
+                _buildStyleOption(context, 'sunset', 'Sunset', Icons.wb_sunny_rounded, isDark),
+                _buildStyleOption(context, 'midnight', 'Midnight', Icons.nightlight_round, isDark),
+                _buildStyleOption(context, 'emerald', 'Emerald', Icons.eco_rounded, isDark),
               ],
             ),
           ),
@@ -144,7 +144,7 @@ class WalletCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.primary,
           ),
           child: _buildCardContent(context, Colors.white),
@@ -345,7 +345,7 @@ class WalletCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      Icons.tune,
+                      Icons.tune_rounded,
                       color: textColor,
                       size: 24,
                     ),
@@ -367,7 +367,7 @@ class WalletCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.star, color: textColor, size: 12),
+                      Icon(Icons.star_rounded, color: textColor, size: 12),
                       const SizedBox(width: 6),
                       Text(
                         'PRO MEMBER',
