@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 // Statistics Modal
 class StatisticsModal extends StatelessWidget {
