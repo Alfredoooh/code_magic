@@ -30,80 +30,80 @@ class AppColors {
   static const Color info = Color(0xFF007AFF);
 
   /// Paleta de cores pré-definidas vibrantes
-  static final Map<String, ColorScheme> colorPalette = {
-    'blue': ColorScheme(
+  static final Map<String, AppColorScheme> colorPalette = {
+    'blue': AppColorScheme(
       name: 'Azul Vibrante',
       primary: Color(0xFF0066FF),
       icon: Icons.water_drop_rounded,
       emoji: '💙',
     ),
-    'red': ColorScheme(
+    'red': AppColorScheme(
       name: 'Vermelho Intenso',
       primary: Color(0xFFFF3B30),
       icon: Icons.local_fire_department,
       emoji: '❤️',
     ),
-    'orange': ColorScheme(
+    'orange': AppColorScheme(
       name: 'Laranja Forte',
       primary: Color(0xFFFF9500),
       icon: Icons.wb_sunny_rounded,
       emoji: '🧡',
     ),
-    'purple': ColorScheme(
+    'purple': AppColorScheme(
       name: 'Roxo Místico',
       primary: Color(0xFF9C27B0),
       icon: Icons.auto_awesome,
       emoji: '💜',
     ),
-    'pink': ColorScheme(
+    'pink': AppColorScheme(
       name: 'Rosa Vibrante',
       primary: Color(0xFFE91E63),
       icon: Icons.favorite_rounded,
       emoji: '💕',
     ),
-    'green': ColorScheme(
+    'green': AppColorScheme(
       name: 'Verde Neon',
       primary: Color(0xFF00E676),
       icon: Icons.eco_rounded,
       emoji: '💚',
     ),
-    'cyan': ColorScheme(
+    'cyan': AppColorScheme(
       name: 'Ciano Elétrico',
       primary: Color(0xFF00BCD4),
       icon: Icons.waves_rounded,
       emoji: '💎',
     ),
-    'yellow': ColorScheme(
+    'yellow': AppColorScheme(
       name: 'Amarelo Brilhante',
       primary: Color(0xFFFFEB3B),
       icon: Icons.star_rounded,
       emoji: '💛',
     ),
-    'indigo': ColorScheme(
+    'indigo': AppColorScheme(
       name: 'Índigo Profundo',
       primary: Color(0xFF3F51B5),
       icon: Icons.nights_stay_rounded,
       emoji: '🌌',
     ),
-    'teal': ColorScheme(
+    'teal': AppColorScheme(
       name: 'Turquesa Tropical',
       primary: Color(0xFF009688),
       icon: Icons.beach_access_rounded,
       emoji: '🌊',
     ),
-    'lime': ColorScheme(
+    'lime': AppColorScheme(
       name: 'Lima Ácido',
       primary: Color(0xFFCDDC39),
       icon: Icons.lightbulb_rounded,
       emoji: '🍋',
     ),
-    'deepOrange': ColorScheme(
+    'deepOrange': AppColorScheme(
       name: 'Laranja Queimado',
       primary: Color(0xFFFF5722),
       icon: Icons.whatshot_rounded,
       emoji: '🔥',
     ),
-    'neutral': ColorScheme(
+    'neutral': AppColorScheme(
       name: 'Neutro P&B',
       primary: Color(0xFF424242),
       icon: Icons.circle_outlined,
@@ -136,14 +136,14 @@ class AppColors {
   }
 }
 
-/// Modelo de esquema de cor
-class ColorScheme {
+/// Modelo de esquema de cor (renomeado para evitar conflito com ColorScheme do Flutter)
+class AppColorScheme {
   final String name;
   final Color primary;
   final IconData icon;
   final String emoji;
 
-  ColorScheme({
+  AppColorScheme({
     required this.name,
     required this.primary,
     required this.icon,
