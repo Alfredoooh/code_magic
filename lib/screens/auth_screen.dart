@@ -1,6 +1,8 @@
+// lib/screens/auth_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/app_colors.dart';
 import '../widgets/app_ui_components.dart';
 import 'forgot_password_screen.dart';
 
@@ -191,16 +193,31 @@ class _AuthScreenState extends State<AuthScreen> {
                     children: [
                       SizedBox(height: 40),
 
-                      // Logo do app SEM CONTAINER
+                      // Logo do app
                       Image.asset(
                         'assets/icon/icon.png',
                         width: 100,
                         height: 100,
                         errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.apps,
-                            size: 100,
-                            color: AppColors.primary,
+                          return Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.primaryLight,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Icon(
+                              Icons.apps_rounded,
+                              size: 56,
+                              color: Colors.white,
+                            ),
                           );
                         },
                       ),
@@ -217,12 +234,31 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ),
 
+                      SizedBox(height: 8),
+
+                      Text(
+                        _isLogin
+                            ? 'Bem-vindo de volta!'
+                            : 'Crie sua conta para começar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+
                       SizedBox(height: 40),
 
                       if (!_isLogin) ...[
                         AppTextField(
                           controller: _nameController,
                           hintText: 'Nome',
+                          prefixIcon: Icon(
+                            Icons.person_outline_rounded,
+                            size: 20,
+                            color: Colors.grey.shade500,
+                          ),
                         ),
                         SizedBox(height: 16),
                       ],
@@ -231,6 +267,11 @@ class _AuthScreenState extends State<AuthScreen> {
                         controller: _emailController,
                         hintText: 'Email',
                         keyboardType: TextInputType.emailAddress,
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: Colors.grey.shade500,
+                        ),
                       ),
 
                       SizedBox(height: 16),
@@ -246,12 +287,16 @@ class _AuthScreenState extends State<AuthScreen> {
                           alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: _navigateToForgotPassword,
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
                             child: Text(
                               'Esqueceu a palavra-passe?',
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primary,
+                                letterSpacing: -0.2,
                               ),
                             ),
                           ),
@@ -269,31 +314,52 @@ class _AuthScreenState extends State<AuthScreen> {
 
                       SizedBox(height: 20),
 
-                      TextButton(
-                        onPressed: () => setState(() => _isLogin = !_isLogin),
-                        child: Text(
-                          _isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _isLogin ? 'Não tem conta?' : 'Já tem conta?',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
-                        ),
+                          TextButton(
+                            onPressed: () => setState(() => _isLogin = !_isLogin),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                            child: Text(
+                              _isLogin ? 'Criar uma' : 'Entrar',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       Spacer(),
 
-                      // BOTÃO "SABER MAIS" NO BOTTOM
+                      // Botão "Saber mais"
                       Padding(
                         padding: EdgeInsets.only(bottom: 12),
                         child: TextButton(
                           onPressed: _navigateToLearn,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
                           child: Text(
                             'Saber mais',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: AppColors.primary,
+                              letterSpacing: -0.2,
                             ),
                           ),
                         ),
@@ -306,7 +372,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Colors.grey,
+                            color: Colors.grey.shade500,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -340,27 +406,77 @@ class LearnScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AppIconCircle(
-                  icon: Icons.book,
-                  size: 80,
+                Container(
+                  padding: EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary.withOpacity(0.2),
+                        AppColors.primary.withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.book_rounded,
+                    size: 80,
+                    color: AppColors.primary,
+                  ),
                 ),
-                SizedBox(height: 24),
+                SizedBox(height: 32),
                 Text(
                   'Conteúdo Educacional',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
                     color: isDark ? Colors.white : Colors.black,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 16),
                 Text(
                   'Em breve você terá acesso a conteúdos educacionais exclusivos.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 17,
-                    color: Colors.grey,
-                    height: 1.4,
+                    color: Colors.grey.shade600,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                SizedBox(height: 32),
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildFeatureItem(
+                        Icons.video_library_rounded,
+                        'Vídeo aulas completas',
+                        Colors.red,
+                      ),
+                      SizedBox(height: 16),
+                      _buildFeatureItem(
+                        Icons.article_rounded,
+                        'Artigos e tutoriais',
+                        Colors.blue,
+                      ),
+                      SizedBox(height: 16),
+                      _buildFeatureItem(
+                        Icons.quiz_rounded,
+                        'Exercícios práticos',
+                        Colors.green,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -368,6 +484,36 @@ class LearnScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFeatureItem(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
