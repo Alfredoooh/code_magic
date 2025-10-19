@@ -117,7 +117,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: widget.isDark ? AppColors.darkBackground : Colors.white,
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primary,
           ),
@@ -565,7 +565,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                           CircleAvatar(
                             radius: 16,
                             backgroundColor: AppColors.primary,
-                            child: Text(
+                            child: const Text(
                               'U',
                               style: TextStyle(
                                 color: Colors.white,
@@ -637,7 +637,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   CircleAvatar(
                     radius: 16,
                     backgroundColor: AppColors.primary,
-                    child: Text(
+                    child: const Text(
                       'U',
                       style: TextStyle(
                         color: Colors.white,
@@ -650,9 +650,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Adicione um comentário...',
-                        hintStyle: const TextStyle(
+                        hintStyle: TextStyle(
                           color: Colors.grey,
                           fontSize: 14,
                         ),
