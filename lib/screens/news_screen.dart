@@ -9,6 +9,7 @@ import '../models/news_article.dart';
 import '../models/sheet_story.dart';
 import '../services/news_service.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 import '../widgets/post_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -19,9 +20,9 @@ class NewsScreen extends StatefulWidget {
   _NewsScreenState createState() => _NewsScreenState();
 }
 
-class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _NewsScreenState extends State<NewsScreen> {
   final NewsService _newsService = NewsService();
+  int _selectedTab = 0;
   
   List<NewsArticle> _tradingNews = [];
   List<SheetStory> _sheets = [];
@@ -32,14 +33,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadContent();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadContent() async {
@@ -71,7 +65,6 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
 
       final allNews = news.expand((list) => list).toList();
       
-      // Remove duplicatas
       final uniqueNews = <String, NewsArticle>{};
       for (var article in allNews) {
         if (!uniqueNews.containsKey(article.title)) {
@@ -130,15 +123,13 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppPrimaryAppBar(
-        title: 'Atualidade',
-      ),
+      appBar: AppPrimaryAppBar(title: 'Atualidade'),
       body: Column(
         children: [
-          _buildTabBar(isDark),
+          _buildCustomTabBar(isDark),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
+            child: IndexedStack(
+              index: _selectedTab,
               children: [
                 _buildSheetsTab(isDark),
                 _buildNewsTab(isDark),
@@ -150,34 +141,96 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildTabBar(bool isDark) {
+  Widget _buildCustomTabBar(bool isDark) {
     return Container(
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? AppColors.darkSeparator : AppColors.separator,
-            width: 0.5,
-          ),
-        ),
+        color: isDark ? AppColors.darkCard : Color(0xFFE5E5EA),
+        borderRadius: BorderRadius.circular(25),
       ),
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: AppColors.primary,
-        indicatorWeight: 3,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: Colors.grey,
-        labelStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-        tabs: [
-          Tab(text: 'Sheets'),
-          Tab(text: 'Trading News'),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = 0),
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: _selectedTab == 0
+                      ? LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        )
+                      : null,
+                  color: _selectedTab == 0 ? null : Colors.transparent,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: _selectedTab == 0
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  'Sheets',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedTab == 0
+                        ? Colors.white
+                        : (isDark ? Colors.white60 : Colors.black54),
+                    fontSize: 15,
+                    fontWeight: _selectedTab == 0 ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = 1),
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: _selectedTab == 1
+                      ? LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        )
+                      : null,
+                  color: _selectedTab == 1 ? null : Colors.transparent,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: _selectedTab == 1
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  'Trading News',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedTab == 1
+                        ? Colors.white
+                        : (isDark ? Colors.white60 : Colors.black54),
+                    fontSize: 15,
+                    fontWeight: _selectedTab == 1 ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -208,6 +261,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
 
     return RefreshIndicator(
       onRefresh: _loadContent,
+      color: AppColors.primary,
       child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: _allSheets.length,
@@ -251,6 +305,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
 
     return RefreshIndicator(
       onRefresh: _loadContent,
+      color: AppColors.primary,
       child: ListView.builder(
         padding: EdgeInsets.all(16),
         itemCount: _tradingNews.length,
@@ -268,13 +323,14 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
         padding: EdgeInsets.only(bottom: 16),
         child: AppCard(
           padding: EdgeInsets.zero,
-          borderRadius: 16,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (article.imageUrl.isNotEmpty && !article.imageUrl.contains('no_image'))
                 ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(AppDesignConfig.cardRadius),
+                  ),
                   child: Image.network(
                     article.imageUrl,
                     width: double.infinity,
