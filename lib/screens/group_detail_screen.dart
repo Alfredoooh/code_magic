@@ -129,7 +129,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   void _showErrorMessage(String message) {
     if (!mounted) return;
-    
     AppDialogs.showError(context, 'Atenção', message);
   }
 
@@ -168,7 +167,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.darkCard
             : AppColors.lightCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDesignConfig.borderRadius + 4),
+        ),
         title: const Text('Editar Mensagem'),
         content: AppTextField(
           controller: controller,
@@ -176,12 +177,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           maxLines: 3,
         ),
         actions: [
-          AppTextButton(
-            text: 'Cancelar',
+          TextButton(
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey)),
             onPressed: () => Navigator.pop(context, false),
           ),
-          AppTextButton(
-            text: 'Salvar',
+          TextButton(
+            child: Text('Salvar', style: TextStyle(color: AppColors.primary)),
             onPressed: () => Navigator.pop(context, true),
           ),
         ],
@@ -210,29 +211,29 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Future<void> _deleteMessage(String messageId) async {
-    final confirmed = await AppDialogs.showConfirmation(
+    AppDialogs.showConfirmation(
       context,
       'Excluir Mensagem',
       'Tem certeza que deseja excluir esta mensagem?',
       confirmText: 'Excluir',
       cancelText: 'Cancelar',
-    );
-
-    if (confirmed == true) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('groups')
-            .doc(widget.groupId)
-            .collection('messages')
-            .doc(messageId)
-            .delete();
-      } catch (e) {
-        debugPrint('Erro ao excluir mensagem: $e');
-        if (mounted) {
-          _showErrorMessage('Erro ao excluir mensagem');
+      isDestructive: true,
+      onConfirm: () async {
+        try {
+          await FirebaseFirestore.instance
+              .collection('groups')
+              .doc(widget.groupId)
+              .collection('messages')
+              .doc(messageId)
+              .delete();
+        } catch (e) {
+          debugPrint('Erro ao excluir mensagem: $e');
+          if (mounted) {
+            _showErrorMessage('Erro ao excluir mensagem');
+          }
         }
-      }
-    }
+      },
+    );
   }
 
   void _showMessageOptions(String messageId, String messageText, DateTime timestamp, bool isMe) {
@@ -273,7 +274,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               onTap: () {
                 Clipboard.setData(ClipboardData(text: messageText));
                 Navigator.pop(context);
-                AppDialogs.showSuccess(context, 'Copiado', 'Mensagem copiada para área de transferência');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Mensagem copiada'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               },
             ),
           ],
@@ -292,16 +298,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppDesignConfig.borderRadius),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
-              AppIconCircle(
-                icon: icon,
-                iconColor: color ?? AppColors.primary,
-                backgroundColor: (color ?? AppColors.primary).withOpacity(0.1),
-                size: 48,
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (color ?? AppColors.primary).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color ?? AppColors.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -334,8 +346,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 AppIconCircle(
                   icon: Icons.group_rounded,
                   iconColor: Colors.white,
-                  backgroundColor: AppColors.success,
-                  size: 100,
+                  backgroundColor: AppColors.primary,
+                  size: 80,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -387,10 +399,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
                 if (members.isEmpty) {
                   return const Center(
-                    child: Text(
-                      'Nenhum membro',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    child: Text('Nenhum membro', style: TextStyle(color: Colors.grey)),
                   );
                 }
 
@@ -593,10 +602,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppSecondaryAppBar(
         title: widget.groupName,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline_rounded),
@@ -633,7 +638,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               ],
             ),
           ),
-          
+
           // Lista de mensagens
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
@@ -653,19 +658,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
+                        Icon(Icons.chat_bubble_outline_rounded, size: 64, color: Colors.grey),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Nenhuma mensagem',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
-                          ),
-                        ),
+                        const Text('Nenhuma mensagem', style: TextStyle(color: Colors.grey, fontSize: 16)),
                       ],
                     ),
                   );
@@ -699,16 +694,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Flexible(
-                              child: AppCard(
+                              child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                backgroundColor: isMe
-                                    ? AppColors.primary
-                                    : (isDark ? AppColors.darkCard : Colors.white),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(20),
-                                  topRight: const Radius.circular(20),
-                                  bottomLeft: isMe ? const Radius.circular(20) : const Radius.circular(4),
-                                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(20),
+                                decoration: BoxDecoration(
+                                  color: isMe
+                                      ? AppColors.primary
+                                      : (isDark ? AppColors.darkCard : Colors.white),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(20),
+                                    topRight: const Radius.circular(20),
+                                    bottomLeft: isMe ? const Radius.circular(20) : const Radius.circular(4),
+                                    bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(20),
+                                  ),
+                                  border: Border.all(
+                                    color: isMe
+                                        ? Colors.transparent
+                                        : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,9 +736,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                           'editado',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            color: isMe
-                                                ? Colors.white.withOpacity(0.7)
-                                                : Colors.grey,
+                                            color: isMe ? Colors.white.withOpacity(0.7) : Colors.grey,
                                             fontStyle: FontStyle.italic,
                                           ),
                                         ),
@@ -753,7 +754,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               },
             ),
           ),
-          
+
           // Input de mensagem
           Container(
             padding: const EdgeInsets.all(12),
@@ -774,15 +775,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       controller: _controller,
                       hintText: 'Mensagem',
                       maxLines: null,
-                      onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  AppIconButton(
-                    icon: Icons.send_rounded,
-                    onPressed: _sendMessage,
-                    backgroundColor: AppColors.primary,
-                    iconColor: Colors.white,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.send_rounded, color: Colors.white),
+                      onPressed: _sendMessage,
+                    ),
                   ),
                 ],
               ),
