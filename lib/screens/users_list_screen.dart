@@ -36,7 +36,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: const AppSecondaryAppBar(
+      appBar: AppSecondaryAppBar(
         title: 'Usuários',
       ),
       body: SafeArea(
@@ -69,7 +69,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                 stream: FirebaseFirestore.instance.collection('users').snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
+                    return Center(
                       child: CircularProgressIndicator(color: AppColors.primary),
                     );
                   }
@@ -209,7 +209,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                   Container(
                     width: 52,
                     height: 52,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.primary,
                     ),
@@ -361,7 +361,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chat_bubble_outline,
                   color: AppColors.primary,
                   size: 20,
