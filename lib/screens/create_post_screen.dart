@@ -83,7 +83,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -208,7 +208,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           Container(
             width: 40,
             height: 40,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.primary,
             ),
@@ -247,7 +247,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Center(
       child: Text(
         (widget.userData['username'] ?? 'U')[0].toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -317,7 +317,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   color: Colors.black.withOpacity(0.7),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.close,
                   color: Colors.white,
                   size: 20,
@@ -366,7 +366,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                 ),
                 if (_isProcessingImage)
-                  const SizedBox(
+                  SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -392,7 +392,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         title: 'Nova Publicação',
         actions: [
           if (_isSubmitting)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: SizedBox(
                 width: 20,
@@ -448,7 +448,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(color: AppColors.primary),
+                        CircularProgressIndicator(color: AppColors.primary),
                         const SizedBox(height: 16),
                         Text(
                           'Processando imagem...',
