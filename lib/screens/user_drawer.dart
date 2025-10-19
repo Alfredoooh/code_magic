@@ -1,4 +1,4 @@
-// lib/screens/user_drawer.dart
+// lib/screens/user_draw.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -21,6 +21,8 @@ class UserDrawer extends StatefulWidget {
   final String cardStyle;
   final Function(bool) onShowNewsChanged;
   final Function(String) onCardStyleChanged;
+  // novo campo opcional para tratamento de alteração de cores
+  final VoidCallback? onColorsChanged;
 
   const UserDrawer({
     required this.userData,
@@ -31,6 +33,7 @@ class UserDrawer extends StatefulWidget {
     required this.cardStyle,
     required this.onShowNewsChanged,
     required this.onCardStyleChanged,
+    this.onColorsChanged,
     Key? key,
   }) : super(key: key);
 
@@ -213,7 +216,7 @@ class _UserDrawerState extends State<UserDrawer> {
               AppSectionTitle(text: 'Ajustes', fontSize: 28),
               IconButton(
                 icon: Icon(
-                  Icons.close,
+                  Icons.close_rounded,
                   color: isDark ? Colors.white : Colors.black,
                   size: 24,
                 ),
@@ -334,7 +337,7 @@ class _UserDrawerState extends State<UserDrawer> {
       children: [
         if (isAdmin)
           _buildMenuItem(
-            icon: Icons.shield,
+            icon: Icons.shield_rounded,
             title: 'Painel Admin',
             onTap: () {
               Navigator.pop(context);
@@ -346,7 +349,7 @@ class _UserDrawerState extends State<UserDrawer> {
             isDark: isDark,
           ),
         _buildMenuItem(
-          icon: Icons.person,
+          icon: Icons.person_rounded,
           title: 'Perfil',
           subtitle: 'Ver perfil',
           onTap: () {
@@ -359,7 +362,7 @@ class _UserDrawerState extends State<UserDrawer> {
           isDark: isDark,
         ),
         _buildMenuItem(
-          icon: Icons.settings,
+          icon: Icons.settings_rounded,
           title: 'Configurações',
           subtitle: 'Tema, idioma e estilo',
           onTap: () => UserDrawerSettings.showSettingsModal(
@@ -369,6 +372,8 @@ class _UserDrawerState extends State<UserDrawer> {
             onThemeChanged: _safeUpdateTheme,
             onLanguageChanged: _safeUpdateLanguage,
             onCardStyleChanged: _safeSetCardStyle,
+            // passa o callback, se for nulo passa um fallback vazio
+            onColorsChanged: widget.onColorsChanged ?? () {},
           ),
           isDark: isDark,
         ),
@@ -391,7 +396,7 @@ class _UserDrawerState extends State<UserDrawer> {
               ),
               const SizedBox(height: 16),
               _buildSwitchRow(
-                icon: Icons.newspaper,
+                icon: Icons.newspaper_rounded,
                 title: 'Mostrar Notícias',
                 subtitle: 'Exibir no ecrã principal',
                 value: _showNews,
@@ -466,7 +471,7 @@ class _UserDrawerState extends State<UserDrawer> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 20),
             ],
           ),
         ),
@@ -559,7 +564,7 @@ class _UserDrawerState extends State<UserDrawer> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.chat_bubble,
+                    Icons.chat_bubble_rounded,
                     size: 20,
                     color: AppColors.primary,
                   ),
