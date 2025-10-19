@@ -123,7 +123,7 @@ class HomeWidgets {
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      children: const [
+                      children: [
                         Icon(
                           Icons.access_time_rounded,
                           size: 12,
@@ -161,7 +161,7 @@ class HomeWidgets {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stack) => Container(
                           color: isDark ? AppColors.darkBackground : Colors.grey[200],
-                          child: const Column(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
@@ -339,7 +339,7 @@ class HomeWidgets {
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Text(
                           'Explorar',
                           style: TextStyle(
