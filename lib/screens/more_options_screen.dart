@@ -251,7 +251,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: AppColors.primary.withOpacity(0.2),
-                        child: const Icon(
+                        child: Icon(
                           Icons.language,
                           color: AppColors.primary,
                           size: 24,
@@ -260,7 +260,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                     },
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
-                      return const Center(
+                      return Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation(AppColors.primary),
@@ -356,7 +356,7 @@ class _MoreOptionsScreenState extends State<MoreOptionsScreen> {
                                         platform['faviconUrl'],
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stackTrace) {
-                                          return const Icon(
+                                          return Icon(
                                             Icons.language,
                                             color: AppColors.primary,
                                             size: 24,
@@ -666,7 +666,7 @@ class PlatformDetailScreen extends StatelessWidget {
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: AppColors.primary.withOpacity(0.2),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.language,
                                 color: AppColors.primary,
                                 size: 48,
@@ -675,7 +675,7 @@ class PlatformDetailScreen extends StatelessWidget {
                           },
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return const Center(
+                            return Center(
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation(AppColors.primary),
