@@ -29,7 +29,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppSecondaryAppBar(
+      appBar: const AppSecondaryAppBar(
         title: 'Pesquisar',
       ),
       body: SafeArea(
@@ -69,9 +69,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             Expanded(
-              child: _isSearching
-                  ? _buildSearchResults(isDark)
-                  : _buildEmptyState(isDark),
+              child: _isSearching ? _buildSearchResults(isDark) : _buildEmptyState(isDark),
             ),
           ],
         ),
@@ -84,12 +82,12 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          AppIconCircle(
+          const AppIconCircle(
             icon: Icons.search,
             size: 80,
           ),
           const SizedBox(height: 24),
-          AppSectionTitle(
+          const AppSectionTitle(
             text: 'Pesquise por sheets ou usuários',
             fontSize: 16,
             fontWeight: FontWeight.normal,
@@ -116,7 +114,8 @@ class _SearchScreenState extends State<SearchScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          // removi `const` porque usamos AppColors.primary (não é const)
+          return Center(
             child: CircularProgressIndicator(
               color: AppColors.primary,
             ),
@@ -173,12 +172,12 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          AppIconCircle(
+          const AppIconCircle(
             icon: Icons.search_off,
             size: 80,
           ),
           const SizedBox(height: 24),
-          AppSectionTitle(
+          const AppSectionTitle(
             text: 'Nenhum resultado encontrado',
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -192,7 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          AppInfoCard(
+          const AppInfoCard(
             icon: Icons.lightbulb_outline,
             text: 'Dica: Pesquise por nome de usuário, conteúdo ou hashtags',
           ),
