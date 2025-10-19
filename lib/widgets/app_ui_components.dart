@@ -52,11 +52,13 @@ class AppPrimaryAppBar extends StatelessWidget implements PreferredSizeWidget {
 class AppSecondaryAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
+  final Widget? leading;
   final VoidCallback? onBackPressed;
 
   const AppSecondaryAppBar({
     required this.title,
     this.actions,
+    this.leading,
     this.onBackPressed,
     Key? key,
   }) : super(key: key);
@@ -71,7 +73,7 @@ class AppSecondaryAppBar extends StatelessWidget implements PreferredSizeWidget 
     return AppBar(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       elevation: 0,
-      leading: IconButton(
+      leading: leading ?? IconButton(
         icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
         onPressed: onBackPressed ?? () => Navigator.pop(context),
         splashRadius: 20,
@@ -100,6 +102,7 @@ class AppTextField extends StatefulWidget {
   final Widget? prefixIcon;
   final int? maxLines;
   final Function(String)? onChanged;
+  final Function(String)? onSubmitted;
   final bool enabled;
   final VoidCallback? onTap;
 
@@ -112,6 +115,7 @@ class AppTextField extends StatefulWidget {
     this.prefixIcon,
     this.maxLines = 1,
     this.onChanged,
+    this.onSubmitted,
     this.enabled = true,
     this.onTap,
     Key? key,
@@ -146,6 +150,7 @@ class _AppTextFieldState extends State<AppTextField> {
           keyboardType: widget.keyboardType,
           maxLines: widget.maxLines,
           onChanged: widget.onChanged,
+          onSubmitted: widget.onSubmitted,
           enabled: widget.enabled,
           readOnly: widget.onTap != null,
           onTap: widget.onTap,
@@ -377,12 +382,16 @@ class AppCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final double? borderRadius;
   final bool elevated;
+  final Color? backgroundColor;
+  final BorderRadius? customBorderRadius;
 
   const AppCard({
     required this.child,
     this.padding,
     this.borderRadius,
     this.elevated = false,
+    this.backgroundColor,
+    this.customBorderRadius,
     Key? key,
   }) : super(key: key);
 
@@ -393,8 +402,8 @@ class AppCard extends StatelessWidget {
     return Container(
       padding: padding ?? EdgeInsets.all(AppDesignConfig.spacing),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(
+        color: backgroundColor ?? (isDark ? AppColors.darkCard : AppColors.lightCard),
+        borderRadius: customBorderRadius ?? BorderRadius.circular(
           borderRadius ?? AppDesignConfig.cardRadius,
         ),
         border: Border.all(
@@ -545,16 +554,16 @@ class AppDialogs {
     );
   }
 
-  static void showConfirmation(
+  static Future<bool?> showConfirmation(
     BuildContext context,
     String title,
     String message, {
-    required VoidCallback onConfirm,
+    VoidCallback? onConfirm,
     String confirmText = 'Confirmar',
     String cancelText = 'Cancelar',
     bool isDestructive = false,
   }) {
-    showDialog(
+    return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
@@ -567,7 +576,7 @@ class AppDialogs {
             child: Text(cancelText,
                 style:
                     TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
           ),
           TextButton(
             child: Text(
@@ -578,8 +587,8 @@ class AppDialogs {
               ),
             ),
             onPressed: () {
-              Navigator.pop(context);
-              onConfirm();
+              Navigator.pop(context, true);
+              onConfirm?.call();
             },
           ),
         ],
@@ -693,6 +702,86 @@ class AppFieldLabel extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: isDark ? Colors.white : Colors.black,
           letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// Botão de texto (TextButton)
+class AppTextButton extends StatelessWidget {
+  final String text;
+  final VoidCallback? onPressed;
+  final Color? color;
+
+  const AppTextButton({
+    required this.text,
+    this.onPressed,
+    this.color,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color ?? AppColors.primary,
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
+      ),
+    );
+  }
+}
+
+/// Botão de ícone circular
+class AppIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final Color? backgroundColor;
+  final Color? iconColor;
+  final double size;
+
+  const AppIconButton({
+    required this.icon,
+    this.onPressed,
+    this.backgroundColor,
+    this.iconColor,
+    this.size = 48,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: backgroundColor ?? AppColors.primary,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: (backgroundColor ?? AppColors.primary).withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(size / 2),
+          child: Center(
+            child: Icon(
+              icon,
+              color: iconColor ?? Colors.white,
+              size: size * 0.5,
+            ),
+          ),
         ),
       ),
     );
