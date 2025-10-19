@@ -783,12 +783,18 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
       );
 
   Widget _buildChartWidget(bool isDark) {
-    // NOTE: removed derivService param to avoid constructor mismatch.
-    return TradingChartWidget(
-      symbol: _selectedSymbol,
-      tradeHistory: _tradeHistory,
-    );
-  }
+  return TradingChartWidget(
+    symbol: _selectedSymbol,
+    tradeHistory: _tradeHistory,
+    tickStream: widget.derivService.accountTickStream ?? widget.derivService.tickStream, // ajuste caso seu DerivService tenha outro nome de stream
+    margins: null, // ou: [minPrice, maxPrice, 123.456], se quiser linhas horizontais fixas
+    candleTicks: 5, // quantos ticks agregam 1 candle
+    enablePatterns: true,
+    height: 320,
+    smaPeriod: 20,
+    emaPeriod: 50,
+  );
+}
 
   Widget _buildTickInfo(bool isDark) {
     return Container(
