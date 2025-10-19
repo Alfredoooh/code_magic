@@ -891,7 +891,11 @@ class CryptoData {
 
   factory CryptoData.fromBinance(Map<String, dynamic> json) {
     final symbol = json['symbol'].toString().replaceAll('USDT', '');
-    final price = double.parse(json['lastPrice].toString());
+    final price = double.parse(json['lastPrice'].toString());
+    final priceChange = double.parse(json['priceChangePercent'].toString());
+    final volume = double.parse(json['quoteVolume'].toString());
+    final high24h = double.parse(json['highPrice'].toString());
+    final low24h = double.parse(json['lowPrice'].toString());
 
     return CryptoData(
       symbol: symbol,
