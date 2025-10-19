@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_ui_components.dart';
 import 'web_platform.dart';
+import '../widgets/app_colors.dart';
 
 class MoreOptionsScreen extends StatefulWidget {
   const MoreOptionsScreen({Key? key}) : super(key: key);
