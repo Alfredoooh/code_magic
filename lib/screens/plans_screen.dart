@@ -64,7 +64,7 @@ class _PlansScreenState extends State<PlansScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(
+          CircularProgressIndicator(
             color: AppColors.primary,
           ),
           const SizedBox(height: 20),
@@ -191,7 +191,7 @@ class _PlansScreenState extends State<PlansScreen> {
                       children: [
                         Text(
                           plan.price,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.primary,
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -236,7 +236,7 @@ class _PlansScreenState extends State<PlansScreen> {
               ),
               child: Text(
                 '${plan.tokens} tokens',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.primary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -248,7 +248,7 @@ class _PlansScreenState extends State<PlansScreen> {
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.check_circle,
                     color: AppColors.primary,
                     size: 18,
@@ -453,12 +453,12 @@ class _PlansScreenState extends State<PlansScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 CircularProgressIndicator(
                   color: AppColors.primary,
                 ),
-                SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'Enviando solicitação...',
                   style: TextStyle(color: Colors.white),
                 ),
