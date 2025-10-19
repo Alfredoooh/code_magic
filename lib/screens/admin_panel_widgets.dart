@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'admin_panel_utils.dart';
+import '../widgets/app_colors.dart';
 import 'app_ui_components.dart';
 
 class AdminPanelWidgets {
