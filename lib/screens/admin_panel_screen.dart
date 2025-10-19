@@ -153,7 +153,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         title: 'Painel Admin',
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: AppColors.primary),
+            icon: Icon(Icons.more_horiz, color: AppColors.primary),
             onPressed: _showAdminMenu,
           ),
         ],
@@ -188,7 +188,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               stream: FirebaseFirestore.instance.collection('users').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
+                  return Center(
                     child: CircularProgressIndicator(
                       color: AppColors.primary,
                     ),
@@ -293,7 +293,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     child: imageProvider == null
                         ? Text(
                             user.username[0].toUpperCase(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               color: AppColors.primary,
                               fontWeight: FontWeight.w600,
