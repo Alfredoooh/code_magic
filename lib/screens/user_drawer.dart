@@ -192,7 +192,8 @@ class _UserDrawerState extends State<UserDrawer> {
     final profileImage = (_userDoc?['profile_image'] ?? '') as String;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      // aumentei a margem superior (top padding) para baixar o título e o X
+      padding: const EdgeInsets.fromLTRB(20, 36, 20, 20),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBackground : AppColors.lightCard,
         border: Border(
@@ -205,6 +206,7 @@ class _UserDrawerState extends State<UserDrawer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // row com título e botão de fechar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -219,15 +221,15 @@ class _UserDrawerState extends State<UserDrawer> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20), // mantive um espaço mais moderado antes do perfil
           Row(
             children: [
               Container(
                 width: 60,
                 height: 60,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary,
+                  color: AppColors.primary, // não-const
                 ),
                 child: _buildProfileImage(profileImage, displayName),
               ),
@@ -362,7 +364,6 @@ class _UserDrawerState extends State<UserDrawer> {
           subtitle: 'Tema, idioma e estilo',
           onTap: () => UserDrawerSettings.showSettingsModal(
             context,
-            // ✅ REMOVIDO: isDark: isDark,
             currentLocale: _currentLocale,
             cardStyle: _cardStyle,
             onThemeChanged: _safeUpdateTheme,
@@ -541,7 +542,6 @@ class _UserDrawerState extends State<UserDrawer> {
                   MaterialPageRoute(
                     builder: (_) => FeedbackScreen(
                       currentLocale: _currentLocale,
-                      // ✅ REMOVIDO: isDark: isDark,
                     ),
                   ),
                 );
