@@ -36,6 +36,7 @@ class HomeNewsSection extends StatelessWidget {
           article: article,
           allArticles: newsArticles,
           currentIndex: index,
+          isDark: isDark,
         ),
         fullscreenDialog: true,
       ),
@@ -84,7 +85,7 @@ class HomeNewsSection extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 12),
-Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           newsArticles.length,
@@ -103,9 +104,9 @@ Row(
                       ),
                     ],
                   ),
-                ],
-              );
-            }
+      ],
+    );
+  }
 
   Widget _buildEmptyState() {
     return Container(
