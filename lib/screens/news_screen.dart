@@ -411,6 +411,8 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _openNewsDetail(NewsArticle article) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -418,6 +420,7 @@ class _NewsScreenState extends State<NewsScreen> {
           article: article,
           allArticles: _tradingNews,
           currentIndex: _tradingNews.indexOf(article),
+          isDark: isDark,
         ),
         fullscreenDialog: true,
       ),
