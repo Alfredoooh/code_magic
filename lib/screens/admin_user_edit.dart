@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 void showUserEditModal(BuildContext context, UserModel user, bool isDark) {
   final TextEditingController usernameController = TextEditingController(text: user.username);
