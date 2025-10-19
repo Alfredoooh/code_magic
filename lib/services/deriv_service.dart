@@ -33,7 +33,15 @@ class DerivService {
   Stream<bool> get connectionState => _connectionController.stream;
   Stream<double> get balanceStream => _balanceController.stream;
   Stream<Map<String, dynamic>?> get accountInfo => _accountController.stream;
+
+  // stream original
   Stream<Map<String, dynamic>> get tickStream => _tickController.stream;
+
+  // --- ALIAS/compatibilidade ---
+  /// Alguns pontos do código (ou pacotes externos) podem esperar `accountTickStream`.
+  /// Fornecemos um getter compatível que aponta para o mesmo stream de ticks.
+  Stream<Map<String, dynamic>>? get accountTickStream => _tickController.stream;
+
   Stream<Map<String, dynamic>> get proposalStream => _proposalController.stream;
   Stream<Map<String, dynamic>> get contractStream => _contractController.stream;
   Stream<Map<String, dynamic>> get plStream => _plController.stream;
