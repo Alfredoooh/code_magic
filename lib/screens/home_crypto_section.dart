@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class CryptoData {
   final String symbol;
