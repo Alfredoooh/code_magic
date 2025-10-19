@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/news_article.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 import 'news_detail_screen.dart';
 
 class BookmarksScreen extends StatelessWidget {
