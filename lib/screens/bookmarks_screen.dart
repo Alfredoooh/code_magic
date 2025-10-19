@@ -326,6 +326,7 @@ class _BookmarkCard extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => NewsDetailScreen(
                 article: article,
+                isDark: Theme.of(context).brightness == Brightness.dark,
                 allArticles: [article],
                 currentIndex: 0,
               ),
