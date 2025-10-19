@@ -1,4 +1,4 @@
-// lib/screens/trading_chart_screen.dart - PARTE 1
+// lib/screens/trading_chart_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -50,7 +50,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
   int _autoTradeCount = 0;
   Timer? _autoTradeTimer;
   int _autoTradeInterval = 8;
-  
+
   // Custom Strategy Parameters
   double _martingaleMultiplier = 2.0;
   double _dalembertIncrement = 0.35;
@@ -89,24 +89,24 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
   // Contract Types with Material Icons
   final Map<String, List<Map<String, dynamic>>> _contractCategories = {
     'Rise/Fall': [
-      {'id': 'CALL', 'name': 'Rise', 'icon': Icons.trending_up},
-      {'id': 'PUT', 'name': 'Fall', 'icon': Icons.trending_down},
+      {'id': 'CALL', 'name': 'Rise', 'icon': Icons.trending_up_rounded},
+      {'id': 'PUT', 'name': 'Fall', 'icon': Icons.trending_down_rounded},
     ],
     'Higher/Lower': [
-      {'id': 'CALLE', 'name': 'Higher', 'icon': Icons.arrow_upward},
-      {'id': 'PUTE', 'name': 'Lower', 'icon': Icons.arrow_downward},
+      {'id': 'CALLE', 'name': 'Higher', 'icon': Icons.arrow_upward_rounded},
+      {'id': 'PUTE', 'name': 'Lower', 'icon': Icons.arrow_downward_rounded},
     ],
     'Matches/Differs': [
-      {'id': 'DIGITMATCH', 'name': 'Matches', 'icon': Icons.check_circle_outline},
+      {'id': 'DIGITMATCH', 'name': 'Matches', 'icon': Icons.check_circle_outline_rounded},
       {'id': 'DIGITDIFF', 'name': 'Differs', 'icon': Icons.cancel_outlined},
     ],
     'Even/Odd': [
-      {'id': 'DIGITEVEN', 'name': 'Even', 'icon': Icons.looks_two},
-      {'id': 'DIGITODD', 'name': 'Odd', 'icon': Icons.looks_one},
+      {'id': 'DIGITEVEN', 'name': 'Even', 'icon': Icons.looks_two_rounded},
+      {'id': 'DIGITODD', 'name': 'Odd', 'icon': Icons.looks_one_rounded},
     ],
     'Over/Under': [
-      {'id': 'DIGITOVER', 'name': 'Over', 'icon': Icons.expand_less},
-      {'id': 'DIGITUNDER', 'name': 'Under', 'icon': Icons.expand_more},
+      {'id': 'DIGITOVER', 'name': 'Over', 'icon': Icons.expand_less_rounded},
+      {'id': 'DIGITUNDER', 'name': 'Under', 'icon': Icons.expand_more_rounded},
     ],
   };
 
@@ -115,49 +115,49 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
     'accumulation_pro': {
       'name': 'Acumulação Profissional',
       'description': 'Acumula lucros, mantém stake em perdas',
-      'icon': Icons.trending_up,
+      'icon': Icons.trending_up_rounded,
       'winRate': 85,
     },
     'martingale_classic': {
       'name': 'Martingale Clássico',
       'description': 'Dobra stake após cada perda',
-      'icon': Icons.analytics,
+      'icon': Icons.analytics_rounded,
       'winRate': 75,
     },
     'anti_martingale': {
       'name': 'Anti-Martingale',
       'description': 'Aumenta stake após vitórias',
-      'icon': Icons.show_chart,
+      'icon': Icons.show_chart_rounded,
       'winRate': 70,
     },
     'dalembert': {
       'name': "D'Alembert Avançado",
       'description': 'Incremento gradual após perdas',
-      'icon': Icons.stairs,
+      'icon': Icons.stairs_rounded,
       'winRate': 78,
     },
     'fibonacci': {
       'name': 'Fibonacci Sequence',
       'description': 'Segue sequência de Fibonacci',
-      'icon': Icons.timeline,
+      'icon': Icons.timeline_rounded,
       'winRate': 80,
     },
     'percentage_kelly': {
       'name': 'Kelly Criterion',
       'description': 'Baseado em percentual do saldo',
-      'icon': Icons.percent,
+      'icon': Icons.percent_rounded,
       'winRate': 82,
     },
     'fixed_ratio': {
       'name': 'Razão Fixa',
       'description': 'Valor fixo por operação',
-      'icon': Icons.lock,
+      'icon': Icons.lock_rounded,
       'winRate': 65,
     },
     'custom': {
       'name': 'Estratégia Personalizada',
       'description': 'Configure seus próprios parâmetros',
-      'icon': Icons.tune,
+      'icon': Icons.tune_rounded,
       'winRate': 0,
     },
   };
@@ -213,7 +213,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           _currency = accountInfo['currency'] ?? 'USD';
           _previousBalance = _accountBalance;
           _accountBalance = (accountInfo['balance'] ?? 0).toDouble();
-          
+
           // Animar mudança de saldo
           _balanceAnimation = Tween<double>(
             begin: _previousBalance,
@@ -222,36 +222,41 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
             parent: _balanceAnimationController,
             curve: Curves.easeInOut,
           ));
-          
+
           _balanceAnimationController.forward(from: 0);
         });
       }
     });
 
     _tickSub = widget.derivService.tickStream.listen((tick) {
-      if (mounted) {
-        setState(() => _currentTick = (tick['quote'] ?? 0).toDouble());
+      if (mounted && tick != null) {
+        final q = tick['quote'] ?? tick['quote'] == 0 ? tick['quote'] : 0;
+        setState(() => _currentTick = (q is num ? q.toDouble() : 0.0));
       }
     });
 
     _proposalSub = widget.derivService.proposalStream.listen((proposal) {
-      if (mounted) {
+      if (mounted && proposal != null) {
         setState(() {
-          _payout = (proposal['payout'] ?? 0).toDouble();
-          _proposalId = proposal['id'];
+          final p = proposal['payout'] ?? 0;
+          _payout = (p is num) ? p.toDouble() : 0.0;
+          _proposalId = proposal['id']?.toString();
         });
       }
     });
 
     _contractSub = widget.derivService.contractStream.listen((contract) {
-      if (mounted) _handleContractResult(contract);
+      if (mounted && contract != null) _handleContractResult(contract);
     });
   }
 
   void _handleContractResult(Map<String, dynamic> contract) {
-    if (contract['status'] == 'sold' || contract['status'] == 'won' || contract['status'] == 'lost') {
-      final buyPrice = (contract['buy_price'] ?? 0).toDouble();
-      final sellPrice = (contract['sell_price'] ?? contract['bid_price'] ?? 0).toDouble();
+    final status = contract['status']?.toString() ?? '';
+    if (status == 'sold' || status == 'won' || status == 'lost') {
+      final buyPriceRaw = contract['buy_price'] ?? 0;
+      final sellPriceRaw = contract['sell_price'] ?? contract['bid_price'] ?? 0;
+      final buyPrice = (buyPriceRaw is num) ? buyPriceRaw.toDouble() : 0.0;
+      final sellPrice = (sellPriceRaw is num) ? sellPriceRaw.toDouble() : 0.0;
       final profit = sellPrice - buyPrice;
       final isWin = profit > 0;
       final entryTick = _currentTick;
@@ -261,7 +266,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
         // Atualizar saldo em tempo real
         _previousBalance = _accountBalance;
         _accountBalance += profit;
-        
+
         // Animar saldo
         _balanceAnimation = Tween<double>(
           begin: _previousBalance,
@@ -290,7 +295,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           _winCount++;
           _consecutiveLosses = 0;
           _consecutiveWins++;
-          
+
           if (profit > _highestProfit) _highestProfit = profit;
 
           if (_autoTradingEnabled) {
@@ -301,7 +306,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           _lossCount++;
           _consecutiveLosses++;
           _consecutiveWins = 0;
-          
+
           if (profit.abs() > _highestLoss) _highestLoss = profit.abs();
 
           if (_autoTradingEnabled) {
@@ -411,7 +416,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
+                Icon(Icons.check_circle_rounded, color: Colors.white),
                 SizedBox(width: 8),
                 Text('Trade #$_autoTradeCount • \$${_stakeAmount.toStringAsFixed(2)}'),
               ],
@@ -440,7 +445,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.play_arrow, color: Colors.white),
+              Icon(Icons.play_arrow_rounded, color: Colors.white),
               SizedBox(width: 8),
               Expanded(
                 child: Text('Auto-trading: ${_autoStrategies[_autoStrategy]!['name']}'),
@@ -458,7 +463,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.stop, color: Colors.white),
+              Icon(Icons.stop_rounded, color: Colors.white),
               SizedBox(width: 8),
               Text('Auto-trading desativado'),
             ],
@@ -472,12 +477,12 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
   void _stopAutoTrading(String reason) {
     setState(() => _autoTradingEnabled = false);
     _autoTradeTimer?.cancel();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.warning, color: Colors.white),
+            Icon(Icons.warning_rounded, color: Colors.white),
             SizedBox(width: 8),
             Expanded(child: Text(reason)),
           ],
@@ -512,8 +517,6 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
 
   double get _netProfit => _totalProfit - _totalLoss;
 
-// lib/screens/trading_chart_screen.dart - PARTE 2 (CONTINUAÇÃO)
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -524,15 +527,15 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
         title: 'Trading Profissional',
         actions: [
           IconButton(
-            icon: Icon(Icons.settings, color: AppColors.primary),
+            icon: Icon(Icons.settings_rounded, color: AppColors.primary),
             onPressed: () => _showAdvancedSettings(isDark),
           ),
           IconButton(
-            icon: Icon(Icons.history, color: AppColors.primary),
+            icon: Icon(Icons.history_rounded, color: AppColors.primary),
             onPressed: () => _showDetailedHistory(isDark),
           ),
           IconButton(
-            icon: Icon(Icons.refresh, color: AppColors.primary),
+            icon: Icon(Icons.refresh_rounded, color: AppColors.primary),
             onPressed: _resetStats,
           ),
         ],
@@ -601,7 +604,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                           color: AppColors.primary.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.account_balance_wallet, color: AppColors.primary, size: 24),
+                        child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 24),
                       ),
                       SizedBox(width: 12),
                       Column(
@@ -625,7 +628,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                       child: Row(
                         children: [
                           Icon(
-                            isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                            isPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
                             color: isPositive ? AppColors.success : AppColors.error,
                             size: 14,
                           ),
@@ -691,7 +694,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                   'P&L',
                   '${_netProfit >= 0 ? '+' : ''}\$${_netProfit.toStringAsFixed(2)}',
                   _netProfit >= 0 ? AppColors.success : AppColors.error,
-                  _netProfit >= 0 ? Icons.trending_up : Icons.trending_down,
+                  _netProfit >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                 ),
               ),
               _divider(isDark),
@@ -700,7 +703,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                   'Taxa',
                   '${_winRate.toStringAsFixed(1)}%',
                   _winRate >= 80 ? AppColors.success : _winRate >= 50 ? Colors.orange : AppColors.error,
-                  Icons.percent,
+                  Icons.percent_rounded,
                 ),
               ),
               _divider(isDark),
@@ -709,7 +712,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                   'W/L',
                   '$_winCount/$_lossCount',
                   AppColors.primary,
-                  Icons.analytics,
+                  Icons.analytics_rounded,
                 ),
               ),
             ],
@@ -721,10 +724,10 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildMiniStat('Trades Auto', '$_autoTradeCount', Icons.repeat),
+                _buildMiniStat('Trades Auto', '$_autoTradeCount', Icons.repeat_rounded),
                 _buildMiniStat('Sequência', '$_consecutiveWins W / $_consecutiveLosses L',
-                    _consecutiveWins > _consecutiveLosses ? Icons.thumb_up : Icons.thumb_down),
-                _buildMiniStat('Próximo', '${_autoTradeInterval}s', Icons.timer),
+                    _consecutiveWins > _consecutiveLosses ? Icons.thumb_up_rounded : Icons.thumb_down_rounded),
+                _buildMiniStat('Próximo', '${_autoTradeInterval}s', Icons.timer_rounded),
               ],
             ),
           ],
@@ -734,9 +737,9 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildMiniStat('Maior Lucro', '\$${_highestProfit.toStringAsFixed(2)}', Icons.arrow_circle_up,
+              _buildMiniStat('Maior Lucro', '\$${_highestProfit.toStringAsFixed(2)}', Icons.arrow_circle_up_rounded,
                   color: AppColors.success),
-              _buildMiniStat('Maior Perda', '\$${_highestLoss.toStringAsFixed(2)}', Icons.arrow_circle_down,
+              _buildMiniStat('Maior Perda', '\$${_highestLoss.toStringAsFixed(2)}', Icons.arrow_circle_down_rounded,
                   color: AppColors.error),
             ],
           ),
@@ -780,10 +783,10 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
       );
 
   Widget _buildChartWidget(bool isDark) {
+    // NOTE: removed derivService param to avoid constructor mismatch.
     return TradingChartWidget(
       symbol: _selectedSymbol,
       tradeHistory: _tradeHistory,
-      derivService: widget.derivService,
     );
   }
 
@@ -808,7 +811,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
               color: AppColors.primary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.speed, color: AppColors.primary, size: 20),
+            child: Icon(Icons.speed_rounded, color: AppColors.primary, size: 20),
           ),
           SizedBox(width: 12),
           Expanded(
@@ -844,7 +847,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
             children: [
               Row(
                 children: [
-                  Icon(Icons.control_point, color: AppColors.primary, size: 22),
+                  Icon(Icons.control_point_rounded, color: AppColors.primary, size: 22),
                   SizedBox(width: 8),
                   Text('Painel de Controle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
@@ -922,7 +925,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.monetization_on, color: AppColors.primary, size: 20),
+                      Icon(Icons.monetization_on_rounded, color: AppColors.primary, size: 20),
                       SizedBox(width: 8),
                       Text('Payout Estimado:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     ],
@@ -935,9 +938,9 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildTradeButton(isDark, 'CALL', Icons.arrow_upward, AppColors.success)),
+              Expanded(child: _buildTradeButton(isDark, 'CALL', Icons.arrow_upward_rounded, AppColors.success)),
               SizedBox(width: 12),
-              Expanded(child: _buildTradeButton(isDark, 'PUT', Icons.arrow_downward, AppColors.error)),
+              Expanded(child: _buildTradeButton(isDark, 'PUT', Icons.arrow_downward_rounded, AppColors.error)),
             ],
           ),
         ],
@@ -1098,7 +1101,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
               padding: EdgeInsets.all(20),
               child: Row(
                 children: [
-                  Icon(Icons.tune, color: AppColors.primary, size: 24),
+                  Icon(Icons.tune_rounded, color: AppColors.primary, size: 24),
                   SizedBox(width: 12),
                   Text('Configurações Avançadas', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 ],
@@ -1178,7 +1181,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                     SizedBox(height: 16),
                     _buildCustomParameter(
                         'Multiplicador Martingale', _martingaleMultiplier, 1.5, 5.0, (v) => setState(() => _martingaleMultiplier = v)),
-                    _buildCustomParameter('Incremento D\'Alembert', _dalembertIncrement, 0.1, 2.0,
+                    _buildCustomParameter('Incremento D\\'Alembert', _dalembertIncrement, 0.1, 2.0,
                         (v) => setState(() => _dalembertIncrement = v)),
                     _buildCustomParameter('Máx. Perdas Consecutivas', _maxConsecutiveLosses.toDouble(), 3, 10,
                         (v) => setState(() => _maxConsecutiveLosses = v.toInt()), isInt: true),
@@ -1208,7 +1211,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                           value: _autoTradeInterval.toDouble(),
                           min: 2,
                           max: 120,
-                          divisions: 59,
+                          divisions: 118,
                           activeColor: AppColors.primary,
                           label: '$_autoTradeInterval seg',
                           onChanged: (v) => setState(() => _autoTradeInterval = v.toInt()),
@@ -1236,6 +1239,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
 
   Widget _buildCustomParameter(String label, double value, double min, double max, Function(double) onChanged,
       {bool isInt = false}) {
+    final divisions = ((max - min) / (isInt ? 1.0 : 0.1)).clamp(1, 1000).toInt();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1248,10 +1252,10 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
           ],
         ),
         Slider(
-          value: value,
+          value: value.clamp(min, max),
           min: min,
           max: max,
-          divisions: ((max - min) / (isInt ? 1 : 0.1)).toInt(),
+          divisions: divisions,
           activeColor: AppColors.primary,
           onChanged: onChanged,
         ),
@@ -1282,7 +1286,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.history, color: AppColors.primary, size: 24),
+                      Icon(Icons.history_rounded, color: AppColors.primary, size: 24),
                       SizedBox(width: 12),
                       Text('Histórico Completo', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                     ],
@@ -1305,7 +1309,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.inbox, size: 64, color: Colors.grey),
+                          Icon(Icons.inbox_rounded, size: 64, color: Colors.grey),
                           SizedBox(height: 16),
                           Text('Nenhuma operação ainda', style: TextStyle(fontSize: 16, color: Colors.grey)),
                         ],
@@ -1325,7 +1329,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
 
   Widget _buildDetailedTradeItem(Map<String, dynamic> trade, bool isDark) {
     final isWin = trade['status'] == 'won';
-    final profit = trade['profit'] as double;
+    final profit = (trade['profit'] is num) ? (trade['profit'] as num).toDouble() : 0.0;
     final timestamp = trade['timestamp'] as DateTime;
     final timeStr =
         '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}';
@@ -1360,7 +1364,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(isWin ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 20),
+                child: Icon(isWin ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, color: Colors.white, size: 20),
               ),
               SizedBox(width: 12),
               Expanded(
@@ -1393,7 +1397,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                 children: [
                   Text('${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isWin ? AppColors.success : AppColors.error)),
-                  Text('Stake: \$${(trade['amount'] as double).toStringAsFixed(2)}',
+                  Text('Stake: \$${(trade['amount'] is num ? (trade['amount'] as num).toDouble() : 0.0).toStringAsFixed(2)}',
                       style: TextStyle(fontSize: 10, color: Colors.grey)),
                 ],
               ),
@@ -1414,7 +1418,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.login, size: 14, color: Colors.blue),
+                        Icon(Icons.login_rounded, size: 14, color: Colors.blue),
                         SizedBox(width: 4),
                         Text('Entrada', style: TextStyle(fontSize: 10, color: Colors.grey)),
                       ],
@@ -1424,13 +1428,13 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
                   ],
                 ),
-                Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.grey),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.logout, size: 14, color: isWin ? AppColors.success : AppColors.error),
+                        Icon(Icons.logout_rounded, size: 14, color: isWin ? AppColors.success : AppColors.error),
                         SizedBox(width: 4),
                         Text('Saída', style: TextStyle(fontSize: 10, color: Colors.grey)),
                       ],
@@ -1449,12 +1453,12 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
             children: [
               Row(
                 children: [
-                  Icon(Icons.account_balance_wallet, size: 14, color: Colors.grey),
+                  Icon(Icons.account_balance_wallet_rounded, size: 14, color: Colors.grey),
                   SizedBox(width: 4),
                   Text('Saldo após:', style: TextStyle(fontSize: 10, color: Colors.grey)),
                 ],
               ),
-              Text('\$${(trade['balance'] as double).toStringAsFixed(2)}',
+              Text('\$${(trade['balance'] is num ? (trade['balance'] as num).toDouble() : 0.0).toStringAsFixed(2)}',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ],
           ),
@@ -1479,7 +1483,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
             children: [
               Row(
                 children: [
-                  Icon(Icons.history, color: AppColors.primary, size: 20),
+                  Icon(Icons.history_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text('Últimas Operações', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 ],
@@ -1496,7 +1500,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                     children: [
                       Text('Ver tudo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
                       SizedBox(width: 4),
-                      Icon(Icons.arrow_forward, size: 12, color: AppColors.primary),
+                      Icon(Icons.arrow_forward_rounded, size: 12, color: AppColors.primary),
                     ],
                   ),
                 ),
@@ -1511,7 +1515,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
             itemBuilder: (context, i) {
               final trade = _tradeHistory[i];
               final isWin = trade['status'] == 'won';
-              final profit = trade['profit'] as double;
+              final profit = (trade['profit'] is num) ? (trade['profit'] as num).toDouble() : 0.0;
               final entryTick = trade['entryTick'] as double;
               final exitTick = trade['exitTick'] as double;
               final timestamp = trade['timestamp'] as DateTime;
@@ -1553,7 +1557,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                           ),
                         ],
                       ),
-                      child: Icon(isWin ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 20),
+                      child: Icon(isWin ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, color: Colors.white, size: 20),
                     ),
                     SizedBox(width: 12),
                     Expanded(
@@ -1565,7 +1569,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                               Text(trade['symbol'], style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                               SizedBox(width: 6),
                               Icon(
-                                trade['type'] == 'CALL' ? Icons.arrow_upward : Icons.arrow_downward,
+                                trade['type'] == 'CALL' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
                                 size: 12,
                                 color: isWin ? AppColors.success : AppColors.error,
                               ),
@@ -1583,7 +1587,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                         Text('${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}',
                             style:
                                 TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isWin ? AppColors.success : AppColors.error)),
-                        Text('\$${(trade['amount'] as double).toStringAsFixed(2)}', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                        Text('\$${(trade['amount'] is num ? (trade['amount'] as num).toDouble() : 0.0).toStringAsFixed(2)}', style: TextStyle(fontSize: 9, color: Colors.grey)),
                       ],
                     ),
                   ],
