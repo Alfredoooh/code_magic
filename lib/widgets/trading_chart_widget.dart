@@ -3,13 +3,13 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// TradingChartWidget
-/// - symbol: símbolo exibido
-/// - tradeHistory: lista de trades (cada trade deve ter: 'entryTick' (price), 'exitTick' (price), 'status', 'timestamp')
-/// - tickStream: opcional Stream de ticks (num ou Map com ['quote'])
-/// - margins: opcional lista de níveis de preço para desenhar como margens/horizontal lines
-/// - candleTicks: número de ticks para agregar 1 candle (default 5)
-/// - enablePatterns: se true, detecta padrões simples
+/// TradingChartWidget com:
+/// - suporte a stream de ticks (tickStream)
+/// - candles / line toggle
+/// - margens (horizontal lines)
+/// - deteção simples de padrões
+/// - tooltips interativos (tap)
+/// - SMA e EMA desenhadas
 class TradingChartWidget extends StatefulWidget {
   final String symbol;
   final List<Map<String, dynamic>> tradeHistory;
@@ -18,6 +18,8 @@ class TradingChartWidget extends StatefulWidget {
   final int candleTicks;
   final bool enablePatterns;
   final double height;
+  final int smaPeriod; // período SMA
+  final int emaPeriod; // período EMA
 
   const TradingChartWidget({
     Key? key,
@@ -28,6 +30,8 @@ class TradingChartWidget extends StatefulWidget {
     this.candleTicks = 5,
     this.enablePatterns = true,
     this.height = 320,
+    this.smaPeriod = 20,
+    this.emaPeriod = 50,
   }) : super(key: key);
 
   @override
@@ -50,31 +54,42 @@ class Candle {
   });
 }
 
+/// Minimal AppColors shim if your project already has AppColors remove this block
+class AppColors {
+  static Color primary = const Color(0xFF2F80ED);
+  static Color success = const Color(0xFF16A34A);
+  static Color error = const Color(0xFFEF4444);
+  static Color warning = const Color(0xFFF59E0B);
+}
+
 class _TradingChartWidgetState extends State<TradingChartWidget>
     with SingleTickerProviderStateMixin {
-  // live price list used for line chart
   final List<double> _priceData = [];
-
-  // candle aggregation
   final List<Candle> _candles = [];
   int _ticksForCurrentCandle = 0;
 
-  // animation/pulse
   late AnimationController _animationController;
   Timer? _simTimer;
   StreamSubscription? _tickSub;
 
-  // last price
   double _currentPrice = 0.0;
   double _priceChange = 0.0;
   bool _isRising = true;
 
-  // UI state
   bool _showCandles = false;
   bool _showMargins = true;
 
-  // pattern detection results: map candle index -> pattern name
   final Map<int, String> _patterns = {};
+
+  // SMA / EMA precomputadas (alinhadas com data index). Nulls for indices without value.
+  List<double?> _sma = [];
+  List<double?> _ema = [];
+
+  // Tooltip state
+  bool _showTooltip = false;
+  Offset _tooltipPos = Offset.zero;
+  String _tooltipText = '';
+  Timer? _tooltipTimer;
 
   @override
   void initState() {
@@ -84,22 +99,21 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
       duration: Duration(milliseconds: 900),
     )..repeat();
 
-    // iniciar com dados simulados
     _initSimulatedData();
 
-    // conectar stream se fornecido
     if (widget.tickStream != null) {
       _tickSub = widget.tickStream!.listen(_handleTickFromStream, onError: (_) {});
     } else {
-      // fallback: simula ticks a cada 500ms
       _simTimer = Timer.periodic(Duration(milliseconds: 500), (_) => _generateSimulatedTick());
     }
+
+    // init indicators
+    _recalculateIndicators();
   }
 
   @override
   void didUpdateWidget(covariant TradingChartWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // se trocar de stream, remapear subscrição
     if (oldWidget.tickStream != widget.tickStream) {
       _tickSub?.cancel();
       _simTimer?.cancel();
@@ -116,6 +130,7 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
     _animationController.dispose();
     _tickSub?.cancel();
     _simTimer?.cancel();
+    _tooltipTimer?.cancel();
     super.dispose();
   }
 
@@ -123,31 +138,31 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
     final rnd = math.Random();
     double base = 100.0 + rnd.nextDouble() * 100;
     _priceData.clear();
-    for (int i = 0; i < 60; i++) {
+    for (int i = 0; i < 120; i++) {
       final v = base + (rnd.nextDouble() - 0.5) * 6;
       _priceData.add(v);
     }
     _currentPrice = _priceData.last;
-    // criar 12 candles de exemplo
+
     _candles.clear();
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 40; i++) {
       final open = base + (rnd.nextDouble() - 0.5) * 8;
       final close = open + (rnd.nextDouble() - 0.5) * 6;
       final high = math.max(open, close) + rnd.nextDouble() * 3;
       final low = math.min(open, close) - rnd.nextDouble() * 3;
-      _candles.add(Candle(ts: DateTime.now().subtract(Duration(minutes: 12 - i)), open: open, high: high, low: low, close: close));
+      _candles.add(Candle(ts: DateTime.now().subtract(Duration(minutes: 40 - i)), open: open, high: high, low: low, close: close));
     }
+
+    _recalculateIndicators();
   }
 
   void _handleTickFromStream(dynamic tick) {
-    // tick could be num or Map with 'quote'
     double? price;
     if (tick == null) return;
     if (tick is num) {
       price = tick.toDouble();
     } else if (tick is Map) {
-      // common Deriv tick map could be {'quote': 123.45, 'epoch':...}
-      final q = tick['quote'] ?? tick['price'] ?? tick['p'];
+      final q = tick['quote'] ?? tick['price'] ?? tick['p'] ?? tick['ask'] ?? tick['bid'];
       if (q is num) price = q.toDouble();
     }
     if (price == null) return;
@@ -156,7 +171,7 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
 
   void _generateSimulatedTick() {
     final rnd = math.Random();
-    final change = (rnd.nextDouble() - 0.48) * 1.2; // small drift
+    final change = (rnd.nextDouble() - 0.48) * 1.2;
     final newPrice = (_currentPrice == 0.0 ? (_priceData.isNotEmpty ? _priceData.last : 100.0) : _currentPrice) + change;
     _processNewPrice(newPrice);
   }
@@ -165,49 +180,76 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
     if (!mounted) return;
     setState(() {
       final old = _currentPrice;
-      if (old == 0.0) _currentPrice = price;
-      _priceChange = price - _currentPrice;
+      _priceChange = price - old;
       _isRising = _priceChange >= 0;
       _currentPrice = price;
 
-      // update price series
       _priceData.add(price);
-      if (_priceData.length > 240) _priceData.removeAt(0); // keep window
+      if (_priceData.length > 720) _priceData.removeAt(0);
 
-      // aggregate candles by number of ticks
-      _ticksForCurrentCandle++;
+      // update candles aggregation
       if (_candles.isEmpty) {
-        // create initial candle
         _candles.add(Candle(ts: DateTime.now(), open: price, high: price, low: price, close: price));
+        _ticksForCurrentCandle = 1;
       } else {
-        Candle current = _candles.last;
+        final current = _candles.last;
         current.high = math.max(current.high, price);
         current.low = math.min(current.low, price);
         current.close = price;
-        // every widget.candleTicks ticks, finalize and start new candle
+        _ticksForCurrentCandle++;
+        if (_ticksForCurrentCandle >= math.max(1, widget.candleTicks)) {
+          _ticksForCurrentCandle = 0;
+          _candles.add(Candle(ts: DateTime.now(), open: price, high: price, low: price, close: price));
+          if (_candles.length > 300) _candles.removeAt(0);
+        }
       }
-      if (_ticksForCurrentCandle >= widget.candleTicks) {
-        _ticksForCurrentCandle = 0;
-        // finalize current candle timestamp to now
-        final last = _candles.isNotEmpty ? _candles.last : Candle(ts: DateTime.now(), open: price, high: price, low: price, close: price);
-        // push a new empty candle (open = close of last)
-        final newCandle = Candle(ts: DateTime.now(), open: last.close, high: last.close, low: last.close, close: last.close);
-        _candles.add(newCandle);
-        if (_candles.length > 200) _candles.removeAt(0);
-        // detect patterns on the rolling set
-        if (widget.enablePatterns) _detectPatterns();
-      }
+
+      // recalc indicators
+      _recalculateIndicators();
+
+      // detect patterns
+      if (widget.enablePatterns) _detectPatterns();
     });
   }
 
+  void _recalculateIndicators() {
+    // compute SMA and EMA for _priceData (aligned to data indices)
+    _sma = List<double?>.filled(_priceData.length, null);
+    _ema = List<double?>.filled(_priceData.length, null);
+
+    final p = widget.smaPeriod;
+    if (p > 0 && _priceData.length >= p) {
+      double sum = 0;
+      for (int i = 0; i < _priceData.length; i++) {
+        sum += _priceData[i];
+        if (i >= p) sum -= _priceData[i - p];
+        if (i >= p - 1) {
+          _sma[i] = sum / p;
+        }
+      }
+    }
+
+    final ep = widget.emaPeriod;
+    if (ep > 0 && _priceData.isNotEmpty) {
+      final k = 2 / (ep + 1);
+      double? prev;
+      for (int i = 0; i < _priceData.length; i++) {
+        final price = _priceData[i];
+        if (i == 0) {
+          prev = price;
+          _ema[i] = prev;
+        } else {
+          prev = (price * k) + (prev! * (1 - k));
+          _ema[i] = prev;
+        }
+      }
+    }
+  }
+
   void _detectPatterns() {
-    // detect simple patterns on the last candles and store in _patterns map
-    // we'll check last 3 candles for Bullish Engulfing and Hammer on last candle
     _patterns.clear();
     final n = _candles.length;
     if (n < 2) return;
-
-    // Bullish Engulfing: previous candle is bearish and last candle bullish and engulfs previous body
     final prev = _candles[n - 2];
     final last = _candles[n - 1];
 
@@ -222,238 +264,257 @@ class _TradingChartWidgetState extends State<TradingChartWidget>
       _patterns[n - 1] = 'Bullish Engulfing';
     }
 
-    // Hammer: small body near top, long lower wick
     final body = (last.close - last.open).abs();
     final lowerWick = math.min(last.open, last.close) - last.low;
     final upperWick = last.high - math.max(last.open, last.close);
     if (body <= (last.high - last.low) * 0.35 && lowerWick > body * 2 && upperWick < body * 0.5) {
       _patterns[n - 1] = (_patterns[n - 1] != null) ? '${_patterns[n - 1]} / Hammer' : 'Hammer';
     }
+  }
 
-    // You can add more patterns...
+  // Tooltip helpers
+  void _showTooltipAt(Offset localPos, Size size) {
+    // find nearest data index
+    final visible = _priceData;
+    if (visible.isEmpty) return;
+
+    final padding = 36.0;
+    final chartW = size.width - padding * 2;
+    final stepX = chartW / (visible.length - 1);
+    final relativeX = (localPos.dx - padding).clamp(0.0, chartW);
+    final idx = ((relativeX / stepX).round()).clamp(0, visible.length - 1);
+
+    final price = visible[idx];
+    final text = 'Index: $idx\nPrice: ${price.toStringAsFixed(5)}\nSMA: ${_sma[idx]?.toStringAsFixed(5) ?? '-'}\nEMA: ${_ema[idx]?.toStringAsFixed(5) ?? '-'}';
+    setState(() {
+      _tooltipPos = localPos;
+      _tooltipText = text;
+      _showTooltip = true;
+    });
+
+    _tooltipTimer?.cancel();
+    _tooltipTimer = Timer(Duration(seconds: 4), () {
+      setState(() => _showTooltip = false);
+    });
+  }
+
+  void _hideTooltip() {
+    _tooltipTimer?.cancel();
+    setState(() {
+      _showTooltip = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: isDark ? Color(0xFF1C1C1E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
-          width: 1,
+    return GestureDetector(
+      onTapDown: (tap) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final local = box.globalToLocal(tap.globalPosition);
+          _showTooltipAt(local, box.size);
+        }
+      },
+      onTapUp: (_) => null,
+      onTapCancel: _hideTooltip,
+      child: Container(
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1C1C1E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Color(0xFF2C2C2E) : Color(0xFFE5E5EA),
+            width: 1,
+          ),
         ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            // background grid
-            CustomPaint(
-              size: Size.infinite,
-              painter: _GridPainter(isDark: isDark),
-            ),
-
-            // chart (line or candles)
-            AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return CustomPaint(
-                  size: Size.infinite,
-                  painter: _ChartPainter(
-                    data: List.of(_priceData),
-                    candles: List.of(_candles),
-                    showCandles: _showCandles,
-                    isRising: _isRising,
-                    animation: _animationController.value,
-                    tradeHistory: widget.tradeHistory,
-                    margins: widget.margins,
-                    showMargins: _showMargins,
-                    patterns: Map.of(_patterns),
-                  ),
-                );
-              },
-            ),
-
-            // header controls (symbol, price, toggles)
-            Positioned(
-              top: 12,
-              left: 12,
-              right: 12,
-              child: Row(
-                children: [
-                  // symbol badge
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Color(0xFFFF444F).withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0xFFFF444F).withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              CustomPaint(
+                size: Size.infinite,
+                painter: _GridPainter(isDark: isDark),
+              ),
+              AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: Size.infinite,
+                    painter: _ChartPainter(
+                      data: List.of(_priceData),
+                      candles: List.of(_candles),
+                      showCandles: _showCandles,
+                      isRising: _isRising,
+                      animation: _animationController.value,
+                      tradeHistory: widget.tradeHistory,
+                      margins: widget.margins,
+                      showMargins: _showMargins,
+                      patterns: Map.of(_patterns),
+                      sma: List.of(_sma),
+                      ema: List.of(_ema),
                     ),
-                    child: Text(
-                      widget.symbol,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                  );
+                },
+              ),
+              // header and controls (symbol, price, toggles)
+              Positioned(
+                top: 12,
+                left: 12,
+                right: 12,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFF444F).withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFFFF444F).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        widget.symbol,
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
-                  SizedBox(width: 10),
-                  // price tag
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: (_isRising ? Colors.green : Colors.red).withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_isRising ? Colors.green : Colors.red).withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_isRising ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 14),
+                              SizedBox(width: 6),
+                              Text(_currentPrice.toStringAsFixed(5), style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _showCandles = !_showCandles),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: (_isRising ? Colors.green : Colors.red).withOpacity(0.9),
+                          color: _showCandles ? AppColors.primary.withOpacity(0.12) : Colors.grey.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_isRising ? Colors.green : Colors.red).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              _isRising ? Icons.arrow_upward : Icons.arrow_downward,
-                              color: Colors.white,
-                              size: 14,
-                            ),
+                            Icon(Icons.candlestick_chart, size: 16, color: _showCandles ? AppColors.primary : Colors.grey),
                             SizedBox(width: 6),
-                            Text(
-                              _currentPrice.toStringAsFixed(5),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            Text('Candles', style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
                     ),
-                  ),
-
-                  // toggles
-                  SizedBox(width: 8),
-                  // candle toggle
-                  GestureDetector(
-                    onTap: () => setState(() => _showCandles = !_showCandles),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _showCandles ? AppColors.primary.withOpacity(0.12) : Colors.grey.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.candlestick_chart, size: 16, color: _showCandles ? AppColors.primary : Colors.grey),
-                          SizedBox(width: 6),
-                          Text('Candles', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  // margins toggle
-                  GestureDetector(
-                    onTap: () => setState(() => _showMargins = !_showMargins),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _showMargins ? AppColors.primary.withOpacity(0.12) : Colors.grey.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.horizontal_rule, size: 16, color: _showMargins ? AppColors.primary : Colors.grey),
-                          SizedBox(width: 6),
-                          Text('Margens', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // trade counter bottom-right
-            if (widget.tradeHistory.isNotEmpty)
-              Positioned(
-                bottom: 12,
-                right: 12,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.show_chart, color: Colors.white, size: 14),
-                      SizedBox(width: 6),
-                      Text(
-                        '${widget.tradeHistory.length}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _showMargins = !_showMargins),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _showMargins ? AppColors.primary.withOpacity(0.12) : Colors.grey.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.horizontal_rule, size: 16, color: _showMargins ? AppColors.primary : Colors.grey),
+                            SizedBox(width: 6),
+                            Text('Margens', style: TextStyle(fontSize: 12)),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-          ],
+
+              // tooltip (positioned)
+              if (_showTooltip)
+                LayoutBuilder(builder: (context, constraints) {
+                  final left = (_tooltipPos.dx + 8).clamp(8.0, constraints.maxWidth - 180.0);
+                  final top = (_tooltipPos.dy - 60).clamp(36.0, constraints.maxHeight - 80.0);
+                  return Positioned(
+                    left: left,
+                    top: top,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        width: 180,
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(_tooltipText, style: TextStyle(color: Colors.white, fontSize: 12)),
+                      ),
+                    ),
+                  );
+                }),
+
+              // trade counter bottom-right
+              if (widget.tradeHistory.isNotEmpty)
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.show_chart, color: Colors.white, size: 14),
+                        SizedBox(width: 6),
+                        Text('${widget.tradeHistory.length}', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Simple app colors shim (so this file is self-contained).
-/// If you have your own AppColors, remove this and import that instead.
-class AppColors {
-  static Color primary = const Color(0xFF2F80ED);
-  static Color success = const Color(0xFF16A34A);
-  static Color error = const Color(0xFFEF4444);
-  static Color warning = const Color(0xFFF59E0B);
-}
-
-/// GRID painter (background)
+/// Grid painter
 class _GridPainter extends CustomPainter {
   final bool isDark;
   _GridPainter({required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = (isDark ? Colors.white : Colors.black).withOpacity(0.05)
-      ..strokeWidth = 0.5;
-
-    // horizontals
+    final paint = Paint()..color = (isDark ? Colors.white : Colors.black).withOpacity(0.05)..strokeWidth = 0.5;
     for (int i = 0; i < 5; i++) {
       final y = size.height * (i / 4);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
-
-    // verticals
     for (int i = 0; i < 6; i++) {
       final x = size.width * (i / 5);
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
@@ -464,7 +525,7 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Main chart painter (handles both line and candles, markers, margins, patterns)
+/// Chart painter
 class _ChartPainter extends CustomPainter {
   final List<double> data;
   final List<Candle> candles;
@@ -475,6 +536,8 @@ class _ChartPainter extends CustomPainter {
   final List<double>? margins;
   final bool showMargins;
   final Map<int, String> patterns;
+  final List<double?> sma;
+  final List<double?> ema;
 
   _ChartPainter({
     required this.data,
@@ -486,6 +549,8 @@ class _ChartPainter extends CustomPainter {
     required this.margins,
     required this.showMargins,
     required this.patterns,
+    required this.sma,
+    required this.ema,
   });
 
   @override
@@ -496,37 +561,23 @@ class _ChartPainter extends CustomPainter {
       _paintLine(canvas, size);
     }
 
-    if (showMargins) {
-      _paintMargins(canvas, size);
-    }
-
-    // draw trade markers (entry/exit)
+    if (showMargins) _paintMargins(canvas, size);
     _paintTradeMarkers(canvas, size);
-    // draw pattern labels
     _paintPatterns(canvas, size);
+
+    // draw SMA/EMA on top of line (only meaningful in line mode)
+    if (!showCandles) _paintSMAEMA(canvas, size);
   }
 
   void _paintMargins(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..color = Colors.orange.withOpacity(0.6);
-
+    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = 1.0..color = Colors.orange.withOpacity(0.6);
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
-    final visibleRange = _getVisiblePriceRange();
-
-    final levels = margins ?? [visibleRange['min']!, visibleRange['max']!];
-
+    final visible = _getVisibleRange();
+    final levels = margins ?? [visible['min']!, visible['max']!];
     for (final lvl in levels) {
       final y = _priceToY(lvl, size);
-      // dashed line
       _drawDashedLine(canvas, Offset(0, y), Offset(size.width, y), paint, dash: 6, gap: 4);
-
-      // label
-      textPainter.text = TextSpan(
-        text: lvl.toStringAsFixed(5),
-        style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold),
-      );
+      textPainter.text = TextSpan(text: lvl.toStringAsFixed(5), style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold));
       textPainter.layout();
       textPainter.paint(canvas, Offset(6, y - textPainter.height - 4));
     }
@@ -534,8 +585,8 @@ class _ChartPainter extends CustomPainter {
 
   void _paintLine(Canvas canvas, Size size) {
     if (data.isEmpty) return;
-    final minPrice = data.reduce(math.min);
-    final maxPrice = data.reduce(math.max);
+    var minPrice = data.reduce(math.min);
+    var maxPrice = data.reduce(math.max);
     var range = maxPrice - minPrice;
     if (range == 0) range = minPrice * 0.01 + 1;
 
@@ -553,25 +604,16 @@ class _ChartPainter extends CustomPainter {
     }
 
     // gradient fill
-    final fillPath = Path();
-    fillPath.moveTo(points.first.dx, size.height);
+    final fillPath = Path()..moveTo(points.first.dx, size.height);
     for (final p in points) fillPath.lineTo(p.dx, p.dy);
     fillPath.lineTo(points.last.dx, size.height);
     fillPath.close();
 
-    final grad = LinearGradient(
-      colors: [(isRising ? AppColors.success : AppColors.error).withOpacity(0.25), Colors.transparent],
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-    );
-
-    final shaderRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paintFill = Paint()..shader = grad.createShader(shaderRect);
-    canvas.drawPath(fillPath, paintFill);
+    final grad = LinearGradient(colors: [AppColors.primary.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter);
+    canvas.drawPath(fillPath, Paint()..shader = grad.createShader(Rect.fromLTWH(0, 0, size.width, size.height)));
 
     // smooth path
-    final path = Path();
-    path.moveTo(points.first.dx, points.first.dy);
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
     for (int i = 1; i < points.length; i++) {
       final p0 = points[i - 1];
       final p1 = points[i];
@@ -583,53 +625,108 @@ class _ChartPainter extends CustomPainter {
     }
 
     // shadow stroke
-    final shadowPaint = Paint()
-      ..color = (isRising ? AppColors.success : AppColors.error).withOpacity(0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6);
-
-    canvas.drawPath(path, shadowPaint);
+    canvas.drawPath(path, Paint()..color = AppColors.primary.withOpacity(0.12)..style = PaintingStyle.stroke..strokeWidth = 6..maskFilter = MaskFilter.blur(BlurStyle.normal, 6));
 
     // main stroke
-    final mainPaint = Paint()
-      ..color = isRising ? AppColors.success : AppColors.error
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawPath(path, mainPaint);
+    canvas.drawPath(path, Paint()..color = AppColors.primary..style = PaintingStyle.stroke..strokeWidth = 2.2..strokeCap = StrokeCap.round);
 
     // last point pulse
     final last = points.last;
     final pulse = 6.0 + math.sin(animation * math.pi * 2) * 2;
-    final pulsePaint = Paint()..color = (isRising ? AppColors.success : AppColors.error).withOpacity(0.25);
-    canvas.drawCircle(last, pulse, pulsePaint);
-
-    final dotPaint = Paint()..color = (isRising ? AppColors.success : AppColors.error);
-    canvas.drawCircle(last, 4, dotPaint);
+    canvas.drawCircle(last, pulse, Paint()..color = AppColors.primary.withOpacity(0.18));
+    canvas.drawCircle(last, 4, Paint()..color = AppColors.primary);
     canvas.drawCircle(last, 2, Paint()..color = Colors.white);
+  }
+
+  void _paintSMAEMA(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+    final visible = _getVisibleRange();
+    double minPrice = visible['min']!;
+    double maxPrice = visible['max']!;
+    double range = maxPrice - minPrice;
+    if (range == 0) range = minPrice * 0.01 + 1;
+
+    final padding = 36.0;
+    final chartW = size.width - padding * 2;
+    final chartH = size.height - padding * 2;
+    final stepX = chartW / (data.length - 1);
+
+    // draw SMA
+    final smaPoints = <Offset>[];
+    for (int i = 0; i < sma.length; i++) {
+      final v = sma[i];
+      if (v == null) {
+        smaPoints.add(Offset(padding + i * stepX, padding + chartH)); // placeholder off-chart
+      } else {
+        final y = padding + chartH - ((v - minPrice) / range) * chartH;
+        smaPoints.add(Offset(padding + i * stepX, y));
+      }
+    }
+    // SMA stroke
+    final pSMA = Paint()..color = Colors.yellowAccent.withOpacity(0.95)..style = PaintingStyle.stroke..strokeWidth = 1.6;
+    final pathSMA = Path();
+    bool started = false;
+    for (int i = 0; i < smaPoints.length; i++) {
+      final pt = smaPoints[i];
+      if (sma[i] == null) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        pathSMA.moveTo(pt.dx, pt.dy);
+        started = true;
+      } else {
+        pathSMA.lineTo(pt.dx, pt.dy);
+      }
+    }
+    canvas.drawPath(pathSMA, pSMA);
+
+    // draw EMA
+    final emaPoints = <Offset>[];
+    for (int i = 0; i < ema.length; i++) {
+      final v = ema[i];
+      if (v == null) {
+        emaPoints.add(Offset(padding + i * stepX, padding + chartH));
+      } else {
+        final y = padding + chartH - ((v - minPrice) / range) * chartH;
+        emaPoints.add(Offset(padding + i * stepX, y));
+      }
+    }
+    final pEMA = Paint()..color = Colors.purpleAccent.withOpacity(0.95)..style = PaintingStyle.stroke..strokeWidth = 1.6;
+    final pathEMA = Path();
+    started = false;
+    for (int i = 0; i < emaPoints.length; i++) {
+      final pt = emaPoints[i];
+      if (ema[i] == null) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        pathEMA.moveTo(pt.dx, pt.dy);
+        started = true;
+      } else {
+        pathEMA.lineTo(pt.dx, pt.dy);
+      }
+    }
+    canvas.drawPath(pathEMA, pEMA);
   }
 
   void _paintCandles(Canvas canvas, Size size) {
     if (candles.isEmpty) return;
-
-    // compute visible range (min/max among candles in view)
-    final visibleCandles = candles;
-    double minPrice = visibleCandles.map((c) => c.low).reduce(math.min);
-    double maxPrice = visibleCandles.map((c) => c.high).reduce(math.max);
+    final visible = candles;
+    double minPrice = visible.map((c) => c.low).reduce(math.min);
+    double maxPrice = visible.map((c) => c.high).reduce(math.max);
     double range = maxPrice - minPrice;
     if (range == 0) range = maxPrice * 0.01 + 1;
 
     final padding = 36.0;
     final chartW = size.width - padding * 2;
     final chartH = size.height - padding * 2;
-    final stepX = chartW / visibleCandles.length;
-
+    final stepX = chartW / visible.length;
     final candleWidth = math.max(4.0, stepX * 0.6);
 
-    for (int i = 0; i < visibleCandles.length; i++) {
-      final c = visibleCandles[i];
+    for (int i = 0; i < visible.length; i++) {
+      final c = visible[i];
       final cx = padding + i * stepX + stepX / 2;
       final openY = padding + chartH - ((c.open - minPrice) / range) * chartH;
       final closeY = padding + chartH - ((c.close - minPrice) / range) * chartH;
@@ -640,20 +737,12 @@ class _ChartPainter extends CustomPainter {
       final bodyTop = math.min(openY, closeY);
       final bodyBottom = math.max(openY, closeY);
 
-      // wick
-      final wickPaint = Paint()
-        ..color = isBull ? AppColors.success.withOpacity(0.9) : AppColors.error.withOpacity(0.9)
-        ..strokeWidth = 1.2;
+      final wickPaint = Paint()..color = isBull ? AppColors.success.withOpacity(0.9) : AppColors.error.withOpacity(0.9)..strokeWidth = 1.2;
       canvas.drawLine(Offset(cx, highY), Offset(cx, lowY), wickPaint);
 
-      // body
       final bodyRect = Rect.fromLTRB(cx - candleWidth / 2, bodyTop, cx + candleWidth / 2, bodyBottom);
-      final bodyPaint = Paint()
-        ..color = isBull ? AppColors.success : AppColors.error
-        ..style = PaintingStyle.fill;
+      final bodyPaint = Paint()..color = isBull ? AppColors.success : AppColors.error..style = PaintingStyle.fill;
       canvas.drawRect(bodyRect, bodyPaint);
-
-      // border for body
       canvas.drawRect(bodyRect, Paint()..style = PaintingStyle.stroke..color = Colors.white.withOpacity(0.06)..strokeWidth = 0.6);
     }
   }
@@ -661,20 +750,20 @@ class _ChartPainter extends CustomPainter {
   void _paintTradeMarkers(Canvas canvas, Size size) {
     if (tradeHistory.isEmpty) return;
 
-    // Use the line mapping when possible; if candles shown, map price to Y similarly
-    final visibleRange = _getVisiblePriceRange();
-    final minPrice = visibleRange['min']!;
-    final maxPrice = visibleRange['max']!;
-    double range = maxPrice - minPrice;
+    final visible = data.isNotEmpty ? data : candles.map((c) => c.close).toList();
+    if (visible.isEmpty) return;
+    final visRange = _getVisibleRange();
+    final minPrice = visRange['min']!;
+    final maxPrice = visRange['max']!;
+    var range = maxPrice - minPrice;
     if (range == 0) range = minPrice * 0.01 + 1;
 
     final padding = 36.0;
     final chartW = size.width - padding * 2;
     final chartH = size.height - padding * 2;
+    final stepX = chartW / (visible.length - 1);
 
-    // We'll map entry price position to X by finding nearest index in data if available,
-    // else just draw a small horizontal marker at the price level.
-    for (final trade in tradeHistory.take(50)) {
+    for (final trade in tradeHistory.take(60)) {
       final entry = (trade['entryTick'] is num) ? (trade['entryTick'] as num).toDouble() : null;
       final exit = (trade['exitTick'] is num) ? (trade['exitTick'] as num).toDouble() : null;
       final status = trade['status']?.toString() ?? '';
@@ -682,17 +771,9 @@ class _ChartPainter extends CustomPainter {
 
       if (entry != null) {
         final y = padding + chartH - ((entry - minPrice) / range) * chartH;
-        // find closest x index in data by price difference
-        int idx = _findClosestIndexForPrice(entry, data);
-        double x;
-        if (idx >= 0 && data.isNotEmpty) {
-          final stepX = chartW / (data.length - 1);
-          x = padding + idx * stepX;
-        } else {
-          x = padding + chartW * 0.1; // fallback
-        }
+        final idx = _findClosestIndexForPrice(entry, visible);
+        final x = (idx >= 0) ? (padding + idx * stepX) : (padding + chartW * 0.1);
 
-        // draw entry marker (triangle pointing up)
         final path = Path();
         path.moveTo(x, y - 8);
         path.lineTo(x - 6, y + 6);
@@ -701,27 +782,21 @@ class _ChartPainter extends CustomPainter {
         canvas.drawPath(path, Paint()..color = Colors.blueAccent.withOpacity(0.95));
         canvas.drawPath(path, Paint()..style = PaintingStyle.stroke..color = Colors.white..strokeWidth = 1);
 
-        // small label
         final tp = TextPainter(textDirection: TextDirection.ltr);
-        tp.text = TextSpan(
-            text: 'E',
-            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold));
+        tp.text = TextSpan(text: 'E', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold));
         tp.layout();
         tp.paint(canvas, Offset(x - tp.width / 2, y - 22));
+
+        // horizontal guide line
+        final pPaint = Paint()..color = Colors.blueAccent.withOpacity(0.18)..strokeWidth = 1.0;
+        _drawDashedLine(canvas, Offset(padding, y), Offset(size.width - padding, y), pPaint, dash: 4, gap: 4);
       }
 
       if (exit != null) {
         final y2 = padding + chartH - ((exit - minPrice) / range) * chartH;
-        int idx2 = _findClosestIndexForPrice(exit, data);
-        double x2;
-        if (idx2 >= 0 && data.isNotEmpty) {
-          final stepX = chartW / (data.length - 1);
-          x2 = padding + idx2 * stepX;
-        } else {
-          x2 = padding + chartW * 0.9; // fallback
-        }
+        final idx2 = _findClosestIndexForPrice(exit, visible);
+        final x2 = (idx2 >= 0) ? (padding + idx2 * stepX) : (padding + chartW * 0.9);
 
-        // draw exit marker (triangle pointing down)
         final path2 = Path();
         path2.moveTo(x2, y2 + 8);
         path2.lineTo(x2 - 6, y2 - 6);
@@ -731,30 +806,19 @@ class _ChartPainter extends CustomPainter {
         canvas.drawPath(path2, Paint()..style = PaintingStyle.stroke..color = Colors.white..strokeWidth = 1);
 
         final tp2 = TextPainter(textDirection: TextDirection.ltr);
-        tp2.text = TextSpan(
-            text: isWin ? '+' : '-',
-            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold));
+        tp2.text = TextSpan(text: isWin ? '+' : '-', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold));
         tp2.layout();
         tp2.paint(canvas, Offset(x2 - tp2.width / 2, y2 + 8));
-      }
-
-      // also draw a tiny horizontal line at entry price across chart for context
-      if (entry != null) {
-        final py = padding + chartH - ((entry - minPrice) / range) * chartH;
-        final pPaint = Paint()..color = Colors.blueAccent.withOpacity(0.24)..strokeWidth = 1.0;
-        _drawDashedLine(canvas, Offset(padding, py), Offset(size.width - padding, py), pPaint, dash: 4, gap: 4);
       }
     }
   }
 
   void _paintPatterns(Canvas canvas, Size size) {
-    if (patterns.isEmpty) return;
-    // paint markers above candles where patterns detected
-    if (candles.isEmpty) return;
+    if (patterns.isEmpty || candles.isEmpty) return;
+
     final padding = 36.0;
     final chartW = size.width - padding * 2;
     final chartH = size.height - padding * 2;
-
     double minPrice = candles.map((c) => c.low).reduce(math.min);
     double maxPrice = candles.map((c) => c.high).reduce(math.max);
     double range = maxPrice - minPrice;
@@ -776,23 +840,18 @@ class _ChartPainter extends CustomPainter {
     });
   }
 
-  /// helper: get visible price range (from data or candles)
-  Map<String, double> _getVisiblePriceRange() {
+  Map<String, double> _getVisibleRange() {
     if (showCandles && candles.isNotEmpty) {
-      final minP = candles.map((c) => c.low).reduce(math.min);
-      final maxP = candles.map((c) => c.high).reduce(math.max);
-      return {'min': minP, 'max': maxP};
+      return {'min': candles.map((c) => c.low).reduce(math.min), 'max': candles.map((c) => c.high).reduce(math.max)};
     }
     if (data.isNotEmpty) {
-      final minP = data.reduce(math.min);
-      final maxP = data.reduce(math.max);
-      return {'min': minP, 'max': maxP};
+      return {'min': data.reduce(math.min), 'max': data.reduce(math.max)};
     }
     return {'min': 0.0, 'max': 1.0};
   }
 
   double _priceToY(double price, Size size) {
-    final rng = _getVisiblePriceRange();
+    final rng = _getVisibleRange();
     final minP = rng['min']!;
     final maxP = rng['max']!;
     double range = maxP - minP;
@@ -821,11 +880,11 @@ class _ChartPainter extends CustomPainter {
     final dx = b.dx - a.dx;
     final dy = b.dy - a.dy;
     final dist = math.sqrt(dx * dx + dy * dy);
-    final dashCount = (dist / (dash + gap)).floor();
+    if (dist == 0) return;
     final vx = dx / dist;
     final vy = dy / dist;
-    var start = 0.0;
-    for (int i = 0; i < dashCount; i++) {
+    double start = 0.0;
+    while (start < dist) {
       final sx = a.dx + vx * start;
       final sy = a.dy + vy * start;
       final ex = a.dx + vx * (start + dash);
@@ -844,6 +903,8 @@ class _ChartPainter extends CustomPainter {
         oldDelegate.tradeHistory.length != tradeHistory.length ||
         oldDelegate.margins != margins ||
         oldDelegate.showMargins != showMargins ||
-        oldDelegate.patterns.length != patterns.length;
+        oldDelegate.patterns.length != patterns.length ||
+        oldDelegate.sma != sma ||
+        oldDelegate.ema != ema;
   }
 }
