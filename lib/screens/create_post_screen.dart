@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
