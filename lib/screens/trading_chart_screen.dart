@@ -1187,8 +1187,7 @@ class _TradingChartScreenState extends State<TradingChartScreen> with TickerProv
                     SizedBox(height: 16),
                     _buildCustomParameter(
                         'Multiplicador Martingale', _martingaleMultiplier, 1.5, 5.0, (v) => setState(() => _martingaleMultiplier = v)),
-                    _buildCustomParameter('Incremento D\\'Alembert', _dalembertIncrement, 0.1, 2.0,
-                        (v) => setState(() => _dalembertIncrement = v)),
+                    _buildCustomParameter("Incremento D'Alembert", _dalembertIncrement, 0.1, 2.0, (v) => setState(() => _dalembertIncrement = v)),
                     _buildCustomParameter('Máx. Perdas Consecutivas', _maxConsecutiveLosses.toDouble(), 3, 10,
                         (v) => setState(() => _maxConsecutiveLosses = v.toInt()), isInt: true),
                     SizedBox(height: 16),
