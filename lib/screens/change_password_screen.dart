@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 import 'forgot_password_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -66,7 +67,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       await user.updatePassword(_newPasswordController.text);
 
       setState(() => _isLoading = false);
-      
+
       AppDialogs.showSuccess(
         context,
         'Sucesso!',
