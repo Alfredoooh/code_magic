@@ -1,8 +1,8 @@
-// lib/screens/feedback_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_ui_components.dart';
+import '../widgets/app_colors.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final String currentLocale;
