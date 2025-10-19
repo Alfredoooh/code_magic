@@ -13,9 +13,11 @@ class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
   final List<NewsArticle>? allArticles;
   final int? currentIndex;
+  final bool isDark;
 
   const NewsDetailScreen({
     required this.article,
+    required this.isDark,
     this.allArticles,
     this.currentIndex,
     Key? key,
@@ -256,7 +258,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = widget.isDark;
     final hasMultipleArticles = articles.length > 1;
 
     return Scaffold(
