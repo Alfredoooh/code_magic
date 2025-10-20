@@ -1,6 +1,7 @@
-name: madeeasy
-description: Chat app com Firebase
+name: deriv_trading
+description: App de trading conectado à Deriv com automação de bots
 publish_to: 'none'
+
 version: 1.0.0+1
 
 environment:
@@ -9,56 +10,43 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # UI & Visualização
-  palette_generator: ^0.3.3+2  # ATENÇÃO: esse pacote está planejado para descontinuação. 0
-  fl_chart: ^1.1.1             # versão estável recente. 1
-  cupertino_icons: ^1.0.8
-
-  # Compartilhamento & Social
-  share_plus: ^7.2.1
-
-  # Data & Tempo
-  timeago: ^3.5.0
-
-  # Imagens & Câmera
-  image_picker: ^1.0.4
-
-  # Storage Local
-  path_provider: ^2.1.0
-  shared_preferences: ^2.2.2
-  flutter_secure_storage: ^8.0.0
-
-  # Firebase – Core (OBRIGATÓRIO)
-  firebase_core: ^4.2.0        # conforme pub.dev. 2
-
-  # Firebase – Autenticação
-  firebase_auth: ^6.1.1        # conforme BoM release notes. 3
-
-  # Firebase – Banco de Dados
-  cloud_firestore: ^6.0.3      # versão recente. 4
-  firebase_database: ^12.0.3   # conforme release notes. 5
-
-  # Networking
-  http: any
-  web_socket_channel: ^2.1.0
-
+  
+  # WebSocket para comunicação com Deriv API
+  web_socket_channel: ^2.4.0
+  
+  # WebView para renderizar gráficos HTML
+  webview_flutter: ^4.4.2
+  
   # State Management
   provider: ^6.1.1
-
-  # Web & URLs
-  url_launcher: ^6.3.1
-  webview_flutter: ^4.4.2
-  flutter_web_auth_2: ^4.1.0
+  
+  # Armazenamento local
+  shared_preferences: ^2.2.2
+  
+  # HTTP para requisições
+  http: ^1.1.2
+  
+  # Icons
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
+  
+  # Adicione assets se necessário
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
 
-  # Assets do app
-  assets:
-    - assets/icon/icon.png
+  # Fonts customizadas se necessário
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont-Regular.ttf
+  #       - asset: fonts/CustomFont-Bold.ttf
+  #         weight: 700
