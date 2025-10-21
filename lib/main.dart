@@ -35,8 +35,13 @@ class DerivTradingApp extends StatelessWidget {
 
 class MainScreen extends StatefulWidget {
   final String token;
+  final String? accountId; // Parâmetro opcional
   
-  const MainScreen({Key? key, required this.token}) : super(key: key);
+  const MainScreen({
+    Key? key, 
+    required this.token,
+    this.accountId, // Opcional
+  }) : super(key: key);
 
   @override
   State<MainScreen> createState() => _MainScreenState();
