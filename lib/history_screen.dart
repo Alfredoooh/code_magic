@@ -54,8 +54,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppStyles.iosBlue,
-          labelColor: AppStyles.iosBlue,
+          indicatorColor: AppStyles.blue,
+          labelColor: AppStyles.blue,
           unselectedLabelColor: AppStyles.textSecondary,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
@@ -135,7 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isWin 
-                  ? AppStyles.iosGreen.withOpacity(0.3) 
+                  ? AppStyles.green.withOpacity(0.3) 
                   : AppStyles.red.withOpacity(0.3),
               width: 1,
             ),
@@ -155,13 +155,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                       height: 52,
                       decoration: BoxDecoration(
                         color: isWin 
-                            ? AppStyles.iosGreen.withOpacity(0.15)
+                            ? AppStyles.green.withOpacity(0.15)
                             : AppStyles.red.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         isWin ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                        color: isWin ? AppStyles.iosGreen : AppStyles.red,
+                        color: isWin ? AppStyles.green : AppStyles.red,
                         size: 28,
                       ),
                     ),
@@ -182,7 +182,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                 ),
                                 decoration: BoxDecoration(
                                   color: trade['type'] == 'CALL'
-                                      ? AppStyles.iosGreen.withOpacity(0.2)
+                                      ? AppStyles.green.withOpacity(0.2)
                                       : AppStyles.red.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
@@ -190,7 +190,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                   trade['type'] as String,
                                   style: TextStyle(
                                     color: trade['type'] == 'CALL'
-                                        ? AppStyles.iosGreen
+                                        ? AppStyles.green
                                         : AppStyles.red,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -235,7 +235,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                         Text(
                           '${(trade['profit'] as double) >= 0 ? '+' : ''}\$${(trade['profit'] as double).toStringAsFixed(2)}',
                           style: TextStyle(
-                            color: isWin ? AppStyles.iosGreen : AppStyles.red,
+                            color: isWin ? AppStyles.green : AppStyles.red,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -248,14 +248,14 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           ),
                           decoration: BoxDecoration(
                             color: isWin 
-                                ? AppStyles.iosGreen.withOpacity(0.15)
+                                ? AppStyles.green.withOpacity(0.15)
                                 : AppStyles.red.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             isWin ? 'WIN' : 'LOSS',
                             style: TextStyle(
-                              color: isWin ? AppStyles.iosGreen : AppStyles.red,
+                              color: isWin ? AppStyles.green : AppStyles.red,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
@@ -311,13 +311,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   height: 48,
                   decoration: BoxDecoration(
                     color: isDeposit 
-                        ? AppStyles.iosGreen.withOpacity(0.15)
-                        : AppStyles.iosBlue.withOpacity(0.15),
+                        ? AppStyles.green.withOpacity(0.15)
+                        : AppStyles.blue.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     isDeposit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                    color: isDeposit ? AppStyles.iosGreen : AppStyles.iosBlue,
+                    color: isDeposit ? AppStyles.green : AppStyles.blue,
                     size: 24,
                   ),
                 ),
@@ -353,16 +353,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                         ),
                         decoration: BoxDecoration(
                           color: status == 'Concluído'
-                              ? AppStyles.iosGreen.withOpacity(0.15)
-                              : AppStyles.iosBlue.withOpacity(0.15),
+                              ? AppStyles.green.withOpacity(0.15)
+                              : AppStyles.blue.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           status,
                           style: TextStyle(
                             color: status == 'Concluído'
-                                ? AppStyles.iosGreen
-                                : AppStyles.iosBlue,
+                                ? AppStyles.green
+                                : AppStyles.blue,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -376,7 +376,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 Text(
                   '${isDeposit ? '+' : '-'}\$${(transaction['amount'] as double).toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: isDeposit ? AppStyles.iosGreen : AppStyles.textPrimary,
+                    color: isDeposit ? AppStyles.green : AppStyles.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
@@ -429,7 +429,21 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Fechar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppStyles.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Fechar',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
