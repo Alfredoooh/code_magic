@@ -1,5 +1,5 @@
-name: deriv_trading
-description: App de trading conectado à Deriv com automação de bots
+name: zoomtrade
+description:  This is the best third party deriv app to automate trading and trade
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -28,6 +28,9 @@ dependencies:
   
   # Icons
   cupertino_icons: ^1.0.6
+
+  flutter_web_auth_2: ^4.1.0
+  
 
 dev_dependencies:
   flutter_test:
