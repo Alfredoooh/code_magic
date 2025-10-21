@@ -196,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               onPressed: () => Navigator.of(context).pop(null),
               child: const Text(
                 'Cancelar',
-                style: TextStyle(color: AppStyles.iosRed),
+                style: TextStyle(color: Colors.red),
               ),
             ),
           ],
