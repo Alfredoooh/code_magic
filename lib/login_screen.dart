@@ -69,18 +69,40 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         throw Exception('Nenhuma conta encontrada');
       }
 
-      final firstAccount = accounts.first;
-      
-      if (!mounted) return;
-      
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => MainScreen(
-            token: firstAccount['token']!,
-            accountId: firstAccount['account'],
+      // Se houver múltiplas contas, mostra dialog para escolher
+      if (accounts.length > 1 && mounted) {
+        final selectedAccount = await _showAccountSelectionDialog(accounts);
+        if (selectedAccount == null) {
+          // Usuário cancelou a seleção
+          setState(() => _isLoading = false);
+          return;
+        }
+        
+        if (!mounted) return;
+        
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => MainScreen(
+              token: selectedAccount['token']!,
+              accountId: selectedAccount['account'],
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Apenas uma conta, usa ela diretamente
+        final firstAccount = accounts.first;
+        
+        if (!mounted) return;
+        
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => MainScreen(
+              token: firstAccount['token']!,
+              accountId: firstAccount['account'],
+            ),
+          ),
+        );
+      }
 
     } catch (e) {
       if (!mounted) return;
@@ -96,6 +118,91 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Mostra dialog para selecionar conta quando há múltiplas
+  Future<Map<String, String>?> _showAccountSelectionDialog(List<Map<String, String>> accounts) async {
+    return showDialog<Map<String, String>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppStyles.bgSecondary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Selecione sua conta',
+            style: TextStyle(
+              color: AppStyles.textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: accounts.length,
+              itemBuilder: (context, index) {
+                final account = accounts[index];
+                return Card(
+                  color: AppStyles.bgPrimary,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: AppStyles.border, width: 0.5),
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppStyles.iosBlue.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.account_circle,
+                        color: AppStyles.iosBlue,
+                      ),
+                    ),
+                    title: Text(
+                      account['account'] ?? '',
+                      style: const TextStyle(
+                        color: AppStyles.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      account['currency'] ?? 'USD',
+                      style: const TextStyle(
+                        color: AppStyles.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppStyles.textSecondary,
+                      size: 16,
+                    ),
+                    onTap: () => Navigator.of(context).pop(account),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: AppStyles.iosRed),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   List<Map<String, String>> _extractAccountsFromUrl(Uri uri) {
