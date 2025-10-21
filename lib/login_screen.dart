@@ -47,21 +47,39 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     setState(() => _isLoading = true);
 
     try {
-      // Adiciona timestamp para evitar cache e forçar novo login
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      // PASSO 1: FORÇAR LOGOUT PRIMEIRO
+      final logoutUrl = 'https://oauth.deriv.com/oauth2/sessions/logout';
       
+      try {
+        await FlutterWebAuth2.authenticate(
+          url: logoutUrl,
+          callbackUrlScheme: APP_SCHEME,
+          options: const FlutterWebAuth2Options(
+            preferEphemeral: true,
+            timeout: Duration(seconds: 5),
+          ),
+        );
+      } catch (e) {
+        // Ignora erro de logout (pode não estar logado)
+        print('Logout: $e');
+      }
+
+      // PASSO 2: Aguarda um pouco e depois faz login
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // PASSO 3: Faz o login COM prompt=login forçado
       final authUrl = Uri.https('oauth.deriv.com', '/oauth2/authorize', {
         'app_id': DERIV_APP_ID,
         'l': 'PT',
         'redirect_uri': REDIRECT_URL,
-        'state': timestamp, // Previne cache
+        'prompt': 'login', // FORÇA tela de login
       }).toString();
       
       final result = await FlutterWebAuth2.authenticate(
         url: authUrl,
         callbackUrlScheme: APP_SCHEME,
         options: const FlutterWebAuth2Options(
-          preferEphemeral: true, // CRÍTICO: Modo privado - sempre pede login
+          preferEphemeral: true,
         ),
       );
 
@@ -243,7 +261,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     setState(() => _isLoading = true);
 
-    // Simula validação (você pode adicionar verificação real da API aqui)
     await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
