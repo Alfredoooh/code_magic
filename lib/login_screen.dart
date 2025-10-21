@@ -42,23 +42,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
-  /// Login via OAuth2 com conta Deriv
+  /// Login via OAuth2 com conta Deriv - FORÇA LOGIN SEMPRE
   Future<void> _loginWithDeriv() async {
     setState(() => _isLoading = true);
 
     try {
+      // Adiciona timestamp para evitar cache e forçar novo login
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      
       final authUrl = Uri.https('oauth.deriv.com', '/oauth2/authorize', {
         'app_id': DERIV_APP_ID,
         'l': 'PT',
         'redirect_uri': REDIRECT_URL,
-        'prompt': 'login', // Força a tela de login
+        'state': timestamp, // Previne cache
       }).toString();
       
       final result = await FlutterWebAuth2.authenticate(
         url: authUrl,
         callbackUrlScheme: APP_SCHEME,
         options: const FlutterWebAuth2Options(
-          preferEphemeral: true, // Modo privado - não usa sessões anteriores
+          preferEphemeral: true, // CRÍTICO: Modo privado - sempre pede login
         ),
       );
 
@@ -69,11 +72,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         throw Exception('Nenhuma conta encontrada');
       }
 
-      // Se houver múltiplas contas, mostra dialog para escolher
+      // Se houver múltiplas contas, mostra seleção
       if (accounts.length > 1 && mounted) {
         final selectedAccount = await _showAccountSelectionDialog(accounts);
         if (selectedAccount == null) {
-          // Usuário cancelou a seleção
           setState(() => _isLoading = false);
           return;
         }
@@ -89,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         );
       } else {
-        // Apenas uma conta, usa ela diretamente
+        // Usa a primeira conta
         final firstAccount = accounts.first;
         
         if (!mounted) return;
@@ -109,7 +111,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       
       String errorMessage = 'Erro ao conectar com Deriv';
       if (e.toString().contains('CANCELED')) {
-        errorMessage = 'Login cancelado';
+        errorMessage = 'Login cancelado pelo usuário';
+      } else if (e.toString().contains('AUTHENTICATION_FAILED')) {
+        errorMessage = 'Falha na autenticação. Verifique suas credenciais';
       }
       
       AppStyles.showSnackBar(context, errorMessage, isError: true);
@@ -120,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
-  /// Mostra dialog para selecionar conta quando há múltiplas
+  /// Dialog para selecionar conta quando há múltiplas
   Future<Map<String, String>?> _showAccountSelectionDialog(List<Map<String, String>> accounts) async {
     return showDialog<Map<String, String>>(
       context: context,
@@ -239,7 +243,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(seconds: 2));
+    // Simula validação (você pode adicionar verificação real da API aqui)
+    await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
 
@@ -267,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               children: [
                 const Spacer(),
                 
-                // Logo com imagem do assets
+                // Logo
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
@@ -303,7 +308,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 
                 const SizedBox(height: 32),
                 
-                // Título ZoomTrade
                 const Text(
                   'ZoomTrade',
                   style: TextStyle(
@@ -318,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 const SizedBox(height: 8),
                 
                 const Text(
-                  'Conecte-se com sua conta Deriv',
+                  'Faça login com sua conta Deriv',
                   style: TextStyle(
                     color: AppStyles.textSecondary,
                     fontSize: 17,
@@ -346,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           )
                         : const Text(
-                            'Entrar com Conta Deriv',
+                            'Login com Email/Senha Deriv',
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
@@ -430,7 +434,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 
                 const Spacer(flex: 2),
                 
-                // Informação do App ID
+                // Info
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -438,36 +442,49 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppStyles.border, width: 0.5),
                   ),
-                  child: Row(
+                  child: Column(
                     children: const [
-                      Icon(
-                        Icons.security_rounded,
-                        color: AppStyles.iosGreen,
-                        size: 20,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.security_rounded,
+                            color: AppStyles.iosGreen,
+                            size: 20,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Conexão Segura',
+                                  style: TextStyle(
+                                    color: AppStyles.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Seus dados são protegidos pela Deriv',
+                                  style: TextStyle(
+                                    color: AppStyles.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'App ID: 71954',
-                              style: TextStyle(
-                                color: AppStyles.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Conexão segura com Deriv',
-                              style: TextStyle(
-                                color: AppStyles.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                      SizedBox(height: 8),
+                      Text(
+                        'Não tem conta? Crie uma em deriv.com',
+                        style: TextStyle(
+                          color: AppStyles.textSecondary,
+                          fontSize: 11,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
