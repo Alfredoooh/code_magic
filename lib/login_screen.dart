@@ -51,11 +51,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         'app_id': DERIV_APP_ID,
         'l': 'PT',
         'redirect_uri': REDIRECT_URL,
+        'prompt': 'login', // Força a tela de login
       }).toString();
       
       final result = await FlutterWebAuth2.authenticate(
         url: authUrl,
         callbackUrlScheme: APP_SCHEME,
+        options: const FlutterWebAuth2Options(
+          preferEphemeral: true, // Modo privado - não usa sessões anteriores
+        ),
       );
 
       final uri = Uri.parse(result);
