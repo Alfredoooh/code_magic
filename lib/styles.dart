@@ -20,6 +20,10 @@ class AppStyles {
   static const Color red = Color(0xFFFF453A);
   static const Color yellow = Color(0xFFFFD60A);
   
+  // Aliases para compatibilidade
+  static const Color blue = iosBlue;
+  static const Color iosGreen = green;
+  
   // Temas
   static ThemeData get darkTheme => ThemeData(
     brightness: Brightness.dark,
