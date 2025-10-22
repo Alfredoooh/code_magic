@@ -21,15 +21,15 @@ dependencies:
   provider: ^6.1.1
   
   # Armazenamento local
-  shared_preferences: ^2.2.2
+  #shared_preferences: ^2.2.2
   
   # HTTP para requisições
-  http: ^1.1.2
+  #http: ^1.1.2
   
   # Icons
-  cupertino_icons: ^1.0.6
+  #cupertino_icons: ^1.0.6
 
-  flutter_web_auth_2: ^4.1.0
+  #flutter_web_auth_2: ^4.1.0
   
 
 dev_dependencies:
