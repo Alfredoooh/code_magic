@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'trade_screen.dart';
+import 'all_markets_screen.dart';
+import 'news_detail_screen.dart';
 
 class MarketsScreen extends StatefulWidget {
   final String token;
@@ -19,44 +21,96 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   WebSocketChannel? _channel;
   final Map<String, MarketData> _marketData = {};
   bool _isConnected = false;
+  final Set<String> _favorites = {};
+
+  // Top 5 mercados principais
+  final List<String> _topMarkets = ['R_100', 'BOOM1000', 'CRASH1000', '1HZ100V', 'STPRNG'];
 
   final Map<String, MarketInfo> _allMarkets = {
-    // Volatility Indices
-    'R_10': MarketInfo('Volatility 10 Index', 'https://alfredoooh.github.io/database/gallery/icons/v10.png'),
-    'R_25': MarketInfo('Volatility 25 Index', 'https://alfredoooh.github.io/database/gallery/icons/v25.png'),
-    'R_50': MarketInfo('Volatility 50 Index', 'https://alfredoooh.github.io/database/gallery/icons/v50.png'),
-    'R_75': MarketInfo('Volatility 75 Index', 'https://alfredoooh.github.io/database/gallery/icons/v75.png'),
-    'R_100': MarketInfo('Volatility 100 Index', 'https://alfredoooh.github.io/database/gallery/icons/v100.png'),
-    '1HZ10V': MarketInfo('Volatility 10 (1s) Index', 'https://alfredoooh.github.io/database/gallery/icons/v10-1s.png'),
-    '1HZ25V': MarketInfo('Volatility 25 (1s) Index', 'https://alfredoooh.github.io/database/gallery/icons/v25-1s.png'),
-    '1HZ50V': MarketInfo('Volatility 50 (1s) Index', 'https://alfredoooh.github.io/database/gallery/icons/v50-1s.png'),
-    '1HZ75V': MarketInfo('Volatility 75 (1s) Index', 'https://alfredoooh.github.io/database/gallery/icons/v75-1s.png'),
-    '1HZ100V': MarketInfo('Volatility 100 (1s) Index', 'https://alfredoooh.github.io/database/gallery/icons/v100-1s.png'),
-    
-    // Crash/Boom Indices
-    'BOOM300N': MarketInfo('Boom 300 Index', 'https://alfredoooh.github.io/database/gallery/icons/boom300.png'),
-    'BOOM500': MarketInfo('Boom 500 Index', 'https://alfredoooh.github.io/database/gallery/icons/boom500.png'),
-    'BOOM600N': MarketInfo('Boom 600 Index', 'https://alfredoooh.github.io/database/gallery/icons/boom600.png'),
-    'BOOM900': MarketInfo('Boom 900 Index', 'https://alfredoooh.github.io/database/gallery/icons/boom900.png'),
-    'BOOM1000': MarketInfo('Boom 1000 Index', 'https://alfredoooh.github.io/database/gallery/icons/boom1000.png'),
-    'CRASH300N': MarketInfo('Crash 300 Index', 'https://alfredoooh.github.io/database/gallery/icons/crash300.png'),
-    'CRASH500': MarketInfo('Crash 500 Index', 'https://alfredoooh.github.io/database/gallery/icons/crash500.png'),
-    'CRASH600N': MarketInfo('Crash 600 Index', 'https://alfredoooh.github.io/database/gallery/icons/crash600.png'),
-    'CRASH900': MarketInfo('Crash 900 Index', 'https://alfredoooh.github.io/database/gallery/icons/crash900.png'),
-    'CRASH1000': MarketInfo('Crash 1000 Index', 'https://alfredoooh.github.io/database/gallery/icons/crash1000.png'),
-    
-    // Step Indices
-    'STPRNG': MarketInfo('Step Index', 'https://alfredoooh.github.io/database/gallery/icons/step.png'),
-    
-    // Jump Indices
-    'JD10': MarketInfo('Jump 10 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump10.png'),
-    'JD25': MarketInfo('Jump 25 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump25.png'),
-    'JD50': MarketInfo('Jump 50 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump50.png'),
-    'JD75': MarketInfo('Jump 75 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump75.png'),
-    'JD100': MarketInfo('Jump 100 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump100.png'),
-    'JD150': MarketInfo('Jump 150 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump150.png'),
-    'JD200': MarketInfo('Jump 200 Index', 'https://alfredoooh.github.io/database/gallery/icons/jump200.png'),
+    'R_10': MarketInfo('Volatility 10', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v10.png', 'Volatility'),
+    'R_25': MarketInfo('Volatility 25', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v25.png', 'Volatility'),
+    'R_50': MarketInfo('Volatility 50', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v50.png', 'Volatility'),
+    'R_75': MarketInfo('Volatility 75', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v75.png', 'Volatility'),
+    'R_100': MarketInfo('Volatility 100', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v100.png', 'Volatility'),
+    '1HZ10V': MarketInfo('Volatility 10 (1s)', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v10-1s.png', 'Volatility'),
+    '1HZ25V': MarketInfo('Volatility 25 (1s)', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v25-1s.png', 'Volatility'),
+    '1HZ50V': MarketInfo('Volatility 50 (1s)', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v50-1s.png', 'Volatility'),
+    '1HZ75V': MarketInfo('Volatility 75 (1s)', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v75-1s.png', 'Volatility'),
+    '1HZ100V': MarketInfo('Volatility 100 (1s)', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/v100-1s.png', 'Volatility'),
+    'BOOM300N': MarketInfo('Boom 300', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/boom300.png', 'Boom/Crash'),
+    'BOOM500': MarketInfo('Boom 500', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/boom500.png', 'Boom/Crash'),
+    'BOOM600N': MarketInfo('Boom 600', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/boom600.png', 'Boom/Crash'),
+    'BOOM900': MarketInfo('Boom 900', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/boom900.png', 'Boom/Crash'),
+    'BOOM1000': MarketInfo('Boom 1000', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/boom1000.png', 'Boom/Crash'),
+    'CRASH300N': MarketInfo('Crash 300', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/crash300.png', 'Boom/Crash'),
+    'CRASH500': MarketInfo('Crash 500', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/crash500.png', 'Boom/Crash'),
+    'CRASH600N': MarketInfo('Crash 600', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/crash600.png', 'Boom/Crash'),
+    'CRASH900': MarketInfo('Crash 900', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/crash900.png', 'Boom/Crash'),
+    'CRASH1000': MarketInfo('Crash 1000', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/crash1000.png', 'Boom/Crash'),
+    'STPRNG': MarketInfo('Step Index', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/step.png', 'Step'),
+    'JD10': MarketInfo('Jump 10', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/jump10.png', 'Jump'),
+    'JD25': MarketInfo('Jump 25', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/jump25.png', 'Jump'),
+    'JD50': MarketInfo('Jump 50', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/jump50.png', 'Jump'),
+    'JD75': MarketInfo('Jump 75', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/jump75.png', 'Jump'),
+    'JD100': MarketInfo('Jump 100', 'https://raw.githubusercontent.com/alfredoooh/database/main/gallery/icons/jump100.png', 'Jump'),
   };
+
+  final List<NewsItem> _newsItems = [
+    NewsItem(
+      title: 'Bitcoin Atinge Nova Máxima Histórica',
+      summary: 'BTC ultrapassa \$95,000 em meio a otimismo institucional',
+      source: 'CoinDesk',
+      favicon: 'https://www.coindesk.com/favicon.ico',
+      time: '2h atrás',
+      url: 'https://www.coindesk.com',
+      category: 'Cripto',
+    ),
+    NewsItem(
+      title: 'Fed Mantém Taxa de Juros Inalterada',
+      summary: 'Decisão influencia mercados globais e volatilidade',
+      source: 'Bloomberg',
+      favicon: 'https://www.bloomberg.com/favicon.ico',
+      time: '4h atrás',
+      url: 'https://www.bloomberg.com',
+      category: 'Economia',
+    ),
+    NewsItem(
+      title: 'Ethereum 2.0: Próxima Atualização em Breve',
+      summary: 'Rede promete maior eficiência e menores taxas de gas',
+      source: 'CoinTelegraph',
+      favicon: 'https://cointelegraph.com/favicon.ico',
+      time: '5h atrás',
+      url: 'https://cointelegraph.com',
+      category: 'Cripto',
+    ),
+    NewsItem(
+      title: 'Mercados Asiáticos em Alta',
+      summary: 'Índices sobem com dados positivos de manufatura',
+      source: 'Reuters',
+      favicon: 'https://www.reuters.com/favicon.ico',
+      time: '6h atrás',
+      url: 'https://www.reuters.com',
+      category: 'Mercados',
+    ),
+    NewsItem(
+      title: 'Altcoins Ganham Momentum',
+      summary: 'SOL, ADA e DOT lideram ganhos semanais',
+      source: 'CryptoNews',
+      favicon: 'https://cryptonews.com/favicon.ico',
+      time: '8h atrás',
+      url: 'https://cryptonews.com',
+      category: 'Cripto',
+    ),
+    NewsItem(
+      title: 'Volatilidade Aumenta em Índices Sintéticos',
+      summary: 'Traders buscam oportunidades em mercados 24/7',
+      source: 'Deriv Blog',
+      favicon: 'https://deriv.com/favicon.ico',
+      time: '10h atrás',
+      url: 'https://blog.deriv.com',
+      category: 'Trading',
+    ),
+  ];
 
   @override
   bool get wantKeepAlive => true;
@@ -115,16 +169,33 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
         },
       );
 
-      // Subscribe to all markets
-      for (var symbol in _allMarkets.keys) {
-        _channel!.sink.add(json.encode({
-          'ticks': symbol,
-          'subscribe': 1,
-        }));
+      for (var symbol in _topMarkets) {
+        _channel!.sink.add(json.encode({'ticks': symbol, 'subscribe': 1}));
       }
     } catch (e) {
       setState(() => _isConnected = false);
     }
+  }
+
+  void _openAllMarkets() {
+    Navigator.of(context).push(
+      IOSSlideUpRoute(
+        builder: (context) => AllMarketsScreen(
+          token: widget.token,
+          allMarkets: _allMarkets,
+          marketData: _marketData,
+          channel: _channel,
+        ),
+      ),
+    );
+  }
+
+  void _openNewsDetail(NewsItem news) {
+    Navigator.of(context).push(
+      IOSSlideUpRoute(
+        builder: (context) => NewsDetailScreen(news: news),
+      ),
+    );
   }
 
   void _openMarket(String symbol) {
@@ -143,49 +214,134 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
     super.build(context);
     
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: _isConnected
-          ? RefreshIndicator(
-              onRefresh: () async {
-                _channel?.sink.close();
-                await Future.delayed(const Duration(milliseconds: 500));
-                _connectWebSocket();
-              },
-              color: const Color(0xFF0066FF),
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: _allMarkets.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final entry = _allMarkets.entries.elementAt(index);
-                  final symbol = entry.key;
-                  final info = entry.value;
-                  final data = _marketData[symbol];
-
-                  return _buildMarketCard(symbol, info, data);
-                },
-              ),
-            )
-          : Center(
+      backgroundColor: const Color(0xFF0A0A0A),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CupertinoActivityIndicator(
-                    color: Color(0xFF0066FF),
-                    radius: 16,
+                  _buildHeader(),
+                  const SizedBox(height: 20),
+                  _buildTopMarketsSection(),
+                  const SizedBox(height: 24),
+                  _buildNewsSection(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Mercados',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _isConnected ? const Color(0xFF00C896) : Colors.red,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Conectando aos mercados...',
-                    style: TextStyle(color: Colors.white54),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _isConnected ? 'Conectado' : 'Desconectado',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0066FF).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF0066FF)),
+            onPressed: () {},
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopMarketsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Top Mercados',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: _openAllMarkets,
+              child: Row(
+                children: [
+                  Text(
+                    'Ver Todos',
+                    style: TextStyle(
+                      color: const Color(0xFF0066FF),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Color(0xFF0066FF),
+                    size: 14,
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...(_topMarkets.map((symbol) {
+          final info = _allMarkets[symbol]!;
+          final data = _marketData[symbol];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildCompactMarketCard(symbol, info, data),
+          );
+        }).toList()),
+      ],
     );
   }
 
-  Widget _buildMarketCard(String symbol, MarketInfo info, MarketData? data) {
+  Widget _buildCompactMarketCard(String symbol, MarketInfo info, MarketData? data) {
     final isPositive = (data?.change ?? 0) >= 0;
     final color = isPositive ? const Color(0xFF00C896) : const Color(0xFFFF4444);
 
@@ -193,60 +349,37 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _openMarket(symbol),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: const Color(0xFF151515),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
           child: Row(
             children: [
-              // Ícone circular com imagem PNG
               Container(
-                width: 56,
-                height: 56,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: const Color(0xFF0066FF).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF0066FF).withOpacity(0.2),
-                    width: 2,
-                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.all(8),
-                child: ClipOval(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
                   child: Image.network(
                     info.iconUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        Icons.show_chart,
-                        color: const Color(0xFF0066FF),
-                        size: 28,
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CupertinoActivityIndicator(
-                          radius: 10,
-                          color: const Color(0xFF0066FF),
-                        ),
-                      );
-                    },
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.show_chart,
+                      color: Color(0xFF0066FF),
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,18 +388,15 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
                       info.name,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 4),
                     Text(
                       symbol,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -279,45 +409,172 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
                     data != null ? data.price.toStringAsFixed(2) : '--',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: color.withOpacity(0.3),
-                        width: 1,
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                        color: color,
+                        size: 18,
+                      ),
+                      Text(
+                        data != null ? '${data.change.abs().toStringAsFixed(2)}%' : '0.00%',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Notícias do Mercado',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ..._newsItems.map((news) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _buildNewsCard(news),
+        )).toList(),
+      ],
+    );
+  }
+
+  Widget _buildNewsCard(NewsItem news) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openNewsDetail(news),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF151515),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    news.favicon,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.article,
+                      color: Colors.white.withOpacity(0.3),
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0066FF).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        news.category,
+                        style: const TextStyle(
+                          color: Color(0xFF0066FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    const SizedBox(height: 6),
+                    Text(
+                      news.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      news.summary,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
                       children: [
-                        Icon(
-                          isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                          color: color,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          data != null
-                              ? '${data.change.abs().toStringAsFixed(2)}%'
-                              : '0.00%',
+                          news.source,
                           style: TextStyle(
-                            color: color,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          ' • ',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          news.time,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 11,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.white.withOpacity(0.3),
+                size: 20,
               ),
             ],
           ),
@@ -330,8 +587,9 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
 class MarketInfo {
   final String name;
   final String iconUrl;
+  final String category;
 
-  MarketInfo(this.name, this.iconUrl);
+  MarketInfo(this.name, this.iconUrl, this.category);
 }
 
 class MarketData {
@@ -339,14 +597,29 @@ class MarketData {
   final double change;
   final DateTime timestamp;
 
-  MarketData({
-    required this.price,
-    required this.change,
-    required this.timestamp,
+  MarketData({required this.price, required this.change, required this.timestamp});
+}
+
+class NewsItem {
+  final String title;
+  final String summary;
+  final String source;
+  final String favicon;
+  final String time;
+  final String url;
+  final String category;
+
+  NewsItem({
+    required this.title,
+    required this.summary,
+    required this.source,
+    required this.favicon,
+    required this.time,
+    required this.url,
+    required this.category,
   });
 }
 
-// Animação iOS Slide Up - Deslizar de baixo para cima
 class IOSSlideUpRoute extends PageRouteBuilder {
   final WidgetBuilder builder;
 
@@ -354,19 +627,11 @@ class IOSSlideUpRoute extends PageRouteBuilder {
       : super(
           pageBuilder: (context, animation, secondaryAnimation) => builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Curva de animação nativa do iOS
-            const curve = Curves.easeOutCubic;
-            var curvedAnimation = CurvedAnimation(
-              parent: animation,
-              curve: curve,
-            );
-
-            // Animação de deslizar de baixo para cima
             return SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(0.0, 1.0), // Começa embaixo
-                end: Offset.zero, // Termina na posição normal
-              ).animate(curvedAnimation),
+                begin: const Offset(0.0, 1.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
               child: child,
             );
           },
