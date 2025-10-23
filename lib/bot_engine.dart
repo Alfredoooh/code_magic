@@ -1,4 +1,4 @@
-// bot_engine.dart
+// bot_engine.dart (corrigido & melhorado)
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -62,40 +62,40 @@ class BotConfiguration {
   String contractType;
   int duration;
   String durationUnit;
-  
+
   // Configurações avançadas
   RecoveryMode recoveryMode;
   List<EntryCondition> entryConditions;
   List<ExitCondition> exitConditions;
-  
+
   // Limites de risco
   double maxStake;
   double maxLoss;
   double targetProfit;
   int maxConsecutiveLosses;
   int maxTrades;
-  
+
   // Configurações de temporização
   Duration minTimeBetweenTrades;
   Duration maxTradeDuration;
-  
+
   // Análise técnica
   bool useRSI;
   bool useMACD;
   bool useBollinger;
   bool useSupportResistance;
   bool usePatternRecognition;
-  
+
   // Gestão de banca
   double bankrollPercentage;
   bool compoundGains;
   bool resetAfterProfit;
   double resetProfitThreshold;
-  
+
   // ML e IA
   bool useMLPredictions;
   double mlConfidenceThreshold;
-  
+
   BotConfiguration({
     required this.name,
     required this.description,
@@ -133,7 +133,7 @@ class TradingBot {
   final BotConfiguration config;
   final WebSocketChannel channel;
   final Function(BotStatus) onStatusUpdate;
-  
+
   // Estado do bot
   bool isRunning = false;
   bool isPaused = false;
@@ -148,15 +148,16 @@ class TradingBot {
   int consecutiveLosses = 0;
   DateTime? lastTradeTime;
   DateTime? startTime;
-  
+
   // Dados de análise técnica
   List<double> priceHistory = [];
   List<double> rsiValues = [];
   double currentRSI = 50.0;
   double currentMACD = 0.0;
+  double previousMACD = 0.0;
   double supportLevel = 0.0;
   double resistanceLevel = 0.0;
-  
+
   // Estratégia específica
   List<int> fibonacciSequence = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55];
   int fibonacciIndex = 0;
@@ -166,12 +167,12 @@ class TradingBot {
   double oscarGrindUnit = 10.0;
   int oscarGrindTarget = 1;
   int paroliStreak = 0;
-  
+
   // Recuperação
   double recoveryTarget = 0.0;
   double recoveryStake = 0.0;
   bool inRecoveryMode = false;
-  
+
   // Performance tracking
   List<TradeRecord> tradeHistory = [];
   double maxDrawdown = 0.0;
@@ -179,16 +180,16 @@ class TradingBot {
   double avgWin = 0.0;
   double avgLoss = 0.0;
   double sharpeRatio = 0.0;
-  
+
   TradingBot({
     required this.config,
     required this.channel,
     required this.onStatusUpdate,
   }) : currentStake = config.initialStake;
-  
+
   void start() {
     if (isRunning) return;
-    
+
     isRunning = true;
     isPaused = false;
     startTime = DateTime.now();
@@ -196,12 +197,12 @@ class TradingBot {
     onStatusUpdate(_getStatus());
     _scheduleTrade();
   }
-  
+
   void pause() {
     isPaused = true;
     onStatusUpdate(_getStatus());
   }
-  
+
   void resume() {
     isPaused = false;
     onStatusUpdate(_getStatus());
@@ -209,14 +210,14 @@ class TradingBot {
       _scheduleTrade();
     }
   }
-  
+
   void stop() {
     isRunning = false;
     isPaused = false;
     currentContractId = null;
     onStatusUpdate(_getStatus());
   }
-  
+
   void reset() {
     totalTrades = 0;
     wins = 0;
@@ -229,10 +230,12 @@ class TradingBot {
     tradeHistory.clear();
     maxDrawdown = 0.0;
     peakProfit = 0.0;
+    avgWin = 0.0;
+    avgLoss = 0.0;
     _resetStrategy();
     onStatusUpdate(_getStatus());
   }
-  
+
   void _resetStrategy() {
     fibonacciIndex = 0;
     labouchereSequence = [1, 2, 3, 4];
@@ -242,25 +245,35 @@ class TradingBot {
     recoveryTarget = 0.0;
     inRecoveryMode = false;
   }
-  
+
   void updatePrice(double price) {
     priceHistory.add(price);
-    if (priceHistory.length > 500) {
+    if (priceHistory.length > 1000) {
       priceHistory.removeAt(0);
     }
-    
+
     if (priceHistory.length >= 14) {
       currentRSI = _calculateRSI();
+      rsiValues.add(currentRSI);
+      if (rsiValues.length > 500) rsiValues.removeAt(0);
     }
-    
+
+    if (priceHistory.length >= 26) {
+      // Atualizar MACD (simples)
+      final ema12 = _calculateEMA(priceHistory, 12);
+      final ema26 = _calculateEMA(priceHistory, 26);
+      previousMACD = currentMACD;
+      currentMACD = ema12 - ema26;
+    }
+
     if (priceHistory.length >= 50) {
       _updateSupportResistance();
     }
   }
-  
+
   Future<void> _scheduleTrade() async {
     if (!isRunning || isPaused || currentContractId != null) return;
-    
+
     // Verificar tempo mínimo entre trades
     if (lastTradeTime != null) {
       final timeSinceLast = DateTime.now().difference(lastTradeTime!);
@@ -268,32 +281,32 @@ class TradingBot {
         await Future.delayed(config.minTimeBetweenTrades - timeSinceLast);
       }
     }
-    
+
     // Verificar limites
     if (!_checkLimits()) {
       stop();
       return;
     }
-    
+
     // Verificar condições de entrada
     if (!await _checkEntryConditions()) {
       // Tentar novamente em 1 segundo
       await Future.delayed(const Duration(seconds: 1));
-      _scheduleTrade();
+      if (isRunning && !isPaused) _scheduleTrade();
       return;
     }
-    
+
     // Calcular stake
     _calculateStake();
-    
+
     // Executar trade
     _executeTrade();
   }
-  
+
   bool _checkLimits() {
     // Verificar perda máxima
     if (sessionProfit <= -config.maxLoss) return false;
-    
+
     // Verificar lucro alvo
     if (config.targetProfit > 0 && sessionProfit >= config.targetProfit) {
       if (config.resetAfterProfit) {
@@ -302,138 +315,139 @@ class TradingBot {
       }
       return false;
     }
-    
+
     // Verificar perdas consecutivas
     if (consecutiveLosses >= config.maxConsecutiveLosses) return false;
-    
+
     // Verificar número máximo de trades
     if (config.maxTrades > 0 && totalTrades >= config.maxTrades) return false;
-    
+
     // Verificar stake máximo
     if (currentStake > config.maxStake) return false;
-    
+
     return true;
   }
-  
+
   Future<bool> _checkEntryConditions() async {
     for (var condition in config.entryConditions) {
       switch (condition) {
         case EntryCondition.immediate:
           continue;
-          
+
         case EntryCondition.rsiOversold:
           if (currentRSI > 30) return false;
           break;
-          
+
         case EntryCondition.rsiOverbought:
           if (currentRSI < 70) return false;
           break;
-          
+
         case EntryCondition.macdCross:
           if (!_detectMACDCross()) return false;
           break;
-          
+
         case EntryCondition.bollingerBreak:
           if (!_detectBollingerBreak()) return false;
           break;
-          
+
         case EntryCondition.supportResistance:
           if (!_detectSupportResistanceTouch()) return false;
           break;
-          
+
         case EntryCondition.patternDetection:
           if (!_detectPattern()) return false;
           break;
-          
+
         case EntryCondition.priceAction:
           if (!_detectPriceAction()) return false;
           break;
-          
+
         case EntryCondition.volumeSpike:
           if (!_detectVolumeSpike()) return false;
           break;
-          
+
         case EntryCondition.trendConfirmation:
           if (!_detectTrend()) return false;
           break;
       }
     }
-    
+
     return true;
   }
-  
+
   void _calculateStake() {
     switch (config.strategy) {
       case BotStrategy.martingale:
         _calculateMartingaleStake();
         break;
-        
+
       case BotStrategy.fibonacci:
         _calculateFibonacciStake();
         break;
-        
+
       case BotStrategy.dalembert:
         _calculateDalembertStake();
         break;
-        
+
       case BotStrategy.labouchere:
         _calculateLabouchereStake();
         break;
-        
+
       case BotStrategy.oscarGrind:
         _calculateOscarGrindStake();
         break;
-        
+
       case BotStrategy.paroli:
         _calculateParoliStake();
         break;
-        
+
       case BotStrategy.antiMartingale:
         _calculateAntiMartingaleStake();
         break;
-        
+
       case BotStrategy.kellyFraction:
         _calculateKellyStake();
         break;
-        
+
       case BotStrategy.pinkham:
         _calculatePinkhamStake();
         break;
-        
+
       case BotStrategy.oneThreeTwoSix:
         _calculateOneThreeTwoSixStake();
         break;
-        
+
       case BotStrategy.percentage:
         _calculatePercentageStake();
         break;
-        
+
       case BotStrategy.compound:
         _calculateCompoundStake();
         break;
-        
+
       case BotStrategy.recovery:
         _calculateRecoveryStake();
         break;
-        
+
       case BotStrategy.adaptive:
         _calculateAdaptiveStake();
         break;
-        
+
       case BotStrategy.mlBased:
         _calculateMLStake();
         break;
     }
-    
+
     // Aplicar modo de recuperação
     if (inRecoveryMode) {
       _applyRecoveryMode();
     }
-    
+
     // Limitar stake
     currentStake = currentStake.clamp(config.initialStake, config.maxStake);
+    if (currentStake.isNaN || currentStake.isInfinite) currentStake = config.initialStake;
   }
-  
+
   void _calculateMartingaleStake() {
     if (consecutiveLosses > 0) {
       currentStake = config.initialStake * pow(2, consecutiveLosses).toDouble();
@@ -441,7 +455,7 @@ class TradingBot {
       currentStake = config.initialStake;
     }
   }
-  
+
   void _calculateFibonacciStake() {
     if (consecutiveLosses > 0) {
       fibonacciIndex = min(fibonacciIndex + 1, fibonacciSequence.length - 1);
@@ -450,7 +464,7 @@ class TradingBot {
     }
     currentStake = config.initialStake * fibonacciSequence[fibonacciIndex];
   }
-  
+
   void _calculateDalembertStake() {
     if (consecutiveLosses > 0) {
       dalembertStep++;
@@ -459,20 +473,20 @@ class TradingBot {
     }
     currentStake = dalembertUnit + (dalembertStep * dalembertUnit);
   }
-  
+
   void _calculateLabouchereStake() {
     if (labouchereSequence.isEmpty) {
       labouchereSequence = [1, 2, 3, 4];
     }
-    
+
     if (labouchereSequence.length == 1) {
       currentStake = config.initialStake * labouchereSequence[0];
     } else {
-      currentStake = config.initialStake * 
-        (labouchereSequence.first + labouchereSequence.last);
+      currentStake = config.initialStake *
+          (labouchereSequence.first + labouchereSequence.last);
     }
   }
-  
+
   void _calculateOscarGrindStake() {
     if (consecutiveWins > 0) {
       currentStake = oscarGrindUnit * oscarGrindTarget;
@@ -480,7 +494,7 @@ class TradingBot {
       currentStake = oscarGrindUnit;
     }
   }
-  
+
   void _calculateParoliStake() {
     if (consecutiveWins > 0 && consecutiveWins < 3) {
       currentStake = config.initialStake * pow(2, consecutiveWins).toDouble();
@@ -489,7 +503,7 @@ class TradingBot {
       paroliStreak = 0;
     }
   }
-  
+
   void _calculateAntiMartingaleStake() {
     if (consecutiveWins > 0) {
       currentStake = config.initialStake * pow(2, consecutiveWins).toDouble();
@@ -497,21 +511,21 @@ class TradingBot {
       currentStake = config.initialStake;
     }
   }
-  
+
   void _calculateKellyStake() {
     final winRate = wins / max(totalTrades, 1);
     final avgWinAmount = avgWin;
     final avgLossAmount = avgLoss.abs();
-    
-    if (avgLossAmount > 0) {
+
+    if (avgWinAmount > 0 && avgLossAmount > 0) {
       final kelly = (winRate * avgWinAmount - (1 - winRate) * avgLossAmount) / avgWinAmount;
-      final fraction = kelly * 0.25; // Quarter Kelly para segurança
-      currentStake = (config.initialStake * 100) * fraction.clamp(0.01, 0.1);
+      final fraction = (kelly * 0.25).clamp(0.01, 0.5); // Quarter Kelly para segurança
+      currentStake = (config.initialStake) * fraction;
     } else {
       currentStake = config.initialStake;
     }
   }
-  
+
   void _calculatePinkhamStake() {
     // Sistema de recuperação gradual
     if (sessionProfit < 0) {
@@ -521,45 +535,48 @@ class TradingBot {
       currentStake = config.initialStake;
     }
   }
-  
+
   void _calculateOneThreeTwoSixStake() {
     final sequence = [1, 3, 2, 6];
     final index = consecutiveWins % 4;
     currentStake = config.initialStake * sequence[index];
   }
-  
+
   void _calculatePercentageStake() {
-    final balance = config.initialStake * 50; // Simular balance
-    currentStake = balance * (config.bankrollPercentage / 100);
+    // Usar bankrollPercentage do config para calcular stake proporcional
+    // Não temos o balance real aqui; usa-se uma heurística: stake = initialStake * (bankroll% / 100)
+    currentStake = max(0.01, config.initialStake * (config.bankrollPercentage / 100));
   }
-  
+
   void _calculateCompoundStake() {
     if (config.compoundGains && sessionProfit > 0) {
-      currentStake = config.initialStake * (1 + sessionProfit / 100);
+      // compõe com cautela
+      final factor = 1 + (sessionProfit / max(config.initialStake, 1)) * 0.01;
+      currentStake = config.initialStake * factor;
     } else {
       currentStake = config.initialStake;
     }
   }
-  
+
   void _calculateRecoveryStake() {
     if (sessionProfit < 0) {
       inRecoveryMode = true;
       recoveryTarget = sessionProfit.abs();
-      
-      // Calcular stake necessário para recuperar
-      final payoutRatio = 0.95; // 95% de payout típico
-      recoveryStake = recoveryTarget / payoutRatio;
+
+      // Calcular stake necessário para recuperar (heurística)
+      final payoutRatio = 0.95;
+      recoveryStake = (recoveryTarget / max(0.01, payoutRatio)).clamp(config.initialStake, config.maxStake);
       currentStake = recoveryStake;
     } else {
       inRecoveryMode = false;
       currentStake = config.initialStake;
     }
   }
-  
+
   void _calculateAdaptiveStake() {
     // Ajustar baseado em performance recente
     final recentWinRate = _calculateRecentWinRate(20);
-    
+
     if (recentWinRate > 0.6) {
       currentStake = config.initialStake * 1.5;
     } else if (recentWinRate < 0.4) {
@@ -567,43 +584,42 @@ class TradingBot {
     } else {
       currentStake = config.initialStake;
     }
-    
+
     // Ajustar por volatilidade
     final volatility = _calculateVolatility();
     if (volatility > 0.02) {
       currentStake *= 0.8; // Reduzir em alta volatilidade
     }
   }
-  
+
   void _calculateMLStake() {
-    // Usar predições de ML para ajustar stake
-    // (Integração com MLPredictor seria necessária)
+    // Placeholder seguro: sem integração direta com MLPredictor, mantemos stake base.
     currentStake = config.initialStake;
   }
-  
+
   void _applyRecoveryMode() {
     switch (config.recoveryMode) {
       case RecoveryMode.none:
         break;
-        
+
       case RecoveryMode.conservative:
         if (consecutiveLosses >= 2) {
           currentStake = config.initialStake * 1.5;
         }
         break;
-        
+
       case RecoveryMode.moderate:
         if (consecutiveLosses >= 2) {
           currentStake = config.initialStake * pow(1.5, consecutiveLosses).toDouble();
         }
         break;
-        
+
       case RecoveryMode.aggressive:
         if (consecutiveLosses >= 1) {
           currentStake = config.initialStake * pow(2, consecutiveLosses).toDouble();
         }
         break;
-        
+
       case RecoveryMode.intelligent:
         if (sessionProfit < 0) {
           final lossAmount = sessionProfit.abs();
@@ -614,11 +630,11 @@ class TradingBot {
         break;
     }
   }
-  
+
   void _executeTrade() {
     lastTradeTime = DateTime.now();
-    
-    channel.sink.add(json.encode({
+
+    final payload = {
       'proposal': 1,
       'amount': currentStake,
       'basis': 'stake',
@@ -627,61 +643,79 @@ class TradingBot {
       'duration': config.duration,
       'duration_unit': config.durationUnit,
       'symbol': config.market,
-    }));
-    
+    };
+
+    try {
+      channel.sink.add(json.encode(payload));
+    } catch (e) {
+      // Falha em enviar: registar e prosseguir (não crashar)
+      print('Falha ao enviar proposta: $e');
+    }
+
     onStatusUpdate(_getStatus());
   }
-  
+
   void handleProposalResponse(String proposalId) {
-    channel.sink.add(json.encode({
-      'buy': proposalId,
-      'price': currentStake,
-    }));
+    try {
+      channel.sink.add(json.encode({
+        'buy': proposalId,
+        'price': currentStake,
+      }));
+    } catch (e) {
+      print('Falha ao enviar buy: $e');
+    }
   }
-  
+
   void handleBuyResponse(Map<String, dynamic> contract) {
     currentContractId = contract['contract_id'].toString();
     totalTrades++;
-    
+
     // Subscrever para atualizações
-    channel.sink.add(json.encode({
-      'proposal_open_contract': 1,
-      'contract_id': currentContractId,
-      'subscribe': 1,
-    }));
-    
+    try {
+      channel.sink.add(json.encode({
+        'proposal_open_contract': 1,
+        'contract_id': currentContractId,
+        'subscribe': 1,
+      }));
+    } catch (e) {
+      print('Falha ao subscrever contract updates: $e');
+    }
+
     onStatusUpdate(_getStatus());
   }
-  
+
   void handleContractUpdate(Map<String, dynamic> contract) {
     if (contract['contract_id'].toString() != currentContractId) return;
-    
+
     final status = contract['status'];
     if (status == 'won' || status == 'lost') {
       _handleTradeResult(contract);
     }
   }
-  
+
   void _handleTradeResult(Map<String, dynamic> contract) {
-    final profit = double.parse(contract['profit'].toString());
+    final profit = double.tryParse(contract['profit'].toString()) ?? 0.0;
     final won = contract['status'] == 'won';
-    
+
     totalProfit += profit;
     sessionProfit += profit;
-    
+
     // Atualizar estatísticas
     if (won) {
       wins++;
       consecutiveLosses = 0;
       consecutiveWins++;
-      avgWin = ((avgWin * (wins - 1)) + profit) / wins;
-      
+      avgWin = ((avgWin * (wins - 1)) + profit) / max(wins, 1);
+
       // Atualizar estratégias específicas
       if (config.strategy == BotStrategy.labouchere && labouchereSequence.length > 1) {
-        labouchereSequence.removeAt(0);
-        labouchereSequence.removeAt(labouchereSequence.length - 1);
+        // remover primeiro e último
+        if (labouchereSequence.length >= 2) {
+          labouchereSequence.removeAt(0);
+          if (labouchereSequence.isNotEmpty) labouchereSequence.removeLast();
+        }
       }
-      
+
       if (config.strategy == BotStrategy.oscarGrind) {
         oscarGrindTarget++;
       }
@@ -689,14 +723,15 @@ class TradingBot {
       losses++;
       consecutiveWins = 0;
       consecutiveLosses++;
-      avgLoss = ((avgLoss * (losses - 1)) + profit) / losses;
-      
+      avgLoss = ((avgLoss * (losses - 1)) + profit) / max(losses, 1);
+
       // Atualizar estratégias específicas
       if (config.strategy == BotStrategy.labouchere) {
-        labouchereSequence.add((labouchereSequence.last + 1).toInt());
+        final last = labouchereSequence.isNotEmpty ? labouchereSequence.last : 1.0;
+        labouchereSequence.add((last + 1).toDouble());
       }
     }
-    
+
     // Registrar trade
     tradeHistory.add(TradeRecord(
       timestamp: DateTime.now(),
@@ -706,7 +741,7 @@ class TradingBot {
       market: config.market,
       rsi: currentRSI,
     ));
-    
+
     // Atualizar drawdown
     if (sessionProfit > peakProfit) {
       peakProfit = sessionProfit;
@@ -715,46 +750,48 @@ class TradingBot {
     if (currentDrawdown > maxDrawdown) {
       maxDrawdown = currentDrawdown;
     }
-    
+
     // Verificar se saiu do modo de recuperação
     if (inRecoveryMode && sessionProfit >= 0) {
       inRecoveryMode = false;
       _resetStrategy();
     }
-    
+
     currentContractId = null;
     onStatusUpdate(_getStatus());
-    
+
     // Agendar próximo trade
     if (isRunning && !isPaused) {
       _scheduleTrade();
     }
   }
-  
+
   double _calculateRSI() {
-    if (priceHistory.length < 14) return 50.0;
-    
-    double gains = 0, losses = 0;
+    if (priceHistory.length < 15) return 50.0;
+
+    double gains = 0.0, lossesLocal = 0.0;
     for (int i = priceHistory.length - 14; i < priceHistory.length; i++) {
-      double change = priceHistory[i] - priceHistory[i - 1];
+      final change = priceHistory[i] - priceHistory[i - 1];
       if (change > 0) gains += change;
-      else losses -= change;
+      else lossesLocal += -change;
     }
-    
-    double avgGain = gains / 14;
-    double avgLoss = losses / 14;
-    
+
+    final avgGain = gains / 14;
+    final avgLoss = lossesLocal / 14;
+
+    if (avgGain == 0 && avgLoss == 0) return 50.0;
     if (avgLoss == 0) return 100.0;
-    double rs = avgGain / avgLoss;
-    return 100.0 - (100.0 / (1.0 + rs));
+    final rs = avgGain / avgLoss;
+    final rsi = 100.0 - (100.0 / (1.0 + rs));
+    return rsi.clamp(0.0, 100.0);
   }
-  
+
   void _updateSupportResistance() {
     final recent = priceHistory.sublist(max(0, priceHistory.length - 50));
-    
+
     List<double> localMins = [];
     List<double> localMaxs = [];
-    
+
     for (int i = 2; i < recent.length - 2; i++) {
       if (recent[i] < recent[i - 1] && recent[i] < recent[i + 1]) {
         localMins.add(recent[i]);
@@ -763,93 +800,141 @@ class TradingBot {
         localMaxs.add(recent[i]);
       }
     }
-    
-    if (localMins.isNotEmpty) supportLevel = localMins.reduce(max);
-    if (localMaxs.isNotEmpty) resistanceLevel = localMaxs.reduce(min);
+
+    if (localMins.isNotEmpty) supportLevel = localMins.reduce(min);
+    if (localMaxs.isNotEmpty) resistanceLevel = localMaxs.reduce(max);
   }
-  
+
   bool _detectMACDCross() {
-    // Implementação simplificada
-    return Random().nextDouble() > 0.5;
+    // Requer pelo menos 27 candles
+    if (priceHistory.length < 27) return false;
+
+    // Calcula MACD rápido (EMA12 - EMA26) e verifica cruzamento entre últimos dois pontos
+    final macdNow = currentMACD;
+    final macdPrev = previousMACD;
+
+    // Se já houver cruzamento de sinal (de negativo para positivo ou vice-versa), retorna true
+    // Queremos confirmação: cruzamento ascendente para sinal de compra
+    if (macdPrev < 0 && macdNow >= 0) {
+      return true;
+    }
+    return false;
   }
-  
+
   bool _detectBollingerBreak() {
     if (priceHistory.length < 20) return false;
-    
+
     final recent = priceHistory.sublist(priceHistory.length - 20);
-    final sma = recent.reduce((a, b) => a + b) / 20;
-    final variance = recent.map((p) => pow(p - sma, 2)).reduce((a, b) => a + b) / 20;
-    final stdDev = sqrt(variance);
-    
+    final sma = recent.reduce((a, b) => a + b) / recent.length;
+    final variance = recent.map((p) => pow(p - sma, 2)).reduce((a, b) => a + b) / recent.length;
+    final stdDev = sqrt(max(variance, 0.0));
+
     final upperBand = sma + (2 * stdDev);
     final lowerBand = sma - (2 * stdDev);
     final current = priceHistory.last;
-    
+
     return current > upperBand || current < lowerBand;
   }
-  
+
   bool _detectSupportResistanceTouch() {
     if (supportLevel == 0 || resistanceLevel == 0) return false;
-    
+
     final current = priceHistory.last;
-    final threshold = current * 0.001; // 0.1% threshold
-    
+    final threshold = current * 0.0015; // 0.15% threshold
+
     return (current - supportLevel).abs() < threshold ||
-           (current - resistanceLevel).abs() < threshold;
+        (current - resistanceLevel).abs() < threshold;
   }
-  
+
   bool _detectPattern() {
-    // Implementação simplificada de detecção de padrões
-    return Random().nextDouble() > 0.7;
+    // Detecta padrões simples: double top / double bottom (heurística)
+    if (priceHistory.length < 30) return false;
+    final recent = priceHistory.sublist(priceHistory.length - 30);
+
+    // encontrar picos e vales
+    final peaks = <double>[];
+    final bottoms = <double>[];
+
+    for (int i = 1; i < recent.length - 1; i++) {
+      if (recent[i] > recent[i - 1] && recent[i] > recent[i + 1]) peaks.add(recent[i]);
+      if (recent[i] < recent[i - 1] && recent[i] < recent[i + 1]) bottoms.add(recent[i]);
+    }
+
+    if (peaks.length >= 2) {
+      final last = peaks.last;
+      final prev = peaks[peaks.length - 2];
+      if ((last - prev).abs() / max(prev, 1) < 0.02) {
+        // double top aproximado
+        return true;
+      }
+    }
+
+    if (bottoms.length >= 2) {
+      final lastB = bottoms.last;
+      final prevB = bottoms[bottoms.length - 2];
+      if ((lastB - prevB).abs() / max(prevB, 1) < 0.02) {
+        // double bottom aproximado
+        return true;
+      }
+    }
+
+    return false;
   }
-  
+
   bool _detectPriceAction() {
     if (priceHistory.length < 5) return false;
-    
+
     final recent = priceHistory.sublist(priceHistory.length - 5);
-    int bullish = 0;
-    
+    int bullish = 0, bearish = 0;
+
     for (int i = 1; i < recent.length; i++) {
       if (recent[i] > recent[i - 1]) bullish++;
+      else if (recent[i] < recent[i - 1]) bearish++;
     }
-    
-    return bullish >= 3 || bullish <= 1; // Forte tendência em qualquer direção
+
+    // forte tendência
+    return bullish >= 4 || bearish >= 4;
   }
-  
+
   bool _detectVolumeSpike() {
-    // Implementação simplificada
-    return Random().nextDouble() > 0.8;
+    // Não temos volume; utilizamos proxy: mudança absoluta relativa em ticks recentes
+    if (priceHistory.length < 10) return false;
+    final recent = priceHistory.sublist(priceHistory.length - 10);
+    double mean = recent.reduce((a, b) => a + b) / recent.length;
+    final last = recent.last;
+    final percent = ((last - mean).abs() / max(mean, 1)) ;
+    // spike se última cotação estiver muito fora da média recente
+    return percent > 0.015; // >1.5% movimento relativo como proxy
   }
-  
+
   bool _detectTrend() {
     if (priceHistory.length < 20) return false;
-    
+
     final recent = priceHistory.sublist(priceHistory.length - 20);
-    final sma = recent.reduce((a, b) => a + b) / 20;
+    final sma = recent.reduce((a, b) => a + b) / recent.length;
     final current = priceHistory.last;
-    
-    return (current - sma).abs() / sma > 0.005; // Tendência de 0.5%
+
+    return (current - sma).abs() / sma > 0.005; // tendência de 0.5%
   }
-  
+
   double _calculateRecentWinRate(int trades) {
-    if (tradeHistory.length < trades) {
+    if (tradeHistory.isEmpty) {
       return wins / max(totalTrades, 1);
     }
-    
-    final recent = tradeHistory.sublist(tradeHistory.length - trades);
+    final take = min(trades, tradeHistory.length);
+    final recent = tradeHistory.sublist(tradeHistory.length - take);
     final recentWins = recent.where((t) => t.won).length;
-    return recentWins / trades;
+    return recentWins / max(take, 1);
   }
-  
+
   double _calculateVolatility() {
     if (priceHistory.length < 20) return 0.0;
-    
     final recent = priceHistory.sublist(priceHistory.length - 20);
-    final mean = recent.reduce((a, b) => a + b) / 20;
-    final variance = recent.map((p) => pow(p - mean, 2)).reduce((a, b) => a + b) / 20;
-    return sqrt(variance) / mean;
+    final mean = recent.reduce((a, b) => a + b) / recent.length;
+    final variance = recent.map((p) => pow(p - mean, 2)).reduce((a, b) => a + b) / recent.length;
+    return sqrt(max(variance, 0.0)) / max(mean, 1);
   }
-  
+
   BotStatus _getStatus() {
     return BotStatus(
       name: config.name,
@@ -873,6 +958,17 @@ class TradingBot {
       tradeHistory: tradeHistory,
     );
   }
+
+  // Helper: EMA (usado para MACD)
+  double _calculateEMA(List<double> prices, int period) {
+    if (prices.length < period) return prices.last;
+    final multiplier = 2.0 / (period + 1);
+    double ema = prices[prices.length - period];
+    for (int i = prices.length - period + 1; i < prices.length; i++) {
+      ema = (prices[i] - ema) * multiplier + ema;
+    }
+    return ema;
+  }
 }
 
 class TradeRecord {
@@ -882,7 +978,7 @@ class TradeRecord {
   final bool won;
   final String market;
   final double rsi;
-  
+
   TradeRecord({
     required this.timestamp,
     required this.stake,
@@ -913,7 +1009,7 @@ class BotStatus {
   final bool inRecoveryMode;
   final double recoveryTarget;
   final List<TradeRecord> tradeHistory;
-  
+
   BotStatus({
     required this.name,
     required this.isRunning,
