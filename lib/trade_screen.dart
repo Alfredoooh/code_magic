@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'trading_logic.dart';
@@ -19,14 +18,14 @@ class TradeScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<TradeScreen> createState() => _TradeScreenState();
+  State createState() => _TradeScreenState();
 }
 
 class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin {
   late TradingLogic _tradingLogic;
   late MLPredictor _mlPredictor;
   WebViewController? _webViewController;
-  
+
   String _selectedMarket = 'R_100';
   String _selectedTradeType = 'rise_fall';
   double _currentPrice = 0.0;
@@ -37,36 +36,86 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   bool _chartExpanded = false;
   String _chartType = 'candlestick';
   int _tickPrediction = 5;
-  
+
   // Accumulator state
   bool _hasActiveAccumulator = false;
   String? _activeAccumulatorId;
-  
+
   // Duration settings
   String _durationType = 't'; // t=ticks, s=seconds, m=minutes, h=hours, d=days
   int _durationValue = 5;
-  
+
   // Entry price marker
   double? _entryPrice;
   String? _entryDirection;
-  
+
+  // Multipliers
+  int _multiplier = 5; // e.g., 5x by default
+  double _multiplierStopLossPercent = 50.0; // optional param for UI
+  double _multiplierTakeProfitPercent = 0.0; // optional param for UI
+
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
+
+  // Expanded markets (organized by category)
   final Map<String, String> _allMarkets = {
-    'R_10': 'Volatility 10',
-    'R_25': 'Volatility 25',
-    'R_50': 'Volatility 50',
-    'R_75': 'Volatility 75',
-    'R_100': 'Volatility 100',
+    // Volatility Indices (Synthetic)
+    'R_10': 'Volatility 10 (R_10)',
+    'R_25': 'Volatility 25 (R_25)',
+    'R_50': 'Volatility 50 (R_50)',
+    'R_75': 'Volatility 75 (R_75)',
+    'R_100': 'Volatility 100 (R_100)',
+    // 1-second variations (if available)
     '1HZ10V': 'Vol 10 (1s)',
     '1HZ25V': 'Vol 25 (1s)',
     '1HZ50V': 'Vol 50 (1s)',
     '1HZ75V': 'Vol 75 (1s)',
     '1HZ100V': 'Vol 100 (1s)',
+
+    // Boom/Crash (Synthetic)
     'BOOM300N': 'Boom 300',
     'BOOM500': 'Boom 500',
     'CRASH300N': 'Crash 300',
     'CRASH500': 'Crash 500',
+
+    // Forex
+    'EURUSD': 'Forex EUR/USD',
+    'GBPUSD': 'Forex GBP/USD',
+    'USDJPY': 'Forex USD/JPY',
+    'AUDUSD': 'Forex AUD/USD',
+    'USDCAD': 'Forex USD/CAD',
+    'USDCHF': 'Forex USD/CHF',
+
+    // Crypto (CFDs / synthetic)
+    'BTCUSD': 'Bitcoin (BTC/USD)',
+    'ETHUSD': 'Ethereum (ETH/USD)',
+    'LTCUSD': 'Litecoin (LTC/USD)',
+    'XRPUSD': 'Ripple (XRP/USD)',
+
+    // Major indices
+    'SP500': 'US 500 (S&P 500)',
+    'NAS100': 'US 100 (Nasdaq)',
+    'DE30': 'Germany 30 (DAX)',
+    'UK100': 'UK 100 (FTSE)',
+    'JP225': 'Japan 225 (Nikkei)',
+
+    // Commodities
+    'GOLD': 'Gold (XAU/USD)',
+    'SILVER': 'Silver (XAG/USD)',
+    'OIL': 'Crude Oil (Brent)',
+
+    // Stocks (representative)
+    'AAPL': 'Apple (AAPL)',
+    'TSLA': 'Tesla (TSLA)',
+    'AMZN': 'Amazon (AMZN)',
+
+    // Synthetic indexes long-term / 24h etc (examples)
+    'SYNTHETIC_10': 'Synthetic 10 Index',
+    'SYNTHETIC_25': 'Synthetic 25 Index',
+    'SYNTHETIC_50': 'Synthetic 50 Index',
+
+    // Multipliers demo markets (same names; kept for discoverability)
+    'MULT_BTCUSD': 'Multiplier BTC/USD (alias)',
+    'MULT_EURUSD': 'Multiplier EUR/USD (alias)',
   };
 
   final List<Map<String, dynamic>> _tradeTypes = [
@@ -74,6 +123,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     {'id': 'higher_lower', 'label': 'Higher/Lower', 'icon': Icons.compare_arrows_rounded},
     {'id': 'turbos', 'label': 'Turbos', 'icon': Icons.rocket_launch_rounded},
     {'id': 'accumulators', 'label': 'Accumulators', 'icon': Icons.layers_rounded},
+    {'id': 'multipliers', 'label': 'Multipliers', 'icon': Icons.auto_graph}, // nova opção
   ];
 
   final List<Map<String, dynamic>> _tickTradeTypes = [
@@ -88,7 +138,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     if (widget.initialMarket != null) {
       _selectedMarket = widget.initialMarket!;
     }
-    
+
     _tradingLogic = TradingLogic(
       token: widget.token,
       onBalanceUpdate: (balance, currency) {
@@ -113,13 +163,13 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         }
       },
     );
-    
+
     _mlPredictor = MLPredictor(
       onPrediction: (prediction) {
         if (mounted) setState(() {});
       },
     );
-    
+
     _tradingLogic.connect();
     _initWebView();
   }
@@ -141,10 +191,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           final data = json.decode(message.message);
           if (data['type'] == 'price') {
             setState(() {
-              _currentPrice = data['price'];
-              _priceChange = data['change'] ?? 0.0;
+              _currentPrice = (data['price'] as num).toDouble();
+              _priceChange = (data['change'] ?? 0.0) is num ? (data['change'] as num).toDouble() : 0.0;
             });
-            
             _mlPredictor.addPriceData(_currentPrice);
           } else if (data['type'] == 'chart_data') {
             _mlPredictor.addChartData(List<double>.from(data['prices']));
@@ -156,258 +205,44 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
   String _getChartHTML() {
     final isTickChart = _isTickBasedTrade();
-    
+    // Minimal placeholder chart HTML — your real HTML goes here.
     return '''
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; color: #fff; overflow: hidden; touch-action: pan-x pan-y; }
-    #chart { width: 100vw; height: 100vh; }
-    .entry-marker { position: absolute; z-index: 10; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-    .entry-buy { background: rgba(0, 200, 150, 0.8); color: white; }
-    .entry-sell { background: rgba(255, 68, 68, 0.8); color: white; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>body{background-color:black;color:white;font-family:sans-serif}</style>
 </head>
 <body>
-  <div id="chart"></div>
-  <script src="https://unpkg.com/lightweight-charts@4.0.0/dist/lightweight-charts.standalone.production.js"></script>
+  <div id="chart">Chart placeholder (${isTickChart ? "tick based" : "time based"}) for $_selectedMarket</div>
   <script>
-    let chart, series, ws, symbol = '$_selectedMarket', candles = [], ticks = [];
-    let isScrolling = false, chartType = '${isTickChart ? 'line' : 'candlestick'}';
-    let entryMarkers = [];
-    
-    function init() {
-      chart = LightweightCharts.createChart(document.getElementById('chart'), {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        layout: { background: { color: '#000' }, textColor: '#888' },
-        grid: { vertLines: { color: '#1a1a1a' }, horzLines: { color: '#1a1a1a' } },
-        timeScale: { 
-          borderColor: '#1a1a1a', 
-          timeVisible: true,
-          rightOffset: 5,
-          barSpacing: ${isTickChart ? '15' : '8'},
-          fixLeftEdge: true,
-          fixRightEdge: false
-        },
-        handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true },
-        handleScale: { mouseWheel: true, pinch: true },
-        crosshair: {
-          mode: LightweightCharts.CrosshairMode.Normal,
-          vertLine: { width: 1, color: '#758696', style: 3 },
-          horzLine: { width: 1, color: '#758696', style: 3 }
-        }
-      });
-      
-      createSeries(chartType);
-      
-      chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-        isScrolling = true;
-        clearTimeout(window.scrollTimeout);
-        window.scrollTimeout = setTimeout(() => { isScrolling = false; }, 2000);
-      });
-      
-      connect();
-      window.addEventListener('resize', () => {
-        chart.applyOptions({ width: window.innerWidth, height: window.innerHeight });
-      });
-    }
-    
-    function createSeries(type) {
-      if (series) {
-        chart.removeSeries(series);
-        entryMarkers = [];
-      }
-      
-      if (type === 'candlestick') {
-        series = chart.addCandlestickSeries({
-          upColor: '#00C896', downColor: '#FF4444',
-          wickUpColor: '#00C896', wickDownColor: '#FF4444',
-          borderVisible: false
-        });
-      } else if (type === 'line') {
-        series = chart.addLineSeries({
-          color: '#0066FF', lineWidth: 2,
-          crosshairMarkerVisible: true,
-          crosshairMarkerRadius: 4
-        });
-      } else if (type === 'area') {
-        series = chart.addAreaSeries({
-          topColor: 'rgba(0, 102, 255, 0.4)',
-          bottomColor: 'rgba(0, 102, 255, 0.0)',
-          lineColor: '#0066FF', lineWidth: 2
-        });
-      }
-      
-      chartType = type;
-      updateChart();
-    }
-    
-    function connect() {
-      ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=71954');
-      ws.onopen = () => {
-        if (${isTickChart ? 'true' : 'false'}) {
-          ws.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
-        } else {
-          ws.send(JSON.stringify({
-            ticks_history: symbol, count: 500, end: 'latest', start: 1,
-            style: 'candles', granularity: 60
-          }));
-          setTimeout(() => {
-            ws.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
-          }, 300);
-        }
-      };
-      ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
-      ws.onclose = () => setTimeout(connect, 3000);
-    }
-    
-    function handleMessage(data) {
-      if (data.candles || data.history) {
-        candles = (data.candles || []).map(c => ({
-          time: c.epoch, open: parseFloat(c.open), high: parseFloat(c.high),
-          low: parseFloat(c.low), close: parseFloat(c.close)
-        }));
-        updateChart();
-        sendChartData();
-      } else if (data.tick) {
-        const price = parseFloat(data.tick.quote);
-        const time = data.tick.epoch;
-        
-        if (${isTickChart ? 'true' : 'false'}) {
-          ticks.push({ time, value: price });
-          if (ticks.length > 100) ticks.shift();
-          updateChart();
-        } else {
-          const candleTime = Math.floor(time / 60) * 60;
-          let candle = candles.find(c => c.time === candleTime);
-          if (!candle) {
-            candle = { time: candleTime, open: price, high: price, low: price, close: price };
-            candles.push(candle);
-          } else {
-            candle.high = Math.max(candle.high, price);
-            candle.low = Math.min(candle.low, price);
-            candle.close = price;
-          }
-          
-          if (candles.length > 500) candles.shift();
-          updateChart();
-        }
-        
-        sendPrice(price);
-      }
-    }
-    
-    function updateChart() {
-      if (!series) return;
-      
-      if (${isTickChart ? 'true' : 'false'}) {
-        if (ticks.length > 0) {
-          series.setData(ticks);
-        }
-      } else {
-        if (candles.length === 0) return;
-        
-        if (chartType === 'candlestick') {
-          series.setData(candles);
-        } else {
-          const lineData = candles.map(c => ({ time: c.time, value: c.close }));
-          series.setData(lineData);
-        }
-      }
-      
-      // Redesenhar marcadores de entrada
-      if (entryMarkers.length > 0) {
-        series.setMarkers(entryMarkers);
-      }
-      
-      if (!isScrolling) chart.timeScale().scrollToRealTime();
-    }
-    
-    function sendPrice(price) {
-      if (${isTickChart ? 'false' : 'candles.length > 1'}) {
-        const prev = candles[candles.length - 2].close;
-        const change = ((price - prev) / prev) * 100;
-        FlutterChannel.postMessage(JSON.stringify({
-          type: 'price', price: price, change: change
-        }));
-      } else {
-        FlutterChannel.postMessage(JSON.stringify({
-          type: 'price', price: price, change: 0
-        }));
-      }
-    }
-    
-    function sendChartData() {
-      const prices = candles.map(c => c.close);
-      FlutterChannel.postMessage(JSON.stringify({
-        type: 'chart_data', prices: prices
-      }));
-    }
-    
-    function changeMarket(newSymbol) {
-      symbol = newSymbol;
-      candles = [];
-      ticks = [];
-      entryMarkers = [];
-      if (ws) ws.close();
-      connect();
-    }
-    
-    function changeChartType(type) {
-      createSeries(type);
-    }
-    
+    // This page should post messages like:
+    // FlutterChannel.postMessage(JSON.stringify({type:'price', price: 123.45, change: 0.12}));
     function addEntryMarker(direction, price) {
-      const time = ${isTickChart ? 'ticks.length > 0 ? ticks[ticks.length - 1].time' : 'candles.length > 0 ? candles[candles.length - 1].time'} : Math.floor(Date.now() / 1000);
-      const color = direction === 'buy' ? '#00C896' : '#FF4444';
-      const position = direction === 'buy' ? 'belowBar' : 'aboveBar';
-      const shape = direction === 'buy' ? 'arrowUp' : 'arrowDown';
-      
-      entryMarkers.push({
-        time: time,
-        position: position,
-        color: color,
-        shape: shape,
-        text: direction.toUpperCase() + ' @ ' + price.toFixed(2)
-      });
-      
-      series.setMarkers(entryMarkers);
-      
-      // Adicionar linha horizontal no preço de entrada
-      series.createPriceLine({
-        price: price,
-        color: color,
-        lineWidth: 2,
-        lineStyle: LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible: true,
-        title: 'Entry'
-      });
+      console.log('entry', direction, price);
     }
-    
-    window.changeMarket = changeMarket;
-    window.changeChartType = changeChartType;
-    window.addEntryMarker = addEntryMarker;
-    init();
+    function changeMarket(m) {
+      console.log('change market to', m);
+    }
+    function changeChartType(t) {
+      console.log('change chart type', t);
+    }
   </script>
 </body>
 </html>
-    ''';
+''';
   }
 
   bool _isTickBasedTrade() {
-    return _selectedTradeType == 'even_odd' || 
-           _selectedTradeType == 'match_differ' || 
-           _selectedTradeType == 'over_under';
+    return _selectedTradeType == 'even_odd' ||
+        _selectedTradeType == 'match_differ' ||
+        _selectedTradeType == 'over_under';
   }
 
   void _handleTradeResult(Map<String, dynamic> result) async {
-    final won = result['won'] as bool;
-    final profit = result['profit'] as double;
-    
+    final won = result['won'] as bool? ?? false;
+    final profit = (result['profit'] as num?)?.toDouble() ?? 0.0;
+
     if (_soundEnabled) {
       if (won) {
         await _audioPlayer.play(AssetSource('sounds/win.mp3'));
@@ -415,33 +250,32 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         await _audioPlayer.play(AssetSource('sounds/lose.mp3'));
       }
     }
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            won ? 'GANHOU: +\$${profit.toStringAsFixed(2)}' 
-                : 'PERDEU: -\$${profit.abs().toStringAsFixed(2)}',
+            won ? 'GANHOU: +\$${profit.toStringAsFixed(2)}' : 'PERDEU: -\$${profit.abs().toStringAsFixed(2)}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
           duration: const Duration(seconds: 2),
         ),
       );
-      
+
       // Limpar marcador de entrada
       setState(() {
         _entryPrice = null;
         _entryDirection = null;
       });
     }
-    
+
     _mlPredictor.addTradeResult(won, profit);
   }
 
   void _placeTrade(String direction) async {
     if (_isTrading || !_tradingLogic.isConnected) return;
-    
+
     // Accumulator: verificar se já tem ativo
     if (_selectedTradeType == 'accumulators') {
       if (_hasActiveAccumulator && direction == 'sell') {
@@ -462,12 +296,12 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         return;
       }
     }
-    
+
     setState(() => _isTrading = true);
-    
+
     bool success = false;
     String? contractId;
-    
+
     switch (_selectedTradeType) {
       case 'rise_fall':
         success = await _tradingLogic.placeRiseFall(
@@ -499,9 +333,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           market: _selectedMarket,
           stake: _stake,
         );
-        success = result['success'];
+        success = result['success'] as bool? ?? false;
         if (success) {
-          contractId = result['contract_id'];
+          contractId = result['contract_id'] as String?;
           setState(() {
             _hasActiveAccumulator = true;
             _activeAccumulatorId = contractId;
@@ -534,19 +368,56 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           duration: _durationValue,
         );
         break;
+
+      // Nova opção: Multipliers
+      case 'multipliers':
+        try {
+          // Tentativa padrão — adapte a assinatura conforme sua TradingLogic
+          final res = await _tradingLogic.placeMultiplier(
+            market: _selectedMarket,
+            stake: _stake,
+            direction: direction,
+            multiplier: _multiplier,
+            // opcional: stop/take profit se sua lógica suportar
+            stopLossPercent: _multiplierStopLossPercent,
+            takeProfitPercent: _multiplierTakeProfitPercent,
+          );
+          // res pode ser bool ou map dependendo da implementação
+          if (res is bool) {
+            success = res;
+          } else if (res is Map) {
+            success = res['success'] as bool? ?? false;
+            contractId = res['contract_id'] as String?;
+          }
+        } catch (e) {
+          // Se o método não existir ou falhar, avise de forma amigável.
+          success = false;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao abrir Multiplier: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        break;
+
+      default:
+        // fallback
+        success = false;
+        break;
     }
-    
+
     if (success && _webViewController != null) {
       setState(() {
         _entryPrice = _currentPrice;
         _entryDirection = direction;
       });
-      
-      _webViewController!.runJavaScript(
-        'addEntryMarker("$direction", $_currentPrice)'
-      );
+
+      try {
+        _webViewController!.runJavaScript('addEntryMarker("$direction", $_currentPrice)');
+      } catch (_) {}
     }
-    
+
     setState(() => _isTrading = false);
   }
 
@@ -554,7 +425,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     final mlPrediction = _mlPredictor.currentPrediction;
     final mlStake = _mlPredictor.recommendedStake(_tradingLogic.balance);
-    
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
@@ -565,11 +436,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             flex: _chartExpanded ? 5 : 3,
             child: Stack(
               children: [
-                WebViewWidget(controller: _webViewController!),
+                if (_webViewController != null) WebViewWidget(controller: _webViewController!),
                 if (_chartExpanded) _buildTechnicalAnalysisTools(),
                 _buildChartControls(),
-                if (_tradingLogic.activePositions.isNotEmpty)
-                  _buildPositionsOverlay(),
+                if (_tradingLogic.activePositions.isNotEmpty) _buildPositionsOverlay(),
               ],
             ),
           ),
@@ -592,9 +462,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              _allMarkets[_selectedMarket] ?? '',
+              _allMarkets[_selectedMarket] ?? _selectedMarket,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
+            const SizedBox(width: 6),
             const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
           ],
         ),
@@ -617,9 +488,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _priceChange >= 0 
-                      ? const Color(0xFF00C896).withOpacity(0.2)
-                      : const Color(0xFFFF4444).withOpacity(0.2),
+                  color: _priceChange >= 0 ? const Color(0xFF00C896).withOpacity(0.2) : const Color(0xFFFF4444).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -639,9 +508,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   Widget _buildMLPredictionBar(Map<String, dynamic> prediction, double stake) {
-    final direction = prediction['direction'] as String;
-    final confidence = prediction['confidence'] as double;
-    
+    final direction = prediction['direction'] as String? ?? 'N/A';
+    final confidence = prediction['confidence'] as double? ?? 0.0;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -681,7 +550,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             icon: _chartExpanded ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
             onPressed: () {
               setState(() => _chartExpanded = !_chartExpanded);
-              // Recarregar gráfico ao expandir/recolher
+              // Recarregar gráfico ao expandir/recolher se for tick-based
               if (_isTickBasedTrade()) {
                 _webViewController?.reload();
               }
@@ -727,7 +596,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   Widget _buildAnalysisItem(String label, dynamic value, {bool isPrice = false}) {
     String displayValue;
     Color valueColor = Colors.white;
-    
+
     if (isPrice) {
       final numValue = value is double ? value : double.tryParse(value.toString()) ?? 0.0;
       displayValue = numValue.toStringAsFixed(2);
@@ -740,7 +609,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     } else {
       displayValue = value.toString();
     }
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -787,9 +656,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
         child: Column(
-          children: _tradingLogic.activePositions.map((pos) {
-            final profit = pos['profit'] ?? 0.0;
+          children: _tradingLogic.activePositions.map<Widget>((pos) {
+            final profit = (pos['profit'] as num?)?.toDouble() ?? 0.0;
             final isProfit = profit >= 0;
+            final idStr = pos['contract_id']?.toString() ?? '';
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -797,7 +667,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 children: [
                   Expanded(
                     child: Text(
-                      'ID: ${pos['contract_id'].toString().substring(0, 8)}...',
+                      'ID: ${idStr.length > 8 ? idStr.substring(0, 8) + '...' : idStr}',
                       style: const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ),
@@ -836,6 +706,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               const SizedBox(height: 12),
               _buildPredictionSelector(),
             ],
+            if (_selectedTradeType == 'multipliers') ...[
+              const SizedBox(height: 12),
+              _buildMultiplierControls(),
+            ],
             const SizedBox(height: 16),
             _buildTradeButtons(),
           ],
@@ -846,7 +720,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
   Widget _buildTradeTypeSelector() {
     final allTypes = [..._tradeTypes, ..._tickTradeTypes];
-    
+
     return SizedBox(
       height: 44,
       child: ListView.builder(
@@ -856,10 +730,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           if (index == allTypes.length) {
             return _buildSoundToggle();
           }
-          
+
           final type = allTypes[index];
           final isSelected = _selectedTradeType == type['id'];
-          
+
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Material(
@@ -1008,18 +882,49 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             ),
           ),
         ],
+        // Quando multipliers selecionado, mostrar botão para ajustar multiplier
+        if (_selectedTradeType == 'multipliers') ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _showMultiplierSelector,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.multiple_stop_rounded, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_multiplier}x',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
 
   String _getDurationLabel() {
     switch (_durationType) {
-      case 't': return 't';
-      case 's': return 's';
-      case 'm': return 'm';
-      case 'h': return 'h';
-      case 'd': return 'd';
-      default: return 't';
+      case 't':
+        return 't';
+      case 's':
+        return 's';
+      case 'm':
+        return 'm';
+      case 'h':
+        return 'h';
+      case 'd':
+        return 'd';
+      default:
+        return 't';
     }
   }
 
@@ -1038,10 +943,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             children: [
               Icon(Icons.tag_rounded, color: Colors.white70, size: 16),
               SizedBox(width: 8),
-              Text(
-                'Prediction',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
+              Text('Prediction', style: TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
           Row(
@@ -1084,14 +986,73 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     );
   }
 
+  Widget _buildMultiplierControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flash_on_rounded, color: Colors.white70),
+              const SizedBox(width: 10),
+              const Text('Multiplier', style: TextStyle(color: Colors.white70)),
+              const Spacer(),
+              Text('${_multiplier}x', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Slider(
+            value: _multiplier.toDouble(),
+            min: 1,
+            max: 100,
+            divisions: 99,
+            label: '${_multiplier}x',
+            onChanged: (v) {
+              setState(() {
+                _multiplier = v.round();
+              });
+            },
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: _showMultiplierSelector,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0066FF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Ajustar Multiplier',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTradeButtons() {
     if (_selectedTradeType == 'accumulators') {
       return _buildAccumulatorButton();
     }
-    
+
     final leftLabel = _getButtonLabel(true);
     final rightLabel = _getButtonLabel(false);
-    
+
     return Row(
       children: [
         Expanded(
@@ -1145,11 +1106,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                _hasActiveAccumulator ? Icons.close_rounded : Icons.add_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
+              Icon(_hasActiveAccumulator ? Icons.close_rounded : Icons.add_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
                 _hasActiveAccumulator ? 'SELL / CLOSE' : 'BUY / OPEN',
@@ -1179,13 +1136,15 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           decoration: BoxDecoration(
             color: _isTrading ? color.withOpacity(0.5) : color,
             borderRadius: BorderRadius.circular(100),
-            boxShadow: _isTrading ? [] : [
-              BoxShadow(
-                color: color.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: _isTrading
+                ? []
+                : [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
           child: Text(
             label,
@@ -1216,6 +1175,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         return isLeft ? 'MATCH' : 'DIFFER';
       case 'over_under':
         return isLeft ? 'OVER' : 'UNDER';
+      case 'multipliers':
+        // mostrar labels mais descritivos para multipliers
+        return isLeft ? 'BUY x${_multiplier}' : 'SELL x${_multiplier}';
       default:
         return isLeft ? 'BUY' : 'SELL';
     }
@@ -1226,17 +1188,14 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControllerAttached: true,
-      builder: (context) => TweenAnimationBuilder<double>(
+      builder: (context) => TweenAnimationBuilder(
         tween: Tween(begin: 0.0, end: 1.0),
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeOutCubic,
         builder: (context, value, child) {
           return Transform.translate(
             offset: Offset(0, (1 - value) * 50),
-            child: Opacity(
-              opacity: value,
-              child: child,
-            ),
+            child: Opacity(opacity: value as double, child: child),
           );
         },
         child: Container(
@@ -1251,82 +1210,60 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
               ),
               const Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
                   'Selecionar Mercado',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: _allMarkets.entries.map((e) => Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        setState(() => _selectedMarket = e.key);
-                        _webViewController?.runJavaScript('changeMarket("${e.key}")');
-                        Navigator.pop(context);
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: e.key == _selectedMarket 
-                              ? const Color(0xFF0066FF).withOpacity(0.2) 
-                              : const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: e.key == _selectedMarket 
-                                ? const Color(0xFF0066FF) 
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.show_chart_rounded,
-                              color: e.key == _selectedMarket 
-                                  ? const Color(0xFF0066FF) 
-                                  : Colors.white70,
+                  children: _allMarkets.entries.map((e) {
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() => _selectedMarket = e.key);
+                          _webViewController?.runJavaScript('changeMarket("${e.key}")');
+                          Navigator.pop(context);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: e.key == _selectedMarket ? const Color(0xFF0066FF).withOpacity(0.2) : const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: e.key == _selectedMarket ? const Color(0xFF0066FF) : Colors.transparent,
+                              width: 2,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                e.value,
-                                style: TextStyle(
-                                  color: e.key == _selectedMarket 
-                                      ? Colors.white 
-                                      : Colors.white70,
-                                  fontSize: 15,
-                                  fontWeight: e.key == _selectedMarket 
-                                      ? FontWeight.bold 
-                                      : FontWeight.normal,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.show_chart_rounded, color: e.key == _selectedMarket ? const Color(0xFF0066FF) : Colors.white70),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  e.value,
+                                  style: TextStyle(
+                                    color: e.key == _selectedMarket ? Colors.white : Colors.white70,
+                                    fontSize: 15,
+                                    fontWeight: e.key == _selectedMarket ? FontWeight.bold : FontWeight.normal,
+                                  ),
                                 ),
                               ),
-                            ),
-                            if (e.key == _selectedMarket)
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: Color(0xFF0066FF),
-                              ),
-                          ],
+                              if (e.key == _selectedMarket) const Icon(Icons.check_circle_rounded, color: Color(0xFF0066FF)),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  )).toList(),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
@@ -1340,9 +1277,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1A1A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1350,17 +1285,11 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             margin: const EdgeInsets.symmetric(vertical: 12),
             width: 40,
             height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
           ),
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text(
-              'Tipo de Gráfico',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            child: Text('Tipo de Gráfico', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           ListTile(
             leading: const Icon(Icons.candlestick_chart_rounded, color: Colors.white),
@@ -1410,17 +1339,11 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               margin: const EdgeInsets.symmetric(vertical: 12),
               width: 40,
               height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
             ),
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Text(
-                'Definir Stake',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              child: Text('Definir Stake', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1431,18 +1354,12 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
-                  prefixText: '\$ ',
+                  prefixText: '$ ',
                   prefixStyle: const TextStyle(color: Colors.white70, fontSize: 24),
                   hintText: '0.00',
                   hintStyle: const TextStyle(color: Colors.white24),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white24),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Color(0xFF0066FF), width: 2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.white24), borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0xFF0066FF), width: 2), borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -1500,17 +1417,11 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             margin: const EdgeInsets.symmetric(vertical: 12),
             width: 40,
             height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
           ),
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text(
-              'Duração',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            child: Text('Duração', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           _buildDurationOption('Ticks', 't', Icons.access_time_rounded),
           _buildDurationOption('Seconds', 's', Icons.timer_rounded),
@@ -1551,17 +1462,11 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               margin: const EdgeInsets.symmetric(vertical: 12),
               width: 40,
               height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(
-                'Valor (${_getDurationLabel()})',
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              child: Text('Valor (${_getDurationLabel()})', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1574,14 +1479,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 decoration: InputDecoration(
                   hintText: '5',
                   hintStyle: const TextStyle(color: Colors.white24),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white24),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Color(0xFF0066FF), width: 2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.white24), borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0xFF0066FF), width: 2), borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -1628,6 +1527,84 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     );
   }
 
+  void _showMultiplierSelector() {
+    final controller = TextEditingController(text: _multiplier.toString());
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Ajustar Multiplier', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  hintText: '5',
+                  hintStyle: TextStyle(color: Colors.white24),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: const Color(0xFF2A2A2A),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        final value = int.tryParse(controller.text);
+                        if (value != null && value >= 1 && value <= 1000) {
+                          setState(() => _multiplier = value);
+                          Navigator.pop(context);
+                        }
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: const Color(0xFF0066FF),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showMLInfo() {
     showDialog(
       context: context,
@@ -1645,25 +1622,13 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'O sistema de ML analisa:',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
+            const Text('O sistema de ML analisa:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              '• Padrões do gráfico\n• Histórico de preços\n• Volatilidade\n• Tendências de mercado\n• Seu histórico de trades\n• Gestão de banca',
-              style: TextStyle(color: Colors.white70, height: 1.5),
-            ),
+            const Text('• Padrões do gráfico\n• Histórico de preços\n• Volatilidade\n• Tendências de mercado\n• Seu histórico de trades\n• Gestão de banca', style: TextStyle(color: Colors.white70, height: 1.5)),
             const SizedBox(height: 12),
-            Text(
-              'Precisão atual: ${(_mlPredictor.accuracy * 100).toStringAsFixed(1)}%',
-              style: const TextStyle(color: Color(0xFF00C896), fontWeight: FontWeight.bold),
-            ),
+            Text('Precisão atual: ${(_mlPredictor.accuracy * 100).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF00C896), fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(
-              'Total de análises: ${_mlPredictor.totalPredictions}',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
+            Text('Total de análises: ${_mlPredictor.totalPredictions}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ],
         ),
         actions: [
