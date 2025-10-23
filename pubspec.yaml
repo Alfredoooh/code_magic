@@ -19,6 +19,9 @@ dependencies:
   webview_flutter: ^4.4.2
   just_audio: ^0.9.40
   http: any
+  image_picker: any
+  shared_preferences: ^2.2.2
+  local_auth: ^2.1.7
 
   # UI
   cupertino_icons: ^1.0.6
