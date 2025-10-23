@@ -1,5 +1,6 @@
 name: zoomtrade
-description:  This is the best third party deriv app to automate trading and trade
+description: Deriv Trading App with real-time market data and automated bots
+
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,27 +11,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # WebSocket para comunicação com Deriv API
+
+  # WebSocket para conexão em tempo real com Deriv API
   web_socket_channel: ^2.4.0
   
-  # WebView para renderizar gráficos HTML
+  # WebView para gráficos e OAuth
   webview_flutter: ^4.4.2
   
-  # State Management
-  #provider: ^6.1.1
-  
-  # Armazenamento local
-  #shared_preferences: ^2.2.2
-  
-  # HTTP para requisições
-  #http: ^1.1.2
-  
-  # Icons
-  #cupertino_icons: ^1.0.6
-
-  #flutter_web_auth_2: ^4.1.0
-  
+  # UI
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
@@ -40,16 +29,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
-  # Adicione assets se necessário
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
 
-  # Fonts customizadas se necessário
-  # fonts:
-  #   - family: CustomFont
-  #     fonts:
-  #       - asset: fonts/CustomFont-Regular.ttf
-  #       - asset: fonts/CustomFont-Bold.ttf
-  #         weight: 700
+  # Se você tiver assets
+    assets:
+      - assets/icon/icon.png
