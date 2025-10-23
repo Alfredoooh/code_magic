@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'all_transactions_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -21,6 +22,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   String _currency = 'USD';
   String _accountId = '';
   String _loginId = '';
+  String _userName = '';
   List<Map<String, dynamic>> _transactions = [];
   Map<String, dynamic>? _profitTable;
   Timer? _refreshTimer;
@@ -32,7 +34,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   int _winningTrades = 0;
   int _losingTrades = 0;
 
-  // Dados para o gráfico semanal
   List<double> _weeklyData = [0, 0, 0, 0, 0, 0, 0];
 
   @override
@@ -76,6 +77,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               _currency = data['authorize']['currency'];
               _accountId = data['authorize']['account_list'][0]['loginid'];
               _loginId = data['authorize']['loginid'];
+              _userName = data['authorize']['fullname'] ?? data['authorize']['email']?.split('@')[0] ?? 'Usuário';
             });
             
             _fetchTransactions();
@@ -83,7 +85,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           } else if (data['msg_type'] == 'statement') {
             setState(() {
               _transactions = List<Map<String, dynamic>>.from(
-                data['statement']['transactions']
+                data['statement']['transactions'] ?? []
               );
             });
           } else if (data['msg_type'] == 'profit_table') {
@@ -140,7 +142,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     int wins = 0;
     int losses = 0;
 
-    // Dados semanais por dia
     List<double> weeklyData = List.filled(7, 0.0);
 
     for (var tx in transactions) {
@@ -163,7 +164,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       }
       if (buyTime.isAfter(weekAgo)) {
         weekProfit += profit;
-        // Adicionar ao gráfico semanal
         final daysDiff = now.difference(buyTime).inDays;
         if (daysDiff >= 0 && daysDiff < 7) {
           weeklyData[6 - daysDiff] += profit;
@@ -205,18 +205,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: const Color(0xFF1C1C1E),
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Portfólio',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 20,
+            fontSize: 17,
             fontWeight: FontWeight.w600,
+            letterSpacing: -0.4,
           ),
         ),
       ),
@@ -231,206 +233,203 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Balance Card
+                  // Visa-style Balance Card
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    height: 200,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF0066FF), Color(0xFF0044CC)],
+                        colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0066FF).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Stack(
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_rounded,
-                              color: Colors.white.withOpacity(0.7),
-                              size: 20,
+                        // Pattern overlay
+                        Positioned(
+                          right: -20,
+                          top: -20,
+                          child: Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF0066FF).withOpacity(0.1),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Saldo Total',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '${_balance.toStringAsFixed(2)} $_currency',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -1,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'ID: $_loginId',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 12,
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _userName,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _loginId,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 12,
+                                      letterSpacing: 1,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Saldo Disponível',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.6),
+                                      fontSize: 12,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        _balance.toStringAsFixed(2),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -1,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _currency,
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.7),
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Profit Cards
+                  // Profit Summary
                   Row(
                     children: [
                       Expanded(
-                        child: _buildProfitCard(
-                          'Hoje',
-                          _todayProfit,
-                          Icons.today_rounded,
-                        ),
+                        child: _buildCompactProfitCard('Hoje', _todayProfit),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildProfitCard(
-                          '7 Dias',
-                          _weekProfit,
-                          Icons.date_range_rounded,
-                        ),
+                        child: _buildCompactProfitCard('7D', _weekProfit),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildCompactProfitCard('30D', _monthProfit),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 12),
-
-                  _buildProfitCard(
-                    '30 Dias',
-                    _monthProfit,
-                    Icons.calendar_month_rounded,
-                    fullWidth: true,
-                  ),
-
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Weekly Chart
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                      color: const Color(0xFF1C1C1E),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.bar_chart_rounded,
-                              color: Colors.white.withOpacity(0.7),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Últimos 7 dias',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        const Text(
+                          'Últimos 7 dias',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                          ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         _buildIOSBarChart(),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Stats Card
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                      color: const Color(0xFF1C1C1E),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text(
+                          'Estatísticas',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         Row(
                           children: [
-                            Icon(
-                              Icons.analytics_rounded,
-                              color: Colors.white.withOpacity(0.7),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Estatísticas',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            Expanded(child: _buildStatItem('Total', _totalTrades.toString(), const Color(0xFF0066FF))),
+                            Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), const Color(0xFF00C896))),
+                            Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), const Color(0xFFFF4444))),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatColumn(
-                              'Total',
-                              _totalTrades.toString(),
-                              const Color(0xFF0066FF),
-                            ),
-                            _buildStatColumn(
-                              'Vitórias',
-                              _winningTrades.toString(),
-                              const Color(0xFF00C896),
-                            ),
-                            _buildStatColumn(
-                              'Derrotas',
-                              _losingTrades.toString(),
-                              const Color(0xFFFF4444),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: winRate / 100,
-                            backgroundColor: const Color(0xFF2A2A2A),
+                            backgroundColor: const Color(0xFF2C2C2E),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              winRate >= 50 
-                                  ? const Color(0xFF00C896)
-                                  : const Color(0xFFFF4444),
+                              winRate >= 50 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
                             ),
-                            minHeight: 8,
+                            minHeight: 6,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withOpacity(0.6),
                             fontSize: 13,
                           ),
                         ),
@@ -438,45 +437,39 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Recent Transactions Header
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.receipt_long_rounded,
-                        color: Colors.white.withOpacity(0.7),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Transações Recentes',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  // Recent Transactions
+                  const Text(
+                    'Transações Recentes',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
+                    ),
                   ),
 
                   const SizedBox(height: 12),
 
-                  // Recent Transactions List
                   if (_transactions.isEmpty)
                     Container(
-                      padding: const EdgeInsets.all(48),
+                      padding: const EdgeInsets.all(40),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Center(
                         child: Column(
                           children: [
                             Icon(
-                              Icons.inbox_rounded,
+                              Icons.inbox_outlined,
                               color: Colors.white.withOpacity(0.3),
-                              size: 48,
+                              size: 40,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Text(
-                              'Nenhuma transação recente',
+                              'Nenhuma transação',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.5),
                                 fontSize: 14,
@@ -488,6 +481,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     )
                   else
                     ..._buildTransactionsList(),
+
+                  const SizedBox(height: 20),
                 ],
               ),
             )
@@ -510,86 +505,106 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
+  Widget _buildCompactProfitCard(String label, double profit) {
+    final isProfit = profit >= 0;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${isProfit ? '+' : ''}${profit.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.5),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
   List<Widget> _buildTransactionsList() {
-    final displayTransactions = _transactions.take(7).toList();
-    final hasMore = _transactions.length > 7;
+    final displayTransactions = _transactions.take(5).toList();
+    final hasMore = _transactions.length > 5;
 
     final widgets = displayTransactions.map((tx) {
       final amount = double.parse(tx['amount'].toString());
       final isCredit = amount > 0;
       
       return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {},
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isCredit 
-                          ? const Color(0xFF00C896).withOpacity(0.15)
-                          : const Color(0xFFFF4444).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isCredit 
-                            ? const Color(0xFF00C896).withOpacity(0.3)
-                            : const Color(0xFFFF4444).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Icon(
-                      isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                      color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tx['action_type'] ?? 'Trade',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDate(tx['transaction_time']),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)} $_currency',
-                    style: TextStyle(
-                      color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ],
-              ),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          leading: Icon(
+            isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+            color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+            size: 20,
+          ),
+          title: Text(
+            tx['action_type'] ?? 'Trade',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            _formatDate(tx['transaction_time']),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 12,
+            ),
+          ),
+          trailing: Text(
+            '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -599,39 +614,30 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     if (hasMore) {
       widgets.add(
         Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(top: 4),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: _showAllTransactions,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0066FF).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: const Color(0xFF0066FF).withOpacity(0.3),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.expand_more_rounded,
+                child: Center(
+                  child: Text(
+                    'Ver Todas (${_transactions.length})',
+                    style: const TextStyle(
                       color: Color(0xFF0066FF),
-                      size: 24,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Ver Todas as Transações (${_transactions.length})',
-                      style: const TextStyle(
-                        color: Color(0xFF0066FF),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -648,7 +654,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final days = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
     return SizedBox(
-      height: 180,
+      height: 140,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -656,59 +662,40 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           final value = _weeklyData[index];
           final isPositive = value >= 0;
           final heightPercent = maxValue != 0 ? (value.abs() / maxValue) : 0.0;
-          final barHeight = 120 * heightPercent;
+          final barHeight = 100 * heightPercent;
 
           return Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 3),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Valor
                   if (value != 0)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                        value.abs() < 1 
-                            ? value.toStringAsFixed(2)
-                            : value.abs().toStringAsFixed(0),
+                        value.abs().toStringAsFixed(0),
                         style: TextStyle(
-                          color: isPositive 
-                              ? const Color(0xFF00C896) 
-                              : const Color(0xFFFF4444),
-                          fontSize: 11,
+                          color: isPositive ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  // Barra
                   Container(
                     width: double.infinity,
-                    height: barHeight.clamp(4.0, 120.0),
+                    height: barHeight.clamp(3.0, 100.0),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: isPositive
-                            ? [
-                                const Color(0xFF00C896),
-                                const Color(0xFF00C896).withOpacity(0.6),
-                              ]
-                            : [
-                                const Color(0xFFFF4444),
-                                const Color(0xFFFF4444).withOpacity(0.6),
-                              ],
-                      ),
-                      borderRadius: BorderRadius.circular(6),
+                      color: isPositive ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  // Dia da semana
+                  const SizedBox(height: 6),
                   Text(
                     days[index],
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.5),
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -721,74 +708,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
-  Widget _buildProfitCard(String label, double profit, IconData icon, {bool fullWidth = false}) {
-    final isProfit = profit >= 0;
-    
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: fullWidth ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
-            children: [
-              Icon(icon, color: Colors.white.withOpacity(0.5), size: 18),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${isProfit ? '+' : ''}${profit.toStringAsFixed(2)} $_currency',
-            style: TextStyle(
-              color: isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-              fontSize: fullWidth ? 26 : 22,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatColumn(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
   String _formatDate(int timestamp) {
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     final now = DateTime.now();
@@ -797,202 +716,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     if (diff.inDays == 0) {
       return 'Hoje ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     } else if (diff.inDays == 1) {
-      return 'Ontem ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
-}
-
-// Tela de Todas as Transações
-class AllTransactionsScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> transactions;
-  final String currency;
-
-  const AllTransactionsScreen({
-    Key? key,
-    required this.transactions,
-    required this.currency,
-  }) : super(key: key);
-
-  @override
-  State<AllTransactionsScreen> createState() => _AllTransactionsScreenState();
-}
-
-class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
-  final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final opacity = (_scrollOffset / 100).clamp(0.0, 1.0);
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Color.lerp(
-          const Color(0xFF1A1A1A),
-          const Color(0xFF2A2A2A),
-          opacity,
-        ),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Opacity(
-          opacity: opacity,
-          child: const Text(
-            'Todas as Transações',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: Text(
-                'Todas as Transações',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -1,
-                ),
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final tx = widget.transactions[index];
-                  final amount = double.parse(tx['amount'].toString());
-                  final isCredit = amount > 0;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {},
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1A1A1A),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.08)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: isCredit 
-                                      ? const Color(0xFF00C896).withOpacity(0.15)
-                                      : const Color(0xFFFF4444).withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isCredit 
-                                        ? const Color(0xFF00C896).withOpacity(0.3)
-                                        : const Color(0xFFFF4444).withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Icon(
-                                  isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                                  color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                                  size: 22,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      tx['action_type'] ?? 'Trade',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: -0.2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _formatDate(tx['transaction_time']),
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.5),
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)} ${widget.currency}',
-                                style: TextStyle(
-                                  color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-                childCount: widget.transactions.length,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 32),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(int timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inDays == 0) {
-      return 'Hoje ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (diff.inDays == 1) {
-      return 'Ontem ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return 'Ontem';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
@@ -1007,10 +731,12 @@ class IOSSlideUpRoute extends PageRouteBuilder {
       : super(
           pageBuilder: (context, animation, secondaryAnimation) => builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const curve = Curves.easeOutCubic;
+            const curve = Cubic(0.42, 0.0, 0.58, 1.0);
+            
             var curvedAnimation = CurvedAnimation(
               parent: animation,
               curve: curve,
+              reverseCurve: Curves.easeInOut,
             );
 
             return SlideTransition(
@@ -1018,10 +744,19 @@ class IOSSlideUpRoute extends PageRouteBuilder {
                 begin: const Offset(0.0, 1.0),
                 end: Offset.zero,
               ).animate(curvedAnimation),
-              child: child,
+              child: FadeTransition(
+                opacity: Tween<double>(
+                  begin: 0.0,
+                  end: 1.0,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+                )),
+                child: child,
+              ),
             );
           },
-          transitionDuration: const Duration(milliseconds: 350),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: const Duration(milliseconds: 500),
+          reverseTransitionDuration: const Duration(milliseconds: 400),
         );
 }
