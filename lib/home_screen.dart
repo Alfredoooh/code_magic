@@ -1,8 +1,13 @@
-// home_screen.dart
+// home_screen.dart - COPIE ESTE ARQUIVO COMPLETO
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+
+// IMPORTS DAS OUTRAS TELAS - NÃO REMOVA
 import 'markets_screen.dart';
 import 'posts_screen.dart';
+import 'trade_screen.dart';
+import 'bots_screen.dart';
+import 'portfolio_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String token;
@@ -49,7 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ListTile(
               leading: const Icon(Icons.show_chart, color: Color(0xFF00C896)),
               title: const Text('Negociar', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('Abrir tela de negociação', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              subtitle: const Text(
+                'Abrir tela de negociação',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -64,7 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ListTile(
               leading: const Icon(Icons.smart_toy_outlined, color: Color(0xFF0066FF)),
               title: const Text('Automatizar Trade', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('Gerenciar bots de trading', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              subtitle: const Text(
+                'Gerenciar bots de trading',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -142,7 +153,10 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         backgroundColor: const Color(0xFF00C896),
         icon: const Icon(Icons.add_chart, color: Colors.white),
-        label: const Text('Negociar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Negociar',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
