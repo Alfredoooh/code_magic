@@ -1,11 +1,10 @@
 // trade_screen.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'trading_logic.dart';
 import 'ml_predictor.dart';
 
@@ -27,7 +26,7 @@ class _TradeScreenState extends State<TradeScreen> {
   late TradingLogic _tradingLogic;
   late MLPredictor _mlPredictor;
   WebViewController? _webViewController;
-
+  
   String _selectedMarket = 'R_100';
   String _selectedTradeType = 'rise_fall';
   double _currentPrice = 0.0;
@@ -40,7 +39,9 @@ class _TradeScreenState extends State<TradeScreen> {
   String _chartType = 'candlestick';
   int _tickPrediction = 5;
   List<double> _tickHistory = [];
-
+  
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  
   final Map<String, String> _allMarkets = {
     'R_10': 'Volatility 10',
     'R_25': 'Volatility 25',
@@ -77,7 +78,7 @@ class _TradeScreenState extends State<TradeScreen> {
     if (widget.initialMarket != null) {
       _selectedMarket = widget.initialMarket!;
     }
-
+    
     _tradingLogic = TradingLogic(
       token: widget.token,
       onBalanceUpdate: (balance, currency) {
@@ -90,7 +91,7 @@ class _TradeScreenState extends State<TradeScreen> {
         if (mounted) setState(() {});
       },
     );
-
+    
     _mlPredictor = MLPredictor(
       onPrediction: (prediction) {
         if (mounted) {
@@ -98,7 +99,7 @@ class _TradeScreenState extends State<TradeScreen> {
         }
       },
     );
-
+    
     _tradingLogic.connect();
     _initWebView();
   }
@@ -106,7 +107,7 @@ class _TradeScreenState extends State<TradeScreen> {
   @override
   void dispose() {
     _tradingLogic.dispose();
-    _mlPredictor.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -120,12 +121,12 @@ class _TradeScreenState extends State<TradeScreen> {
           final data = json.decode(message.message);
           if (data['type'] == 'price') {
             setState(() {
-              _currentPrice = (data['price'] as num).toDouble();
-              _priceChange = (data['change'] as num?)?.toDouble() ?? 0.0;
+              _currentPrice = data['price'];
+              _priceChange = data['change'] ?? 0.0;
             });
-
+            
             _mlPredictor.addPriceData(_currentPrice);
-
+            
             if (_isTickBasedTrade()) {
               _tickHistory.add(_currentPrice);
               if (_tickHistory.length > 100) {
@@ -133,10 +134,7 @@ class _TradeScreenState extends State<TradeScreen> {
               }
             }
           } else if (data['type'] == 'chart_data') {
-            try {
-              final prices = List<double>.from((data['prices'] as List).map((p) => (p as num).toDouble()));
-              _mlPredictor.addChartData(prices);
-            } catch (_) {}
+            _mlPredictor.addChartData(List<double>.from(data['prices']));
           }
         },
       )
@@ -332,31 +330,29 @@ class _TradeScreenState extends State<TradeScreen> {
   }
 
   bool _isTickBasedTrade() {
-    return _selectedTradeType == 'even_odd' ||
-        _selectedTradeType == 'match_differ' ||
-        _selectedTradeType == 'over_under';
+    return _selectedTradeType == 'even_odd' || 
+           _selectedTradeType == 'match_differ' || 
+           _selectedTradeType == 'over_under';
   }
 
   void _handleTradeResult(Map<String, dynamic> result) async {
     final won = result['won'] as bool;
-    final profit = (result['profit'] as num).toDouble();
-
+    final profit = result['profit'] as double;
+    
     if (_soundEnabled) {
-      // substitui audioplayers por SystemSound (compilável em todas as plataformas Flutter)
-      try {
-        if (won) {
-          SystemSound.play(SystemSoundType.click);
-        } else {
-          SystemSound.play(SystemSoundType.alert);
-        }
-      } catch (_) {}
+      if (won) {
+        await _audioPlayer.play(AssetSource('sounds/win.mp3'));
+      } else {
+        await _audioPlayer.play(AssetSource('sounds/lose.mp3'));
+      }
     }
-
+    
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            won ? 'GANHOU: +\$${profit.toStringAsFixed(2)}' : 'PERDEU: -\$${profit.abs().toStringAsFixed(2)}',
+            won ? 'GANHOU: +\$${profit.toStringAsFixed(2)}' 
+                : 'PERDEU: -\$${profit.abs().toStringAsFixed(2)}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
@@ -364,17 +360,17 @@ class _TradeScreenState extends State<TradeScreen> {
         ),
       );
     }
-
+    
     _mlPredictor.addTradeResult(won, profit);
   }
 
   void _placeTrade(String direction) async {
     if (_isTrading || !_tradingLogic.isConnected) return;
-
+    
     setState(() => _isTrading = true);
-
+    
     bool success = false;
-
+    
     switch (_selectedTradeType) {
       case 'rise_fall':
         success = await _tradingLogic.placeRiseFall(
@@ -426,16 +422,14 @@ class _TradeScreenState extends State<TradeScreen> {
           barrier: _tickPrediction.toString(),
         );
         break;
-      default:
-        break;
     }
-
+    
     if (success && _webViewController != null) {
-      try {
-        await _webViewController!.runJavaScript('addTradeMarker("$direction", $_currentPrice)');
-      } catch (_) {}
+      _webViewController!.runJavaScript(
+        'addTradeMarker("$direction", $_currentPrice)'
+      );
     }
-
+    
     setState(() => _isTrading = false);
   }
 
@@ -443,7 +437,7 @@ class _TradeScreenState extends State<TradeScreen> {
   Widget build(BuildContext context) {
     final mlPrediction = _mlPredictor.currentPrediction;
     final mlStake = _mlPredictor.recommendedStake(_tradingLogic.balance);
-
+    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
@@ -454,9 +448,10 @@ class _TradeScreenState extends State<TradeScreen> {
             flex: _chartExpanded ? 4 : 3,
             child: Stack(
               children: [
-                if (_webViewController != null) WebViewWidget(controller: _webViewController!),
+                WebViewWidget(controller: _webViewController!),
                 _buildChartControls(),
-                if (_tradingLogic.activePositions.isNotEmpty) _buildPositionsOverlay(),
+                if (_tradingLogic.activePositions.isNotEmpty)
+                  _buildPositionsOverlay(),
               ],
             ),
           ),
@@ -504,7 +499,9 @@ class _TradeScreenState extends State<TradeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _priceChange >= 0 ? const Color(0xFF00C896).withOpacity(0.2) : const Color(0xFFFF4444).withOpacity(0.2),
+                  color: _priceChange >= 0 
+                      ? const Color(0xFF00C896).withOpacity(0.2)
+                      : const Color(0xFFFF4444).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -526,7 +523,7 @@ class _TradeScreenState extends State<TradeScreen> {
   Widget _buildMLPredictionBar(Map<String, dynamic> prediction, double stake) {
     final direction = prediction['direction'] as String;
     final confidence = prediction['confidence'] as double;
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: const Color(0xFF0D47A1).withOpacity(0.3),
@@ -600,7 +597,7 @@ class _TradeScreenState extends State<TradeScreen> {
         ),
         child: Column(
           children: _tradingLogic.activePositions.map((pos) {
-            final profit = (pos['profit'] as num?)?.toDouble() ?? 0.0;
+            final profit = pos['profit'] ?? 0.0;
             final isProfit = profit >= 0;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -656,7 +653,7 @@ class _TradeScreenState extends State<TradeScreen> {
 
   Widget _buildTradeTypeSelector() {
     final allTypes = [..._tradeTypes, ..._tickTradeTypes];
-
+    
     return SizedBox(
       height: 40,
       child: ListView.builder(
@@ -666,10 +663,10 @@ class _TradeScreenState extends State<TradeScreen> {
           if (index == allTypes.length) {
             return _buildSoundToggle();
           }
-
+          
           final type = allTypes[index];
           final isSelected = _selectedTradeType == type['id'];
-
+          
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
@@ -805,10 +802,10 @@ class _TradeScreenState extends State<TradeScreen> {
     if (_selectedTradeType == 'accumulators') {
       return _buildSingleTradeButton('BUY', const Color(0xFF0066FF), 'buy');
     }
-
+    
     final leftLabel = _getButtonLabel(true);
     final rightLabel = _getButtonLabel(false);
-
+    
     return Row(
       children: [
         Expanded(
