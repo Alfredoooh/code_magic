@@ -14,22 +14,22 @@ dependencies:
 
   # WebSocket para conexão em tempo real com Deriv API
   web_socket_channel: ^2.4.0
-  
+
   # WebView para gráficos e OAuth
   webview_flutter: ^4.4.2
-  
+
   # UI
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
+
   flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
 
   # Se você tiver assets
-   assets:
-     - assets/icon/icon.png
+  assets:
+    - assets/icon/icon.png
