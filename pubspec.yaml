@@ -17,6 +17,8 @@ dependencies:
 
   # WebView para gráficos e OAuth
   webview_flutter: ^4.4.2
+  just_audio: ^0.9.40
+  http: any
 
   # UI
   cupertino_icons: ^1.0.6
