@@ -14,7 +14,7 @@ class TradingLogic {
   double balance = 0.0;
   String currency = 'USD';
   List<Map<String, dynamic>> activePositions = [];
-  
+
   String? _lastProposalId;
   Map<String, Completer<bool>> _pendingTrades = {};
 
@@ -63,7 +63,7 @@ class TradingLogic {
       case 'buy':
         final contract = data['buy'];
         final contractId = contract['contract_id'].toString();
-        
+
         activePositions.add({
           'contract_id': contractId,
           'buy_price': double.parse(contract['buy_price'].toString()),
@@ -72,16 +72,16 @@ class TradingLogic {
           'profit': 0.0,
           'status': 'open',
         });
-        
+
         onPositionUpdate(activePositions);
-        
+
         // Subscrever para atualizações do contrato
         _channel!.sink.add(json.encode({
           'proposal_open_contract': 1,
           'contract_id': contractId,
           'subscribe': 1,
         }));
-        
+
         // Resolver o completer do trade pendente
         if (_pendingTrades.containsKey(contractId)) {
           _pendingTrades[contractId]!.complete(true);
@@ -114,17 +114,17 @@ class TradingLogic {
   void _updatePosition(Map<String, dynamic> contract) {
     final contractId = contract['contract_id'].toString();
     final index = activePositions.indexWhere((p) => p['contract_id'] == contractId);
-    
+
     if (index != -1) {
       final profit = double.parse(contract['profit'].toString());
       final status = contract['status'];
-      
+
       activePositions[index]['profit'] = profit;
       activePositions[index]['status'] = status;
       activePositions[index]['current_spot'] = contract['current_spot'];
-      
+
       onPositionUpdate(activePositions);
-      
+
       if (status == 'won' || status == 'lost') {
         final won = status == 'won';
         onTradeResult({
@@ -132,7 +132,7 @@ class TradingLogic {
           'profit': profit,
           'contract_id': contractId,
         });
-        
+
         Future.delayed(const Duration(seconds: 3), () {
           activePositions.removeWhere((p) => p['contract_id'] == contractId);
           onPositionUpdate(activePositions);
@@ -151,7 +151,7 @@ class TradingLogic {
     if (!isConnected) return false;
 
     final contractType = direction == 'buy' ? 'CALL' : 'PUT';
-    
+
     _channel!.sink.add(json.encode({
       'proposal': 1,
       'amount': stake,
@@ -195,7 +195,7 @@ class TradingLogic {
     if (!isConnected) return false;
 
     final contractType = direction == 'buy' ? 'CALLE' : 'PUTE';
-    
+
     _channel!.sink.add(json.encode({
       'proposal': 1,
       'amount': stake,
@@ -237,7 +237,7 @@ class TradingLogic {
     if (!isConnected) return false;
 
     final contractType = direction == 'buy' ? 'MULTUP' : 'MULTDOWN';
-    
+
     _channel!.sink.add(json.encode({
       'proposal': 1,
       'amount': stake,
@@ -306,7 +306,7 @@ class TradingLogic {
         return false;
       },
     );
-    
+
     if (success && activePositions.isNotEmpty) {
       return {
         'success': true,
@@ -326,11 +326,11 @@ class TradingLogic {
     }));
 
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     // Remover da lista de posições ativas
     activePositions.removeWhere((p) => p['contract_id'] == contractId);
     onPositionUpdate(activePositions);
-    
+
     return true;
   }
 
@@ -381,6 +381,73 @@ class TradingLogic {
       },
     );
   }
+
+  // === NOVA FUNÇÃO: placeMultiplier ===
+  // Chamada padrão: await placeMultiplier(market: 'BTCUSD', stake: 1.0, direction: 'buy', multiplier: 5);
+  // Retorna um Map {'success': bool, 'contract_id': String?}
+  Future<Map<String, dynamic>> placeMultiplier({
+    required String market,
+    required double stake,
+    required String direction,
+    required int multiplier,
+    double? stopLossPercent,
+    double? takeProfitPercent,
+  }) async {
+    if (!isConnected) return {'success': false};
+
+    final contractType = direction == 'buy' ? 'MULTUP' : 'MULTDOWN';
+
+    final Map<String, dynamic> params = {
+      'proposal': 1,
+      'amount': stake,
+      'basis': 'stake',
+      'contract_type': contractType,
+      'currency': currency,
+      'multiplier': multiplier,
+      'symbol': market,
+    };
+
+    // Incluir stop/take se fornecidos (ajuste as chaves conforme necessidade da API)
+    if (stopLossPercent != null) {
+      params['stop_loss'] = stopLossPercent;
+    }
+    if (takeProfitPercent != null && takeProfitPercent > 0) {
+      params['take_profit'] = takeProfitPercent;
+    }
+
+    _channel!.sink.add(json.encode(params));
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (_lastProposalId == null) return {'success': false};
+
+    final completer = Completer<bool>();
+    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+    _pendingTrades[tempId] = completer;
+
+    _channel!.sink.add(json.encode({
+      'buy': _lastProposalId,
+      'price': stake,
+    }));
+
+    final success = await completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        _pendingTrades.remove(tempId);
+        return false;
+      },
+    );
+
+    if (success && activePositions.isNotEmpty) {
+      return {
+        'success': true,
+        'contract_id': activePositions.last['contract_id'],
+      };
+    }
+
+    return {'success': false};
+  }
+  // === FIM placeMultiplier ===
 
   void dispose() {
     _channel?.sink.close();
