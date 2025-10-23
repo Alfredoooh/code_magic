@@ -145,20 +145,21 @@ class TradingLogic {
     required String market,
     required double stake,
     required String direction,
+    int duration = 5,
+    String durationType = 't',
   }) async {
     if (!isConnected) return false;
 
     final contractType = direction == 'buy' ? 'CALL' : 'PUT';
     
-    // Criar proposta
     _channel!.sink.add(json.encode({
       'proposal': 1,
       'amount': stake,
       'basis': 'stake',
       'contract_type': contractType,
       'currency': currency,
-      'duration': 5,
-      'duration_unit': 't',
+      'duration': duration,
+      'duration_unit': durationType,
       'symbol': market,
     }));
 
@@ -166,7 +167,6 @@ class TradingLogic {
 
     if (_lastProposalId == null) return false;
 
-    // Comprar contrato
     final completer = Completer<bool>();
     final tempId = DateTime.now().millisecondsSinceEpoch.toString();
     _pendingTrades[tempId] = completer;
@@ -189,6 +189,8 @@ class TradingLogic {
     required String market,
     required double stake,
     required String direction,
+    int duration = 15,
+    String durationType = 't',
   }) async {
     if (!isConnected) return false;
 
@@ -200,8 +202,8 @@ class TradingLogic {
       'basis': 'stake',
       'contract_type': contractType,
       'currency': currency,
-      'duration': 15,
-      'duration_unit': 't',
+      'duration': duration,
+      'duration_unit': durationType,
       'symbol': market,
     }));
 
@@ -268,11 +270,11 @@ class TradingLogic {
     );
   }
 
-  Future<bool> placeAccumulator({
+  Future<Map<String, dynamic>> placeAccumulator({
     required String market,
     required double stake,
   }) async {
-    if (!isConnected) return false;
+    if (!isConnected) return {'success': false};
 
     _channel!.sink.add(json.encode({
       'proposal': 1,
@@ -286,7 +288,7 @@ class TradingLogic {
 
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (_lastProposalId == null) return false;
+    if (_lastProposalId == null) return {'success': false};
 
     final completer = Completer<bool>();
     final tempId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -297,13 +299,39 @@ class TradingLogic {
       'price': stake,
     }));
 
-    return completer.future.timeout(
+    final success = await completer.future.timeout(
       const Duration(seconds: 5),
       onTimeout: () {
         _pendingTrades.remove(tempId);
         return false;
       },
     );
+    
+    if (success && activePositions.isNotEmpty) {
+      return {
+        'success': true,
+        'contract_id': activePositions.last['contract_id'],
+      };
+    }
+
+    return {'success': false};
+  }
+
+  Future<bool> closeAccumulator(String contractId) async {
+    if (!isConnected) return false;
+
+    _channel!.sink.add(json.encode({
+      'sell': contractId,
+      'price': 0,
+    }));
+
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Remover da lista de posições ativas
+    activePositions.removeWhere((p) => p['contract_id'] == contractId);
+    onPositionUpdate(activePositions);
+    
+    return true;
   }
 
   Future<bool> placeDigit({
@@ -311,6 +339,7 @@ class TradingLogic {
     required double stake,
     required String type,
     String? barrier,
+    int duration = 5,
   }) async {
     if (!isConnected) return false;
 
@@ -320,7 +349,7 @@ class TradingLogic {
       'basis': 'stake',
       'contract_type': type,
       'currency': currency,
-      'duration': 5,
+      'duration': duration,
       'duration_unit': 't',
       'symbol': market,
     };
