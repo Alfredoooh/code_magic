@@ -19,6 +19,7 @@ class AppStyles {
   
   static const Color border = Color(0xFF2A2A2A);
   static const Color iosBlue = Color(0xFF0066FF);
+  static const Color iosGreen = Color(0xFF00C896);
 
   // Themes
   static ThemeData get darkTheme {
@@ -43,7 +44,7 @@ class AppStyles {
           fontWeight: FontWeight.w600,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: bgSecondary,
         elevation: 0,
         shape: RoundedRectangleBorder(
