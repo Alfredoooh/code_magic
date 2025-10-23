@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 import 'all_transactions_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
@@ -196,6 +198,212 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Sair da Conta'),
+        content: const Text('Tem certeza que deseja sair? Você precisará fazer login novamente.'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Sair'),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('deriv_token');
+      await prefs.remove('app_lock_pin');
+      
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    }
+  }
+
+  Future<void> _setupAppLock() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existingPin = prefs.getString('app_lock_pin');
+
+    if (existingPin != null) {
+      // Já tem PIN, perguntar se quer remover
+      final remove = await showCupertinoDialog<bool>(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Bloqueio Ativo'),
+          content: const Text('O bloqueio do app já está ativo. Deseja removê-lo?'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              child: const Text('Remover'),
+              onPressed: () => Navigator.pop(context, true),
+            ),
+          ],
+        ),
+      );
+
+      if (remove == true) {
+        await prefs.remove('app_lock_pin');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bloqueio removido com sucesso'),
+            backgroundColor: Color(0xFF00C896),
+          ),
+        );
+      }
+    } else {
+      // Criar novo PIN
+      final pin = await _showPinSetupDialog();
+      if (pin != null && pin.length >= 6) {
+        await prefs.setString('app_lock_pin', pin);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bloqueio ativado com sucesso'),
+            backgroundColor: Color(0xFF00C896),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _showPinSetupDialog() async {
+    final pinController = TextEditingController();
+    final confirmController = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Criar PIN',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: pinController,
+              obscureText: true,
+              maxLength: 20,
+              keyboardType: TextInputType.text,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'PIN (mínimo 6 caracteres)',
+                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                counterStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmController,
+              obscureText: true,
+              maxLength: 20,
+              keyboardType: TextInputType.text,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Confirmar PIN',
+                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                counterStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              final pin = pinController.text;
+              final confirm = confirmController.text;
+
+              if (pin.length < 6) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('PIN deve ter pelo menos 6 caracteres'),
+                    backgroundColor: Color(0xFFFF4444),
+                  ),
+                );
+                return;
+              }
+
+              if (pin != confirm) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('PINs não coincidem'),
+                    backgroundColor: Color(0xFFFF4444),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context, pin);
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSettingsMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.lock_outline, color: Color(0xFF0066FF)),
+              title: const Text('Bloquear App', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _setupAppLock();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Color(0xFFFF4444)),
+              title: const Text('Sair da Conta', style: TextStyle(color: Color(0xFFFF4444))),
+              onTap: () {
+                Navigator.pop(context);
+                _logout();
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final winRate = _totalTrades > 0 
@@ -221,6 +429,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             letterSpacing: -0.4,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
+            onPressed: _showSettingsMenu,
+          ),
+        ],
       ),
       body: _isConnected
           ? RefreshIndicator(
