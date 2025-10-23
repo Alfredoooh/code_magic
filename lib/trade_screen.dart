@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'trading_logic.dart';
+import 'ml_predictor.dart';
 
 class TradeScreen extends StatefulWidget {
   final String token;
@@ -20,21 +23,25 @@ class TradeScreen extends StatefulWidget {
 }
 
 class _TradeScreenState extends State<TradeScreen> {
-  WebSocketChannel? _channel;
+  late TradingLogic _tradingLogic;
+  late MLPredictor _mlPredictor;
   WebViewController? _webViewController;
+  
   String _selectedMarket = 'R_100';
-  String _contractType = 'MULTUP';
+  String _selectedTradeType = 'rise_fall';
   double _currentPrice = 0.0;
   double _priceChange = 0.0;
   bool _isConnected = false;
   double _stake = 10.0;
-  int _multiplier = 100;
-  String _currency = 'USD';
-  double _balance = 0.00;
   bool _isTrading = false;
-  List<Map<String, dynamic>> _activePositions = [];
-  double _estimatedPayout = 0.0;
-
+  bool _soundEnabled = false;
+  bool _chartExpanded = false;
+  String _chartType = 'candlestick';
+  int _tickPrediction = 5;
+  List<double> _tickHistory = [];
+  
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  
   final Map<String, String> _allMarkets = {
     'R_10': 'Volatility 10',
     'R_25': 'Volatility 25',
@@ -48,21 +55,22 @@ class _TradeScreenState extends State<TradeScreen> {
     '1HZ100V': 'Vol 100 (1s)',
     'BOOM300N': 'Boom 300',
     'BOOM500': 'Boom 500',
-    'BOOM600N': 'Boom 600',
-    'BOOM900': 'Boom 900',
-    'BOOM1000': 'Boom 1000',
     'CRASH300N': 'Crash 300',
     'CRASH500': 'Crash 500',
-    'CRASH600N': 'Crash 600',
-    'CRASH900': 'Crash 900',
-    'CRASH1000': 'Crash 1000',
-    'STPRNG': 'Step Index',
-    'JD10': 'Jump 10',
-    'JD25': 'Jump 25',
-    'JD50': 'Jump 50',
-    'JD75': 'Jump 75',
-    'JD100': 'Jump 100',
   };
+
+  final List<Map<String, dynamic>> _tradeTypes = [
+    {'id': 'rise_fall', 'label': 'Rise/Fall'},
+    {'id': 'higher_lower', 'label': 'Higher/Lower'},
+    {'id': 'turbos', 'label': 'Turbos'},
+    {'id': 'accumulators', 'label': 'Accumulators'},
+  ];
+
+  final List<Map<String, dynamic>> _tickTradeTypes = [
+    {'id': 'even_odd', 'label': 'Even/Odd'},
+    {'id': 'match_differ', 'label': 'Match/Differ'},
+    {'id': 'over_under', 'label': 'Over/Under'},
+  ];
 
   @override
   void initState() {
@@ -70,13 +78,36 @@ class _TradeScreenState extends State<TradeScreen> {
     if (widget.initialMarket != null) {
       _selectedMarket = widget.initialMarket!;
     }
-    _connectWebSocket();
+    
+    _tradingLogic = TradingLogic(
+      token: widget.token,
+      onBalanceUpdate: (balance, currency) {
+        if (mounted) setState(() {});
+      },
+      onTradeResult: (result) {
+        _handleTradeResult(result);
+      },
+      onPositionUpdate: (positions) {
+        if (mounted) setState(() {});
+      },
+    );
+    
+    _mlPredictor = MLPredictor(
+      onPrediction: (prediction) {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
+    
+    _tradingLogic.connect();
     _initWebView();
   }
 
   @override
   void dispose() {
-    _channel?.sink.close();
+    _tradingLogic.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -93,6 +124,17 @@ class _TradeScreenState extends State<TradeScreen> {
               _currentPrice = data['price'];
               _priceChange = data['change'] ?? 0.0;
             });
+            
+            _mlPredictor.addPriceData(_currentPrice);
+            
+            if (_isTickBasedTrade()) {
+              _tickHistory.add(_currentPrice);
+              if (_tickHistory.length > 100) {
+                _tickHistory.removeAt(0);
+              }
+            }
+          } else if (data['type'] == 'chart_data') {
+            _mlPredictor.addChartData(List<double>.from(data['prices']));
           }
         },
       )
@@ -115,8 +157,8 @@ class _TradeScreenState extends State<TradeScreen> {
   <div id="chart"></div>
   <script src="https://unpkg.com/lightweight-charts@4.0.0/dist/lightweight-charts.standalone.production.js"></script>
   <script>
-    let chart, series, ws, symbol = '$_selectedMarket', candles = [];
-    let isScrolling = false;
+    let chart, series, ws, symbol = '$_selectedMarket', candles = [], ticks = [];
+    let isScrolling = false, chartType = 'candlestick';
     
     function init() {
       chart = LightweightCharts.createChart(document.getElementById('chart'), {
@@ -136,19 +178,12 @@ class _TradeScreenState extends State<TradeScreen> {
         handleScale: { mouseWheel: true, pinch: true },
       });
       
-      series = chart.addCandlestickSeries({
-        upColor: '#00C896',
-        downColor: '#FF4444',
-        wickUpColor: '#00C896',
-        wickDownColor: '#FF4444',
-      });
+      createSeries('candlestick');
       
       chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
         isScrolling = true;
         clearTimeout(window.scrollTimeout);
-        window.scrollTimeout = setTimeout(() => {
-          isScrolling = false;
-        }, 2000);
+        window.scrollTimeout = setTimeout(() => { isScrolling = false; }, 2000);
       });
       
       connect();
@@ -157,16 +192,36 @@ class _TradeScreenState extends State<TradeScreen> {
       });
     }
     
+    function createSeries(type) {
+      if (series) chart.removeSeries(series);
+      
+      if (type === 'candlestick') {
+        series = chart.addCandlestickSeries({
+          upColor: '#00C896', downColor: '#FF4444',
+          wickUpColor: '#00C896', wickDownColor: '#FF4444',
+        });
+      } else if (type === 'line') {
+        series = chart.addLineSeries({
+          color: '#0066FF', lineWidth: 2,
+        });
+      } else if (type === 'area') {
+        series = chart.addAreaSeries({
+          topColor: 'rgba(0, 102, 255, 0.4)',
+          bottomColor: 'rgba(0, 102, 255, 0.0)',
+          lineColor: '#0066FF', lineWidth: 2,
+        });
+      }
+      
+      chartType = type;
+      updateChart();
+    }
+    
     function connect() {
       ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=71954');
       ws.onopen = () => {
         ws.send(JSON.stringify({
-          ticks_history: symbol,
-          count: 500,
-          end: 'latest',
-          start: 1,
-          style: 'candles',
-          granularity: 60
+          ticks_history: symbol, count: 500, end: 'latest', start: 1,
+          style: 'candles', granularity: 60
         }));
         setTimeout(() => {
           ws.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
@@ -179,18 +234,18 @@ class _TradeScreenState extends State<TradeScreen> {
     function handleMessage(data) {
       if (data.candles || data.history) {
         candles = (data.candles || []).map(c => ({
-          time: c.epoch,
-          open: parseFloat(c.open),
-          high: parseFloat(c.high),
-          low: parseFloat(c.low),
-          close: parseFloat(c.close)
+          time: c.epoch, open: parseFloat(c.open), high: parseFloat(c.high),
+          low: parseFloat(c.low), close: parseFloat(c.close)
         }));
         updateChart();
+        sendChartData();
       } else if (data.tick) {
         const price = parseFloat(data.tick.quote);
         const time = data.tick.epoch;
-        const candleTime = Math.floor(time / 60) * 60;
+        ticks.push({ time, price });
+        if (ticks.length > 100) ticks.shift();
         
+        const candleTime = Math.floor(time / 60) * 60;
         let candle = candles.find(c => c.time === candleTime);
         if (!candle) {
           candle = { time: candleTime, open: price, high: price, low: price, close: price };
@@ -208,12 +263,16 @@ class _TradeScreenState extends State<TradeScreen> {
     }
     
     function updateChart() {
-      if (series && candles.length > 0) {
+      if (!series || candles.length === 0) return;
+      
+      if (chartType === 'candlestick') {
         series.setData(candles);
-        if (!isScrolling) {
-          chart.timeScale().scrollToRealTime();
-        }
+      } else {
+        const lineData = candles.map(c => ({ time: c.time, value: c.close }));
+        series.setData(lineData);
       }
+      
+      if (!isScrolling) chart.timeScale().scrollToRealTime();
     }
     
     function sendPrice(price) {
@@ -221,21 +280,48 @@ class _TradeScreenState extends State<TradeScreen> {
         const prev = candles[candles.length - 2].close;
         const change = ((price - prev) / prev) * 100;
         FlutterChannel.postMessage(JSON.stringify({
-          type: 'price',
-          price: price,
-          change: change
+          type: 'price', price: price, change: change
         }));
       }
+    }
+    
+    function sendChartData() {
+      const prices = candles.map(c => c.close);
+      FlutterChannel.postMessage(JSON.stringify({
+        type: 'chart_data', prices: prices
+      }));
     }
     
     function changeMarket(newSymbol) {
       symbol = newSymbol;
       candles = [];
+      ticks = [];
       if (ws) ws.close();
       connect();
     }
     
+    function changeChartType(type) {
+      createSeries(type);
+    }
+    
+    function addTradeMarker(type, price) {
+      if (!series) return;
+      const color = type === 'buy' ? '#00C896' : '#FF4444';
+      const position = type === 'buy' ? 'belowBar' : 'aboveBar';
+      const shape = type === 'buy' ? 'arrowUp' : 'arrowDown';
+      
+      series.createPriceLine({
+        price: price,
+        color: color,
+        lineWidth: 2,
+        lineStyle: 2,
+        axisLabelVisible: true,
+      });
+    }
+    
     window.changeMarket = changeMarket;
+    window.changeChartType = changeChartType;
+    window.addTradeMarker = addTradeMarker;
     init();
   </script>
 </body>
@@ -243,538 +329,638 @@ class _TradeScreenState extends State<TradeScreen> {
     ''';
   }
 
-  void _connectWebSocket() {
-    try {
-      _channel = WebSocketChannel.connect(
-        Uri.parse('wss://ws.derivws.com/websockets/v3?app_id=71954'),
-      );
-
-      setState(() => _isConnected = true);
-
-      _channel!.stream.listen(
-        (message) {
-          final data = json.decode(message);
-          
-          if (data['msg_type'] == 'authorize') {
-            setState(() {
-              _balance = double.parse(data['authorize']['balance'].toString());
-              _currency = data['authorize']['currency'];
-            });
-          } else if (data['msg_type'] == 'proposal') {
-            setState(() {
-              _estimatedPayout = double.parse(data['proposal']['payout'].toString());
-            });
-          } else if (data['msg_type'] == 'buy') {
-            final contract = data['buy'];
-            setState(() {
-              _activePositions.add({
-                'contract_id': contract['contract_id'],
-                'buy_price': contract['buy_price'],
-                'payout': contract['payout'],
-                'type': _contractType,
-                'profit': 0.0,
-              });
-              _isTrading = false;
-            });
-            
-            _channel!.sink.add(json.encode({
-              'proposal_open_contract': 1,
-              'contract_id': contract['contract_id'],
-              'subscribe': 1,
-            }));
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Trade aberto: ${contract['longcode']}'),
-                backgroundColor: const Color(0xFF00C896),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          } else if (data['msg_type'] == 'proposal_open_contract') {
-            _updatePosition(data['proposal_open_contract']);
-          }
-        },
-        onError: (error) => setState(() => _isConnected = false),
-        onDone: () {
-          setState(() => _isConnected = false);
-          Future.delayed(const Duration(seconds: 3), _connectWebSocket);
-        },
-      );
-
-      _channel!.sink.add(json.encode({'authorize': widget.token}));
-    } catch (e) {
-      setState(() => _isConnected = false);
-    }
+  bool _isTickBasedTrade() {
+    return _selectedTradeType == 'even_odd' || 
+           _selectedTradeType == 'match_differ' || 
+           _selectedTradeType == 'over_under';
   }
 
-  void _updatePosition(Map<String, dynamic> contract) {
-    final index = _activePositions.indexWhere(
-      (p) => p['contract_id'] == contract['contract_id']
-    );
+  void _handleTradeResult(Map<String, dynamic> result) async {
+    final won = result['won'] as bool;
+    final profit = result['profit'] as double;
     
-    if (index != -1) {
-      setState(() {
-        _activePositions[index]['profit'] = contract['profit'];
-        _activePositions[index]['status'] = contract['status'];
-        
-        if (contract['status'] == 'won' || contract['status'] == 'lost') {
-          final profit = contract['profit'];
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Trade ${contract['status'].toUpperCase()}: ${profit >= 0 ? '+' : ''}\$${profit.toStringAsFixed(2)}'
-              ),
-              backgroundColor: contract['status'] == 'won' 
-                  ? const Color(0xFF00C896) 
-                  : const Color(0xFFFF4444),
-            ),
-          );
-          
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted) {
-              setState(() => _activePositions.removeAt(index));
-            }
-          });
-        }
-      });
-    }
-  }
-
-  void _changeMarket(String market) {
-    setState(() => _selectedMarket = market);
-    _webViewController?.runJavaScript('changeMarket("$market")');
-  }
-
-  void _placeTrade(String type) {
-    if (_isTrading || !_isConnected) return;
-    
-    setState(() {
-      _isTrading = true;
-      _contractType = type;
-    });
-
-    Map<String, dynamic> params = {
-      'proposal': 1,
-      'amount': _stake,
-      'basis': 'stake',
-      'contract_type': type,
-      'currency': _currency,
-      'symbol': _selectedMarket,
-    };
-
-    // Configurar parâmetros específicos por tipo de contrato
-    if (type == 'MULTUP' || type == 'MULTDOWN') {
-      params['multiplier'] = _multiplier;
-    } else if (type == 'CALL' || type == 'PUT') {
-      params['duration'] = 5;
-      params['duration_unit'] = 't';
-    } else if (type.startsWith('DIGIT')) {
-      params['duration'] = 5;
-      params['duration_unit'] = 't';
-      if (type == 'DIGITMATCH' || type == 'DIGITDIFF') {
-        params['barrier'] = '5';
+    if (_soundEnabled) {
+      if (won) {
+        await _audioPlayer.play(AssetSource('sounds/win.mp3'));
+      } else {
+        await _audioPlayer.play(AssetSource('sounds/lose.mp3'));
       }
     }
-
-    _channel!.sink.add(json.encode(params));
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _channel!.sink.add(json.encode({
-        'buy': 1,
-        'price': _stake,
-        'parameters': params,
-      }));
-    });
-  }
-
-  void _showTradeOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A1A),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Tipo de Contrato',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Expanded(
-              child: GridView.count(
-                controller: scrollController,
-                crossAxisCount: 2,
-                padding: const EdgeInsets.all(16),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.5,
-                children: [
-                  _buildContractTypeCard('Up', Icons.arrow_upward, const Color(0xFF00C896), 'MULTUP'),
-                  _buildContractTypeCard('Down', Icons.arrow_downward, const Color(0xFFFF4444), 'MULTDOWN'),
-                  _buildContractTypeCard('Rise', Icons.trending_up, const Color(0xFF00C896), 'CALL'),
-                  _buildContractTypeCard('Fall', Icons.trending_down, const Color(0xFFFF4444), 'PUT'),
-                  _buildContractTypeCard('Even', Icons.looks_two, const Color(0xFF0066FF), 'DIGITEVEN'),
-                  _buildContractTypeCard('Odd', Icons.looks_one, const Color(0xFF0066FF), 'DIGITODD'),
-                  _buildContractTypeCard('Matches', Icons.check_circle, const Color(0xFF00C896), 'DIGITMATCH'),
-                  _buildContractTypeCard('Differs', Icons.cancel, const Color(0xFFFF4444), 'DIGITDIFF'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContractTypeCard(String label, IconData icon, Color color, String type) {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _contractType = type);
-        Navigator.pop(context);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _contractType == type ? color : Colors.transparent,
-            width: 2,
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            won ? 'GANHOU: +\$${profit.toStringAsFixed(2)}' 
+                : 'PERDEU: -\$${profit.abs().toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
+          backgroundColor: won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+          duration: const Duration(seconds: 2),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      );
+    }
+    
+    _mlPredictor.addTradeResult(won, profit);
+  }
+
+  void _placeTrade(String direction) async {
+    if (_isTrading || !_tradingLogic.isConnected) return;
+    
+    setState(() => _isTrading = true);
+    
+    bool success = false;
+    
+    switch (_selectedTradeType) {
+      case 'rise_fall':
+        success = await _tradingLogic.placeRiseFall(
+          market: _selectedMarket,
+          stake: _stake,
+          direction: direction,
+        );
+        break;
+      case 'higher_lower':
+        success = await _tradingLogic.placeHigherLower(
+          market: _selectedMarket,
+          stake: _stake,
+          direction: direction,
+        );
+        break;
+      case 'turbos':
+        success = await _tradingLogic.placeTurbo(
+          market: _selectedMarket,
+          stake: _stake,
+          direction: direction,
+        );
+        break;
+      case 'accumulators':
+        success = await _tradingLogic.placeAccumulator(
+          market: _selectedMarket,
+          stake: _stake,
+        );
+        break;
+      case 'even_odd':
+        success = await _tradingLogic.placeDigit(
+          market: _selectedMarket,
+          stake: _stake,
+          type: direction == 'buy' ? 'DIGITEVEN' : 'DIGITODD',
+        );
+        break;
+      case 'match_differ':
+        success = await _tradingLogic.placeDigit(
+          market: _selectedMarket,
+          stake: _stake,
+          type: direction == 'buy' ? 'DIGITMATCH' : 'DIGITDIFF',
+          barrier: _tickPrediction.toString(),
+        );
+        break;
+      case 'over_under':
+        success = await _tradingLogic.placeDigit(
+          market: _selectedMarket,
+          stake: _stake,
+          type: direction == 'buy' ? 'DIGITOVER' : 'DIGITUNDER',
+          barrier: _tickPrediction.toString(),
+        );
+        break;
+    }
+    
+    if (success && _webViewController != null) {
+      _webViewController!.runJavaScript(
+        'addTradeMarker("$direction", $_currentPrice)'
+      );
+    }
+    
+    setState(() => _isTrading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final mlPrediction = _mlPredictor.currentPrediction;
+    final mlStake = _mlPredictor.recommendedStake(_tradingLogic.balance);
+    
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: GestureDetector(
-          onTap: () {
-            showModalBottomSheet(
-              context: context,
-              backgroundColor: const Color(0xFF1A1A1A),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              builder: (context) => ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(16),
-                children: _allMarkets.entries.map((e) => ListTile(
-                  title: Text(e.value, style: const TextStyle(color: Colors.white)),
-                  selected: e.key == _selectedMarket,
-                  selectedTileColor: const Color(0xFF0066FF).withOpacity(0.2),
-                  onTap: () {
-                    _changeMarket(e.key);
-                    Navigator.pop(context);
-                  },
-                )).toList(),
-              ),
-            );
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _allMarkets[_selectedMarket] ?? '',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.keyboard_arrow_down, size: 20),
-            ],
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${_balance.toStringAsFixed(2)} $_currency',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _priceChange >= 0 
-                        ? const Color(0xFF00C896).withOpacity(0.2)
-                        : const Color(0xFFFF4444).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${_priceChange >= 0 ? '+' : ''}${_priceChange.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      color: _priceChange >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
-          // Gráfico
+          if (mlPrediction != null) _buildMLPredictionBar(mlPrediction, mlStake),
           Expanded(
+            flex: _chartExpanded ? 4 : 3,
             child: Stack(
               children: [
                 WebViewWidget(controller: _webViewController!),
-                // Posições ativas
-                if (_activePositions.isNotEmpty)
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.85),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: Column(
-                        children: _activePositions.map((pos) {
-                          final profit = pos['profit'] ?? 0.0;
-                          final isProfit = profit >= 0;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'ID: ${pos['contract_id'].toString().substring(0, 8)}...',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                                ),
-                                Text(
-                                  '${isProfit ? '+' : ''}\$${profit.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    color: isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
+                _buildChartControls(),
+                if (_tradingLogic.activePositions.isNotEmpty)
+                  _buildPositionsOverlay(),
               ],
             ),
           ),
+          _buildTradingPanel(),
+        ],
+      ),
+    );
+  }
 
-          // Painel de Trading
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1A1A1A),
-              border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF1A1A1A),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: GestureDetector(
+        onTap: _showMarketSelector,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _allMarkets[_selectedMarket] ?? '',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  // Opções de configuração
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildOption(
-                          'Stake: \$${_stake.toStringAsFixed(2)}',
-                          () => _showStakeDialog(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildOption(
-                          'Tipo: ${_getContractName()}',
-                          () => _showTradeOptions(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Botões de Trade
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTradeButton(
-                          _getButtonLabel(true),
-                          _estimatedPayout > 0 ? '+\$${_estimatedPayout.toStringAsFixed(2)}' : '\$${_stake.toStringAsFixed(2)}',
-                          const Color(0xFF00C896),
-                          () => _placeTrade(_contractType),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTradeButton(
-                          _getButtonLabel(false),
-                          _estimatedPayout > 0 ? '+\$${_estimatedPayout.toStringAsFixed(2)}' : '\$${_stake.toStringAsFixed(2)}',
-                          const Color(0xFFFF4444),
-                          () => _placeTrade(_getOppositeType()),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            const Icon(Icons.keyboard_arrow_down, size: 20),
+          ],
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${_tradingLogic.balance.toStringAsFixed(2)} ${_tradingLogic.currency}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _priceChange >= 0 
+                      ? const Color(0xFF00C896).withOpacity(0.2)
+                      : const Color(0xFFFF4444).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${_priceChange >= 0 ? '+' : ''}${_priceChange.toStringAsFixed(2)}%',
+                  style: TextStyle(
+                    color: _priceChange >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMLPredictionBar(Map<String, dynamic> prediction, double stake) {
+    final direction = prediction['direction'] as String;
+    final confidence = prediction['confidence'] as double;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: const Color(0xFF0D47A1).withOpacity(0.3),
+      child: Row(
+        children: [
+          const Icon(Icons.psychology, color: Color(0xFF2196F3), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'ML: ${direction.toUpperCase()} (${(confidence * 100).toStringAsFixed(0)}%) - Stake: \$${stake.toStringAsFixed(2)}',
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: Colors.white70, size: 18),
+            onPressed: () => _showMLInfo(),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
     );
   }
 
-  String _getContractName() {
-    switch (_contractType) {
-      case 'MULTUP': return 'Up';
-      case 'MULTDOWN': return 'Down';
-      case 'CALL': return 'Rise';
-      case 'PUT': return 'Fall';
-      case 'DIGITEVEN': return 'Even';
-      case 'DIGITODD': return 'Odd';
-      case 'DIGITMATCH': return 'Match';
-      case 'DIGITDIFF': return 'Differ';
-      default: return 'Trade';
-    }
-  }
-
-  String _getButtonLabel(bool isGreen) {
-    if (_contractType == 'MULTUP' || _contractType == 'MULTDOWN') {
-      return isGreen ? 'UP' : 'DOWN';
-    } else if (_contractType == 'CALL' || _contractType == 'PUT') {
-      return isGreen ? 'RISE' : 'FALL';
-    } else if (_contractType == 'DIGITEVEN' || _contractType == 'DIGITODD') {
-      return isGreen ? 'EVEN' : 'ODD';
-    } else {
-      return isGreen ? 'MATCHES' : 'DIFFERS';
-    }
-  }
-
-  String _getOppositeType() {
-    switch (_contractType) {
-      case 'MULTUP': return 'MULTDOWN';
-      case 'MULTDOWN': return 'MULTUP';
-      case 'CALL': return 'PUT';
-      case 'PUT': return 'CALL';
-      case 'DIGITEVEN': return 'DIGITODD';
-      case 'DIGITODD': return 'DIGITEVEN';
-      case 'DIGITMATCH': return 'DIGITDIFF';
-      case 'DIGITDIFF': return 'DIGITMATCH';
-      default: return _contractType;
-    }
-  }
-
-  Widget _buildOption(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+  Widget _buildChartControls() {
+    return Positioned(
+      top: 12,
+      right: 12,
+      child: Column(
+        children: [
+          _buildChartControlButton(
+            icon: _chartExpanded ? Icons.fullscreen_exit : Icons.fullscreen,
+            onPressed: () => setState(() => _chartExpanded = !_chartExpanded),
           ),
+          const SizedBox(height: 8),
+          _buildChartControlButton(
+            icon: Icons.show_chart,
+            onPressed: _showChartTypeSelector,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartControlButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 20),
+        onPressed: onPressed,
+        padding: const EdgeInsets.all(8),
+        constraints: const BoxConstraints(),
+      ),
+    );
+  }
+
+  Widget _buildPositionsOverlay() {
+    return Positioned(
+      bottom: 12,
+      left: 12,
+      right: 12,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.85),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Column(
+          children: _tradingLogic.activePositions.map((pos) {
+            final profit = pos['profit'] ?? 0.0;
+            final isProfit = profit >= 0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'ID: ${pos['contract_id'].toString().substring(0, 8)}...',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                  Text(
+                    '${isProfit ? '+' : ''}\$${profit.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
   }
 
-  Widget _buildTradeButton(String label, String payout, Color color, VoidCallback onPressed) {
-    return Material(
-      color: _isTrading ? color.withOpacity(0.5) : color,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: _isTrading ? null : onPressed,
+  Widget _buildTradingPanel() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A1A),
+        border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            _buildTradeTypeSelector(),
+            const SizedBox(height: 12),
+            _buildStakeSelector(),
+            if (_selectedTradeType == 'over_under') ...[
+              const SizedBox(height: 12),
+              _buildPredictionSelector(),
+            ],
+            const SizedBox(height: 16),
+            _buildTradeButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTradeTypeSelector() {
+    final allTypes = [..._tradeTypes, ..._tickTradeTypes];
+    
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: allTypes.length + 1,
+        itemBuilder: (context, index) {
+          if (index == allTypes.length) {
+            return _buildSoundToggle();
+          }
+          
+          final type = allTypes[index];
+          final isSelected = _selectedTradeType == type['id'];
+          
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(type['label']),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() => _selectedTradeType = type['id']);
+                }
+              },
+              backgroundColor: const Color(0xFF2A2A2A),
+              selectedColor: const Color(0xFF0066FF),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSoundToggle() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: ChoiceChip(
+        label: Icon(
+          _soundEnabled ? Icons.volume_up : Icons.volume_off,
+          size: 18,
+          color: Colors.white,
+        ),
+        selected: _soundEnabled,
+        onSelected: (selected) => setState(() => _soundEnabled = selected),
+        backgroundColor: const Color(0xFF2A2A2A),
+        selectedColor: const Color(0xFF00C896),
+        padding: const EdgeInsets.all(8),
+        shape: const CircleBorder(),
+      ),
+    );
+  }
+
+  Widget _buildStakeSelector() {
+    return GestureDetector(
+      onTap: _showStakeDialog,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Stake',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            Text(
+              '\$${_stake.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPredictionSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
         borderRadius: BorderRadius.circular(12),
-        splashColor: Colors.white.withOpacity(0.2),
-        highlightColor: Colors.white.withOpacity(0.1),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Prediction',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          Row(
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              IconButton(
+                icon: const Icon(Icons.remove, color: Colors.white),
+                onPressed: () {
+                  if (_tickPrediction > 0) {
+                    setState(() => _tickPrediction--);
+                  }
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  _tickPrediction.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                payout,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                ),
+              IconButton(
+                icon: const Icon(Icons.add, color: Colors.white),
+                onPressed: () {
+                  if (_tickPrediction < 9) {
+                    setState(() => _tickPrediction++);
+                  }
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTradeButtons() {
+    if (_selectedTradeType == 'accumulators') {
+      return _buildSingleTradeButton('BUY', const Color(0xFF0066FF), 'buy');
+    }
+    
+    final leftLabel = _getButtonLabel(true);
+    final rightLabel = _getButtonLabel(false);
+    
+    return Row(
+      children: [
+        Expanded(
+          child: _buildTradeButton(
+            leftLabel,
+            const Color(0xFF00C896),
+            'buy',
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildTradeButton(
+            rightLabel,
+            const Color(0xFFFF4444),
+            'sell',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTradeButton(String label, Color color, String direction) {
+    return Material(
+      color: _isTrading ? color.withOpacity(0.5) : color,
+      borderRadius: BorderRadius.circular(100),
+      child: InkWell(
+        onTap: _isTrading ? null : () => _placeTrade(direction),
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildSingleTradeButton(String label, Color color, String direction) {
+    return Material(
+      color: _isTrading ? color.withOpacity(0.5) : color,
+      borderRadius: BorderRadius.circular(100),
+      child: InkWell(
+        onTap: _isTrading ? null : () => _placeTrade(direction),
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getButtonLabel(bool isLeft) {
+    switch (_selectedTradeType) {
+      case 'rise_fall':
+        return isLeft ? 'RISE' : 'FALL';
+      case 'higher_lower':
+        return isLeft ? 'HIGHER' : 'LOWER';
+      case 'turbos':
+        return isLeft ? 'UP' : 'DOWN';
+      case 'even_odd':
+        return isLeft ? 'EVEN' : 'ODD';
+      case 'match_differ':
+        return isLeft ? 'MATCH' : 'DIFFER';
+      case 'over_under':
+        return isLeft ? 'OVER' : 'UNDER';
+      default:
+        return isLeft ? 'BUY' : 'SELL';
+    }
+  }
+
+  void _showMarketSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(16),
+        children: _allMarkets.entries.map((e) => ListTile(
+          title: Text(e.value, style: const TextStyle(color: Colors.white)),
+          selected: e.key == _selectedMarket,
+          selectedTileColor: const Color(0xFF0066FF).withOpacity(0.2),
+          onTap: () {
+            setState(() => _selectedMarket = e.key);
+            _webViewController?.runJavaScript('changeMarket("${e.key}")');
+            Navigator.pop(context);
+          },
+        )).toList(),
+      ),
+    );
+  }
+
+  void _showChartTypeSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Tipo de Gráfico',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.candlestick_chart, color: Colors.white),
+            title: const Text('Candlestick', style: TextStyle(color: Colors.white)),
+            selected: _chartType == 'candlestick',
+            onTap: () => _changeChartType('candlestick'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.show_chart, color: Colors.white),
+            title: const Text('Line', style: TextStyle(color: Colors.white)),
+            selected: _chartType == 'line',
+            onTap: () => _changeChartType('line'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.area_chart, color: Colors.white),
+            title: const Text('Area', style: TextStyle(color: Colors.white)),
+            selected: _chartType == 'area',
+            onTap: () => _changeChartType('area'),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  void _changeChartType(String type) {
+    setState(() => _chartType = type);
+    _webViewController?.runJavaScript('changeChartType("$type")');
+    Navigator.pop(context);
   }
 
   void _showStakeDialog() {
@@ -814,6 +1000,53 @@ class _TradeScreenState extends State<TradeScreen> {
                 Navigator.pop(context);
               }
             },
+            child: const Text('OK', style: TextStyle(color: Color(0xFF0066FF))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMLInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Row(
+          children: [
+            Icon(Icons.psychology, color: Color(0xFF2196F3)),
+            SizedBox(width: 8),
+            Text('Machine Learning', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'O sistema de ML analisa:',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '• Padrões do gráfico\n• Histórico de preços\n• Volatilidade\n• Tendências de mercado\n• Seu histórico de trades\n• Gestão de banca',
+              style: TextStyle(color: Colors.white70, height: 1.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Precisão atual: ${(_mlPredictor.accuracy * 100).toStringAsFixed(1)}%',
+              style: const TextStyle(color: Color(0xFF00C896), fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Total de análises: ${_mlPredictor.totalPredictions}',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
             child: const Text('OK', style: TextStyle(color: Color(0xFF0066FF))),
           ),
         ],
