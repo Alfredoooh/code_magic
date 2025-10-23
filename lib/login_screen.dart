@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'styles.dart';
 import 'home_screen.dart';
@@ -16,6 +17,7 @@ class DerivLoginScreen extends StatefulWidget {
 class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerProviderStateMixin {
   final _tokenController = TextEditingController();
   bool _isLoading = false;
+  bool _isCheckingSession = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -31,7 +33,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _animationController.forward();
+    _checkExistingSession();
   }
 
   @override
@@ -39,6 +41,28 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     _tokenController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkExistingSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedToken = prefs.getString('deriv_token');
+    
+    if (savedToken != null && savedToken.isNotEmpty) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => HomeScreen(token: savedToken),
+        ),
+      );
+    } else {
+      setState(() => _isCheckingSession = false);
+      _animationController.forward();
+    }
+  }
+
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('deriv_token', token);
   }
 
   /// Login via OAuth2 com conta Deriv - DENTRO DO APP
@@ -69,6 +93,8 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
             return;
           }
 
+          await _saveToken(selectedAccount['token']!);
+          
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -77,6 +103,8 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
           );
         } else {
           final firstAccount = accounts.first;
+          await _saveToken(firstAccount['token']!);
+          
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -126,15 +154,6 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
                     side: const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
                   ),
                   child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0066FF).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.account_circle, color: Color(0xFF0066FF)),
-                    ),
                     title: Text(
                       account['account'] ?? '',
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
@@ -171,6 +190,8 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(seconds: 1));
 
+    await _saveToken(token);
+
     if (!mounted) return;
     setState(() => _isLoading = false);
 
@@ -181,6 +202,15 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingSession) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF0066FF)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -194,21 +224,24 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
               children: [
                 const Spacer(),
                 Center(
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0066FF),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0066FF).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/icon/icon.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0066FF),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        );
+                      },
                     ),
-                    child: const Icon(Icons.trending_up, size: 40, color: Colors.white),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -231,10 +264,13 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
                 const SizedBox(height: 48),
                 SizedBox(
                   height: 52,
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     onPressed: _isLoading ? null : _loginWithDeriv,
-                    icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.account_circle, size: 20),
-                    label: _isLoading
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0066FF),
+                      disabledBackgroundColor: const Color(0xFF0066FF).withOpacity(0.5),
+                    ),
+                    child: _isLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
@@ -243,11 +279,10 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text('Login com Email/Senha Deriv', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0066FF),
-                      disabledBackgroundColor: const Color(0xFF0066FF).withOpacity(0.5),
-                    ),
+                        : const Text(
+                            'Login com Email/Senha Deriv',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 24),
