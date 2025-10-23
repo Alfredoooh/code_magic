@@ -1,9 +1,9 @@
-// bots_screen.dart
+// lib/bots_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 
 class BotsScreen extends StatefulWidget {
@@ -22,10 +22,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   double _balance = 0.0;
   String _currency = 'USD';
   Map<String, String> _proposalIds = {};
-  
+
   // Dados de preço para análise
   Map<String, List<double>> _marketPrices = {};
   Timer? _priceUpdateTimer;
+
+  // Controllers dos charts por mercado (market -> list of WebViewController)
+  final Map<String, List<WebViewController>> _chartControllers = {};
+
+  // Quantos pontos enviar ao chart (últimos N ticks)
+  final int _chartPointsCount = 60;
 
   @override
   bool get wantKeepAlive => true;
@@ -45,10 +51,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     }
     _priceUpdateTimer?.cancel();
     _channel?.sink.close();
+
+    _chartControllers.clear();
+
     super.dispose();
   }
 
   void _loadDefaultBots() {
+    // --- Nota: _channel pode ser null aqui inicialmente; alguns bots esperam channel não nulo.
+    // Mantive a mesma lista de bots. Se o _channel for nulo no momento da criação em runtime,
+    // assume-se que a tua lógica em bot_engine lida com isso. Manter assinatura inalterada.
     _bots = [
       TradingBot(
         config: BotConfiguration(
@@ -67,7 +79,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Fibonacci Master',
@@ -85,7 +97,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'D\'Alembert Safe',
@@ -102,7 +114,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Labouchere Elite',
@@ -118,7 +130,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Oscar\'s Grind',
@@ -134,7 +146,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Paroli Power',
@@ -150,7 +162,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Kelly Criterion',
@@ -166,7 +178,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: '1-3-2-6 System',
@@ -181,7 +193,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Adaptive AI',
@@ -205,7 +217,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Recovery Master',
@@ -223,7 +235,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'Compound Growth',
@@ -241,7 +253,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-      
+
       TradingBot(
         config: BotConfiguration(
           name: 'ML Predictor',
@@ -291,7 +303,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       );
 
       _channel!.sink.add(json.encode({'authorize': widget.token}));
-      
+
       // Subscrever para ticks de todos os mercados
       _subscribeToMarkets();
     } catch (e) {
@@ -321,24 +333,48 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       case 'tick':
         final symbol = data['tick']['symbol'];
         final price = double.parse(data['tick']['quote'].toString());
-        
+
         if (!_marketPrices.containsKey(symbol)) {
           _marketPrices[symbol] = [];
         }
         _marketPrices[symbol]!.add(price);
-        
+
+        // Limitar histórico para não crescer indefinidamente (ex: 500)
+        if (_marketPrices[symbol]!.length > 500) {
+          _marketPrices[symbol] = _marketPrices[symbol]!.sublist(_marketPrices[symbol]!.length - 500);
+        }
+
         // Atualizar preço em bots do mesmo mercado
         for (var bot in _bots) {
           if (bot.config.market == symbol) {
             bot.updatePrice(price);
           }
         }
+
+        // --- Enviar últimos pontos para os charts registados deste mercado ---
+        final controllers = _chartControllers[symbol];
+        if (controllers != null && controllers.isNotEmpty) {
+          final allPoints = _marketPrices[symbol]!;
+          final lastPoints = allPoints.length > _chartPointsCount
+              ? allPoints.sublist(allPoints.length - _chartPointsCount)
+              : allPoints;
+          final jsArray = lastPoints.map((p) => p.toString()).join(',');
+          final script = "try{ updateData([${jsArray}]); }catch(e){};";
+          for (var c in controllers) {
+            try {
+              c.runJavaScript(script);
+            } catch (_) {
+              // ignore controllers that fail (webview may not be ready)
+            }
+          }
+        }
+
         break;
 
       case 'proposal':
         final id = data['proposal']['id'];
         _proposalIds[id] = id;
-        
+
         // Encontrar bot esperando proposta
         for (var bot in _bots) {
           if (bot.isRunning && bot.currentContractId == null) {
@@ -406,10 +442,10 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     final activeBots = _bots.where((b) => b.isRunning).length;
     final totalProfit = _bots.fold(0.0, (sum, bot) => sum + bot.totalProfit);
-    
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -485,18 +521,14 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   }
 
   Widget _buildStatisticsHeader(int activeBots, double totalProfit) {
+    // Use cores sólidas em vez de gradient
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF0066FF).withOpacity(0.2),
-            const Color(0xFF00C896).withOpacity(0.2),
-          ],
-        ),
+        color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Row(
         children: [
@@ -575,8 +607,8 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           boxShadow: bot.isRunning
               ? [
                   BoxShadow(
-                    color: const Color(0xFF0066FF).withOpacity(0.3),
-                    blurRadius: 12,
+                    color: const Color(0xFF0066FF).withOpacity(0.09),
+                    blurRadius: 8,
                     spreadRadius: 0,
                   ),
                 ]
@@ -591,11 +623,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: bot.isRunning 
-                          ? [const Color(0xFF0066FF), const Color(0xFF00C896)]
-                          : [Colors.white24, Colors.white12],
-                    ),
+                    color: bot.isRunning ? const Color(0xFF0066FF) : const Color(0xFF2A2A2A),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -625,9 +653,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.2),
+                                color: Colors.orange.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.orange),
+                                border: Border.all(color: Colors.orange.withOpacity(0.9)),
                               ),
                               child: const Text(
                                 'RECOVERY',
@@ -663,15 +691,15 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
-            // Mini gráfico de desempenho
+
+            // Mini gráfico de desempenho (usando DerivAreaChart embebido)
             if (status.tradeHistory.isNotEmpty)
-              _buildMiniChart(status.tradeHistory),
-            
+              _buildMiniChart(status.tradeHistory, bot),
+
             const SizedBox(height: 16),
-            
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -734,9 +762,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Row(
               children: [
                 Expanded(
@@ -819,44 +847,46 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildMiniChart(List<TradeRecord> history) {
+  Widget _buildMiniChart(List<TradeRecord> history, TradingBot bot) {
     final data = history.map((t) => t.profit).toList();
     final cumulative = <double>[];
     double sum = 0;
-    
+
     for (var profit in data) {
       sum += profit;
       cumulative.add(sum);
     }
-    
+
+    // Usar o DerivAreaChart embebido — sem preenchimento/gradient
     return Container(
       height: 60,
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(show: false),
-          titlesData: FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: cumulative
-                  .asMap()
-                  .entries
-                  .map((e) => FlSpot(e.key.toDouble(), e.value))
-                  .toList(),
-              isCurved: true,
-              color: cumulative.last >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-              barWidth: 2,
-              dotData: FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                color: (cumulative.last >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444))
-                    .withOpacity(0.2),
-              ),
-            ),
-          ],
-          minY: cumulative.isEmpty ? 0 : cumulative.reduce((a, b) => a < b ? a : b) - 5,
-          maxY: cumulative.isEmpty ? 0 : cumulative.reduce((a, b) => a > b ? a : b) + 5,
-        ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DerivAreaChart(
+        points: cumulative,
+        autoScale: true,
+        showGradient: false, // sem fill
+        market: bot.config.market,
+        onControllerCreated: (controller, market) {
+          if (market == null) return;
+          _chartControllers.putIfAbsent(market, () => []);
+          if (!_chartControllers[market]!.contains(controller)) {
+            _chartControllers[market]!.add(controller);
+            final allPoints = _marketPrices[market] ?? [];
+            final lastPoints = allPoints.length > _chartPointsCount
+                ? allPoints.sublist(allPoints.length - _chartPointsCount)
+                : allPoints;
+            if (lastPoints.isNotEmpty) {
+              final jsArray = lastPoints.map((p) => p.toString()).join(',');
+              final script = "try{ updateData([${jsArray}]); }catch(e){};";
+              try {
+                controller.runJavaScript(script);
+              } catch (_) {}
+            }
+          }
+        },
       ),
     );
   }
@@ -865,9 +895,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
         label,
@@ -955,11 +985,11 @@ class BotDetailsScreen extends StatefulWidget {
 
 class _BotDetailsScreenState extends State<BotDetailsScreen> {
   String _selectedChart = 'profit';
-  
+
   @override
   Widget build(BuildContext context) {
     final status = widget.bot._getStatus();
-    
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -996,14 +1026,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF0066FF).withOpacity(0.3),
-            const Color(0xFF00C896).withOpacity(0.3),
-          ],
-        ),
+        color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         children: [
@@ -1034,8 +1059,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: status.isRunning 
-                      ? const Color(0xFF00C896).withOpacity(0.2)
-                      : Colors.white.withOpacity(0.1),
+                      ? const Color(0xFF00C896).withOpacity(0.12)
+                      : Colors.white.withOpacity(0.06),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -1143,141 +1168,84 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   Widget _buildProfitChart(List<TradeRecord> history) {
     final cumulative = <double>[];
     double sum = 0;
-    
+
     for (var trade in history) {
       sum += trade.profit;
       cumulative.add(sum);
     }
-    
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 20,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.white.withOpacity(0.1),
-            strokeWidth: 1,
-          ),
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) => Text(
-                '\$${value.toInt()}',
-                style: const TextStyle(color: Colors.white54, fontSize: 10),
-              ),
-            ),
-          ),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: cumulative.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-            isCurved: true,
-            color: cumulative.last >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-            barWidth: 3,
-            dotData: FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: (cumulative.last >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444)).withOpacity(0.2),
-            ),
-          ),
-        ],
-      ),
+
+    return DerivAreaChart(
+      points: cumulative,
+      autoScale: true,
+      showGradient: false,
+      market: widget.bot.config.market,
+      onControllerCreated: (controller, market) {
+        if (market == null) return;
+        // Registrar controller (se ainda não registado)
+        // Evitar duplicados
+        final sc = (context.findAncestorStateOfType<_BotsScreenStateWrapper>()?._chartControllers);
+        // sc pode ser null; em qualquer caso registamos localmente
+        _registerControllerForMarket(controller, market);
+      },
+      height: 200,
     );
+  }
+
+  // Pequena helper para registar controller (evita duplicados)
+  void _registerControllerForMarket(WebViewController controller, String market) {
+    // Procurar uma referência ao estado pai BotsScreen para manter o mesmo mapa.
+    // Caso não exista, usamos um mapa local dentro desta tela (funciona igualmente).
+    // Aqui apenas garantimos que _chartControllers do pai é atualizado.
+    final botsScreenState = context.findAncestorStateOfType<_BotsScreenState>();
+    if (botsScreenState != null) {
+      botsScreenState._chartControllers.putIfAbsent(market, () => []);
+      if (!botsScreenState._chartControllers[market]!.contains(controller)) {
+        botsScreenState._chartControllers[market]!.add(controller);
+      }
+    } else {
+      _chartControllers.putIfAbsent(market, () => []);
+      if (!_chartControllers[market]!.contains(controller)) {
+        _chartControllers[market]!.add(controller);
+      }
+    }
   }
 
   Widget _buildWinRateChart(List<TradeRecord> history) {
     final windowSize = 10;
     final winRates = <double>[];
-    
+
     for (int i = windowSize; i <= history.length; i++) {
       final window = history.sublist(i - windowSize, i);
       final wins = window.where((t) => t.won).length;
       winRates.add(wins / windowSize * 100);
     }
-    
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.white.withOpacity(0.1),
-            strokeWidth: 1,
-          ),
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) => Text(
-                '${value.toInt()}%',
-                style: const TextStyle(color: Colors.white54, fontSize: 10),
-              ),
-            ),
-          ),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: winRates.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-            isCurved: true,
-            color: const Color(0xFF0066FF),
-            barWidth: 3,
-            dotData: FlDotData(show: false),
-          ),
-        ],
-        minY: 0,
-        maxY: 100,
-      ),
+
+    return DerivAreaChart(
+      points: winRates,
+      autoScale: false,
+      showGradient: false,
+      market: widget.bot.config.market,
+      onControllerCreated: (controller, market) {
+        if (market == null) return;
+        _registerControllerForMarket(controller, market);
+      },
+      height: 200,
     );
   }
 
   Widget _buildStakeChart(List<TradeRecord> history) {
-    return BarChart(
-      BarChartData(
-        gridData: FlGridData(show: false),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) => Text(
-                '\$${value.toInt()}',
-                style: const TextStyle(color: Colors.white54, fontSize: 10),
-              ),
-            ),
-          ),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: history.asMap().entries.map((e) {
-          return BarChartGroupData(
-            x: e.key,
-            barRods: [
-              BarChartRodData(
-                toY: e.value.stake,
-                color: e.value.won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                width: 4,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
+    final stakes = history.map((t) => t.stake).toList();
+
+    return DerivAreaChart(
+      points: stakes,
+      autoScale: true,
+      showGradient: false,
+      market: widget.bot.config.market,
+      onControllerCreated: (controller, market) {
+        if (market == null) return;
+        _registerControllerForMarket(controller, market);
+      },
+      height: 200,
     );
   }
 
@@ -1307,7 +1275,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.18)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1495,15 +1463,39 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // NOVO: campo para alterar stake via modal (confirmação explícita)
             const Text('Initial Stake', style: TextStyle(color: Colors.white, fontSize: 16)),
-            Slider(
-              value: _initialStake,
-              min: 5,
-              max: 100,
-              divisions: 19,
-              label: '\$${_initialStake.toStringAsFixed(0)}',
-              onChanged: (value) => setState(() => _initialStake = value),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Text(
+                      '\$${_initialStake.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _openStakeModal,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0066FF),
+                    minimumSize: const Size(120, 48),
+                  ),
+                  child: const Text('Alterar Stake'),
+                ),
+              ],
             ),
+
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _createBot,
@@ -1513,6 +1505,91 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
               child: const Text('Create Bot'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openStakeModal() {
+    final controller = TextEditingController(text: _initialStake.toStringAsFixed(2));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A1A),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Definir Initial Stake', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                prefixText: '\$ ',
+                prefixStyle: const TextStyle(color: Colors.white70, fontSize: 20),
+                hintText: '0.00',
+                hintStyle: const TextStyle(color: Colors.white24),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF0066FF), width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFF2A2A2A),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      final value = double.tryParse(controller.text.replaceAll(',', '.'));
+                      if (value != null && value >= 0.01) {
+                        setState(() {
+                          _initialStake = value;
+                        });
+                        Navigator.pop(context);
+                      } else {
+                        // inválido: mostramos snackbar sem fechar modal
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Insira um valor válido (>= 0.01)'), backgroundColor: Colors.orange),
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFF0066FF),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1533,8 +1610,163 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       channel: widget.channel,
       onStatusUpdate: (_) {},
     );
-    
+
     widget.onBotCreated(bot);
     Navigator.pop(context);
+  }
+}
+
+// =====================
+// DerivAreaChart widget
+// =====================
+
+class DerivAreaChart extends StatefulWidget {
+  final List<double> points;
+  final bool autoScale;
+  final bool showGradient; // agora controla apenas se preenche; usamos false por padrão para não preencher
+  final double? height;
+
+  /// market: optional, used to register the controller per market
+  final String? market;
+
+  /// Callback to expose the WebViewController once ready:
+  /// (controller, market)
+  final void Function(WebViewController controller, String? market)? onControllerCreated;
+
+  const DerivAreaChart({
+    Key? key,
+    required this.points,
+    this.autoScale = true,
+    this.showGradient = false,
+    this.height,
+    this.market,
+    this.onControllerCreated,
+  }) : super(key: key);
+
+  @override
+  State<DerivAreaChart> createState() => _DerivAreaChartState();
+}
+
+class _DerivAreaChartState extends State<DerivAreaChart> {
+  late final WebViewController _controller;
+  String get _initialHtml => _buildHtml(widget.points, widget.autoScale, widget.showGradient);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF1A1A1A))
+      ..addJavaScriptChannel('FlutterChannel', onMessageReceived: (message) {
+        // placeholder for JS -> Flutter messages if needed later
+      })
+      ..loadHtmlString(_initialHtml);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.onControllerCreated != null) {
+        widget.onControllerCreated!(_controller, widget.market);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant DerivAreaChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final jsArray = widget.points.map((p) => p.toString()).join(',');
+    final script = "try{ updateData([${jsArray}]); }catch(e){};";
+    _controller.runJavaScript(script);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.height ?? 180,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: WebViewWidget(controller: _controller),
+      ),
+    );
+  }
+
+  String _buildHtml(List<double> points, bool autoScale, bool showGradient) {
+    final initialData = points.map((p) => p.toString()).join(',');
+    // Não usamos gradient/area fill por padrão; showGradient=false => fill: false
+    return '''
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body { margin:0; padding:0; background:#0F0F0F; }
+    #chart { width:100%; height:100%; }
+    canvas { display:block; }
+  </style>
+</head>
+<body>
+  <canvas id="chart"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const ctx = document.getElementById('chart').getContext('2d');
+    Chart.defaults.font.family = 'Arial';
+    Chart.defaults.color = '#FFFFFF';
+    const dataPoints = [${initialData}];
+    const labels = dataPoints.map((_, i) => i.toString());
+
+    const config = {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '',
+          data: dataPoints,
+          fill: ${showGradient ? 'true' : 'false'},
+          backgroundColor: '${showGradient ? 'rgba(0,200,150,0.12)' : 'rgba(0,0,0,0)'}',
+          borderColor: dataPoints.length>1 && dataPoints[dataPoints.length-1] >= dataPoints[dataPoints.length-2] ? '#00C896' : '#FF4444',
+          tension: 0.25,
+          pointRadius: 0,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { display: false },
+          y: {
+            display: false,
+            beginAtZero: ${autoScale ? 'false' : 'true'}
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }
+      }
+    };
+
+    const myChart = new Chart(ctx, config);
+
+    function updateData(newPoints) {
+      try {
+        const labels = newPoints.map((_, i) => i.toString());
+        myChart.data.labels = labels;
+        myChart.data.datasets[0].data = newPoints;
+        if (newPoints.length >= 2) {
+          const last = newPoints[newPoints.length - 1];
+          const prev = newPoints[newPoints.length - 2];
+          myChart.data.datasets[0].borderColor = last >= prev ? '#00C896' : '#FF4444';
+        }
+        myChart.update();
+      } catch (e) {
+        console.log('updateData error', e);
+      }
+    }
+
+    window.updateData = updateData;
+  </script>
+</body>
+</html>
+''';
   }
 }
