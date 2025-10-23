@@ -15,7 +15,7 @@ class AppRoutes {
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
-      login: (context) => const LoginScreen(),
+      login: (context) => const DerivLoginScreen(),
     };
   }
 
@@ -78,4 +78,3 @@ class AppRoutes {
     );
   }
 }
-
