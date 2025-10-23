@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'trade_screen.dart';
 
 class MarketsScreen extends StatefulWidget {
   final String token;
@@ -175,10 +176,14 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
 
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(
+        Navigator.push(
           context,
-          '/trade',
-          arguments: {'token': widget.token, 'market': symbol},
+          MaterialPageRoute(
+            builder: (context) => TradeScreen(
+              token: widget.token,
+              initialMarket: symbol,
+            ),
+          ),
         );
       },
       child: Container(
