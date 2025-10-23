@@ -56,66 +56,45 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Expanded markets (organized by category)
   final Map<String, String> _allMarkets = {
-    // Volatility Indices (Synthetic)
-    'R_10': 'Volatility 10 (R_10)',
-    'R_25': 'Volatility 25 (R_25)',
-    'R_50': 'Volatility 50 (R_50)',
-    'R_75': 'Volatility 75 (R_75)',
-    'R_100': 'Volatility 100 (R_100)',
-    // 1-second variations (if available)
+    'R_10': 'Volatility 10',
+    'R_25': 'Volatility 25',
+    'R_50': 'Volatility 50',
+    'R_75': 'Volatility 75',
+    'R_100': 'Volatility 100',
     '1HZ10V': 'Vol 10 (1s)',
     '1HZ25V': 'Vol 25 (1s)',
     '1HZ50V': 'Vol 50 (1s)',
     '1HZ75V': 'Vol 75 (1s)',
     '1HZ100V': 'Vol 100 (1s)',
-
-    // Boom/Crash (Synthetic)
     'BOOM300N': 'Boom 300',
     'BOOM500': 'Boom 500',
     'CRASH300N': 'Crash 300',
     'CRASH500': 'Crash 500',
-
-    // Forex
     'EURUSD': 'Forex EUR/USD',
     'GBPUSD': 'Forex GBP/USD',
     'USDJPY': 'Forex USD/JPY',
     'AUDUSD': 'Forex AUD/USD',
     'USDCAD': 'Forex USD/CAD',
     'USDCHF': 'Forex USD/CHF',
-
-    // Crypto (CFDs / synthetic)
     'BTCUSD': 'Bitcoin (BTC/USD)',
     'ETHUSD': 'Ethereum (ETH/USD)',
     'LTCUSD': 'Litecoin (LTC/USD)',
     'XRPUSD': 'Ripple (XRP/USD)',
-
-    // Major indices
     'SP500': 'US 500 (S&P 500)',
     'NAS100': 'US 100 (Nasdaq)',
     'DE30': 'Germany 30 (DAX)',
     'UK100': 'UK 100 (FTSE)',
     'JP225': 'Japan 225 (Nikkei)',
-
-    // Commodities
     'GOLD': 'Gold (XAU/USD)',
     'SILVER': 'Silver (XAG/USD)',
     'OIL': 'Crude Oil (Brent)',
-
-    // Stocks (representative)
     'AAPL': 'Apple (AAPL)',
     'TSLA': 'Tesla (TSLA)',
     'AMZN': 'Amazon (AMZN)',
-
-    // Synthetic indexes long-term / 24h etc (examples)
     'SYNTHETIC_10': 'Synthetic 10 Index',
     'SYNTHETIC_25': 'Synthetic 25 Index',
     'SYNTHETIC_50': 'Synthetic 50 Index',
-
-    // Multipliers demo markets (same names; kept for discoverability)
-    'MULT_BTCUSD': 'Multiplier BTC/USD (alias)',
-    'MULT_EURUSD': 'Multiplier EUR/USD (alias)',
   };
 
   final List<Map<String, dynamic>> _tradeTypes = [
@@ -123,7 +102,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     {'id': 'higher_lower', 'label': 'Higher/Lower', 'icon': Icons.compare_arrows_rounded},
     {'id': 'turbos', 'label': 'Turbos', 'icon': Icons.rocket_launch_rounded},
     {'id': 'accumulators', 'label': 'Accumulators', 'icon': Icons.layers_rounded},
-    {'id': 'multipliers', 'label': 'Multipliers', 'icon': Icons.auto_graph}, // nova opção
+    {'id': 'multipliers', 'label': 'Multipliers', 'icon': Icons.auto_graph},
   ];
 
   final List<Map<String, dynamic>> _tickTradeTypes = [
@@ -149,7 +128,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       },
       onPositionUpdate: (positions) {
         if (mounted) {
-          // Verificar se ainda tem accumulator ativo
           if (_hasActiveAccumulator) {
             final stillActive = positions.any((p) => p['contract_id'] == _activeAccumulatorId);
             if (!stillActive) {
@@ -170,6 +148,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       },
     );
 
+    // informar predictor qual mercado está ativo — evita ruído de fontes externas para synthetics
+    _mlPredictor.setMarket(_selectedMarket);
+
     _tradingLogic.connect();
     _initWebView();
   }
@@ -178,6 +159,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   void dispose() {
     _tradingLogic.dispose();
     _audioPlayer.dispose();
+    _mlPredictor.dispose();
     super.dispose();
   }
 
@@ -205,7 +187,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
   String _getChartHTML() {
     final isTickChart = _isTickBasedTrade();
-    // Minimal placeholder chart HTML — your real HTML goes here.
     return '''
 <!doctype html>
 <html>
@@ -216,17 +197,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 <body>
   <div id="chart">Chart placeholder (${isTickChart ? "tick based" : "time based"}) for $_selectedMarket</div>
   <script>
-    // This page should post messages like:
-    // FlutterChannel.postMessage(JSON.stringify({type:'price', price: 123.45, change: 0.12}));
-    function addEntryMarker(direction, price) {
-      console.log('entry', direction, price);
-    }
-    function changeMarket(m) {
-      console.log('change market to', m);
-    }
-    function changeChartType(t) {
-      console.log('change chart type', t);
-    }
+    function addEntryMarker(direction, price) { console.log('entry', direction, price); }
+    function changeMarket(m) { console.log('change market to', m); }
+    function changeChartType(t) { console.log('change chart type', t); }
   </script>
 </body>
 </html>
@@ -263,7 +236,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         ),
       );
 
-      // Limpar marcador de entrada
       setState(() {
         _entryPrice = null;
         _entryDirection = null;
@@ -276,10 +248,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   void _placeTrade(String direction) async {
     if (_isTrading || !_tradingLogic.isConnected) return;
 
-    // Accumulator: verificar se já tem ativo
     if (_selectedTradeType == 'accumulators') {
       if (_hasActiveAccumulator && direction == 'sell') {
-        // Fechar accumulator
         await _tradingLogic.closeAccumulator(_activeAccumulatorId!);
         setState(() {
           _hasActiveAccumulator = false;
@@ -368,21 +338,16 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           duration: _durationValue,
         );
         break;
-
-      // Nova opção: Multipliers
       case 'multipliers':
         try {
-          // Tentativa padrão — adapte a assinatura conforme sua TradingLogic
           final res = await _tradingLogic.placeMultiplier(
             market: _selectedMarket,
             stake: _stake,
             direction: direction,
             multiplier: _multiplier,
-            // opcional: stop/take profit se sua lógica suportar
             stopLossPercent: _multiplierStopLossPercent,
             takeProfitPercent: _multiplierTakeProfitPercent,
           );
-          // res pode ser bool ou map dependendo da implementação
           if (res is bool) {
             success = res;
           } else if (res is Map) {
@@ -390,7 +355,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             contractId = res['contract_id'] as String?;
           }
         } catch (e) {
-          // Se o método não existir ou falhar, avise de forma amigável.
           success = false;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -400,9 +364,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           );
         }
         break;
-
       default:
-        // fallback
         success = false;
         break;
     }
@@ -550,7 +512,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             icon: _chartExpanded ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
             onPressed: () {
               setState(() => _chartExpanded = !_chartExpanded);
-              // Recarregar gráfico ao expandir/recolher se for tick-based
               if (_isTickBasedTrade()) {
                 _webViewController?.reload();
               }
@@ -742,7 +703,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 onTap: () {
                   setState(() {
                     _selectedTradeType = type['id'];
-                    // Recarregar chart se mudou para tick-based
                     if (_isTickBasedTrade()) {
                       _webViewController?.reload();
                     }
@@ -882,7 +842,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             ),
           ),
         ],
-        // Quando multipliers selecionado, mostrar botão para ajustar multiplier
         if (_selectedTradeType == 'multipliers') ...[
           const SizedBox(width: 8),
           GestureDetector(
@@ -1176,7 +1135,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       case 'over_under':
         return isLeft ? 'OVER' : 'UNDER';
       case 'multipliers':
-        // mostrar labels mais descritivos para multipliers
         return isLeft ? 'BUY x${_multiplier}' : 'SELL x${_multiplier}';
       default:
         return isLeft ? 'BUY' : 'SELL';
@@ -1228,6 +1186,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                       child: InkWell(
                         onTap: () {
                           setState(() => _selectedMarket = e.key);
+                          // informar predictor sobre novo mercado
+                          _mlPredictor.setMarket(e.key);
                           _webViewController?.runJavaScript('changeMarket("${e.key}")');
                           Navigator.pop(context);
                         },
@@ -1629,6 +1589,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             Text('Precisão atual: ${(_mlPredictor.accuracy * 100).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF00C896), fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text('Total de análises: ${_mlPredictor.totalPredictions}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            const SizedBox(height: 8),
+            Text('Market: ${_mlPredictor.getMLReport()['market_symbol'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ],
         ),
         actions: [
