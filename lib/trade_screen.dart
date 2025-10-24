@@ -1145,7 +1145,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControllerAttached: true,
+      //isScrollControllerAttached: true,
       builder: (context) => TweenAnimationBuilder(
         tween: Tween(begin: 0.0, end: 1.0),
         duration: const Duration(milliseconds: 350),
@@ -1289,7 +1289,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1A1A),
-      isScrollControllerAttached: false,
+      //isScrollControllerAttached: false,
       builder: (context) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Column(
