@@ -17,11 +17,11 @@ class AllTransactionsScreen extends StatefulWidget {
 }
 
 class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
-  String _filter = 'all'; // all, credit, debit
+  String _filter = 'all';
 
   List<Map<String, dynamic>> get _filteredTransactions {
     if (_filter == 'all') return widget.transactions;
-    
+
     return widget.transactions.where((tx) {
       final amount = double.parse(tx['amount'].toString());
       if (_filter == 'credit') return amount > 0;
@@ -45,7 +45,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -78,9 +78,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
               groupValue: _filter,
               onValueChanged: (value) {
                 if (value != null) {
-                  setState(() {
-                    _filter = value;
-                  });
+                  setState(() => _filter = value);
                 }
               },
               children: const {
@@ -117,7 +115,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                   child: _buildSummaryCard(
                     'Volume',
                     _calculateTotal().toStringAsFixed(2),
-                    const Color(0xFF00C896),
+                    const Color(0xFF34C759),
                   ),
                 ),
               ],
@@ -132,7 +130,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.filter_list_off,
+                          Icons.filter_list_off_rounded,
                           color: Colors.white.withOpacity(0.3),
                           size: 48,
                         ),
@@ -163,40 +161,53 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                         ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                          leading: Icon(
-                            isCredit
-                                ? Icons.arrow_downward
-                                : Icons.arrow_upward,
-                            color: isCredit
-                                ? const Color(0xFF00C896)
-                                : const Color(0xFFFF4444),
-                            size: 20,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: (isCredit 
+                                  ? const Color(0xFF34C759) 
+                                  : const Color(0xFFFF3B30)).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isCredit
+                                  ? Icons.arrow_downward_rounded
+                                  : Icons.arrow_upward_rounded,
+                              color: isCredit
+                                  ? const Color(0xFF34C759)
+                                  : const Color(0xFFFF3B30),
+                              size: 20,
+                            ),
                           ),
                           title: Text(
                             tx['action_type'] ?? 'Trade',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          subtitle: Text(
-                            _formatDate(tx['transaction_time']),
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 12,
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              _formatDate(tx['transaction_time']),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                           trailing: Text(
                             '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)} ${widget.currency}',
                             style: TextStyle(
                               color: isCredit
-                                  ? const Color(0xFF00C896)
-                                  : const Color(0xFFFF4444),
-                              fontSize: 15,
+                                  ? const Color(0xFF34C759)
+                                  : const Color(0xFFFF3B30),
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -212,10 +223,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
   Widget _buildSummaryCard(String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
@@ -223,16 +234,16 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
             label,
             style: TextStyle(
               color: Colors.white.withOpacity(0.5),
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
               color: color,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
             ),
