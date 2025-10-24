@@ -77,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     if (details.primaryVelocity == null) return;
-    
+
     if (details.primaryVelocity! > 0) {
       if (_currentTabIndex == 1) {
         setState(() => _currentTabIndex = 0);
@@ -96,75 +96,102 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
+        preferredSize: const Size.fromHeight(110),
         child: Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF1C1C1E),
+            color: Color(0xFF000000),
           ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(
-                isPostsTab ? Icons.add_rounded : Icons.search_rounded,
-                color: Colors.white,
-              ),
-              onPressed: isPostsTab ? _openCreatePostScreen : _openSearchScreen,
-            ),
-            title: CupertinoSlidingSegmentedControl<int>(
-              backgroundColor: const Color(0xFF2A2A2A),
-              thumbColor: const Color(0xFF0066FF),
-              groupValue: _currentTabIndex,
-              onValueChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _currentTabIndex = value;
-                  });
-                }
-              },
-              children: const {
-                0: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text('Mercados', style: TextStyle(fontSize: 14)),
-                ),
-                1: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text('Publicações', style: TextStyle(fontSize: 14)),
-                ),
-              },
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PortfolioScreen(token: widget.token),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header com título e botões
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'ZoomTrade',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    );
-                  },
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF0066FF),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 2,
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(
+                                Icons.search_rounded,
+                                color: Colors.black,
+                                size: 20,
+                              ),
+                              onPressed: isPostsTab ? null : _openSearchScreen,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PortfolioScreen(token: widget.token),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.person_rounded,
+                                color: Colors.black,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  // Tabs
+                  CupertinoSlidingSegmentedControl<int>(
+                    backgroundColor: const Color(0xFF1C1C1E),
+                    thumbColor: const Color(0xFF007AFF),
+                    groupValue: _currentTabIndex,
+                    onValueChanged: (value) {
+                      if (value != null) {
+                        setState(() => _currentTabIndex = value);
+                      }
+                    },
+                    children: const {
+                      0: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                        child: Text('Mercados', style: TextStyle(fontSize: 15)),
+                      ),
+                      1: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                        child: Text('Publicações', style: TextStyle(fontSize: 15)),
+                      ),
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -176,95 +203,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          border: Border(
-            top: BorderSide(
-              color: Colors.white.withOpacity(0.1),
-              width: 0.5,
-            ),
-          ),
+        height: 70,
+        decoration: const BoxDecoration(
+          color: Color(0xFF000000),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _openTradeScreen,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00C896),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.trending_up_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Negociar',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
+          child: Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openTradeScreen,
+                    child: Container(
+                      height: double.infinity,
+                      color: const Color(0xFFFF9500),
+                      child: const Center(
+                        child: Text(
+                          'Negociar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'SF Pro Display',
+                            letterSpacing: -0.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _openBotsScreen,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0066FF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.smart_toy_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Automatizar',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
+              ),
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openBotsScreen,
+                    child: Container(
+                      height: double.infinity,
+                      color: const Color(0xFF007AFF),
+                      child: const Center(
+                        child: Text(
+                          'Automatizar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'SF Pro Display',
+                            letterSpacing: -0.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -308,16 +302,16 @@ class _SearchScreenState extends State<_SearchScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: const Color(0xFF000000),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Container(
           height: 40,
           decoration: BoxDecoration(
-            color: const Color(0xFF2A2A2A),
+            color: const Color(0xFF1C1C1E),
             borderRadius: BorderRadius.circular(10),
           ),
           child: TextField(
@@ -332,7 +326,7 @@ class _SearchScreenState extends State<_SearchScreen> {
               ),
               prefixIcon: const Icon(
                 Icons.search_rounded,
-                color: Color(0xFF0066FF),
+                color: Color(0xFF007AFF),
                 size: 20,
               ),
               suffixIcon: _searchController.text.isNotEmpty
@@ -418,16 +412,14 @@ class IOSSlideUpRoute extends PageRouteBuilder {
       : super(
           pageBuilder: (context, animation, secondaryAnimation) => builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Curva personalizada que imita o slow motion do iOS
             const curve = Cubic(0.42, 0.0, 0.58, 1.0);
-            
+
             var curvedAnimation = CurvedAnimation(
               parent: animation,
               curve: curve,
               reverseCurve: Curves.easeInOut,
             );
 
-            // Animação de slide com escala sutil
             return SlideTransition(
               position: Tween<Offset>(
                 begin: const Offset(0.0, 1.0),
