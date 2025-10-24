@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
+import 'deriv_chart_widget.dart'; // ← ADICIONADO
 
 class BotsScreen extends StatefulWidget {
   final String token;
@@ -80,7 +81,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   void _loadDefaultBots() {
     if (_channel == null) return;
-    
+
     _bots = [
       TradingBot(
         config: BotConfiguration(
@@ -419,7 +420,81 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A1A),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                icon: const Icon(Icons.stop, size: 20),
+                      label: const Text('Parar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF4444),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniChart(List<TradeRecord> history, TradingBot bot) {
+    final cumulative = <double>[];
+    double sum = 0;
+    for (var profit in history.map((t) => t.profit)) {
+      sum += profit;
+      cumulative.add(sum);
+    }
+
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(8)),
+      child: DerivAreaChart(
+        points: cumulative,
+        autoScale: true,
+        showGradient: false,
+        market: bot.config.market,
+        onControllerCreated: (controller, market) {
+          if (market == null) return;
+          _chartControllers.putIfAbsent(market, () => []);
+          if (!_chartControllers[market]!.contains(controller)) {
+            _chartControllers[market]!.add(controller);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildMetric(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  IconData _getStrategyIcon(BotStrategy strategy) {
+    switch (strategy) {
+      case BotStrategy.martingale: return Icons.trending_up;
+      case BotStrategy.fibonacci: return Icons.stairs;
+      case BotStrategy.dalembert: return Icons.analytics;
+      case BotStrategy.labouchere: return Icons.calculate;
+      case BotStrategy.oscarGrind: return Icons.slow_motion_video;
+      case BotStrategy.paroli: return Icons.flash_on;
+      case BotStrategy.antiMartingale: return Icons.trending_down;
+      case BotStrategy.kellyFraction: return Icons.functions;
+      case BotStrategy.pinkham: return Icons.healing;
+      case BotStrategy.oneThreeTwoSix: return Icons.format_list_numbered;
+      case BotStrategy.percentage: return Icons.percent;
+      case BotStrategy.compound: return Icons.workspaces;
+      case BotStrategy.recovery: return Icons.restore;
+      case BotStrategy.adaptive: return Icons.settings_suggest;
+      case BotStrategy.mlBased: return Icons.psychology;
+    }
+  }
+}.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Trading Bots'),
@@ -589,6 +664,50 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            // Mostrar stake atual
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.attach_money, color: Colors.white70, size: 16),
+                      SizedBox(width: 6),
+                      Text('Stake Inicial', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        '\$${status.currentStake.toStringAsFixed(2)}',
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      if (!bot.isRunning) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _showEditStakeDialog(bot),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0066FF),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white, size: 14),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -599,6 +718,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       if (bot.isRunning) {
                         bot.isPaused ? bot.resume() : bot.pause();
                       } else {
+                        // Validar saldo antes de iniciar
+                        if (_balance < status.currentStake) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Saldo insuficiente! Você tem \$${_balance.toStringAsFixed(2)}, precisa de pelo menos \$${status.currentStake.toStringAsFixed(2)}'),
+                              backgroundColor: const Color(0xFFFF4444),
+                            ),
+                          );
+                          return;
+                        }
                         bot.start();
                       }
                       setState(() {});
@@ -610,30 +739,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-                if (bot.isRunning) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        bot.stop();
-                        setState(() {});
-                      },
-                      icon: const Icon(Icons.stop, size: 20),
-                      label: const Text('Parar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF4444),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
           ],
         ),
       ),
