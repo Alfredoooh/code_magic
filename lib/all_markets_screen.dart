@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'markets_screen.dart';
-import 'trade_screen.dart';
+import 'market_detail_screen.dart';
 
 class AllMarketsScreen extends StatefulWidget {
   final String token;
@@ -24,50 +24,33 @@ class AllMarketsScreen extends StatefulWidget {
   State<AllMarketsScreen> createState() => _AllMarketsScreenState();
 }
 
-class _AllMarketsScreenState extends State<AllMarketsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AllMarketsScreenState extends State<AllMarketsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  final Set<String> _favorites = {};
+  String _selectedCategory = 'Boom/Crash';
 
-  final List<MarketCategory> _categories = [
-    MarketCategory('Volatility', Icons.show_chart),
-    MarketCategory('Boom/Crash', Icons.trending_up),
-    MarketCategory('Jump', Icons.double_arrow),
-    MarketCategory('Step', Icons.stairs),
-    MarketCategory('Forex', Icons.attach_money),
-    MarketCategory('Crypto', Icons.currency_bitcoin),
+  final List<String> _categories = [
+    'Boom/Crash',
+    'Volatility',
+    'Jump',
+    'Step',
+    'Crypto',
   ];
-
-  final Map<String, MarketInfo> _forexMarkets = {
-    'frxEURUSD': MarketInfo('EUR/USD', 'https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/eu.svg', 'Forex'),
-    'frxGBPUSD': MarketInfo('GBP/USD', 'https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg', 'Forex'),
-    'frxUSDJPY': MarketInfo('USD/JPY', 'https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/jp.svg', 'Forex'),
-    'frxAUDUSD': MarketInfo('AUD/USD', 'https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/au.svg', 'Forex'),
-    'frxUSDCAD': MarketInfo('USD/CAD', 'https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/ca.svg', 'Forex'),
-  };
 
   final Map<String, MarketInfo> _cryptoMarkets = {
     'cryBTCUSD': MarketInfo('Bitcoin', 'https://cryptologos.cc/logos/bitcoin-btc-logo.png', 'Crypto'),
     'cryETHUSD': MarketInfo('Ethereum', 'https://cryptologos.cc/logos/ethereum-eth-logo.png', 'Crypto'),
-    'cryLTCUSD': MarketInfo('Litecoin', 'https://cryptologos.cc/logos/litecoin-ltc-logo.png', 'Crypto'),
-    'cryXRPUSD': MarketInfo('Ripple', 'https://cryptologos.cc/logos/xrp-xrp-logo.png', 'Crypto'),
-    'cryBNBUSD': MarketInfo('Binance Coin', 'https://cryptologos.cc/logos/bnb-bnb-logo.png', 'Crypto'),
-    'cryADAUSD': MarketInfo('Cardano', 'https://cryptologos.cc/logos/cardano-ada-logo.png', 'Crypto'),
-    'crySOLUSD': MarketInfo('Solana', 'https://cryptologos.cc/logos/solana-sol-logo.png', 'Crypto'),
-    'cryDOTUSD': MarketInfo('Polkadot', 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png', 'Crypto'),
   };
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _categories.length, vsync: this);
     _subscribeToAllMarkets();
   }
 
   void _subscribeToAllMarkets() {
     if (widget.channel != null) {
-      for (var symbol in [...widget.allMarkets.keys, ..._forexMarkets.keys, ..._cryptoMarkets.keys]) {
+      for (var symbol in [...widget.allMarkets.keys, ..._cryptoMarkets.keys]) {
         widget.channel!.sink.add(json.encode({'ticks': symbol, 'subscribe': 1}));
       }
     }
@@ -75,7 +58,6 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> with SingleTickerPr
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -83,7 +65,6 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> with SingleTickerPr
   List<MapEntry<String, MarketInfo>> _getFilteredMarkets(String category) {
     Map<String, MarketInfo> allMarketsMap = {
       ...widget.allMarkets,
-      ..._forexMarkets,
       ..._cryptoMarkets,
     };
 
@@ -99,268 +80,260 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> with SingleTickerPr
     return markets;
   }
 
-  void _openMarket(String symbol) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => TradeScreen(
-          token: widget.token,
-          initialMarket: symbol,
+  void _openMarketDetail(String symbol) {
+    final info = widget.allMarkets[symbol] ?? _cryptoMarkets[symbol];
+    if (info != null) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => MarketDetailScreen(
+            symbol: symbol,
+            marketInfo: info,
+            marketData: widget.marketData[symbol],
+            token: widget.token,
+            channel: widget.channel,
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 1.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 350),
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.0, 1.0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
-    );
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0A),
+        backgroundColor: const Color(0xFF1C1C1E),
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Todos os Mercados',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _favorites.isEmpty ? Icons.star_border : Icons.star,
-              color: _favorites.isEmpty ? Colors.white : Colors.amber,
-            ),
-            onPressed: () {},
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Buscar mercados...',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-                    prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.4)),
-                    filled: true,
-                    fillColor: const Color(0xFF151515),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                ),
-              ),
-              TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                indicatorColor: const Color(0xFF0066FF),
-                indicatorWeight: 3,
-                labelColor: const Color(0xFF0066FF),
-                unselectedLabelColor: Colors.white.withOpacity(0.5),
-                labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                tabs: _categories.map((cat) => Tab(
-                  child: Row(
-                    children: [
-                      Icon(cat.icon, size: 16),
-                      const SizedBox(width: 6),
-                      Text(cat.name),
-                    ],
-                  ),
-                )).toList(),
-              ),
-            ],
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.4,
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _categories.map((category) {
-          final markets = _getFilteredMarkets(category.name);
-          
-          if (markets.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.search_off,
-                    color: Colors.white.withOpacity(0.3),
-                    size: 64,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nenhum mercado encontrado',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 16,
+      body: Column(
+        children: [
+          // Search Bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'Buscar mercados...',
+                hintStyle: TextStyle(
+                  color: Colors.white.withOpacity(0.4),
+                  fontSize: 15,
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Colors.white.withOpacity(0.4),
+                  size: 20,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF1C1C1E),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+
+          // Category Filter
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: CupertinoSlidingSegmentedControl<String>(
+              backgroundColor: const Color(0xFF1C1C1E),
+              thumbColor: const Color(0xFF0066FF),
+              groupValue: _selectedCategory,
+              onValueChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedCategory = value);
+                }
+              },
+              children: {
+                for (var category in _categories)
+                  category: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Text(
+                      category,
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
-                ],
-              ),
-            );
-          }
+              },
+            ),
+          ),
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: markets.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final entry = markets[index];
-              final symbol = entry.key;
-              final info = entry.value;
-              final data = widget.marketData[symbol];
-              
-              return _buildMarketCard(symbol, info, data);
-            },
-          );
-        }).toList(),
+          // Markets List
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final markets = _getFilteredMarkets(_selectedCategory);
+
+                if (markets.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          color: Colors.white.withOpacity(0.3),
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Nenhum mercado encontrado',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: markets.length,
+                  itemBuilder: (context, index) {
+                    final entry = markets[index];
+                    final symbol = entry.key;
+                    final info = entry.value;
+                    final data = widget.marketData[symbol];
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildMarketCard(symbol, info, data),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildMarketCard(String symbol, MarketInfo info, MarketData? data) {
     final isPositive = (data?.change ?? 0) >= 0;
-    final color = isPositive ? const Color(0xFF00C896) : const Color(0xFFFF4444);
-    final isFavorite = _favorites.contains(symbol);
+    final changeColor = isPositive ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _openMarket(symbol),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF151515),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-          ),
-          child: Row(
-            children: [
-              Container(
+    return GestureDetector(
+      onTap: () => _openMarketDetail(symbol),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                info.iconUrl,
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0066FF).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    info.iconUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.show_chart,
-                      color: Color(0xFF0066FF),
-                      size: 20,
-                    ),
-                  ),
-                ),
+                fit: BoxFit.cover,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      info.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      symbol,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    data != null ? data.price.toStringAsFixed(2) : '--',
+                    info.name,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(
-                        isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                        color: color,
-                        size: 18,
-                      ),
-                      Text(
-                        data != null ? '${data.change.abs().toStringAsFixed(2)}%' : '0.00%',
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    symbol,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(
-                  isFavorite ? Icons.star : Icons.star_border,
-                  color: isFavorite ? Colors.amber : Colors.white.withOpacity(0.3),
-                  size: 20,
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  data != null ? data.price.toStringAsFixed(2) : '...',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                onPressed: () {
-                  setState(() {
-                    if (isFavorite) {
-                      _favorites.remove(symbol);
-                    } else {
-                      _favorites.add(symbol);
-                    }
-                  });
-                },
-              ),
-            ],
-          ),
+                const SizedBox(height: 2),
+                if (data != null)
+                  Text(
+                    '${isPositive ? '+' : ''}${data.change.toStringAsFixed(2)}%',
+                    style: TextStyle(
+                      color: changeColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white.withOpacity(0.3),
+              size: 24,
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-class MarketCategory {
-  final String name;
-  final IconData icon;
-
-  MarketCategory(this.name, this.icon);
 }
