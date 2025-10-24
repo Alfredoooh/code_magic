@@ -477,21 +477,36 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   IconData _getStrategyIcon(BotStrategy strategy) {
     switch (strategy) {
-      case BotStrategy.martingale: return Icons.trending_up;
-      case BotStrategy.fibonacci: return Icons.stairs;
-      case BotStrategy.dalembert: return Icons.analytics;
-      case BotStrategy.labouchere: return Icons.calculate;
-      case BotStrategy.oscarGrind: return Icons.slow_motion_video;
-      case BotStrategy.paroli: return Icons.flash_on;
-      case BotStrategy.antiMartingale: return Icons.trending_down;
-      case BotStrategy.kellyFraction: return Icons.functions;
-      case BotStrategy.pinkham: return Icons.healing;
-      case BotStrategy.oneThreeTwoSix: return Icons.format_list_numbered;
-      case BotStrategy.percentage: return Icons.percent;
-      case BotStrategy.compound: return Icons.workspaces;
-      case BotStrategy.recovery: return Icons.restore;
-      case BotStrategy.adaptive: return Icons.settings_suggest;
-      case BotStrategy.mlBased: return Icons.psychology;
+      case BotStrategy.martingale:
+        return Icons.trending_up;
+      case BotStrategy.fibonacci:
+        return Icons.stairs;
+      case BotStrategy.dalembert:
+        return Icons.analytics;
+      case BotStrategy.labouchere:
+        return Icons.calculate;
+      case BotStrategy.oscarGrind:
+        return Icons.slow_motion_video;
+      case BotStrategy.paroli:
+        return Icons.flash_on;
+      case BotStrategy.antiMartingale:
+        return Icons.trending_down;
+      case BotStrategy.kellyFraction:
+        return Icons.functions;
+      case BotStrategy.pinkham:
+        return Icons.healing;
+      case BotStrategy.oneThreeTwoSix:
+        return Icons.format_list_numbered;
+      case BotStrategy.percentage:
+        return Icons.percent;
+      case BotStrategy.compound:
+        return Icons.workspaces;
+      case BotStrategy.recovery:
+        return Icons.restore;
+      case BotStrategy.adaptive:
+        return Icons.settings_suggest;
+      case BotStrategy.mlBased:
+        return Icons.psychology;
     }
   }
 }.arrow_back, color: Colors.white),
