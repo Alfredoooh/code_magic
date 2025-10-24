@@ -194,18 +194,18 @@ class TradingBot {
     isPaused = false;
     startTime = DateTime.now();
     _resetStrategy();
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
     _scheduleTrade();
   }
 
   void pause() {
     isPaused = true;
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
   }
 
   void resume() {
     isPaused = false;
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
     if (currentContractId == null) {
       _scheduleTrade();
     }
@@ -215,7 +215,7 @@ class TradingBot {
     isRunning = false;
     isPaused = false;
     currentContractId = null;
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
   }
 
   void reset() {
@@ -233,7 +233,7 @@ class TradingBot {
     avgWin = 0.0;
     avgLoss = 0.0;
     _resetStrategy();
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
   }
 
   void _resetStrategy() {
@@ -652,7 +652,7 @@ class TradingBot {
       print('Falha ao enviar proposta: $e');
     }
 
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
   }
 
   void handleProposalResponse(String proposalId) {
@@ -681,7 +681,7 @@ class TradingBot {
       print('Falha ao subscrever contract updates: $e');
     }
 
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
   }
 
   void handleContractUpdate(Map<String, dynamic> contract) {
@@ -758,7 +758,7 @@ class TradingBot {
     }
 
     currentContractId = null;
-    onStatusUpdate(_getStatus());
+    onStatusUpdate(getStatus());
 
     // Agendar próximo trade
     if (isRunning && !isPaused) {
@@ -935,7 +935,7 @@ class TradingBot {
     return sqrt(max(variance, 0.0)) / max(mean, 1);
   }
 
-  BotStatus _getStatus() {
+BotStatus getStatus() {  // ← REMOVER O _ AQUI
     return BotStatus(
       name: config.name,
       isRunning: isRunning,
@@ -958,6 +958,7 @@ class TradingBot {
       tradeHistory: tradeHistory,
     );
   }
+
 
   // Helper: EMA (usado para MACD)
   double _calculateEMA(List<double> prices, int period) {
