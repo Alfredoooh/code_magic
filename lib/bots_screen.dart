@@ -1,5 +1,4 @@
-// lib/bots_main_screen.dart
-// Tela principal com lista de bots
+// lib/bots_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -8,7 +7,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
-import 'deriv_chart_widget.dart';
 
 class BotsScreen extends StatefulWidget {
   final String token;
@@ -136,6 +134,80 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       ),
       TradingBot(
         config: BotConfiguration(
+          name: 'Labouchere Elite',
+          description: 'Sistema de cancelamento avançado',
+          strategy: BotStrategy.labouchere,
+          initialStake: 12.0,
+          market: 'BOOM500',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.moderate,
+          entryConditions: [EntryCondition.priceAction],
+          maxStake: 350.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Oscar\'s Grind',
+          description: 'Progressão lenta e constante',
+          strategy: BotStrategy.oscarGrind,
+          initialStake: 10.0,
+          market: 'CRASH500',
+          contractType: 'PUT',
+          recoveryMode: RecoveryMode.conservative,
+          maxStake: 200.0,
+          targetProfit: 80.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Paroli Power',
+          description: 'Maximiza sequências vencedoras',
+          strategy: BotStrategy.paroli,
+          initialStake: 15.0,
+          market: 'R_100',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.none,
+          entryConditions: [EntryCondition.trendConfirmation],
+          maxStake: 250.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Kelly Criterion',
+          description: 'Gestão matemática de banca',
+          strategy: BotStrategy.kellyFraction,
+          initialStake: 20.0,
+          market: 'R_25',
+          contractType: 'PUT',
+          recoveryMode: RecoveryMode.intelligent,
+          bankrollPercentage: 2.5,
+          maxStake: 400.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: '1-3-2-6 System',
+          description: 'Sequência otimizada de apostas',
+          strategy: BotStrategy.oneThreeTwoSix,
+          initialStake: 10.0,
+          market: 'R_50',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.moderate,
+          maxStake: 300.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
           name: 'Adaptive AI',
           description: 'Adaptação inteligente ao mercado',
           strategy: BotStrategy.adaptive,
@@ -153,6 +225,65 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           useSupportResistance: true,
           maxStake: 500.0,
           targetProfit: 200.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Recovery Master',
+          description: 'Especialista em recuperação de perdas',
+          strategy: BotStrategy.recovery,
+          initialStake: 15.0,
+          market: 'R_75',
+          contractType: 'PUT',
+          recoveryMode: RecoveryMode.aggressive,
+          entryConditions: [EntryCondition.immediate],
+          maxStake: 600.0,
+          maxLoss: 300.0,
+          targetProfit: 100.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Compound Growth',
+          description: 'Crescimento exponencial com composição',
+          strategy: BotStrategy.compound,
+          initialStake: 10.0,
+          market: 'BOOM1000',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.moderate,
+          compoundGains: true,
+          resetAfterProfit: true,
+          resetProfitThreshold: 50.0,
+          maxStake: 400.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'ML Predictor',
+          description: 'Machine Learning com alta precisão',
+          strategy: BotStrategy.mlBased,
+          initialStake: 30.0,
+          market: 'R_100',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.intelligent,
+          entryConditions: [
+            EntryCondition.rsiOversold,
+            EntryCondition.macdCross,
+            EntryCondition.patternDetection,
+          ],
+          useMLPredictions: true,
+          mlConfidenceThreshold: 0.75,
+          useRSI: true,
+          useMACD: true,
+          usePatternRecognition: true,
+          maxStake: 500.0,
+          targetProfit: 250.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -551,8 +682,18 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       case BotStrategy.martingale: return Icons.trending_up;
       case BotStrategy.fibonacci: return Icons.stairs;
       case BotStrategy.dalembert: return Icons.analytics;
+      case BotStrategy.labouchere: return Icons.calculate;
+      case BotStrategy.oscarGrind: return Icons.slow_motion_video;
+      case BotStrategy.paroli: return Icons.flash_on;
+      case BotStrategy.antiMartingale: return Icons.trending_down;
+      case BotStrategy.kellyFraction: return Icons.functions;
+      case BotStrategy.pinkham: return Icons.healing;
+      case BotStrategy.oneThreeTwoSix: return Icons.format_list_numbered;
+      case BotStrategy.percentage: return Icons.percent;
+      case BotStrategy.compound: return Icons.workspaces;
+      case BotStrategy.recovery: return Icons.restore;
       case BotStrategy.adaptive: return Icons.settings_suggest;
-      default: return Icons.smart_toy;
+      case BotStrategy.mlBased: return Icons.psychology;
     }
   }
 }
