@@ -1,11 +1,14 @@
-// lib/bots_screen_part1.dart
+// lib/bots_main_screen.dart
+// Tela principal com lista de bots
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
-import 'bots_screen_part2.dart';
+import 'bot_details_screen.dart';
+import 'bot_create_screen.dart';
+import 'deriv_chart_widget.dart';
 
 class BotsScreen extends StatefulWidget {
   final String token;
@@ -23,15 +26,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   double _balance = 0.0;
   String _currency = 'USD';
   Map<String, String> _proposalIds = {};
-
-  // Dados de preço para análise
   Map<String, List<double>> _marketPrices = {};
   Timer? _priceUpdateTimer;
-
-  // Controllers dos charts por mercado (market -> list of WebViewController)
   final Map<String, List<WebViewController>> _chartControllers = {};
-
-  // Quantos pontos enviar ao chart (últimos N ticks)
   final int _chartPointsCount = 60;
 
   @override
@@ -104,7 +101,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-
       TradingBot(
         config: BotConfiguration(
           name: 'Fibonacci Master',
@@ -122,7 +118,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-
       TradingBot(
         config: BotConfiguration(
           name: 'D\'Alembert Safe',
@@ -139,86 +134,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Labouchere Elite',
-          description: 'Sistema de cancelamento avançado',
-          strategy: BotStrategy.labouchere,
-          initialStake: 12.0,
-          market: 'BOOM500',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.moderate,
-          entryConditions: [EntryCondition.priceAction],
-          maxStake: 350.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Oscar\'s Grind',
-          description: 'Progressão lenta e constante',
-          strategy: BotStrategy.oscarGrind,
-          initialStake: 10.0,
-          market: 'CRASH500',
-          contractType: 'PUT',
-          recoveryMode: RecoveryMode.conservative,
-          maxStake: 200.0,
-          targetProfit: 80.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Paroli Power',
-          description: 'Maximiza sequências vencedoras',
-          strategy: BotStrategy.paroli,
-          initialStake: 15.0,
-          market: 'R_100',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.none,
-          entryConditions: [EntryCondition.trendConfirmation],
-          maxStake: 250.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Kelly Criterion',
-          description: 'Gestão matemática de banca',
-          strategy: BotStrategy.kellyFraction,
-          initialStake: 20.0,
-          market: 'R_25',
-          contractType: 'PUT',
-          recoveryMode: RecoveryMode.intelligent,
-          bankrollPercentage: 2.5,
-          maxStake: 400.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: '1-3-2-6 System',
-          description: 'Sequência otimizada de apostas',
-          strategy: BotStrategy.oneThreeTwoSix,
-          initialStake: 10.0,
-          market: 'R_50',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.moderate,
-          maxStake: 300.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
       TradingBot(
         config: BotConfiguration(
           name: 'Adaptive AI',
@@ -242,78 +157,13 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Recovery Master',
-          description: 'Especialista em recuperação de perdas',
-          strategy: BotStrategy.recovery,
-          initialStake: 15.0,
-          market: 'R_75',
-          contractType: 'PUT',
-          recoveryMode: RecoveryMode.aggressive,
-          entryConditions: [EntryCondition.immediate],
-          maxStake: 600.0,
-          maxLoss: 300.0,
-          targetProfit: 100.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Compound Growth',
-          description: 'Crescimento exponencial com composição',
-          strategy: BotStrategy.compound,
-          initialStake: 10.0,
-          market: 'BOOM1000',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.moderate,
-          compoundGains: true,
-          resetAfterProfit: true,
-          resetProfitThreshold: 50.0,
-          maxStake: 400.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-
-      TradingBot(
-        config: BotConfiguration(
-          name: 'ML Predictor',
-          description: 'Machine Learning com alta precisão',
-          strategy: BotStrategy.mlBased,
-          initialStake: 30.0,
-          market: 'R_100',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.intelligent,
-          entryConditions: [
-            EntryCondition.rsiOversold,
-            EntryCondition.macdCross,
-            EntryCondition.patternDetection,
-          ],
-          useMLPredictions: true,
-          mlConfidenceThreshold: 0.75,
-          useRSI: true,
-          useMACD: true,
-          usePatternRecognition: true,
-          maxStake: 500.0,
-          targetProfit: 250.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
     ];
   }
 
   void _subscribeToMarkets() {
     final markets = {'R_100', 'R_50', 'R_25', 'R_75', 'BOOM500', 'BOOM1000', 'CRASH500'};
     for (var market in markets) {
-      _channel!.sink.add(json.encode({
-        'ticks': market,
-        'subscribe': 1,
-      }));
+      _channel!.sink.add(json.encode({'ticks': market, 'subscribe': 1}));
     }
   }
 
@@ -364,7 +214,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       case 'proposal':
         final id = data['proposal']['id'];
         _proposalIds[id] = id;
-
         for (var bot in _bots) {
           if (bot.isRunning && bot.currentContractId == null) {
             bot.handleProposalResponse(id);
@@ -377,9 +226,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         for (var bot in _bots) {
           if (bot.isRunning && bot.currentContractId == null) {
             bot.handleBuyResponse(data['buy']);
-            setState(() {
-              _balance -= bot.currentStake;
-            });
+            setState(() => _balance -= bot.currentStake);
             break;
           }
         }
@@ -392,9 +239,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         break;
 
       case 'balance':
-        setState(() {
-          _balance = double.parse(data['balance']['balance'].toString());
-        });
+        setState(() => _balance = double.parse(data['balance']['balance'].toString()));
         break;
     }
   }
@@ -426,9 +271,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       MaterialPageRoute(
         builder: (context) => CreateBotScreen(
           channel: _channel!,
-          onBotCreated: (bot) {
-            setState(() => _bots.add(bot));
-          },
+          onBotCreated: (bot) => setState(() => _bots.add(bot)),
         ),
       ),
     );
@@ -437,7 +280,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
     final activeBots = _bots.where((b) => b.isRunning).length;
     final totalProfit = _bots.fold(0.0, (sum, bot) => sum + bot.totalProfit);
 
@@ -471,11 +313,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 const SizedBox(width: 8),
                 Text(
                   '${_balance.toStringAsFixed(2)} $_currency',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -527,21 +365,11 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       child: Row(
         children: [
           Expanded(
-            child: _buildStatItem(
-              'Bots Ativos',
-              activeBots.toString(),
-              Icons.smart_toy,
-              const Color(0xFF0066FF),
-            ),
+            child: _buildStatItem('Bots Ativos', activeBots.toString(), Icons.smart_toy, const Color(0xFF0066FF)),
           ),
           Container(width: 1, height: 40, color: Colors.white12),
           Expanded(
-            child: _buildStatItem(
-              'Total Bots',
-              _bots.length.toString(),
-              Icons.grid_view,
-              Colors.white70,
-            ),
+            child: _buildStatItem('Total Bots', _bots.length.toString(), Icons.grid_view, Colors.white70),
           ),
           Container(width: 1, height: 40, color: Colors.white12),
           Expanded(
@@ -562,20 +390,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       children: [
         Icon(icon, color: color, size: 24),
         const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white54, fontSize: 11),
-          textAlign: TextAlign.center,
-        ),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11), textAlign: TextAlign.center),
       ],
     );
   }
@@ -593,20 +410,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           color: const Color(0xFF1A1A1A),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: bot.isRunning 
-                ? const Color(0xFF0066FF) 
-                : Colors.white.withOpacity(0.05),
+            color: bot.isRunning ? const Color(0xFF0066FF) : Colors.white.withOpacity(0.05),
             width: bot.isRunning ? 2 : 1,
           ),
-          boxShadow: bot.isRunning
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF0066FF).withOpacity(0.09),
-                    blurRadius: 8,
-                    spreadRadius: 0,
-                  ),
-                ]
-              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -620,144 +426,39 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                     color: bot.isRunning ? const Color(0xFF0066FF) : const Color(0xFF2A2A2A),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    _getStrategyIcon(bot.config.strategy),
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                  child: Icon(_getStrategyIcon(bot.config.strategy), color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              bot.config.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (bot.inRecoveryMode)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.orange.withOpacity(0.9)),
-                              ),
-                              child: const Text(
-                                'RECOVERY',
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                      Text(bot.config.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(
-                        bot.config.description,
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          _buildChip(bot.config.market, const Color(0xFF0066FF)),
-                          const SizedBox(width: 6),
-                          _buildChip(
-                            bot.config.strategy.toString().split('.').last.toUpperCase(),
-                            const Color(0xFF00C896),
-                          ),
-                        ],
-                      ),
+                      Text(bot.config.description, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
-            if (status.tradeHistory.isNotEmpty)
-              _buildMiniChart(status.tradeHistory, bot),
-
+            if (status.tradeHistory.isNotEmpty) _buildMiniChart(status.tradeHistory, bot),
             const SizedBox(height: 16),
-
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF2A2A2A),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetric(
-                          'Trades',
-                          status.totalTrades.toString(),
-                          Colors.white70,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildMetric(
-                          'Win Rate',
-                          '${winRate.toStringAsFixed(1)}%',
-                          winRate >= 50 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildMetric(
-                          'Profit',
-                          '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}',
-                          isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetric(
-                          'Stake',
-                          '\$${status.currentStake.toStringAsFixed(2)}',
-                          const Color(0xFF0066FF),
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildMetric(
-                          'Streak',
-                          '${status.consecutiveWins > 0 ? '+' : ''}${status.consecutiveWins > 0 ? status.consecutiveWins : -status.consecutiveLosses}',
-                          status.consecutiveWins > 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildMetric(
-                          'RSI',
-                          status.currentRSI.toStringAsFixed(0),
-                          _getRSIColor(status.currentRSI),
-                        ),
-                      ),
-                    ],
-                  ),
+                  Expanded(child: _buildMetric('Trades', status.totalTrades.toString(), Colors.white70)),
+                  Expanded(child: _buildMetric('Win Rate', '${winRate.toStringAsFixed(1)}%', winRate >= 50 ? const Color(0xFF00C896) : const Color(0xFFFF4444))),
+                  Expanded(child: _buildMetric('Profit', '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}', isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444))),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
@@ -765,40 +466,24 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   child: ElevatedButton.icon(
                     onPressed: () {
                       if (bot.isRunning) {
-                        if (bot.isPaused) {
-                          bot.resume();
-                        } else {
-                          bot.pause();
-                        }
+                        bot.isPaused ? bot.resume() : bot.pause();
                       } else {
                         bot.start();
                       }
                       setState(() {});
                     },
-                    icon: Icon(
-                      bot.isRunning
-                          ? (bot.isPaused ? Icons.play_arrow : Icons.pause)
-                          : Icons.play_arrow,
-                    ),
-                    label: Text(
-                      bot.isRunning
-                          ? (bot.isPaused ? 'Continuar' : 'Pausar')
-                          : 'Iniciar',
-                    ),
+                    icon: Icon(bot.isRunning ? (bot.isPaused ? Icons.play_arrow : Icons.pause) : Icons.play_arrow),
+                    label: Text(bot.isRunning ? (bot.isPaused ? 'Continuar' : 'Pausar') : 'Iniciar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: bot.isRunning
-                          ? (bot.isPaused ? const Color(0xFF00C896) : const Color(0xFFFF9800))
-                          : const Color(0xFF00C896),
+                      backgroundColor: bot.isRunning ? (bot.isPaused ? const Color(0xFF00C896) : const Color(0xFFFF9800)) : const Color(0xFF00C896),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (bot.isRunning)
+                if (bot.isRunning) ...[
+                  const SizedBox(width: 8),
                   Expanded(
                     flex: 2,
                     child: ElevatedButton.icon(
@@ -810,28 +495,12 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       label: const Text('Parar'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF4444),
-                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.refresh, color: Colors.white70),
-                    onPressed: () {
-                      bot.reset();
-                      setState(() {});
-                    },
-                  ),
-                ),
+                ],
               ],
             ),
           ],
@@ -841,21 +510,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   }
 
   Widget _buildMiniChart(List<TradeRecord> history, TradingBot bot) {
-    final data = history.map((t) => t.profit).toList();
     final cumulative = <double>[];
     double sum = 0;
-
-    for (var profit in data) {
+    for (var profit in history.map((t) => t.profit)) {
       sum += profit;
       cumulative.add(sum);
     }
 
     return Container(
       height: 60,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(8)),
       child: DerivAreaChart(
         points: cumulative,
         autoScale: true,
@@ -866,38 +530,8 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           _chartControllers.putIfAbsent(market, () => []);
           if (!_chartControllers[market]!.contains(controller)) {
             _chartControllers[market]!.add(controller);
-            final allPoints = _marketPrices[market] ?? [];
-            final lastPoints = allPoints.length > _chartPointsCount
-                ? allPoints.sublist(allPoints.length - _chartPointsCount)
-                : allPoints;
-            if (lastPoints.isNotEmpty) {
-              final jsArray = lastPoints.map((p) => p.toString()).join(',');
-              final script = "try{ updateData([${jsArray}]); }catch(e){};";
-              try {
-                controller.runJavaScript(script);
-              } catch (_) {}
-            }
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }
@@ -905,61 +539,20 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   Widget _buildMetric(String label, String value, Color color) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white54, fontSize: 10),
-        ),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   IconData _getStrategyIcon(BotStrategy strategy) {
     switch (strategy) {
-      case BotStrategy.martingale:
-        return Icons.trending_up;
-      case BotStrategy.fibonacci:
-        return Icons.stairs;
-      case BotStrategy.dalembert:
-        return Icons.analytics;
-      case BotStrategy.labouchere:
-        return Icons.calculate;
-      case BotStrategy.oscarGrind:
-        return Icons.slow_motion_video;
-      case BotStrategy.paroli:
-        return Icons.flash_on;
-      case BotStrategy.antiMartingale:
-        return Icons.trending_down;
-      case BotStrategy.kellyFraction:
-        return Icons.functions;
-      case BotStrategy.pinkham:
-        return Icons.healing;
-      case BotStrategy.oneThreeTwoSix:
-        return Icons.format_list_numbered;
-      case BotStrategy.percentage:
-        return Icons.percent;
-      case BotStrategy.compound:
-        return Icons.workspaces;
-      case BotStrategy.recovery:
-        return Icons.restore;
-      case BotStrategy.adaptive:
-        return Icons.settings_suggest;
-      case BotStrategy.mlBased:
-        return Icons.psychology;
+      case BotStrategy.martingale: return Icons.trending_up;
+      case BotStrategy.fibonacci: return Icons.stairs;
+      case BotStrategy.dalembert: return Icons.analytics;
+      case BotStrategy.adaptive: return Icons.settings_suggest;
+      default: return Icons.smart_toy;
     }
-  }
-
-  Color _getRSIColor(double rsi) {
-    if (rsi < 30) return const Color(0xFF00C896);
-    if (rsi > 70) return const Color(0xFFFF4444);
-    return Colors.white70;
   }
 }
