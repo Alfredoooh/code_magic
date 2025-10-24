@@ -349,7 +349,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             takeProfitPercent: _multiplierTakeProfitPercent,
           );
           if (res is bool) {
-            success = res;
+            success = res['success'] ?? false;
           } else if (res is Map) {
             success = res['success'] as bool? ?? false;
             contractId = res['contract_id'] as String?;
@@ -1314,7 +1314,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
-                  prefixText: '$ ',
+                  prefixText: '\$ ',
                   prefixStyle: const TextStyle(color: Colors.white70, fontSize: 24),
                   hintText: '0.00',
                   hintStyle: const TextStyle(color: Colors.white24),
