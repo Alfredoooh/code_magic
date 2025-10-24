@@ -7,7 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
-import 'deriv_chart_widget.dart'; // ← ADICIONADO
+import 'deriv_chart_widget.dart';
 
 class BotsScreen extends StatefulWidget {
   final String token;
@@ -409,6 +409,55 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     );
   }
 
+  void _showEditStakeDialog(TradingBot bot) {
+    final controller = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('Editar Stake Inicial', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Stake Inicial (\$)',
+            labelStyle: TextStyle(color: Colors.white54),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF0066FF)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newStake = double.tryParse(controller.text);
+              if (newStake != null && newStake > 0) {
+                setState(() {
+                  bot.config.initialStake = newStake;
+                  bot.currentStake = newStake;
+                });
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0066FF),
+            ),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -420,96 +469,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A1A),
         leading: IconButton(
-                                icon: const Icon(Icons.stop, size: 20),
-                      label: const Text('Parar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF4444),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniChart(List<TradeRecord> history, TradingBot bot) {
-    final cumulative = <double>[];
-    double sum = 0;
-    for (var profit in history.map((t) => t.profit)) {
-      sum += profit;
-      cumulative.add(sum);
-    }
-
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(8)),
-      child: DerivAreaChart(
-        points: cumulative,
-        autoScale: true,
-        showGradient: false,
-        market: bot.config.market,
-        onControllerCreated: (controller, market) {
-          if (market == null) return;
-          _chartControllers.putIfAbsent(market, () => []);
-          if (!_chartControllers[market]!.contains(controller)) {
-            _chartControllers[market]!.add(controller);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildMetric(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  IconData _getStrategyIcon(BotStrategy strategy) {
-    switch (strategy) {
-      case BotStrategy.martingale:
-        return Icons.trending_up;
-      case BotStrategy.fibonacci:
-        return Icons.stairs;
-      case BotStrategy.dalembert:
-        return Icons.analytics;
-      case BotStrategy.labouchere:
-        return Icons.calculate;
-      case BotStrategy.oscarGrind:
-        return Icons.slow_motion_video;
-      case BotStrategy.paroli:
-        return Icons.flash_on;
-      case BotStrategy.antiMartingale:
-        return Icons.trending_down;
-      case BotStrategy.kellyFraction:
-        return Icons.functions;
-      case BotStrategy.pinkham:
-        return Icons.healing;
-      case BotStrategy.oneThreeTwoSix:
-        return Icons.format_list_numbered;
-      case BotStrategy.percentage:
-        return Icons.percent;
-      case BotStrategy.compound:
-        return Icons.workspaces;
-      case BotStrategy.recovery:
-        return Icons.restore;
-      case BotStrategy.adaptive:
-        return Icons.settings_suggest;
-      case BotStrategy.mlBased:
-        return Icons.psychology;
-    }
-  }
-}.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Trading Bots'),
@@ -680,7 +640,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ),
             ),
             const SizedBox(height: 12),
-            // Mostrar stake atual
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -733,7 +692,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       if (bot.isRunning) {
                         bot.isPaused ? bot.resume() : bot.pause();
                       } else {
-                        // Validar saldo antes de iniciar
                         if (_balance < status.currentStake) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -747,13 +705,36 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       }
                       setState(() {});
                     },
-                    icon: Icon(bot.isRunning ? (bot.isPaused ? Icons.play_arrow : Icons.pause) : Icons.play_arrow),
+                    icon: Icon(bot.isRunning ? (bot.isPaused ? Icons.play_arrow : Icons.pause) : Icons.play_arrow, size: 20),
                     label: Text(bot.isRunning ? (bot.isPaused ? 'Continuar' : 'Pausar') : 'Iniciar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: bot.isRunning ? (bot.isPaused ? const Color(0xFF00C896) : const Color(0xFFFF9800)) : const Color(0xFF00C896),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                if (bot.isRunning) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        bot.stop();
+                        setState(() {});
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF4444),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Icon(Icons.stop, size: 20),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
