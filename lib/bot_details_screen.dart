@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'bot_create_screen.dart';
+import 'deriv_chart_widget.dart'; // ← ADICIONADO
 
 class BotDetailsScreen extends StatefulWidget {
   final TradingBot bot;
@@ -218,12 +219,12 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     widget.chartControllers.putIfAbsent(market, () => []);
     if (!widget.chartControllers[market]!.contains(controller)) {
       widget.chartControllers[market]!.add(controller);
-      
+
       final allPoints = widget.marketPrices[market] ?? [];
       final lastPoints = allPoints.length > widget.chartPointsCount
           ? allPoints.sublist(allPoints.length - widget.chartPointsCount)
           : allPoints;
-      
+
       if (lastPoints.isNotEmpty) {
         final jsArray = lastPoints.map((p) => p.toString()).join(',');
         final script = "try{ updateData([${jsArray}]); }catch(e){};";
