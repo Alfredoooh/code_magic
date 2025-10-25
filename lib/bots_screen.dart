@@ -83,14 +83,14 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           name: 'Martingale Pro',
           description: 'Recuperação automática com Martingale inteligente',
           strategy: BotStrategy.martingale,
-          initialStake: 10.0,
+          initialStake: 0.35,
           market: 'R_100',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.intelligent,
           entryConditions: [EntryCondition.immediate],
           maxConsecutiveLosses: 7,
-          maxStake: 500.0,
-          targetProfit: 100.0,
+          maxStake: 50.0,
+          targetProfit: 10.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -100,14 +100,14 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           name: 'Fibonacci Master',
           description: 'Estratégia Fibonacci com análise RSI',
           strategy: BotStrategy.fibonacci,
-          initialStake: 15.0,
+          initialStake: 0.50,
           market: 'R_50',
           contractType: 'PUT',
           recoveryMode: RecoveryMode.moderate,
           entryConditions: [EntryCondition.rsiOversold],
           useRSI: true,
-          maxStake: 400.0,
-          targetProfit: 150.0,
+          maxStake: 40.0,
+          targetProfit: 15.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -117,11 +117,11 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           name: 'D\'Alembert Safe',
           description: 'Crescimento gradual com segurança',
           strategy: BotStrategy.dalembert,
-          initialStake: 20.0,
+          initialStake: 0.75,
           market: 'R_75',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.conservative,
-          maxStake: 300.0,
+          maxStake: 30.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -131,13 +131,13 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           name: 'Adaptive AI',
           description: 'Adaptação inteligente ao mercado',
           strategy: BotStrategy.adaptive,
-          initialStake: 25.0,
+          initialStake: 1.00,
           market: 'R_100',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.intelligent,
           useRSI: true,
-          maxStake: 500.0,
-          targetProfit: 200.0,
+          maxStake: 50.0,
+          targetProfit: 20.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -227,6 +227,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         builder: (context) => BotDetailsScreen(
           bot: bot,
           onUpdate: () => setState(() {}),
+          marketPrices: _marketPrices,
         ),
       ),
     );
@@ -289,30 +290,58 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   }
 
   void _showEditStakeDialog(TradingBot bot) {
-    final controller = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
+    final stakeController = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
+    final maxStakeController = TextEditingController(text: bot.config.maxStake.toStringAsFixed(2));
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Editar Stake Inicial', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: 'Stake Inicial (\$)',
-            labelStyle: const TextStyle(color: Colors.white54),
-            enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.white24),
-              borderRadius: BorderRadius.circular(16),
+        title: const Text('Editar Configurações', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: stakeController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Stake Inicial (\$)',
+                labelStyle: const TextStyle(color: Colors.white54),
+                hintText: '0.35',
+                hintStyle: const TextStyle(color: Colors.white24),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFFFF8C00)),
-              borderRadius: BorderRadius.circular(16),
+            const SizedBox(height: 16),
+            TextField(
+              controller: maxStakeController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Stake Máximo (\$)',
+                labelStyle: const TextStyle(color: Colors.white54),
+                hintText: '50.00',
+                hintStyle: const TextStyle(color: Colors.white24),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
         actions: [
           TextButton(
@@ -321,13 +350,23 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           ),
           ElevatedButton(
             onPressed: () {
-              final newStake = double.tryParse(controller.text);
-              if (newStake != null && newStake > 0) {
+              final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
+              final newMaxStake = double.tryParse(maxStakeController.text.replaceAll(',', '.'));
+              
+              if (newStake != null && newStake >= 0.35 && newMaxStake != null && newMaxStake >= newStake) {
                 setState(() {
                   bot.config.initialStake = newStake;
                   bot.currentStake = newStake;
+                  bot.config.maxStake = newMaxStake;
                 });
                 Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Stake mínimo é \$0.35 e Max Stake deve ser maior que Stake Inicial'),
+                    backgroundColor: Color(0xFFFF4444),
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
