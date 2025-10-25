@@ -1,8 +1,9 @@
-// market_detail_screen.dart
+// lib/market_detail_screen.dart
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'styles.dart';
 import 'markets_screen.dart';
 import 'trade_screen.dart';
 
@@ -29,70 +30,107 @@ class MarketDetailScreen extends StatefulWidget {
 class _MarketDetailScreenState extends State<MarketDetailScreen> {
   MarketData? _currentData;
   final List<double> _priceHistory = [];
+  StreamSubscription? _streamSubscription;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _currentData = widget.marketData;
+    
+    // Adicionar alguns dados iniciais se já tiver marketData
+    if (widget.marketData != null) {
+      _priceHistory.add(widget.marketData!.price);
+    }
+    
     _subscribeToMarket();
+    
+    // Timer de timeout para indicar carregamento
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _streamSubscription?.cancel();
+    super.dispose();
   }
 
   void _subscribeToMarket() {
-    if (widget.channel != null) {
+    if (widget.channel == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
       widget.channel!.sink.add(json.encode({
         'ticks': widget.symbol,
         'subscribe': 1,
       }));
 
-      widget.channel!.stream.listen((message) {
-        final data = json.decode(message);
-        if (data['msg_type'] == 'tick' && data['tick']['symbol'] == widget.symbol) {
-          final tick = data['tick'];
-          final quote = double.parse(tick['quote'].toString());
+      _streamSubscription = widget.channel!.stream.listen(
+        (message) {
+          try {
+            final data = json.decode(message);
+            
+            if (data['msg_type'] == 'tick' && data['tick']['symbol'] == widget.symbol) {
+              final tick = data['tick'];
+              final quote = double.parse(tick['quote'].toString());
 
-          setState(() {
-            if (_currentData != null) {
-              final oldPrice = _currentData!.price;
-              _currentData = MarketData(
-                price: quote,
-                change: ((quote - oldPrice) / oldPrice) * 100,
-                timestamp: DateTime.now(),
-              );
-            } else {
-              _currentData = MarketData(
-                price: quote,
-                change: 0.0,
-                timestamp: DateTime.now(),
-              );
-            }
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                  
+                  if (_currentData != null) {
+                    final oldPrice = _currentData!.price;
+                    _currentData = MarketData(
+                      price: quote,
+                      change: ((quote - oldPrice) / oldPrice) * 100,
+                      timestamp: DateTime.now(),
+                    );
+                  } else {
+                    _currentData = MarketData(
+                      price: quote,
+                      change: 0.0,
+                      timestamp: DateTime.now(),
+                    );
+                  }
 
-            _priceHistory.add(quote);
-            if (_priceHistory.length > 50) {
-              _priceHistory.removeAt(0);
+                  _priceHistory.add(quote);
+                  if (_priceHistory.length > 100) {
+                    _priceHistory.removeAt(0);
+                  }
+                });
+              }
             }
-          });
-        }
-      });
+          } catch (e) {
+            debugPrint('Error parsing market data: $e');
+          }
+        },
+        onError: (error) {
+          debugPrint('WebSocket error: $error');
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error subscribing to market: $e');
+      setState(() => _isLoading = false);
     }
   }
 
   void _openTrade() {
+    AppHaptics.heavy();
     Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => TradeScreen(
+      MaterialPageRoute(
+        builder: (context) => TradeScreen(
           token: widget.token,
           initialMarket: widget.symbol,
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.0, 1.0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 350),
       ),
     );
   }
@@ -100,199 +138,260 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isPositive = (_currentData?.change ?? 0) >= 0;
-    final changeColor = isPositive ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
+    final changeColor = isPositive ? AppColors.success : AppColors.error;
 
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.marketInfo.name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Price Header
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            widget.marketInfo.iconUrl,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _currentData != null 
-                              ? _currentData!.price.toStringAsFixed(2)
-                              : '...',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (_currentData != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: changeColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${isPositive ? '+' : ''}${_currentData!.change.toStringAsFixed(2)}%',
-                              style: TextStyle(
-                                color: changeColor,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // Chart Placeholder
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _priceHistory.length > 2
-                        ? CustomPaint(
-                            painter: SimpleChartPainter(_priceHistory, changeColor),
-                          )
-                        : Center(
-                            child: Text(
-                              'Carregando gráfico...',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Info Cards
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        _buildInfoCard('Símbolo', widget.symbol),
-                        const SizedBox(height: 12),
-                        _buildInfoCard('Categoria', widget.marketInfo.category),
-                        const SizedBox(height: 12),
-                        _buildInfoCard('Nome', widget.marketInfo.name),
-                        const SizedBox(height: 12),
-                        _buildInfoCard(
-                          'Última Atualização',
-                          _currentData != null
-                              ? _formatTime(_currentData!.timestamp)
-                              : 'N/A',
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-
-          // Trade Button
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _openTrade,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0066FF),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Negociar',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+        title: Text(widget.marketInfo.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () {
+              AppHaptics.light();
+              _subscribeToMarket();
+              AppSnackbar.info(context, 'Atualizando dados...');
+            },
           ),
         ],
       ),
+      body: _isLoading && _currentData == null
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: AppSpacing.lg),
+                  Text('Carregando dados do mercado...'),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    children: [
+                      // Market Icon & Price
+                      FadeInWidget(
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  color: context.colors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(AppShapes.large),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppShapes.large),
+                                  child: Image.network(
+                                    widget.marketInfo.iconUrl,
+                                    width: 96,
+                                    height: 96,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: AppColors.primary.withOpacity(0.15),
+                                        child: const Icon(
+                                          Icons.show_chart_rounded,
+                                          color: AppColors.primary,
+                                          size: 48,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+                              Text(
+                                _currentData != null 
+                                    ? '\$${_currentData!.price.toStringAsFixed(2)}'
+                                    : 'Carregando...',
+                                style: context.textStyles.displayLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              if (_currentData != null)
+                                AppBadge(
+                                  text: '${isPositive ? '+' : ''}${_currentData!.change.toStringAsFixed(2)}%',
+                                  color: changeColor,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // Chart
+                      FadeInWidget(
+                        delay: const Duration(milliseconds: 100),
+                        child: AnimatedCard(
+                          padding: EdgeInsets.zero,
+                          child: Container(
+                            height: 240,
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: _priceHistory.length > 2
+                                ? CustomPaint(
+                                    painter: SimpleChartPainter(_priceHistory, changeColor),
+                                  )
+                                : Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.show_chart_rounded,
+                                          size: 48,
+                                          color: context.colors.onSurfaceVariant.withOpacity(0.5),
+                                        ),
+                                        const SizedBox(height: AppSpacing.md),
+                                        Text(
+                                          'Aguardando dados do gráfico...',
+                                          style: context.textStyles.bodyMedium?.copyWith(
+                                            color: context.colors.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // Market Info
+                      FadeInWidget(
+                        delay: const Duration(milliseconds: 200),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Informações do Mercado',
+                              style: context.textStyles.titleLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildInfoCard(
+                              icon: Icons.tag_rounded,
+                              label: 'Símbolo',
+                              value: widget.symbol,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildInfoCard(
+                              icon: Icons.category_rounded,
+                              label: 'Categoria',
+                              value: widget.marketInfo.category,
+                              color: AppColors.secondary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildInfoCard(
+                              icon: Icons.label_rounded,
+                              label: 'Nome Completo',
+                              value: widget.marketInfo.name,
+                              color: AppColors.tertiary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildInfoCard(
+                              icon: Icons.access_time_rounded,
+                              label: 'Última Atualização',
+                              value: _currentData != null
+                                  ? _formatTime(_currentData!.timestamp)
+                                  : 'N/A',
+                              color: AppColors.info,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.massive),
+                    ],
+                  ),
+                ),
+
+                // Trade Button
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: context.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: context.colors.outlineVariant,
+                        width: 1,
+                      ),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: AnimatedPrimaryButton(
+                        text: 'Negociar ${widget.symbol}',
+                        icon: Icons.trending_up_rounded,
+                        onPressed: _openTrade,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
-  Widget _buildInfoCard(String label, String value) {
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(12),
+        color: context.colors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppShapes.medium),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 15,
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppShapes.small),
             ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: context.textStyles.labelSmall,
+                ),
+                Text(
+                  value,
+                  style: context.textStyles.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -323,21 +422,32 @@ class SimpleChartPainter extends CustomPainter {
 
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 2
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
     final minPrice = prices.reduce((a, b) => a < b ? a : b);
     final maxPrice = prices.reduce((a, b) => a > b ? a : b);
     final priceRange = maxPrice - minPrice;
 
-    if (priceRange == 0) return;
+    if (priceRange == 0) {
+      // Linha reta no meio se não há variação
+      final y = size.height / 2;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        paint,
+      );
+      return;
+    }
 
     final path = Path();
     final spacing = size.width / (prices.length - 1);
 
     for (var i = 0; i < prices.length; i++) {
       final x = i * spacing;
-      final y = size.height - ((prices[i] - minPrice) / priceRange * size.height * 0.8) - size.height * 0.1;
+      final normalizedY = (prices[i] - minPrice) / priceRange;
+      final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -348,7 +458,7 @@ class SimpleChartPainter extends CustomPainter {
 
     canvas.drawPath(path, paint);
 
-    // Fill area
+    // Fill area under the line
     final fillPath = Path.from(path);
     fillPath.lineTo(size.width, size.height);
     fillPath.lineTo(0, size.height);
@@ -360,11 +470,33 @@ class SimpleChartPainter extends CustomPainter {
         end: Alignment.bottomCenter,
         colors: [
           color.withOpacity(0.3),
-          color.withOpacity(0.0),
+          color.withOpacity(0.05),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);
+
+    // Draw points
+    final pointPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < prices.length; i++) {
+      if (i % 5 == 0 || i == prices.length - 1) {
+        final x = i * spacing;
+        final normalizedY = (prices[i] - minPrice) / priceRange;
+        final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
+        
+        canvas.drawCircle(Offset(x, y), 4, pointPaint);
+        canvas.drawCircle(
+          Offset(x, y),
+          6,
+          Paint()
+            ..color = color.withOpacity(0.3)
+            ..style = PaintingStyle.fill,
+        );
+      }
+    }
   }
 
   @override
