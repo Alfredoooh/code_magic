@@ -58,6 +58,7 @@ class _TradeChartViewState extends State<TradeChartView> {
       ..addJavaScriptChannel(
         'FlutterChannel',
         onMessageReceived: (JavaScriptMessage message) {
+          debugPrint('📨 Mensagem recebida do chart: ${message.message}');
           try {
             final data = json.decode(message.message);
             if (data['type'] == 'price') {
@@ -66,15 +67,26 @@ class _TradeChartViewState extends State<TradeChartView> {
                 (data['change'] ?? 0.0) is num ? (data['change'] as num).toDouble() : 0.0,
               );
             } else if (data['type'] == 'chart_ready') {
+              debugPrint('✅ Gráfico carregado e pronto!');
               setState(() => _chartReady = true);
               if (widget.controller.entryPrice != null) {
                 _updateEntryMarker();
               }
             }
           } catch (e) {
-            debugPrint('Error parsing chart message: $e');
+            debugPrint('❌ Erro ao processar mensagem do chart: $e');
           }
         },
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            debugPrint('🌐 WebView carregada: $url');
+          },
+          onWebResourceError: (WebResourceError error) {
+            debugPrint('❌ Erro no WebView: ${error.description}');
+          },
+        ),
       )
       ..loadHtmlString(_getChartHTML());
   }
@@ -86,19 +98,27 @@ class _TradeChartViewState extends State<TradeChartView> {
     final direction = widget.controller.entryDirection ?? 'buy';
     final current = widget.controller.currentPrice;
 
+    debugPrint('🎯 Atualizando marcador: entry=$entry, direction=$direction, current=$current');
+
     _webViewController.runJavaScript('''
-      updateTradeMarkers(
-        $entry, 
-        "$direction", 
-        $current,
-        ${widget.controller.multiplierStopLossPercent},
-        ${widget.controller.multiplierTakeProfitPercent}
-      );
+      try {
+        updateTradeMarkers(
+          $entry, 
+          "$direction", 
+          $current,
+          ${widget.controller.multiplierStopLossPercent},
+          ${widget.controller.multiplierTakeProfitPercent}
+        );
+        console.log('✅ Marcadores atualizados com sucesso');
+      } catch (error) {
+        console.error('❌ Erro ao atualizar marcadores:', error);
+      }
     ''');
   }
 
   void _clearMarkers() {
     if (!_chartReady) return;
+    debugPrint('🧹 Limpando marcadores');
     _webViewController.runJavaScript('clearTradeMarkers();');
   }
 
@@ -183,6 +203,15 @@ class _TradeChartViewState extends State<TradeChartView> {
   <canvas id="drawingCanvas" class="drawing-layer"></canvas>
   
   <script>
+    console.log('🚀 Iniciando gráfico...');
+    
+    // Verificar se FlutterChannel está disponível
+    if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
+      console.log('✅ FlutterChannel disponível!');
+    } else {
+      console.warn('⚠️ FlutterChannel NÃO disponível - dados não serão enviados ao Flutter');
+    }
+    
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
       layout: { 
         background: { color: '#000000' }, 
@@ -231,6 +260,8 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
+    console.log('📊 Gráfico criado');
+    
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#00C896',
       downColor: '#FF4444',
@@ -256,6 +287,8 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
+    console.log('📈 Séries adicionadas');
+    
     // Indicadores técnicos
     const indicators = {
       mma20: null,
@@ -277,6 +310,8 @@ class _TradeChartViewState extends State<TradeChartView> {
     const volumeData = [];
     let time = Math.floor(Date.now() / 1000) - 300;
     let basePrice = 1000 + Math.random() * 100;
+    
+    console.log('🎲 Gerando dados iniciais...');
     
     for (let i = 0; i < 100; i++) {
       const open = basePrice;
@@ -306,6 +341,8 @@ class _TradeChartViewState extends State<TradeChartView> {
     
     candleSeries.setData(data);
     volumeSeries.setData(volumeData);
+    
+    console.log('✅ Dados carregados:', data.length, 'candles');
     
     currentPriceLine = candleSeries.createPriceLine({
       price: data[data.length - 1].close,
@@ -436,7 +473,8 @@ class _TradeChartViewState extends State<TradeChartView> {
     }
     
     // Adicionar indicadores
-    function addIndicator(type) {
+    window.addIndicator = function(type) {
+      console.log('📊 Adicionando indicador:', type);
       switch(type) {
         case 'mma20':
           if (!indicators.mma20) {
@@ -557,9 +595,10 @@ class _TradeChartViewState extends State<TradeChartView> {
           }
           break;
       }
-    }
+    };
     
-    function removeIndicator(type) {
+    window.removeIndicator = function(type) {
+      console.log('🗑️ Removendo indicador:', type);
       if (indicators[type]) {
         if (type === 'bb' || type === 'macd') {
           Object.values(indicators[type]).forEach(series => {
@@ -570,7 +609,7 @@ class _TradeChartViewState extends State<TradeChartView> {
         }
         indicators[type] = null;
       }
-    }
+    };
     
     // Canvas de desenho para ferramentas
     const canvas = document.getElementById('drawingCanvas');
@@ -582,10 +621,11 @@ class _TradeChartViewState extends State<TradeChartView> {
     let drawings = [];
     let currentDrawing = null;
     
-    function activateDrawingTool(tool) {
+    window.activateDrawingTool = function(tool) {
+      console.log('✏️ Ativando ferramenta:', tool);
       drawingTool = tool;
       canvas.style.pointerEvents = tool ? 'auto' : 'none';
-    }
+    };
     
     canvas.addEventListener('mousedown', (e) => {
       if (!drawingTool) return;
@@ -672,12 +712,25 @@ class _TradeChartViewState extends State<TradeChartView> {
       });
     }
     
+    // Notificar Flutter que o gráfico está pronto
     setTimeout(() => {
-      FlutterChannel.postMessage(JSON.stringify({ type: 'chart_ready' }));
+      if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
+        console.log('📤 Enviando mensagem chart_ready para Flutter');
+        try {
+          FlutterChannel.postMessage(JSON.stringify({ type: 'chart_ready' }));
+          console.log('✅ Mensagem chart_ready enviada com sucesso');
+        } catch (error) {
+          console.error('❌ Erro ao enviar chart_ready:', error);
+        }
+      } else {
+        console.error('❌ FlutterChannel não disponível para enviar chart_ready');
+      }
     }, 500);
     
     let lastPrice = data[data.length - 1].close;
     let trend = 0;
+    
+    console.log('⏱️ Iniciando atualização em tempo real');
     
     setInterval(() => {
       const lastBar = data[data.length - 1];
@@ -745,15 +798,30 @@ class _TradeChartViewState extends State<TradeChartView> {
       
       lastPrice = close;
       
-      FlutterChannel.postMessage(JSON.stringify({
-        type: 'price',
-        price: close,
-        change: ((close - lastBar.close) / lastBar.close) * 100
-      }));
+      // Enviar atualização de preço para Flutter
+      if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
+        try {
+          FlutterChannel.postMessage(JSON.stringify({
+            type: 'price',
+            price: close,
+            change: ((close - lastBar.close) / lastBar.close) * 100
+          }));
+        } catch (error) {
+          console.error('❌ Erro ao enviar atualização de preço:', error);
+        }
+      }
       
     }, 1000);
     
-    function updateTradeMarkers(entryPrice, direction, currentPrice, stopLossPercent, takeProfitPercent) {
+    window.updateTradeMarkers = function(entryPrice, direction, currentPrice, stopLossPercent, takeProfitPercent) {
+      console.log('🎯 Atualizando marcadores de trade:', {
+        entryPrice,
+        direction,
+        currentPrice,
+        stopLossPercent,
+        takeProfitPercent
+      });
+      
       clearTradeMarkers();
       
       const isBuy = direction === 'buy';
@@ -808,9 +876,12 @@ class _TradeChartViewState extends State<TradeChartView> {
         size: 2,
       });
       candleSeries.setMarkers(markers);
-    }
+      
+      console.log('✅ Marcadores de trade atualizados com sucesso');
+    };
     
-    function clearTradeMarkers() {
+    window.clearTradeMarkers = function() {
+      console.log('🧹 Limpando marcadores de trade');
       if (entryLine) {
         candleSeries.removePriceLine(entryLine);
         entryLine = null;
@@ -824,7 +895,7 @@ class _TradeChartViewState extends State<TradeChartView> {
         takeProfitLine = null;
       }
       candleSeries.setMarkers([]);
-    }
+    };
     
     window.addEventListener('resize', () => {
       chart.applyOptions({
@@ -835,6 +906,8 @@ class _TradeChartViewState extends State<TradeChartView> {
       canvas.height = window.innerHeight;
       redrawCanvas();
     });
+    
+    console.log('🎉 Gráfico totalmente inicializado!');
   </script>
 </body>
 </html>
