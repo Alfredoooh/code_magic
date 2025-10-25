@@ -1,7 +1,7 @@
-// trade_screen.dart - MATERIAL DESIGN 3 EXPRESSIVE
+// lib/trade_screen.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'styles.dart';
 import 'trade_logic_controller.dart';
 import 'trade_chart_view.dart';
 import 'trade_controls.dart';
@@ -25,6 +25,9 @@ class TradeScreen extends StatefulWidget {
 class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin {
   late TradeLogicController _controller;
   bool _chartExpanded = false;
+  bool _showMLBanner = true;
+  late AnimationController _mlBannerController;
+  late Animation<double> _mlBannerAnimation;
 
   @override
   void initState() {
@@ -37,132 +40,535 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       },
     );
     _controller.initialize();
+
+    // Animação do banner ML
+    _mlBannerController = AnimationController(
+      vsync: this,
+      duration: AppMotion.medium,
+    );
+    _mlBannerAnimation = CurvedAnimation(
+      parent: _mlBannerController,
+      curve: AppMotion.emphasizedDecelerate,
+    );
+    _mlBannerController.forward();
   }
 
   @override
   void dispose() {
+    _mlBannerController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: Colors.black,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: const Color(0xFF1A1A1A),
-        border: const Border(bottom: BorderSide(color: Color(0xFF2A2A2A))),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Icon(CupertinoIcons.back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        middle: GestureDetector(
-          onTap: () => _showMarketSelector(),
+    return Scaffold(
+      appBar: AppBar(
+        title: GestureDetector(
+          onTap: () {
+            AppHaptics.light();
+            _showMarketSelector();
+          },
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _controller.selectedMarketName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(CupertinoIcons.chevron_down, size: 16, color: Colors.white),
+              Text(_controller.selectedMarketName),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
             ],
           ),
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${_controller.balance.toStringAsFixed(2)} ${_controller.currency}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${_controller.balance.toStringAsFixed(2)} ${_controller.currency}',
+                  style: context.textStyles.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _controller.priceChange >= 0
+                        ? AppColors.success.withOpacity(0.15)
+                        : AppColors.error.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(AppShapes.full),
+                  ),
+                  child: Text(
+                    '${_controller.priceChange >= 0 ? '+' : ''}${_controller.priceChange.toStringAsFixed(2)}%',
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: _controller.priceChange >= 0 ? AppColors.success : AppColors.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: _controller.priceChange >= 0
-                    ? const Color(0xFF00C896).withOpacity(0.2)
-                    : const Color(0xFFFF4444).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                '${_controller.priceChange >= 0 ? '+' : ''}${_controller.priceChange.toStringAsFixed(2)}%',
-                style: TextStyle(
-                  color: _controller.priceChange >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // ML Prediction Banner (abaixo do AppBar)
+          if (_controller.mlPrediction != null && _showMLBanner)
+            _buildMLPredictionBanner(),
+          
+          Expanded(
+            flex: _chartExpanded ? 5 : 3,
+            child: TradeChartView(
+              controller: _controller,
+              isExpanded: _chartExpanded,
+              onExpandToggle: () {
+                AppHaptics.medium();
+                setState(() => _chartExpanded = !_chartExpanded);
+              },
+            ),
+          ),
+          
+          if (!_chartExpanded)
+            TradeControls(
+              controller: _controller,
+              onStakeTap: () => _showStakeKeyboard(),
+              onDurationTap: () => _showDurationSelector(),
+              onPlaceTrade: (direction) => _controller.placeTrade(direction),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMLPredictionBanner() {
+    final prediction = _controller.mlPrediction!;
+    final direction = prediction['direction'] as String? ?? 'N/A';
+    final confidence = prediction['confidence'] as double? ?? 0.0;
+    final probability = prediction['probability'] as double? ?? 0.0;
+    final strength = prediction['strength'] as double? ?? 0.0;
+    final recommendedAction = prediction['recommended_action'] as String? ?? 'hold';
+    final stake = _controller.mlRecommendedStake;
+
+    final isRise = direction.toLowerCase() == 'rise';
+    final directionColor = isRise ? AppColors.success : AppColors.error;
+    final confidenceColor = confidence > 0.7 
+        ? AppColors.success 
+        : confidence > 0.5 
+            ? AppColors.warning 
+            : AppColors.error;
+
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(0, -1),
+        end: Offset.zero,
+      ).animate(_mlBannerAnimation),
+      child: FadeTransition(
+        opacity: _mlBannerAnimation,
+        child: Container(
+          margin: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.info.withOpacity(0.15),
+                AppColors.primary.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppShapes.medium),
+            border: Border.all(
+              color: AppColors.info.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                AppHaptics.selection();
+                _showMLDetailsBottomSheet();
+              },
+              borderRadius: BorderRadius.circular(AppShapes.medium),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          decoration: BoxDecoration(
+                            color: AppColors.info.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(AppShapes.small),
+                          ),
+                          child: const Icon(
+                            Icons.psychology_rounded,
+                            color: AppColors.info,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'ML Prediction:',
+                                    style: context.textStyles.labelMedium?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.xs),
+                                  AppBadge(
+                                    text: direction.toUpperCase(),
+                                    color: directionColor,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.analytics_rounded,
+                                    size: 14,
+                                    color: confidenceColor,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xxs),
+                                  Text(
+                                    'Confidence: ${(confidence * 100).toStringAsFixed(0)}%',
+                                    style: context.textStyles.bodySmall?.copyWith(
+                                      color: confidenceColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Icon(
+                                    Icons.speed_rounded,
+                                    size: 14,
+                                    color: context.colors.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xxs),
+                                  Text(
+                                    'Strength: ${(strength * 100).toStringAsFixed(0)}%',
+                                    style: context.textStyles.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          onPressed: () {
+                            AppHaptics.light();
+                            setState(() => _showMLBanner = false);
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(AppShapes.small),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Recommended Stake',
+                                style: context.textStyles.labelSmall,
+                              ),
+                              Text(
+                                '\$${stake.toStringAsFixed(2)}',
+                                style: context.textStyles.titleSmall?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Action',
+                                style: context.textStyles.labelSmall,
+                              ),
+                              Text(
+                                _formatRecommendedAction(recommendedAction),
+                                style: context.textStyles.titleSmall?.copyWith(
+                                  color: _getActionColor(recommendedAction),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.touch_app_rounded,
+                          size: 14,
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: AppSpacing.xxs),
+                        Text(
+                          'Tap for detailed analysis',
+                          style: context.textStyles.labelSmall?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
-      child: SafeArea(
+    );
+  }
+
+  String _formatRecommendedAction(String action) {
+    switch (action) {
+      case 'strong_buy':
+        return 'Strong Buy';
+      case 'buy':
+        return 'Buy';
+      case 'moderate_buy':
+        return 'Moderate Buy';
+      case 'hold':
+        return 'Hold';
+      case 'avoid':
+        return 'Avoid';
+      default:
+        return action.toUpperCase();
+    }
+  }
+
+  Color _getActionColor(String action) {
+    switch (action) {
+      case 'strong_buy':
+      case 'buy':
+        return AppColors.success;
+      case 'moderate_buy':
+        return AppColors.warning;
+      case 'hold':
+        return AppColors.info;
+      case 'avoid':
+        return AppColors.error;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  void _showMLDetailsBottomSheet() {
+    final prediction = _controller.mlPrediction!;
+    final patterns = (prediction['patterns'] as List<dynamic>?)?.cast<String>() ?? [];
+    final riskReward = prediction['risk_reward'] as Map<String, dynamic>? ?? {};
+    final marketConditions = prediction['market_conditions'] as Map<String, dynamic>? ?? {};
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (_controller.mlPrediction != null) _buildMLPredictionBar(),
-            Expanded(
-              flex: _chartExpanded ? 5 : 3,
-              child: TradeChartView(
-                controller: _controller,
-                isExpanded: _chartExpanded,
-                onExpandToggle: () {
-                  setState(() => _chartExpanded = !_chartExpanded);
-                },
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.outlineVariant,
+                borderRadius: BorderRadius.circular(AppShapes.full),
               ),
             ),
-            if (!_chartExpanded)
-              TradeControls(
-                controller: _controller,
-                onStakeTap: () => _showStakeKeyboard(),
-                onDurationTap: () => _showDurationSelector(),
-                onPlaceTrade: (direction) => _controller.placeTrade(direction),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(AppShapes.medium),
+                    ),
+                    child: const Icon(Icons.auto_graph_rounded, color: AppColors.info),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('ML Analysis', style: context.textStyles.headlineSmall),
+                        Text(
+                          'Detailed prediction breakdown',
+                          style: context.textStyles.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                shrinkWrap: true,
+                children: [
+                  // Padrões Detectados
+                  if (patterns.isNotEmpty) ...[
+                    Text('Detected Patterns', style: context.textStyles.titleMedium),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: patterns.map((p) => AppBadge(
+                        text: p.replaceAll('_', ' ').toUpperCase(),
+                        color: AppColors.secondary,
+                      )).toList(),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+
+                  // Risk/Reward
+                  Text('Risk/Reward Analysis', style: context.textStyles.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.trending_up_rounded,
+                    label: 'Potential Reward',
+                    value: '\$${(riskReward['reward'] ?? 0.0).toStringAsFixed(2)}',
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.trending_down_rounded,
+                    label: 'Potential Risk',
+                    value: '\$${(riskReward['risk'] ?? 0.0).toStringAsFixed(2)}',
+                    color: AppColors.error,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.balance_rounded,
+                    label: 'Risk/Reward Ratio',
+                    value: '1:${(riskReward['ratio'] ?? 1.0).toStringAsFixed(2)}',
+                    color: AppColors.warning,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Market Conditions
+                  Text('Market Conditions', style: context.textStyles.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.show_chart_rounded,
+                    label: 'Volatility',
+                    value: '${((marketConditions['volatility'] ?? 0.0) * 100).toStringAsFixed(0)}%',
+                    color: AppColors.warning,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.insights_rounded,
+                    label: 'RSI',
+                    value: '${((marketConditions['rsi'] ?? 0.5) * 100).toStringAsFixed(0)}',
+                    color: AppColors.info,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.mood_rounded,
+                    label: 'Market Sentiment',
+                    value: '${(marketConditions['sentiment'] ?? 50.0).toStringAsFixed(0)}',
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ML Stats
+                  Text('ML Performance', style: context.textStyles.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.percent_rounded,
+                    label: 'Accuracy',
+                    value: '${(_controller.mlAccuracy * 100).toStringAsFixed(1)}%',
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildInfoCard(
+                    icon: Icons.numbers_rounded,
+                    label: 'Total Predictions',
+                    value: _controller.mlTotalPredictions.toString(),
+                    color: AppColors.secondary,
+                  ),
+                  
+                  const SizedBox(height: AppSpacing.xxl),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMLPredictionBar() {
-    final prediction = _controller.mlPrediction!;
-    final direction = prediction['direction'] as String? ?? 'N/A';
-    final confidence = prediction['confidence'] as double? ?? 0.0;
-    final stake = _controller.mlRecommendedStake;
-
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D47A1).withOpacity(0.3),
-        border: Border(
-          bottom: BorderSide(color: const Color(0xFF2196F3).withOpacity(0.3)),
-        ),
+        color: context.colors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppShapes.medium),
       ),
       child: Row(
         children: [
-          const Icon(CupertinoIcons.chart_bar_alt_fill, color: Color(0xFF2196F3), size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'ML: ${direction.toUpperCase()} (${(confidence * 100).toStringAsFixed(0)}%) - Stake: \$${stake.toStringAsFixed(2)}',
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppShapes.small),
             ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          CupertinoButton(
-            padding: EdgeInsets.zero,
-            minSize: 0,
-            child: const Icon(CupertinoIcons.info_circle, color: Colors.white70, size: 18),
-            onPressed: () => _showMLInfo(),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(label, style: context.textStyles.bodyMedium),
+          ),
+          Text(
+            value,
+            style: context.textStyles.titleSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -170,8 +576,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   void _showMarketSelector() {
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+    Navigator.of(context).push(
+      MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => MarketSelectorScreen(
           currentMarket: _controller.selectedMarket,
@@ -186,8 +592,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   void _showStakeKeyboard() {
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+    Navigator.of(context).push(
+      MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => CustomKeyboardScreen(
           title: 'Definir Stake',
@@ -203,472 +609,56 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   void _showDurationSelector() {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('Duração'),
-        actions: [
-          CupertinoActionSheetAction(
-            child: const Text('Ticks'),
-            onPressed: () {
-              _controller.setDurationType('t');
-              Navigator.pop(context);
-              _showDurationValuePicker();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Seconds'),
-            onPressed: () {
-              _controller.setDurationType('s');
-              Navigator.pop(context);
-              _showDurationValuePicker();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Minutes'),
-            onPressed: () {
-              _controller.setDurationType('m');
-              Navigator.pop(context);
-              _showDurationValuePicker();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Hours'),
-            onPressed: () {
-              _controller.setDurationType('h');
-              Navigator.pop(context);
-              _showDurationValuePicker();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Days'),
-            onPressed: () {
-              _controller.setDurationType('d');
-              Navigator.pop(context);
-              _showDurationValuePicker();
-            },
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          child: const Text('Cancelar'),
-          onPressed: () => Navigator.pop(context),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.md),
+            Text('Select Duration Type', style: context.textStyles.titleLarge),
+            const SizedBox(height: AppSpacing.lg),
+            _buildDurationOption('Ticks', 't'),
+            _buildDurationOption('Seconds', 's'),
+            _buildDurationOption('Minutes', 'm'),
+            _buildDurationOption('Hours', 'h'),
+            _buildDurationOption('Days', 'd'),
+            const SizedBox(height: AppSpacing.xl),
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildDurationOption(String label, String type) {
+    return ListTile(
+      title: Text(label),
+      onTap: () {
+        AppHaptics.selection();
+        _controller.setDurationType(type);
+        Navigator.pop(context);
+        _showDurationValuePicker();
+      },
+    );
+  }
+
   void _showDurationValuePicker() {
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+    Navigator.of(context).push(
+      MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => CustomKeyboardScreen(
-          title: 'Valor (${_controller.durationLabel})',
+          title: 'Value (${_controller.durationLabel})',
           initialValue: _controller.durationValue.toDouble(),
           isInteger: true,
           onConfirm: (value) {
             _controller.setDurationValue(value.toInt());
             Navigator.pop(context);
           },
-        ),
-      ),
-    );
-  }
-
-  void _showMLInfo() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(CupertinoIcons.sparkles, color: Color(0xFF2196F3)),
-            SizedBox(width: 8),
-            Text('Machine Learning'),
-          ],
-        ),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 12),
-            const Text('O sistema de ML analisa:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('• Padrões do gráfico\n• Histórico de preços\n• Volatilidade\n• Tendências de mercado\n• Seu histórico de trades\n• Gestão de banca'),
-            const SizedBox(height: 12),
-            Text('Precisão atual: ${(_controller.mlAccuracy * 100).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF00C896), fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('Total de análises: ${_controller.mlTotalPredictions}', style: const TextStyle(fontSize: 12)),
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// trade_controls.dart - MATERIAL DESIGN 3 EXPRESSIVE
-// ========================================
-import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'trade_logic_controller.dart';
-
-class TradeControls extends StatelessWidget {
-  final TradeLogicController controller;
-  final VoidCallback onStakeTap;
-  final VoidCallback onDurationTap;
-  final Function(String) onPlaceTrade;
-
-  const TradeControls({
-    Key? key,
-    required this.controller,
-    required this.onStakeTap,
-    required this.onDurationTap,
-    required this.onPlaceTrade,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        border: Border(top: BorderSide(color: Color(0xFF2A2A2A), width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            _buildTradeTypeSelector(context),
-            const SizedBox(height: 16),
-            _buildStakeAndDurationRow(),
-            if (controller.selectedTradeType == 'match_differ' ||
-                controller.selectedTradeType == 'over_under') ...[
-              const SizedBox(height: 12),
-              _buildPredictionSelector(),
-            ],
-            const SizedBox(height: 16),
-            _buildTradeButtons(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTradeTypeSelector(BuildContext context) {
-    // Apenas os tipos de trade solicitados
-    final tradeTypes = [
-      {'id': 'rise_fall', 'label': 'Rise/Fall', 'icon': Icons.trending_up},
-      {'id': 'higher_lower', 'label': 'Higher/Lower', 'icon': Icons.compare_arrows},
-      {'id': 'even_odd', 'label': 'Even/Odd', 'icon': Icons.filter_1},
-      {'id': 'match_differ', 'label': 'Match/Differ', 'icon': Icons.casino},
-      {'id': 'over_under', 'label': 'Over/Under', 'icon': Icons.unfold_more},
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          ...tradeTypes.map((type) {
-            final isSelected = controller.selectedTradeType == type['id'];
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => controller.changeTradeType(type['id'] as String),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      color: isSelected 
-                          ? const Color(0xFF0066FF)
-                          : const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected 
-                            ? const Color(0xFF0066FF)
-                            : Colors.white.withOpacity(0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            type['icon'] as IconData,
-                            color: isSelected ? Colors.white : Colors.white60,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            type['label'] as String,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white60,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                              fontSize: 13,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-          // Botão de som
-          const SizedBox(width: 4),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => controller.toggleSound(),
-              customBorder: const CircleBorder(),
-              child: Ink(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: controller.soundEnabled 
-                      ? const Color(0xFF00C896)
-                      : const Color(0xFF2A2A2A),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: controller.soundEnabled
-                        ? const Color(0xFF00C896)
-                        : Colors.white.withOpacity(0.1),
-                    width: 1,
-                  ),
-                ),
-                child: Icon(
-                  controller.soundEnabled 
-                      ? Icons.volume_up_rounded 
-                      : Icons.volume_off_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStakeAndDurationRow() {
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onStakeTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A2A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.attach_money_rounded, color: Colors.white60, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          controller.stake.toStringAsFixed(2),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ),
-                      const Icon(Icons.edit_rounded, color: Colors.white38, size: 16),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 2,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onDurationTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A2A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.schedule_rounded, color: Colors.white60, size: 20),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${controller.durationValue}${controller.durationLabel}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPredictionSelector() {
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.psychology_rounded, color: Colors.white60, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Prediction',
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_rounded, color: Colors.white),
-                    iconSize: 28,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      if (controller.tickPrediction > 0) {
-                        controller.setTickPrediction(controller.tickPrediction - 1);
-                      }
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      controller.tickPrediction.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_rounded, color: Colors.white),
-                    iconSize: 28,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      if (controller.tickPrediction < 9) {
-                        controller.setTickPrediction(controller.tickPrediction + 1);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTradeButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildTradeButton(
-            controller.getButtonLabel(true),
-            const Color(0xFF00C896),
-            'buy',
-            Icons.arrow_upward_rounded,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildTradeButton(
-            controller.getButtonLabel(false),
-            const Color(0xFFFF4444),
-            'sell',
-            Icons.arrow_downward_rounded,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTradeButton(String label, Color color, String direction, IconData icon) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: controller.isTrading ? null : () => onPlaceTrade(direction),
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: controller.isTrading ? color.withOpacity(0.5) : color,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
