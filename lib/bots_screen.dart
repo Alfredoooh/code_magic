@@ -3,11 +3,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
-import 'deriv_chart_widget.dart';
 
 class BotsScreen extends StatefulWidget {
   final String token;
@@ -27,8 +25,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   Map<String, String> _proposalIds = {};
   Map<String, List<double>> _marketPrices = {};
   Timer? _priceUpdateTimer;
-  final Map<String, List<WebViewController>> _chartControllers = {};
-  final int _chartPointsCount = 60;
 
   @override
   bool get wantKeepAlive => true;
@@ -47,7 +43,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     }
     _priceUpdateTimer?.cancel();
     _channel?.sink.close();
-    _chartControllers.clear();
     super.dispose();
   }
 
@@ -109,7 +104,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           market: 'R_50',
           contractType: 'PUT',
           recoveryMode: RecoveryMode.moderate,
-          entryConditions: [EntryCondition.rsiOversold, EntryCondition.trendConfirmation],
+          entryConditions: [EntryCondition.rsiOversold],
           useRSI: true,
           maxStake: 400.0,
           targetProfit: 150.0,
@@ -126,82 +121,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           market: 'R_75',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.conservative,
-          entryConditions: [EntryCondition.supportResistance],
-          useSupportResistance: true,
-          maxStake: 300.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Labouchere Elite',
-          description: 'Sistema de cancelamento avançado',
-          strategy: BotStrategy.labouchere,
-          initialStake: 12.0,
-          market: 'BOOM500',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.moderate,
-          entryConditions: [EntryCondition.priceAction],
-          maxStake: 350.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Oscar\'s Grind',
-          description: 'Progressão lenta e constante',
-          strategy: BotStrategy.oscarGrind,
-          initialStake: 10.0,
-          market: 'CRASH500',
-          contractType: 'PUT',
-          recoveryMode: RecoveryMode.conservative,
-          maxStake: 200.0,
-          targetProfit: 80.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Paroli Power',
-          description: 'Maximiza sequências vencedoras',
-          strategy: BotStrategy.paroli,
-          initialStake: 15.0,
-          market: 'R_100',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.none,
-          entryConditions: [EntryCondition.trendConfirmation],
-          maxStake: 250.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Kelly Criterion',
-          description: 'Gestão matemática de banca',
-          strategy: BotStrategy.kellyFraction,
-          initialStake: 20.0,
-          market: 'R_25',
-          contractType: 'PUT',
-          recoveryMode: RecoveryMode.intelligent,
-          bankrollPercentage: 2.5,
-          maxStake: 400.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: '1-3-2-6 System',
-          description: 'Sequência otimizada de apostas',
-          strategy: BotStrategy.oneThreeTwoSix,
-          initialStake: 10.0,
-          market: 'R_50',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.moderate,
           maxStake: 300.0,
         ),
         channel: _channel!,
@@ -216,75 +135,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           market: 'R_100',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.intelligent,
-          entryConditions: [
-            EntryCondition.rsiOversold,
-            EntryCondition.priceAction,
-            EntryCondition.trendConfirmation,
-          ],
           useRSI: true,
-          useBollinger: true,
-          useSupportResistance: true,
           maxStake: 500.0,
           targetProfit: 200.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Recovery Master',
-          description: 'Especialista em recuperação de perdas',
-          strategy: BotStrategy.recovery,
-          initialStake: 15.0,
-          market: 'R_75',
-          contractType: 'PUT',
-          recoveryMode: RecoveryMode.aggressive,
-          entryConditions: [EntryCondition.immediate],
-          maxStake: 600.0,
-          maxLoss: 300.0,
-          targetProfit: 100.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'Compound Growth',
-          description: 'Crescimento exponencial com composição',
-          strategy: BotStrategy.compound,
-          initialStake: 10.0,
-          market: 'BOOM1000',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.moderate,
-          compoundGains: true,
-          resetAfterProfit: true,
-          resetProfitThreshold: 50.0,
-          maxStake: 400.0,
-        ),
-        channel: _channel!,
-        onStatusUpdate: (status) => setState(() {}),
-      ),
-      TradingBot(
-        config: BotConfiguration(
-          name: 'ML Predictor',
-          description: 'Machine Learning com alta precisão',
-          strategy: BotStrategy.mlBased,
-          initialStake: 30.0,
-          market: 'R_100',
-          contractType: 'CALL',
-          recoveryMode: RecoveryMode.intelligent,
-          entryConditions: [
-            EntryCondition.rsiOversold,
-            EntryCondition.macdCross,
-            EntryCondition.patternDetection,
-          ],
-          useMLPredictions: true,
-          mlConfidenceThreshold: 0.75,
-          useRSI: true,
-          useMACD: true,
-          usePatternRecognition: true,
-          maxStake: 500.0,
-          targetProfit: 250.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -324,21 +177,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         for (var bot in _bots) {
           if (bot.config.market == symbol) {
             bot.updatePrice(price);
-          }
-        }
-
-        final controllers = _chartControllers[symbol];
-        if (controllers != null && controllers.isNotEmpty) {
-          final allPoints = _marketPrices[symbol]!;
-          final lastPoints = allPoints.length > _chartPointsCount
-              ? allPoints.sublist(allPoints.length - _chartPointsCount)
-              : allPoints;
-          final jsArray = lastPoints.map((p) => p.toString()).join(',');
-          final script = "try{ updateData([${jsArray}]); }catch(e){};";
-          for (var c in controllers) {
-            try {
-              c.runJavaScript(script);
-            } catch (_) {}
           }
         }
         break;
@@ -388,9 +226,41 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       MaterialPageRoute(
         builder: (context) => BotDetailsScreen(
           bot: bot,
-          chartControllers: _chartControllers,
-          marketPrices: _marketPrices,
-          chartPointsCount: _chartPointsCount,
+          onUpdate: () => setState(() {}),
+        ),
+      ),
+    );
+  }
+
+  void _showOptionsMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline, color: Color(0xFFFF8C00)),
+              title: const Text('Criar Novo Bot', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _showCreateBotDialog();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.play_circle_outline, color: Color(0xFFFF8C00)),
+              title: const Text('Iniciar Múltiplos Bots', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _startMultipleBots();
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -409,26 +279,38 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     );
   }
 
+  void _startMultipleBots() {
+    for (var bot in _bots) {
+      if (!bot.isRunning && _balance >= bot.currentStake) {
+        bot.start();
+      }
+    }
+    setState(() {});
+  }
+
   void _showEditStakeDialog(TradingBot bot) {
     final controller = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Editar Stake Inicial', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Stake Inicial (\$)',
-            labelStyle: TextStyle(color: Colors.white54),
+            labelStyle: const TextStyle(color: Colors.white54),
             enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.white24),
+              borderSide: const BorderSide(color: Colors.white24),
+              borderRadius: BorderRadius.circular(16),
             ),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF0066FF)),
+              borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
@@ -449,7 +331,8 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0066FF),
+              backgroundColor: const Color(0xFFFF8C00),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: const Text('Salvar'),
           ),
@@ -467,36 +350,33 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        elevation: 0,
         backgroundColor: const Color(0xFF1A1A1A),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A2A2A),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Trading Bots'),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _isConnected ? const Color(0xFF00C896) : Colors.red,
-                    shape: BoxShape.circle,
-                  ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF8C00),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '${_balance.toStringAsFixed(2)} $_currency',
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-              ],
+                child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+              ),
+              onPressed: _showOptionsMenu,
             ),
           ),
         ],
@@ -516,7 +396,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(color: Color(0xFF0066FF)),
+                        CircularProgressIndicator(color: Color(0xFFFF8C00)),
                         SizedBox(height: 16),
                         Text('Conectando...', style: TextStyle(color: Colors.white54)),
                       ],
@@ -524,12 +404,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateBotDialog,
-        backgroundColor: const Color(0xFF0066FF),
-        icon: const Icon(Icons.add),
-        label: const Text('Criar Bot'),
       ),
     );
   }
@@ -539,26 +413,26 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: _buildStatItem('Bots Ativos', activeBots.toString(), Icons.smart_toy, const Color(0xFF0066FF)),
+            child: _buildStatItem('Bots Ativos', activeBots.toString(), Icons.smart_toy_rounded, const Color(0xFFFF8C00)),
           ),
-          Container(width: 1, height: 40, color: Colors.white12),
+          Container(width: 1, height: 40, color: const Color(0xFF2A2A2A)),
           Expanded(
-            child: _buildStatItem('Total Bots', _bots.length.toString(), Icons.grid_view, Colors.white70),
+            child: _buildStatItem('Total Bots', _bots.length.toString(), Icons.grid_view_rounded, Colors.white70),
           ),
-          Container(width: 1, height: 40, color: Colors.white12),
+          Container(width: 1, height: 40, color: const Color(0xFF2A2A2A)),
           Expanded(
             child: _buildStatItem(
               'Lucro Total',
               '${totalProfit >= 0 ? '+' : ''}\$${totalProfit.toStringAsFixed(2)}',
-              Icons.trending_up,
-              totalProfit >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+              Icons.trending_up_rounded,
+              totalProfit >= 0 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444),
             ),
           ),
         ],
@@ -589,9 +463,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: bot.isRunning ? const Color(0xFF0066FF) : Colors.white.withOpacity(0.05),
+            color: bot.isRunning ? const Color(0xFFFF8C00) : const Color(0xFF2A2A2A),
             width: bot.isRunning ? 2 : 1,
           ),
         ),
@@ -604,8 +478,8 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: bot.isRunning ? const Color(0xFF0066FF) : const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(12),
+                    color: bot.isRunning ? const Color(0xFFFF8C00) : const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(_getStrategyIcon(bot.config.strategy), color: Colors.white, size: 28),
                 ),
@@ -623,19 +497,17 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ],
             ),
             const SizedBox(height: 16),
-            if (status.tradeHistory.isNotEmpty) _buildMiniChart(status.tradeHistory, bot),
-            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 children: [
                   Expanded(child: _buildMetric('Trades', status.totalTrades.toString(), Colors.white70)),
-                  Expanded(child: _buildMetric('Win Rate', '${winRate.toStringAsFixed(1)}%', winRate >= 50 ? const Color(0xFF00C896) : const Color(0xFFFF4444))),
-                  Expanded(child: _buildMetric('Profit', '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}', isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444))),
+                  Expanded(child: _buildMetric('Win Rate', '${winRate.toStringAsFixed(1)}%', winRate >= 50 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444))),
+                  Expanded(child: _buildMetric('Profit', '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}', isProfit ? const Color(0xFFFF8C00) : const Color(0xFFFF4444))),
                 ],
               ),
             ),
@@ -644,15 +516,14 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.attach_money, color: Colors.white70, size: 16),
+                      Icon(Icons.attach_money_rounded, color: Colors.white70, size: 16),
                       SizedBox(width: 6),
                       Text('Stake Inicial', style: TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
@@ -670,10 +541,10 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0066FF),
-                              borderRadius: BorderRadius.circular(6),
+                              color: const Color(0xFFFF8C00),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.edit, color: Colors.white, size: 14),
+                            child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
                           ),
                         ),
                       ],
@@ -682,88 +553,8 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (bot.isRunning) {
-                        bot.isPaused ? bot.resume() : bot.pause();
-                      } else {
-                        if (_balance < status.currentStake) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Saldo insuficiente! Você tem \$${_balance.toStringAsFixed(2)}, precisa de pelo menos \$${status.currentStake.toStringAsFixed(2)}'),
-                              backgroundColor: const Color(0xFFFF4444),
-                            ),
-                          );
-                          return;
-                        }
-                        bot.start();
-                      }
-                      setState(() {});
-                    },
-                    icon: Icon(bot.isRunning ? (bot.isPaused ? Icons.play_arrow : Icons.pause) : Icons.play_arrow, size: 20),
-                    label: Text(bot.isRunning ? (bot.isPaused ? 'Continuar' : 'Pausar') : 'Iniciar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: bot.isRunning ? (bot.isPaused ? const Color(0xFF00C896) : const Color(0xFFFF9800)) : const Color(0xFF00C896),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-                if (bot.isRunning) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        bot.stop();
-                        setState(() {});
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF4444),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: const Icon(Icons.stop, size: 20),
-                    ),
-                  ),
-                ],
-              ],
-            ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMiniChart(List<TradeRecord> history, TradingBot bot) {
-    final cumulative = <double>[];
-    double sum = 0;
-    for (var profit in history.map((t) => t.profit)) {
-      sum += profit;
-      cumulative.add(sum);
-    }
-
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(8)),
-      child: DerivAreaChart(
-        points: cumulative,
-        autoScale: true,
-        showGradient: false,
-        market: bot.config.market,
-        onControllerCreated: (controller, market) {
-          if (market == null) return;
-          _chartControllers.putIfAbsent(market, () => []);
-          if (!_chartControllers[market]!.contains(controller)) {
-            _chartControllers[market]!.add(controller);
-          }
-        },
       ),
     );
   }
@@ -780,21 +571,11 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   IconData _getStrategyIcon(BotStrategy strategy) {
     switch (strategy) {
-      case BotStrategy.martingale: return Icons.trending_up;
-      case BotStrategy.fibonacci: return Icons.stairs;
-      case BotStrategy.dalembert: return Icons.analytics;
-      case BotStrategy.labouchere: return Icons.calculate;
-      case BotStrategy.oscarGrind: return Icons.slow_motion_video;
-      case BotStrategy.paroli: return Icons.flash_on;
-      case BotStrategy.antiMartingale: return Icons.trending_down;
-      case BotStrategy.kellyFraction: return Icons.functions;
-      case BotStrategy.pinkham: return Icons.healing;
-      case BotStrategy.oneThreeTwoSix: return Icons.format_list_numbered;
-      case BotStrategy.percentage: return Icons.percent;
-      case BotStrategy.compound: return Icons.workspaces;
-      case BotStrategy.recovery: return Icons.restore;
-      case BotStrategy.adaptive: return Icons.settings_suggest;
-      case BotStrategy.mlBased: return Icons.psychology;
+      case BotStrategy.martingale: return Icons.trending_up_rounded;
+      case BotStrategy.fibonacci: return Icons.stairs_rounded;
+      case BotStrategy.dalembert: return Icons.analytics_rounded;
+      case BotStrategy.adaptive: return Icons.settings_suggest_rounded;
+      default: return Icons.smart_toy_rounded;
     }
   }
 }
