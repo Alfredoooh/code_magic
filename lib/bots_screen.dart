@@ -352,7 +352,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
             onPressed: () {
               final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
               final newMaxStake = double.tryParse(maxStakeController.text.replaceAll(',', '.'));
-              
+
               if (newStake != null && newStake >= 0.35 && newMaxStake != null && newMaxStake >= newStake) {
                 setState(() {
                   bot.config.initialStake = newStake;
@@ -492,7 +492,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   }
 
   Widget _buildBotCard(TradingBot bot) {
-    final status = bot.getStatus();
+    final status = bot.getStatus(); // CORRIGIDO: removido underscore
     final winRate = status.winRate * 100;
     final isProfit = status.sessionProfit >= 0;
 
