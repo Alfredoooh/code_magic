@@ -7,6 +7,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'all_transactions_screen.dart';
+import 'pin_setup_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -28,7 +29,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   List<Map<String, dynamic>> _transactions = [];
   Map<String, dynamic>? _profitTable;
   Timer? _refreshTimer;
-  
+
   double _todayProfit = 0.0;
   double _weekProfit = 0.0;
   double _monthProfit = 0.0;
@@ -72,7 +73,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       _channel!.stream.listen(
         (message) {
           final data = json.decode(message);
-          
+
           if (data['msg_type'] == 'authorize') {
             setState(() {
               _balance = double.parse(data['authorize']['balance'].toString());
@@ -81,7 +82,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               _loginId = data['authorize']['loginid'];
               _userName = data['authorize']['fullname'] ?? data['authorize']['email']?.split('@')[0] ?? 'Usuário';
             });
-            
+
             _fetchTransactions();
             _fetchProfitTable();
           } else if (data['msg_type'] == 'statement') {
@@ -153,7 +154,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final buyTime = DateTime.fromMillisecondsSinceEpoch(tx['buy_time'] * 1000);
       final profit = double.parse(tx['sell_price'].toString()) - 
                      double.parse(tx['buy_price'].toString());
-      
+
       totalTrades++;
       if (profit > 0) {
         wins++;
@@ -189,7 +190,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   void _showAllTransactions() {
     Navigator.of(context).push(
-      IOSSlideUpRoute(
+      CupertinoPageRoute(
         builder: (context) => AllTransactionsScreen(
           transactions: _transactions,
           currency: _currency,
@@ -203,7 +204,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Sair da Conta'),
-        content: const Text('Tem certeza que deseja sair? Você precisará fazer login novamente.'),
+        content: const Text('Tem certeza que deseja sair?'),
         actions: [
           CupertinoDialogAction(
             child: const Text('Cancelar'),
@@ -222,7 +223,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('deriv_token');
       await prefs.remove('app_lock_pin');
-      
+
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     }
@@ -233,12 +234,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final existingPin = prefs.getString('app_lock_pin');
 
     if (existingPin != null) {
-      // Já tem PIN, perguntar se quer remover
       final remove = await showCupertinoDialog<bool>(
         context: context,
         builder: (context) => CupertinoAlertDialog(
           title: const Text('Bloqueio Ativo'),
-          content: const Text('O bloqueio do app já está ativo. Deseja removê-lo?'),
+          content: const Text('Deseja remover o bloqueio?'),
           actions: [
             CupertinoDialogAction(
               child: const Text('Cancelar'),
@@ -258,147 +258,56 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Bloqueio removido com sucesso'),
-            backgroundColor: Color(0xFF00C896),
+            content: Text('Bloqueio removido'),
+            backgroundColor: Color(0xFFFF9500),
           ),
         );
       }
     } else {
-      // Criar novo PIN
-      final pin = await _showPinSetupDialog();
-      if (pin != null && pin.length >= 6) {
-        await prefs.setString('app_lock_pin', pin);
+      final result = await Navigator.of(context).push(
+        CupertinoPageRoute(
+          fullscreenDialog: true,
+          builder: (context) => const PinSetupScreen(),
+        ),
+      );
+
+      if (result != null && result is String) {
+        await prefs.setString('app_lock_pin', result);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Bloqueio ativado com sucesso'),
-            backgroundColor: Color(0xFF00C896),
+            content: Text('Bloqueio ativado'),
+            backgroundColor: Color(0xFFFF9500),
           ),
         );
       }
     }
   }
 
-  Future<String?> _showPinSetupDialog() async {
-    final pinController = TextEditingController();
-    final confirmController = TextEditingController();
-
-    return showDialog<String>(
+  void _showSettingsMenu() {
+    showCupertinoModalPopup(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Criar PIN',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: pinController,
-              obscureText: true,
-              maxLength: 20,
-              keyboardType: TextInputType.text,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'PIN (mínimo 6 caracteres)',
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                counterStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmController,
-              obscureText: true,
-              maxLength: 20,
-              keyboardType: TextInputType.text,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Confirmar PIN',
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                counterStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => CupertinoActionSheet(
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
+          CupertinoActionSheetAction(
             onPressed: () {
-              final pin = pinController.text;
-              final confirm = confirmController.text;
-
-              if (pin.length < 6) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('PIN deve ter pelo menos 6 caracteres'),
-                    backgroundColor: Color(0xFFFF4444),
-                  ),
-                );
-                return;
-              }
-
-              if (pin != confirm) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('PINs não coincidem'),
-                    backgroundColor: Color(0xFFFF4444),
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pop(context, pin);
+              Navigator.pop(context);
+              _setupAppLock();
             },
-            child: const Text('Confirmar'),
+            child: const Text('Bloquear App'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              _logout();
+            },
+            child: const Text('Sair da Conta'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showSettingsMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(top: 12, bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.lock_outline, color: Color(0xFF0066FF)),
-              title: const Text('Bloquear App', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                _setupAppLock();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Color(0xFFFF4444)),
-              title: const Text('Sair da Conta', style: TextStyle(color: Color(0xFFFF4444))),
-              onTap: () {
-                Navigator.pop(context);
-                _logout();
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
         ),
       ),
     );
@@ -410,302 +319,301 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         ? (_winningTrades / _totalTrades * 100) 
         : 0.0;
 
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      navigationBar: CupertinoNavigationBar(
         backgroundColor: const Color(0xFF1C1C1E),
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        middle: const Text(
           'Portfólio',
           style: TextStyle(
-            color: Colors.white,
             fontSize: 17,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.4,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
-            onPressed: _showSettingsMenu,
-          ),
-        ],
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(Icons.more_horiz_rounded, size: 24),
+          onPressed: _showSettingsMenu,
+        ),
       ),
-      body: _isConnected
-          ? RefreshIndicator(
-              onRefresh: () async {
-                _fetchTransactions();
-                _fetchProfitTable();
-                await Future.delayed(const Duration(milliseconds: 500));
-              },
-              color: const Color(0xFF0066FF),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Visa-style Balance Card
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: Stack(
+      child: _isConnected
+          ? CustomScrollView(
+              slivers: [
+                CupertinoSliverRefreshControl(
+                  onRefresh: () async {
+                    _fetchTransactions();
+                    _fetchProfitTable();
+                    await Future.delayed(const Duration(milliseconds: 500));
+                  },
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Pattern overlay
-                        Positioned(
-                          right: -20,
-                          top: -20,
-                          child: Container(
-                            width: 150,
-                            height: 150,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF0066FF).withOpacity(0.1),
+                        // Balance Card
+                        Container(
+                          height: 200,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _userName,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _loginId,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.5),
+                                        fontSize: 12,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Saldo Disponível',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.6),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          _balance.toStringAsFixed(2),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: -1,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _currency,
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.7),
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(20),
+
+                        const SizedBox(height: 20),
+
+                        // Profit Summary
+                        Row(
+                          children: [
+                            Expanded(child: _buildCompactProfitCard('Hoje', _todayProfit)),
+                            const SizedBox(width: 12),
+                            Expanded(child: _buildCompactProfitCard('7D', _weekProfit)),
+                            const SizedBox(width: 12),
+                            Expanded(child: _buildCompactProfitCard('30D', _monthProfit)),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Weekly Chart
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1C1C1E),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const Text(
+                                'Últimos 7 dias',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildIOSBarChart(),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Stats Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1C1C1E),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Estatísticas',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
                                 children: [
-                                  Text(
-                                    _userName,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _loginId,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.5),
-                                      fontSize: 12,
-                                      letterSpacing: 1,
-                                      fontFamily: 'monospace',
-                                    ),
-                                  ),
+                                  Expanded(child: _buildStatItem('Total', _totalTrades.toString(), const Color(0xFFFF9500))),
+                                  Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), const Color(0xFFFF9500))),
+                                  Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), const Color(0xFFFF3B30))),
                                 ],
                               ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Saldo Disponível',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
-                                      fontSize: 12,
-                                      letterSpacing: 0.5,
-                                    ),
+                              const SizedBox(height: 16),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: winRate / 100,
+                                  backgroundColor: const Color(0xFF2C2C2E),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    winRate >= 50 ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
                                   ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Text(
-                                        _balance.toStringAsFixed(2),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -1,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _currency,
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.7),
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                  minHeight: 6,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                  // Profit Summary
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCompactProfitCard('Hoje', _todayProfit),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCompactProfitCard('7D', _weekProfit),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCompactProfitCard('30D', _monthProfit),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Weekly Chart
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Últimos 7 dias',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildIOSBarChart(),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Stats Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Estatísticas',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
+                        // Recent Transactions
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: _buildStatItem('Total', _totalTrades.toString(), const Color(0xFF0066FF))),
-                            Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), const Color(0xFF00C896))),
-                            Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), const Color(0xFFFF4444))),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: winRate / 100,
-                            backgroundColor: const Color(0xFF2C2C2E),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              winRate >= 50 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-                            ),
-                            minHeight: 6,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Recent Transactions
-                  const Text(
-                    'Transações Recentes',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  if (_transactions.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(40),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.inbox_outlined,
-                              color: Colors.white.withOpacity(0.3),
-                              size: 40,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Nenhuma transação',
+                            const Text(
+                              'Transações Recentes',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 14,
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                            if (_transactions.length > 5)
+                              GestureDetector(
+                                onTap: _showAllTransactions,
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      'Ver Todas',
+                                      style: TextStyle(
+                                        color: Color(0xFF007AFF),
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      color: Color(0xFF007AFF),
+                                      size: 14,
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                    )
-                  else
-                    ..._buildTransactionsList(),
 
-                  const SizedBox(height: 20),
-                ],
-              ),
+                        const SizedBox(height: 12),
+
+                        if (_transactions.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(40),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1C1C1E),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.inbox_outlined,
+                                    color: Colors.white.withOpacity(0.3),
+                                    size: 40,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Nenhuma transação',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          ..._buildTransactionsList(),
+
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             )
           : Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CupertinoActivityIndicator(
-                    color: Color(0xFF0066FF),
+                    color: Color(0xFFFF9500),
                     radius: 16,
                   ),
                   const SizedBox(height: 16),
@@ -721,7 +629,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   Widget _buildCompactProfitCard(String label, double profit) {
     final isProfit = profit >= 0;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       decoration: BoxDecoration(
@@ -742,7 +650,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           Text(
             '${isProfit ? '+' : ''}${profit.toStringAsFixed(2)}',
             style: TextStyle(
-              color: isProfit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+              color: isProfit ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
               fontSize: 18,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
@@ -779,12 +687,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   List<Widget> _buildTransactionsList() {
     final displayTransactions = _transactions.take(5).toList();
-    final hasMore = _transactions.length > 5;
 
-    final widgets = displayTransactions.map((tx) {
+    return displayTransactions.map((tx) {
       final amount = double.parse(tx['amount'].toString());
       final isCredit = amount > 0;
-      
+
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
@@ -792,75 +699,51 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          leading: Icon(
-            isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-            color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-            size: 20,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: (isCredit 
+                  ? const Color(0xFFFF9500) 
+                  : const Color(0xFFFF3B30)).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+              color: isCredit ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
+              size: 20,
+            ),
           ),
           title: Text(
             tx['action_type'] ?? 'Trade',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
           ),
-          subtitle: Text(
-            _formatDate(tx['transaction_time']),
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 12,
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _formatDate(tx['transaction_time']),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 13,
+              ),
             ),
           ),
           trailing: Text(
             '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
             style: TextStyle(
-              color: isCredit ? const Color(0xFF00C896) : const Color(0xFFFF4444),
-              fontSize: 15,
+              color: isCredit ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
       );
     }).toList();
-
-    if (hasMore) {
-      widgets.add(
-        Container(
-          margin: const EdgeInsets.only(top: 4),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _showAllTransactions,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0066FF).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF0066FF).withOpacity(0.3),
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    'Ver Todas (${_transactions.length})',
-                    style: const TextStyle(
-                      color: Color(0xFF0066FF),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return widgets;
   }
 
   Widget _buildIOSBarChart() {
@@ -890,7 +773,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       child: Text(
                         value.abs().toStringAsFixed(0),
                         style: TextStyle(
-                          color: isPositive ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                          color: isPositive ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -900,7 +783,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     width: double.infinity,
                     height: barHeight.clamp(3.0, 100.0),
                     decoration: BoxDecoration(
-                      color: isPositive ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                      color: isPositive ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -935,42 +818,4 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       return '${date.day}/${date.month}/${date.year}';
     }
   }
-}
-
-// Animação iOS Slide Up
-class IOSSlideUpRoute extends PageRouteBuilder {
-  final WidgetBuilder builder;
-
-  IOSSlideUpRoute({required this.builder})
-      : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const curve = Cubic(0.42, 0.0, 0.58, 1.0);
-            
-            var curvedAnimation = CurvedAnimation(
-              parent: animation,
-              curve: curve,
-              reverseCurve: Curves.easeInOut,
-            );
-
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 1.0),
-                end: Offset.zero,
-              ).animate(curvedAnimation),
-              child: FadeTransition(
-                opacity: Tween<double>(
-                  begin: 0.0,
-                  end: 1.0,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
-                )),
-                child: child,
-              ),
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-          reverseTransitionDuration: const Duration(milliseconds: 400),
-        );
 }
