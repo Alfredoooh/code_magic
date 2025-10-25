@@ -1,7 +1,6 @@
-// 5. trade_controls.dart
-// ========================================
+// lib/trade_controls.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'styles.dart';
 import 'trade_logic_controller.dart';
 
 class TradeControls extends StatelessWidget {
@@ -21,25 +20,31 @@ class TradeControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: context.surface,
+        border: Border(
+          top: BorderSide(
+            color: context.colors.outlineVariant,
+            width: 1,
+          ),
+        ),
       ),
       child: SafeArea(
         top: false,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             _buildTradeTypeSelector(context),
-            const SizedBox(height: 12),
-            _buildStakeAndDurationRow(),
+            const SizedBox(height: AppSpacing.md),
+            _buildStakeAndDurationRow(context),
             if (controller.selectedTradeType == 'match_differ' ||
                 controller.selectedTradeType == 'over_under') ...[
-              const SizedBox(height: 12),
-              _buildPredictionSelector(),
+              const SizedBox(height: AppSpacing.md),
+              _buildPredictionSelector(context),
             ],
-            const SizedBox(height: 16),
-            _buildTradeButtons(),
+            const SizedBox(height: AppSpacing.lg),
+            _buildTradeButtons(context),
           ],
         ),
       ),
@@ -47,146 +52,210 @@ class TradeControls extends StatelessWidget {
   }
 
   Widget _buildTradeTypeSelector(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: controller.tradeTypes.length + 1,
-        itemBuilder: (context, index) {
-          if (index == controller.tradeTypes.length) {
-            return _buildSoundToggle();
-          }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ...controller.tradeTypes.asMap().entries.map((entry) {
+            final type = entry.value;
+            final isSelected = controller.selectedTradeType == type['id'];
 
-          final type = controller.tradeTypes[index];
-          final isSelected = controller.selectedTradeType == type['id'];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              minSize: 0,
-              onPressed: () => controller.changeTradeType(type['id']),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF0066FF) : const Color(0xFF2A2A2A),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      type['icon'],
-                      color: isSelected ? Colors.white : Colors.white70,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      type['label'],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white70,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 13,
+            return Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: AnimatedContainer(
+                duration: AppMotion.short,
+                curve: AppMotion.standardEasing,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      AppHaptics.selection();
+                      controller.changeTradeType(type['id'] as String);
+                    },
+                    borderRadius: BorderRadius.circular(AppShapes.full),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : context.colors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(AppShapes.full),
+                        border: isSelected
+                            ? Border.all(color: AppColors.primary, width: 2)
+                            : null,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              type['icon'] as IconData,
+                              color: isSelected
+                                  ? AppColors.onPrimary
+                                  : context.colors.onSurfaceVariant,
+                              size: 18,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              type['label'] as String,
+                              style: context.textStyles.labelLarge?.copyWith(
+                                color: isSelected
+                                    ? AppColors.onPrimary
+                                    : context.colors.onSurfaceVariant,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+          // Sound Toggle Button
+          const SizedBox(width: AppSpacing.xs),
+          _buildSoundToggle(context),
+        ],
       ),
     );
   }
 
-  Widget _buildSoundToggle() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minSize: 0,
-        onPressed: () => controller.toggleSound(),
-        child: Container(
-          width: 50,
-          height: 50,
+  Widget _buildSoundToggle(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          AppHaptics.light();
+          controller.toggleSound();
+        },
+        customBorder: const CircleBorder(),
+        child: Ink(
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
-            color: controller.soundEnabled ? const Color(0xFF00C896) : const Color(0xFF2A2A2A),
+            color: controller.soundEnabled
+                ? AppColors.success.withOpacity(0.15)
+                : context.colors.surfaceVariant,
             shape: BoxShape.circle,
+            border: controller.soundEnabled
+                ? Border.all(color: AppColors.success, width: 2)
+                : null,
           ),
           child: Icon(
-            controller.soundEnabled ? CupertinoIcons.speaker_2_fill : CupertinoIcons.speaker_slash_fill,
+            controller.soundEnabled
+                ? Icons.volume_up_rounded
+                : Icons.volume_off_rounded,
+            color: controller.soundEnabled
+                ? AppColors.success
+                : context.colors.onSurfaceVariant,
             size: 20,
-            color: Colors.white,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStakeAndDurationRow() {
+  Widget _buildStakeAndDurationRow(BuildContext context) {
     return Row(
       children: [
         Expanded(
           flex: 3,
-          child: CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: onStakeTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(CupertinoIcons.money_dollar, color: Colors.white70, size: 18),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      controller.stake.toStringAsFixed(2),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+          child: AnimatedCard(
+            onTap: () {
+              AppHaptics.light();
+              onStakeTap();
+            },
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(AppShapes.small),
                   ),
-                ],
-              ),
+                  child: const Icon(
+                    Icons.attach_money_rounded,
+                    color: AppColors.success,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stake',
+                        style: context.textStyles.labelSmall,
+                      ),
+                      Text(
+                        '\$${controller.stake.toStringAsFixed(2)}',
+                        style: context.textStyles.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.edit_rounded,
+                  color: context.colors.onSurfaceVariant,
+                  size: 18,
+                ),
+              ],
             ),
           ),
         ),
         if (controller.selectedTradeType != 'accumulators' &&
             controller.selectedTradeType != 'turbos') ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             flex: 2,
-            child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: onDurationTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A2A),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(CupertinoIcons.clock, color: Colors.white70, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${controller.durationValue}${controller.durationLabel}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+            child: AnimatedCard(
+              onTap: () {
+                AppHaptics.light();
+                onDurationTap();
+              },
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(AppShapes.small),
                     ),
-                  ],
-                ),
+                    child: const Icon(
+                      Icons.schedule_rounded,
+                      color: AppColors.info,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Duration',
+                          style: context.textStyles.labelSmall,
+                        ),
+                        Text(
+                          '${controller.durationValue}${controller.durationLabel}',
+                          style: context.textStyles.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -195,53 +264,62 @@ class TradeControls extends StatelessWidget {
     );
   }
 
-  Widget _buildPredictionSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
+  Widget _buildPredictionSelector(BuildContext context) {
+    return AnimatedCard(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(CupertinoIcons.number, color: Colors.white70, size: 18),
-              SizedBox(width: 8),
-              Text('Prediction', style: TextStyle(color: Colors.white70, fontSize: 15)),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppShapes.small),
+                ),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Prediction',
+                style: context.textStyles.titleSmall,
+              ),
             ],
           ),
           Row(
             children: [
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                minSize: 0,
-                child: const Icon(CupertinoIcons.minus_circle_fill, color: Colors.white, size: 28),
+              IconButton(
+                icon: const Icon(Icons.remove_circle_rounded),
+                color: AppColors.error,
+                iconSize: 32,
                 onPressed: () {
                   if (controller.tickPrediction > 0) {
+                    AppHaptics.light();
                     controller.setTickPrediction(controller.tickPrediction - 1);
                   }
                 },
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              Container(
+                width: 48,
+                alignment: Alignment.center,
                 child: Text(
                   controller.tickPrediction.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                  style: context.textStyles.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                minSize: 0,
-                child: const Icon(CupertinoIcons.plus_circle_fill, color: Colors.white, size: 28),
+              IconButton(
+                icon: const Icon(Icons.add_circle_rounded),
+                color: AppColors.success,
+                iconSize: 32,
                 onPressed: () {
                   if (controller.tickPrediction < 9) {
+                    AppHaptics.light();
                     controller.setTickPrediction(controller.tickPrediction + 1);
                   }
                 },
@@ -253,86 +331,120 @@ class TradeControls extends StatelessWidget {
     );
   }
 
-  Widget _buildTradeButtons() {
+  Widget _buildTradeButtons(BuildContext context) {
     if (controller.selectedTradeType == 'accumulators') {
-      return _buildAccumulatorButton();
+      return _buildAccumulatorButton(context);
     }
 
     return Row(
       children: [
         Expanded(
           child: _buildTradeButton(
+            context,
             controller.getButtonLabel(true),
-            const Color(0xFF00C896),
+            AppColors.success,
             'buy',
+            Icons.arrow_upward_rounded,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: _buildTradeButton(
+            context,
             controller.getButtonLabel(false),
-            const Color(0xFFFF4444),
+            AppColors.error,
             'sell',
+            Icons.arrow_downward_rounded,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAccumulatorButton() {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
+  Widget _buildAccumulatorButton(BuildContext context) {
+    final color = controller.hasActiveAccumulator ? AppColors.error : AppColors.primary;
+    final label = controller.hasActiveAccumulator ? 'CLOSE' : 'OPEN';
+    final icon = controller.hasActiveAccumulator
+        ? Icons.close_rounded
+        : Icons.add_rounded;
+
+    return AnimatedPrimaryButton(
+      text: label,
+      icon: icon,
       onPressed: controller.isTrading
           ? null
-          : () => onPlaceTrade(controller.hasActiveAccumulator ? 'sell' : 'buy'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: controller.hasActiveAccumulator ? const Color(0xFFFF4444) : const Color(0xFF0066FF),
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              controller.hasActiveAccumulator ? CupertinoIcons.xmark : CupertinoIcons.plus,
-              color: Colors.white,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              controller.hasActiveAccumulator ? 'CLOSE' : 'OPEN',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
+          : () {
+              AppHaptics.heavy();
+              onPlaceTrade(controller.hasActiveAccumulator ? 'sell' : 'buy');
+            },
     );
   }
 
-  Widget _buildTradeButton(String label, Color color, String direction) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: controller.isTrading ? null : () => onPlaceTrade(direction),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: controller.isTrading ? color.withOpacity(0.5) : color,
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1,
+  Widget _buildTradeButton(
+    BuildContext context,
+    String label,
+    Color color,
+    String direction,
+    IconData icon,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: controller.isTrading
+            ? null
+            : () {
+                AppHaptics.heavy();
+                onPlaceTrade(direction);
+              },
+        borderRadius: BorderRadius.circular(AppShapes.large),
+        child: AnimatedContainer(
+          duration: AppMotion.short,
+          curve: AppMotion.standardEasing,
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.lg,
+            horizontal: AppSpacing.xl,
+          ),
+          decoration: BoxDecoration(
+            gradient: controller.isTrading
+                ? null
+                : LinearGradient(
+                    colors: [
+                      color,
+                      color.withOpacity(0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            color: controller.isTrading ? color.withOpacity(0.5) : null,
+            borderRadius: BorderRadius.circular(AppShapes.large),
+            boxShadow: controller.isTrading
+                ? null
+                : [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: Colors.white,
+                size: 28,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                label,
+                style: context.textStyles.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
           ),
         ),
       ),
