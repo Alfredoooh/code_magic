@@ -75,6 +75,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
       context: context,
       isDismissible: false,
       enableDrag: false,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const TradingDisclaimerSheet(),
     );
