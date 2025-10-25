@@ -1,4 +1,4 @@
-// trade_screen.dart
+// trade_screen.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -306,6 +306,370 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             onPressed: () => Navigator.pop(context),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// trade_controls.dart - MATERIAL DESIGN 3 EXPRESSIVE
+// ========================================
+import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'trade_logic_controller.dart';
+
+class TradeControls extends StatelessWidget {
+  final TradeLogicController controller;
+  final VoidCallback onStakeTap;
+  final VoidCallback onDurationTap;
+  final Function(String) onPlaceTrade;
+
+  const TradeControls({
+    Key? key,
+    required this.controller,
+    required this.onStakeTap,
+    required this.onDurationTap,
+    required this.onPlaceTrade,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A1A),
+        border: Border(top: BorderSide(color: Color(0xFF2A2A2A), width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            _buildTradeTypeSelector(context),
+            const SizedBox(height: 16),
+            _buildStakeAndDurationRow(),
+            if (controller.selectedTradeType == 'match_differ' ||
+                controller.selectedTradeType == 'over_under') ...[
+              const SizedBox(height: 12),
+              _buildPredictionSelector(),
+            ],
+            const SizedBox(height: 16),
+            _buildTradeButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTradeTypeSelector(BuildContext context) {
+    // Apenas os tipos de trade solicitados
+    final tradeTypes = [
+      {'id': 'rise_fall', 'label': 'Rise/Fall', 'icon': Icons.trending_up},
+      {'id': 'higher_lower', 'label': 'Higher/Lower', 'icon': Icons.compare_arrows},
+      {'id': 'even_odd', 'label': 'Even/Odd', 'icon': Icons.filter_1},
+      {'id': 'match_differ', 'label': 'Match/Differ', 'icon': Icons.casino},
+      {'id': 'over_under', 'label': 'Over/Under', 'icon': Icons.unfold_more},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ...tradeTypes.map((type) {
+            final isSelected = controller.selectedTradeType == type['id'];
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => controller.changeTradeType(type['id'] as String),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                          ? const Color(0xFF0066FF)
+                          : const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected 
+                            ? const Color(0xFF0066FF)
+                            : Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            type['icon'] as IconData,
+                            color: isSelected ? Colors.white : Colors.white60,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            type['label'] as String,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.white60,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                              fontSize: 13,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+          // Botão de som
+          const SizedBox(width: 4),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => controller.toggleSound(),
+              customBorder: const CircleBorder(),
+              child: Ink(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: controller.soundEnabled 
+                      ? const Color(0xFF00C896)
+                      : const Color(0xFF2A2A2A),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: controller.soundEnabled
+                        ? const Color(0xFF00C896)
+                        : Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  controller.soundEnabled 
+                      ? Icons.volume_up_rounded 
+                      : Icons.volume_off_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStakeAndDurationRow() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onStakeTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.attach_money_rounded, color: Colors.white60, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          controller.stake.toStringAsFixed(2),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.edit_rounded, color: Colors.white38, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onDurationTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.schedule_rounded, color: Colors.white60, size: 20),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${controller.durationValue}${controller.durationLabel}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPredictionSelector() {
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.psychology_rounded, color: Colors.white60, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Prediction',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_rounded, color: Colors.white),
+                    iconSize: 28,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      if (controller.tickPrediction > 0) {
+                        controller.setTickPrediction(controller.tickPrediction - 1);
+                      }
+                    },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      controller.tickPrediction.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_rounded, color: Colors.white),
+                    iconSize: 28,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      if (controller.tickPrediction < 9) {
+                        controller.setTickPrediction(controller.tickPrediction + 1);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTradeButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildTradeButton(
+            controller.getButtonLabel(true),
+            const Color(0xFF00C896),
+            'buy',
+            Icons.arrow_upward_rounded,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildTradeButton(
+            controller.getButtonLabel(false),
+            const Color(0xFFFF4444),
+            'sell',
+            Icons.arrow_downward_rounded,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTradeButton(String label, Color color, String direction, IconData icon) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: controller.isTrading ? null : () => onPlaceTrade(direction),
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: controller.isTrading ? color.withOpacity(0.5) : color,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
