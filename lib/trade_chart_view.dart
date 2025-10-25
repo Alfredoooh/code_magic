@@ -1,4 +1,5 @@
-// trade_chart_view.dart - VERSÃO PROFISSIONAL
+// trade_chart_view.dart - VERSÃO PROFISSIONAL COM INDICADORES E FERRAMENTAS
+import 'dart:ui';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -25,6 +26,8 @@ class _TradeChartViewState extends State<TradeChartView> {
   late WebViewController _webViewController;
   String _chartType = 'candlestick';
   bool _chartReady = false;
+  final List<String> _activeIndicators = [];
+  String? _activeDrawingTool;
 
   @override
   void initState() {
@@ -35,15 +38,13 @@ class _TradeChartViewState extends State<TradeChartView> {
   @override
   void didUpdateWidget(TradeChartView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
-    // Atualizar marcadores quando entryPrice ou entryDirection mudar
+
     if (_chartReady && widget.controller.entryPrice != null && 
         (oldWidget.controller.entryPrice != widget.controller.entryPrice ||
          oldWidget.controller.entryDirection != widget.controller.entryDirection)) {
       _updateEntryMarker();
     }
-    
-    // Remover marcadores quando posição for fechada
+
     if (_chartReady && widget.controller.entryPrice == null && 
         oldWidget.controller.entryPrice != null) {
       _clearMarkers();
@@ -80,11 +81,11 @@ class _TradeChartViewState extends State<TradeChartView> {
 
   void _updateEntryMarker() {
     if (!_chartReady || widget.controller.entryPrice == null) return;
-    
+
     final entry = widget.controller.entryPrice!;
     final direction = widget.controller.entryDirection ?? 'buy';
     final current = widget.controller.currentPrice;
-    
+
     _webViewController.runJavaScript('''
       updateTradeMarkers(
         $entry, 
@@ -99,6 +100,27 @@ class _TradeChartViewState extends State<TradeChartView> {
   void _clearMarkers() {
     if (!_chartReady) return;
     _webViewController.runJavaScript('clearTradeMarkers();');
+  }
+
+  void _toggleIndicator(String indicator) {
+    if (_chartReady) {
+      final isActive = _activeIndicators.contains(indicator);
+      if (isActive) {
+        _activeIndicators.remove(indicator);
+        _webViewController.runJavaScript('removeIndicator("$indicator");');
+      } else {
+        _activeIndicators.add(indicator);
+        _webViewController.runJavaScript('addIndicator("$indicator");');
+      }
+      setState(() {});
+    }
+  }
+
+  void _activateDrawingTool(String tool) {
+    if (_chartReady) {
+      setState(() => _activeDrawingTool = tool);
+      _webViewController.runJavaScript('activateDrawingTool("$tool");');
+    }
   }
 
   String _getChartHTML() {
@@ -145,38 +167,22 @@ class _TradeChartViewState extends State<TradeChartView> {
     .entry-price.buy { border-color: #00C896; }
     .entry-price.sell { border-color: #FF4444; }
     
-    .pl-label {
+    .drawing-layer {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 900;
-      z-index: 101;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
-      backdrop-filter: blur(10px);
-    }
-    
-    .pl-label.profit {
-      background: rgba(0, 200, 150, 0.2);
-      color: #00C896;
-      border: 2px solid #00C896;
-    }
-    
-    .pl-label.loss {
-      background: rgba(255, 68, 68, 0.2);
-      color: #FF4444;
-      border: 2px solid #FF4444;
+      z-index: 50;
     }
   </style>
 </head>
 <body>
   <div id="chart"></div>
+  <canvas id="drawingCanvas" class="drawing-layer"></canvas>
   
   <script>
-    // Configuração do chart profissional
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
       layout: { 
         background: { color: '#000000' }, 
@@ -225,7 +231,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    // Series principal
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#00C896',
       downColor: '#FF4444',
@@ -239,7 +244,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    // Volume series
     const volumeSeries = chart.addHistogramSeries({
       color: '#26a69a',
       priceFormat: {
@@ -252,26 +256,35 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    // Linha de entrada (será adicionada quando trade for aberto)
+    // Indicadores técnicos
+    const indicators = {
+      mma20: null,
+      mma50: null,
+      mma200: null,
+      ema12: null,
+      ema26: null,
+      bb: null,
+      rsi: null,
+      macd: null
+    };
+    
     let entryLine = null;
     let stopLossLine = null;
     let takeProfitLine = null;
     let currentPriceLine = null;
     
-    // Dados do chart
     const data = [];
     const volumeData = [];
     let time = Math.floor(Date.now() / 1000) - 300;
     let basePrice = 1000 + Math.random() * 100;
     
-    // Gerar dados históricos realistas
     for (let i = 0; i < 100; i++) {
       const open = basePrice;
       const volatility = 5 + Math.random() * 5;
       const change = (Math.random() - 0.5) * volatility;
       const close = basePrice + change;
       const high = Math.max(open, close) + Math.random() * volatility * 0.5;
-      const low = Math.min(open, close) - Math.random() * volatility * 0.5;
+      const low = Math.min(open, close) - Math.random() * volatility * 0.3;
       const volume = 1000 + Math.random() * 5000;
       
       data.push({ 
@@ -294,7 +307,6 @@ class _TradeChartViewState extends State<TradeChartView> {
     candleSeries.setData(data);
     volumeSeries.setData(volumeData);
     
-    // Linha de preço atual
     currentPriceLine = candleSeries.createPriceLine({
       price: data[data.length - 1].close,
       color: '#0066FF',
@@ -306,12 +318,364 @@ class _TradeChartViewState extends State<TradeChartView> {
     
     chart.timeScale().fitContent();
     
-    // Notificar Flutter que chart está pronto
+    // Funções de cálculo de indicadores
+    function calculateSMA(data, period) {
+      const result = [];
+      for (let i = period - 1; i < data.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+          sum += data[i - j].close;
+        }
+        result.push({
+          time: data[i].time,
+          value: sum / period
+        });
+      }
+      return result;
+    }
+    
+    function calculateEMA(data, period) {
+      const result = [];
+      const k = 2 / (period + 1);
+      let ema = data[0].close;
+      
+      for (let i = 0; i < data.length; i++) {
+        ema = data[i].close * k + ema * (1 - k);
+        result.push({
+          time: data[i].time,
+          value: ema
+        });
+      }
+      return result;
+    }
+    
+    function calculateBollingerBands(data, period, stdDev) {
+      const sma = calculateSMA(data, period);
+      const upper = [];
+      const lower = [];
+      
+      for (let i = 0; i < sma.length; i++) {
+        const idx = i + period - 1;
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+          sum += Math.pow(data[idx - j].close - sma[i].value, 2);
+        }
+        const std = Math.sqrt(sum / period);
+        
+        upper.push({
+          time: sma[i].time,
+          value: sma[i].value + stdDev * std
+        });
+        lower.push({
+          time: sma[i].time,
+          value: sma[i].value - stdDev * std
+        });
+      }
+      return { upper, middle: sma, lower };
+    }
+    
+    function calculateRSI(data, period) {
+      const result = [];
+      let gains = 0;
+      let losses = 0;
+      
+      for (let i = 1; i < period; i++) {
+        const change = data[i].close - data[i - 1].close;
+        if (change > 0) gains += change;
+        else losses -= change;
+      }
+      
+      for (let i = period; i < data.length; i++) {
+        const change = data[i].close - data[i - 1].close;
+        if (change > 0) {
+          gains = (gains * (period - 1) + change) / period;
+          losses = (losses * (period - 1)) / period;
+        } else {
+          gains = (gains * (period - 1)) / period;
+          losses = (losses * (period - 1) - change) / period;
+        }
+        
+        const rs = gains / losses;
+        const rsi = 100 - (100 / (1 + rs));
+        
+        result.push({
+          time: data[i].time,
+          value: rsi
+        });
+      }
+      return result;
+    }
+    
+    function calculateMACD(data) {
+      const ema12 = calculateEMA(data, 12);
+      const ema26 = calculateEMA(data, 26);
+      const macdLine = [];
+      
+      for (let i = 0; i < Math.min(ema12.length, ema26.length); i++) {
+        macdLine.push({
+          time: ema12[i].time,
+          value: ema12[i].value - ema26[i].value
+        });
+      }
+      
+      const signal = calculateEMA(macdLine.map((m, i) => ({
+        time: m.time,
+        close: m.value
+      })), 9);
+      
+      const histogram = [];
+      for (let i = 0; i < Math.min(macdLine.length, signal.length); i++) {
+        histogram.push({
+          time: macdLine[i].time,
+          value: macdLine[i].value - signal[i].value,
+          color: macdLine[i].value > signal[i].value ? 'rgba(0, 200, 150, 0.5)' : 'rgba(255, 68, 68, 0.5)'
+        });
+      }
+      
+      return { macdLine, signal, histogram };
+    }
+    
+    // Adicionar indicadores
+    function addIndicator(type) {
+      switch(type) {
+        case 'mma20':
+          if (!indicators.mma20) {
+            indicators.mma20 = chart.addLineSeries({
+              color: '#2196F3',
+              lineWidth: 2,
+              title: 'MMA 20'
+            });
+            indicators.mma20.setData(calculateSMA(data, 20));
+          }
+          break;
+        case 'mma50':
+          if (!indicators.mma50) {
+            indicators.mma50 = chart.addLineSeries({
+              color: '#FF9800',
+              lineWidth: 2,
+              title: 'MMA 50'
+            });
+            indicators.mma50.setData(calculateSMA(data, 50));
+          }
+          break;
+        case 'mma200':
+          if (!indicators.mma200) {
+            indicators.mma200 = chart.addLineSeries({
+              color: '#9C27B0',
+              lineWidth: 2,
+              title: 'MMA 200'
+            });
+            indicators.mma200.setData(calculateSMA(data, 200));
+          }
+          break;
+        case 'ema12':
+          if (!indicators.ema12) {
+            indicators.ema12 = chart.addLineSeries({
+              color: '#00BCD4',
+              lineWidth: 2,
+              title: 'EMA 12'
+            });
+            indicators.ema12.setData(calculateEMA(data, 12));
+          }
+          break;
+        case 'ema26':
+          if (!indicators.ema26) {
+            indicators.ema26 = chart.addLineSeries({
+              color: '#FFEB3B',
+              lineWidth: 2,
+              title: 'EMA 26'
+            });
+            indicators.ema26.setData(calculateEMA(data, 26));
+          }
+          break;
+        case 'bollinger':
+          if (!indicators.bb) {
+            const bb = calculateBollingerBands(data, 20, 2);
+            indicators.bb = {
+              upper: chart.addLineSeries({
+                color: 'rgba(33, 150, 243, 0.5)',
+                lineWidth: 1,
+                title: 'BB Upper'
+              }),
+              middle: chart.addLineSeries({
+                color: 'rgba(33, 150, 243, 0.8)',
+                lineWidth: 2,
+                title: 'BB Middle'
+              }),
+              lower: chart.addLineSeries({
+                color: 'rgba(33, 150, 243, 0.5)',
+                lineWidth: 1,
+                title: 'BB Lower'
+              })
+            };
+            indicators.bb.upper.setData(bb.upper);
+            indicators.bb.middle.setData(bb.middle);
+            indicators.bb.lower.setData(bb.lower);
+          }
+          break;
+        case 'rsi':
+          if (!indicators.rsi) {
+            indicators.rsi = chart.addLineSeries({
+              color: '#9C27B0',
+              lineWidth: 2,
+              priceScaleId: 'rsi',
+              title: 'RSI'
+            });
+            chart.priceScale('rsi').applyOptions({
+              scaleMargins: { top: 0.8, bottom: 0 }
+            });
+            indicators.rsi.setData(calculateRSI(data, 14));
+          }
+          break;
+        case 'macd':
+          if (!indicators.macd) {
+            const macd = calculateMACD(data);
+            indicators.macd = {
+              macdLine: chart.addLineSeries({
+                color: '#2196F3',
+                lineWidth: 2,
+                priceScaleId: 'macd',
+                title: 'MACD'
+              }),
+              signal: chart.addLineSeries({
+                color: '#FF9800',
+                lineWidth: 2,
+                priceScaleId: 'macd',
+                title: 'Signal'
+              }),
+              histogram: chart.addHistogramSeries({
+                priceScaleId: 'macd',
+                title: 'Histogram'
+              })
+            };
+            chart.priceScale('macd').applyOptions({
+              scaleMargins: { top: 0.85, bottom: 0 }
+            });
+            indicators.macd.macdLine.setData(macd.macdLine);
+            indicators.macd.signal.setData(macd.signal);
+            indicators.macd.histogram.setData(macd.histogram);
+          }
+          break;
+      }
+    }
+    
+    function removeIndicator(type) {
+      if (indicators[type]) {
+        if (type === 'bb' || type === 'macd') {
+          Object.values(indicators[type]).forEach(series => {
+            chart.removeSeries(series);
+          });
+        } else {
+          chart.removeSeries(indicators[type]);
+        }
+        indicators[type] = null;
+      }
+    }
+    
+    // Canvas de desenho para ferramentas
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    let drawingTool = null;
+    let drawings = [];
+    let currentDrawing = null;
+    
+    function activateDrawingTool(tool) {
+      drawingTool = tool;
+      canvas.style.pointerEvents = tool ? 'auto' : 'none';
+    }
+    
+    canvas.addEventListener('mousedown', (e) => {
+      if (!drawingTool) return;
+      currentDrawing = {
+        type: drawingTool,
+        startX: e.clientX,
+        startY: e.clientY,
+        endX: e.clientX,
+        endY: e.clientY
+      };
+    });
+    
+    canvas.addEventListener('mousemove', (e) => {
+      if (!currentDrawing) return;
+      currentDrawing.endX = e.clientX;
+      currentDrawing.endY = e.clientY;
+      redrawCanvas();
+    });
+    
+    canvas.addEventListener('mouseup', (e) => {
+      if (!currentDrawing) return;
+      currentDrawing.endX = e.clientX;
+      currentDrawing.endY = e.clientY;
+      drawings.push({...currentDrawing});
+      currentDrawing = null;
+      drawingTool = null;
+      canvas.style.pointerEvents = 'none';
+      redrawCanvas();
+    });
+    
+    function redrawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      [...drawings, currentDrawing].filter(d => d).forEach(drawing => {
+        ctx.strokeStyle = '#0066FF';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        
+        switch(drawing.type) {
+          case 'line':
+            ctx.beginPath();
+            ctx.moveTo(drawing.startX, drawing.startY);
+            ctx.lineTo(drawing.endX, drawing.endY);
+            ctx.stroke();
+            break;
+          case 'horizontal':
+            ctx.beginPath();
+            ctx.moveTo(0, drawing.startY);
+            ctx.lineTo(canvas.width, drawing.startY);
+            ctx.stroke();
+            break;
+          case 'fibonacci':
+            const height = drawing.endY - drawing.startY;
+            const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+            ctx.setLineDash([5, 5]);
+            levels.forEach(level => {
+              const y = drawing.startY + height * level;
+              ctx.beginPath();
+              ctx.moveTo(drawing.startX, y);
+              ctx.lineTo(drawing.endX, y);
+              ctx.stroke();
+              ctx.fillStyle = '#0066FF';
+              ctx.fillText((level * 100).toFixed(1) + '%', drawing.endX + 5, y);
+            });
+            break;
+          case 'rectangle':
+            ctx.strokeRect(
+              drawing.startX,
+              drawing.startY,
+              drawing.endX - drawing.startX,
+              drawing.endY - drawing.startY
+            );
+            break;
+          case 'triangle':
+            const midX = (drawing.startX + drawing.endX) / 2;
+            ctx.beginPath();
+            ctx.moveTo(midX, drawing.startY);
+            ctx.lineTo(drawing.startX, drawing.endY);
+            ctx.lineTo(drawing.endX, drawing.endY);
+            ctx.closePath();
+            ctx.stroke();
+            break;
+        }
+      });
+    }
+    
     setTimeout(() => {
       FlutterChannel.postMessage(JSON.stringify({ type: 'chart_ready' }));
     }, 500);
     
-    // Atualização em tempo real com movimento realista
     let lastPrice = data[data.length - 1].close;
     let trend = 0;
     
@@ -319,7 +683,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       const lastBar = data[data.length - 1];
       const newTime = lastBar.time + 3;
       
-      // Movimento mais realista com tendência
       trend += (Math.random() - 0.5) * 0.5;
       trend = Math.max(-5, Math.min(5, trend));
       
@@ -355,14 +718,33 @@ class _TradeChartViewState extends State<TradeChartView> {
       candleSeries.update(newBar);
       volumeSeries.update(newVolume);
       
-      // Atualizar linha de preço atual
       if (currentPriceLine) {
         currentPriceLine.applyOptions({ price: close });
       }
       
+      // Atualizar indicadores ativos
+      Object.keys(indicators).forEach(key => {
+        if (indicators[key]) {
+          switch(key) {
+            case 'mma20':
+              indicators[key].update(calculateSMA(data.slice(-20), 20).pop());
+              break;
+            case 'mma50':
+              if (data.length >= 50) {
+                indicators[key].update(calculateSMA(data.slice(-50), 50).pop());
+              }
+              break;
+            case 'mma200':
+              if (data.length >= 200) {
+                indicators[key].update(calculateSMA(data.slice(-200), 200).pop());
+              }
+              break;
+          }
+        }
+      });
+      
       lastPrice = close;
       
-      // Enviar preço para Flutter
       FlutterChannel.postMessage(JSON.stringify({
         type: 'price',
         price: close,
@@ -371,15 +753,12 @@ class _TradeChartViewState extends State<TradeChartView> {
       
     }, 1000);
     
-    // Função para atualizar marcadores de trade
     function updateTradeMarkers(entryPrice, direction, currentPrice, stopLossPercent, takeProfitPercent) {
-      // Limpar marcadores anteriores
       clearTradeMarkers();
       
       const isBuy = direction === 'buy';
       const entryColor = isBuy ? '#00C896' : '#FF4444';
       
-      // Linha de entrada
       entryLine = candleSeries.createPriceLine({
         price: entryPrice,
         color: entryColor,
@@ -389,7 +768,6 @@ class _TradeChartViewState extends State<TradeChartView> {
         title: 'Entry: ' + entryPrice.toFixed(2),
       });
       
-      // Stop Loss (se configurado)
       if (stopLossPercent > 0) {
         const slPrice = isBuy 
           ? entryPrice * (1 - stopLossPercent / 100)
@@ -405,7 +783,6 @@ class _TradeChartViewState extends State<TradeChartView> {
         });
       }
       
-      // Take Profit (se configurado)
       if (takeProfitPercent > 0) {
         const tpPrice = isBuy
           ? entryPrice * (1 + takeProfitPercent / 100)
@@ -421,7 +798,6 @@ class _TradeChartViewState extends State<TradeChartView> {
         });
       }
       
-      // Marcador visual no ponto de entrada
       const markers = candleSeries.markers() || [];
       markers.push({
         time: data[data.length - 1].time,
@@ -450,17 +826,14 @@ class _TradeChartViewState extends State<TradeChartView> {
       candleSeries.setMarkers([]);
     }
     
-    function changeChartType(type) {
-      // Implementar mudança de tipo de chart se necessário
-      console.log('Chart type changed to:', type);
-    }
-    
-    // Auto-resize
     window.addEventListener('resize', () => {
       chart.applyOptions({
         width: window.innerWidth,
         height: window.innerHeight
       });
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      redrawCanvas();
     });
   </script>
 </body>
@@ -484,15 +857,15 @@ class _TradeChartViewState extends State<TradeChartView> {
 
   Widget _buildProfitLossOverlay() {
     if (widget.controller.entryPrice == null) return const SizedBox.shrink();
-    
+
     final entry = widget.controller.entryPrice!;
     final current = widget.controller.currentPrice;
     final isBuy = widget.controller.entryDirection == 'buy';
-    
+
     final pips = (current - entry) * (isBuy ? 1 : -1);
     final plPercent = (pips / entry) * 100;
     final isProfit = pips > 0;
-    
+
     return Positioned(
       top: 60,
       left: 0,
@@ -508,7 +881,6 @@ class _TradeChartViewState extends State<TradeChartView> {
               width: 2,
             ),
             borderRadius: BorderRadius.circular(16),
-            backdropFilter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -580,7 +952,7 @@ class _TradeChartViewState extends State<TradeChartView> {
       {bool isPL = false, Color? color}) {
     Color valueColor = color ?? Colors.white;
     String prefix = '';
-    
+
     if (isPL) {
       valueColor = value >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444);
       prefix = value >= 0 ? '+' : '';
@@ -619,7 +991,12 @@ class _TradeChartViewState extends State<TradeChartView> {
           const SizedBox(height: 8),
           _buildControlButton(
             icon: CupertinoIcons.chart_bar,
-            onPressed: _showChartTypeSelector,
+            onPressed: _showIndicatorsMenu,
+          ),
+          const SizedBox(height: 8),
+          _buildControlButton(
+            icon: CupertinoIcons.pencil,
+            onPressed: _showDrawingToolsMenu,
           ),
         ],
       ),
@@ -686,33 +1063,61 @@ class _TradeChartViewState extends State<TradeChartView> {
     );
   }
 
-  void _showChartTypeSelector() {
+  void _showIndicatorsMenu() {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: const Text('Tipo de Gráfico'),
+        title: const Text('Indicadores Técnicos'),
+        message: const Text('Selecione os indicadores para exibir no gráfico'),
         actions: [
-          CupertinoActionSheetAction(
-            child: const Text('Candlestick'),
-            onPressed: () {
-              setState(() => _chartType = 'candlestick');
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Line'),
-            onPressed: () {
-              setState(() => _chartType = 'line');
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Area'),
-            onPressed: () {
-              setState(() => _chartType = 'area');
-              Navigator.pop(context);
-            },
-          ),
+          _buildIndicatorAction('MMA 20', 'mma20'),
+          _buildIndicatorAction('MMA 50', 'mma50'),
+          _buildIndicatorAction('MMA 200', 'mma200'),
+          _buildIndicatorAction('EMA 12', 'ema12'),
+          _buildIndicatorAction('EMA 26', 'ema26'),
+          _buildIndicatorAction('Bollinger Bands', 'bollinger'),
+          _buildIndicatorAction('RSI', 'rsi'),
+          _buildIndicatorAction('MACD', 'macd'),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          child: const Text('Fechar'),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIndicatorAction(String label, String indicator) {
+    final isActive = _activeIndicators.contains(indicator);
+    return CupertinoActionSheetAction(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          if (isActive)
+            const Icon(CupertinoIcons.check_mark, color: Color(0xFF00C896)),
+        ],
+      ),
+      onPressed: () {
+        _toggleIndicator(indicator);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _showDrawingToolsMenu() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Ferramentas de Desenho'),
+        message: const Text('Selecione uma ferramenta para desenhar no gráfico'),
+        actions: [
+          _buildDrawingToolAction('Linha de Tendência', 'line', CupertinoIcons.minus),
+          _buildDrawingToolAction('Linha Horizontal', 'horizontal', CupertinoIcons.arrow_right_arrow_left),
+          _buildDrawingToolAction('Fibonacci', 'fibonacci', CupertinoIcons.number),
+          _buildDrawingToolAction('Retângulo', 'rectangle', CupertinoIcons.square),
+          _buildDrawingToolAction('Triângulo', 'triangle', CupertinoIcons.triangle),
         ],
         cancelButton: CupertinoActionSheetAction(
           isDefaultAction: true,
@@ -720,6 +1125,22 @@ class _TradeChartViewState extends State<TradeChartView> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
+    );
+  }
+
+  Widget _buildDrawingToolAction(String label, String tool, IconData icon) {
+    return CupertinoActionSheetAction(
+      child: Row(
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 12),
+          Text(label),
+        ],
+      ),
+      onPressed: () {
+        _activateDrawingTool(tool);
+        Navigator.pop(context);
+      },
     );
   }
 }
