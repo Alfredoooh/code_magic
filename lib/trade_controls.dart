@@ -243,7 +243,7 @@ class TradeControls extends StatelessWidget {
                 onPressed: () {
                   if (controller.tickPrediction < 9) {
                     controller.setTickPrediction(controller.tickPrediction + 1);
-                  ),
+                  }
                 },
               ),
             ],
@@ -338,3 +338,4 @@ class TradeControls extends StatelessWidget {
       ),
     );
   }
+}
