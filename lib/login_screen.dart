@@ -59,8 +59,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     } else {
       setState(() => _isCheckingSession = false);
       _animationController.forward();
-      
-      // Mostra disclaimer se ainda não viu
+
       if (!hasSeenDisclaimer) {
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
@@ -74,13 +73,12 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
   Future<void> _showTradingDisclaimer() async {
     await showModalBottomSheet(
       context: context,
-      isScrollable: true,
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (context) => const TradingDisclaimerSheet(),
     );
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_seen_disclaimer', true);
   }
@@ -408,7 +406,6 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
   }
 }
 
-// Trading Disclaimer Sheet
 class TradingDisclaimerSheet extends StatelessWidget {
   const TradingDisclaimerSheet({Key? key}) : super(key: key);
 
@@ -420,67 +417,69 @@ class TradingDisclaimerSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Aviso Importante',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildDisclaimerItem(
-                Icons.warning_rounded,
-                'Risco Elevado',
-                'Trading envolve risco significativo de perda. Apenas negocie com dinheiro que você pode perder.',
-              ),
-              const SizedBox(height: 16),
-              _buildDisclaimerItem(
-                Icons.trending_down_rounded,
-                'Volatilidade',
-                'Os mercados podem ser extremamente voláteis. Os preços podem mudar rapidamente.',
-              ),
-              const SizedBox(height: 16),
-              _buildDisclaimerItem(
-                Icons.school_rounded,
-                'Educação',
-                'Certifique-se de entender completamente os produtos antes de negociar.',
-              ),
-              const SizedBox(height: 16),
-              _buildDisclaimerItem(
-                Icons.verified_user_rounded,
-                'Responsabilidade',
-                'Você é totalmente responsável por suas decisões de trading.',
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0066FF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Continuar',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Aviso Importante',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                _buildDisclaimerItem(
+                  Icons.warning_rounded,
+                  'Risco Elevado',
+                  'Trading envolve risco significativo de perda. Apenas negocie com dinheiro que você pode perder.',
+                ),
+                const SizedBox(height: 16),
+                _buildDisclaimerItem(
+                  Icons.trending_down_rounded,
+                  'Volatilidade',
+                  'Os mercados podem ser extremamente voláteis. Os preços podem mudar rapidamente.',
+                ),
+                const SizedBox(height: 16),
+                _buildDisclaimerItem(
+                  Icons.school_rounded,
+                  'Educação',
+                  'Certifique-se de entender completamente os produtos antes de negociar.',
+                ),
+                const SizedBox(height: 16),
+                _buildDisclaimerItem(
+                  Icons.verified_user_rounded,
+                  'Responsabilidade',
+                  'Você é totalmente responsável por suas decisões de trading.',
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0066FF),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Continuar',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -522,7 +521,6 @@ class TradingDisclaimerSheet extends StatelessWidget {
   }
 }
 
-// WebView para login dentro do app
 class DerivWebViewLogin extends StatefulWidget {
   const DerivWebViewLogin({Key? key}) : super(key: key);
 
