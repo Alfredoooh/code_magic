@@ -24,14 +24,31 @@ class BotDetailsScreen extends StatefulWidget {
 
 class _BotDetailsScreenState extends State<BotDetailsScreen> {
   Timer? _updateTimer;
+  WebViewController? _chartController;
 
   @override
   void initState() {
     super.initState();
-    // Atualização em tempo real a cada segundo
-    _updateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+    // Atualização em tempo real a cada 500ms para ser mais responsivo
+    _updateTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) {
+        setState(() {});
+        _updateChart();
+      }
     });
+  }
+
+  void _updateChart() {
+    if (_chartController != null) {
+      final marketData = widget.marketPrices[widget.bot.config.market] ?? [];
+      if (marketData.isNotEmpty) {
+        final jsArray = marketData.map((p) => p.toString()).join(',');
+        final script = "try{ updateData([${jsArray}]); }catch(e){};";
+        try {
+          _chartController!.runJavaScript(script);
+        } catch (_) {}
+      }
+    }
   }
 
   @override
@@ -233,6 +250,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           showGradient: false,
           market: widget.bot.config.market,
           height: 300,
+          onControllerCreated: (controller, market) {
+            _chartController = controller;
+          },
         ),
       ),
     );
