@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'styles.dart';
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
@@ -234,33 +235,64 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   }
 
   void _showOptionsMenu() {
+    AppHaptics.light();
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1A1A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.outlineVariant,
+                borderRadius: BorderRadius.circular(AppShapes.full),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text('Opções', style: context.textStyles.headlineSmall),
+            const SizedBox(height: AppSpacing.lg),
             ListTile(
-              leading: const Icon(Icons.add_circle_outline, color: Color(0xFFFF8C00)),
-              title: const Text('Criar Novo Bot', style: TextStyle(color: Colors.white)),
+              leading: Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppShapes.medium),
+                ),
+                child: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+              ),
+              title: const Text('Criar Novo Bot'),
+              subtitle: const Text('Configure um novo bot de trading'),
               onTap: () {
                 Navigator.pop(context);
                 _showCreateBotDialog();
               },
             ),
+            const SizedBox(height: AppSpacing.sm),
             ListTile(
-              leading: const Icon(Icons.play_circle_outline, color: Color(0xFFFF8C00)),
-              title: const Text('Iniciar Múltiplos Bots', style: TextStyle(color: Colors.white)),
+              leading: Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppShapes.medium),
+                ),
+                child: const Icon(Icons.play_circle_outline, color: AppColors.success),
+              ),
+              title: const Text('Iniciar Múltiplos Bots'),
+              subtitle: const Text('Ative todos os bots disponíveis'),
               onTap: () {
                 Navigator.pop(context);
                 _startMultipleBots();
               },
             ),
+            const SizedBox(height: AppSpacing.md),
           ],
         ),
       ),
@@ -281,98 +313,82 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   }
 
   void _startMultipleBots() {
+    AppHaptics.heavy();
+    int started = 0;
     for (var bot in _bots) {
       if (!bot.isRunning && _balance >= bot.currentStake) {
         bot.start();
+        started++;
       }
     }
     setState(() {});
+    if (started > 0) {
+      AppSnackbar.success(context, '$started bots iniciados com sucesso!');
+    } else {
+      AppSnackbar.warning(context, 'Nenhum bot disponível para iniciar');
+    }
   }
 
   void _showEditStakeDialog(TradingBot bot) {
+    AppHaptics.light();
     final stakeController = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
     final maxStakeController = TextEditingController(text: bot.config.maxStake.toStringAsFixed(2));
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Editar Configurações', style: TextStyle(color: Colors.white)),
+        title: const Text('Editar Configurações'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: stakeController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Stake Inicial (\$)',
-                labelStyle: const TextStyle(color: Colors.white54),
                 hintText: '0.35',
-                hintStyle: const TextStyle(color: Colors.white24),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFFFF8C00)),
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                prefixIcon: Icon(Icons.attach_money_rounded),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: maxStakeController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Stake Máximo (\$)',
-                labelStyle: const TextStyle(color: Colors.white54),
                 hintText: '50.00',
-                hintStyle: const TextStyle(color: Colors.white24),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFFFF8C00)),
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                prefixIcon: Icon(Icons.account_balance_wallet_rounded),
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancelar'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () {
               final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
               final newMaxStake = double.tryParse(maxStakeController.text.replaceAll(',', '.'));
 
               if (newStake != null && newStake >= 0.35 && newMaxStake != null && newMaxStake >= newStake) {
+                AppHaptics.heavy();
                 setState(() {
                   bot.config.initialStake = newStake;
                   bot.currentStake = newStake;
                   bot.config.maxStake = newMaxStake;
                 });
                 Navigator.pop(context);
+                AppSnackbar.success(context, 'Configurações atualizadas!');
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Stake mínimo é \$0.35 e Max Stake deve ser maior que Stake Inicial'),
-                    backgroundColor: Color(0xFFFF4444),
-                  ),
-                );
+                AppHaptics.error();
+                AppSnackbar.error(context, 'Stake mínimo é \$0.35 e Max Stake deve ser maior');
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF8C00),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
             child: const Text('Salvar'),
           ),
         ],
@@ -387,91 +403,90 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     final totalProfit = _bots.fold(0.0, (sum, bot) => sum + bot.totalProfit);
 
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFF1A1A1A),
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text('Trading Bots'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF8C00),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-              ),
-              onPressed: _showOptionsMenu,
-            ),
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            onPressed: _showOptionsMenu,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildStatisticsHeader(activeBots, totalProfit),
-          Expanded(
-            child: _isConnected
-                ? ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _bots.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) => _buildBotCard(_bots[index]),
-                  )
-                : const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(color: Color(0xFFFF8C00)),
-                        SizedBox(height: 16),
-                        Text('Conectando...', style: TextStyle(color: Colors.white54)),
-                      ],
+      body: _isConnected
+          ? Column(
+              children: [
+                FadeInWidget(
+                  child: _buildStatisticsHeader(activeBots, totalProfit),
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      await Future.delayed(AppMotion.long);
+                      setState(() {});
+                      if (mounted) {
+                        AppSnackbar.success(context, 'Dados atualizados');
+                      }
+                    },
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      itemCount: _bots.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+                      itemBuilder: (context, index) => StaggeredListItem(
+                        index: index,
+                        child: _buildBotCard(_bots[index]),
+                      ),
                     ),
                   ),
-          ),
-        ],
-      ),
+                ),
+              ],
+            )
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    'Conectando ao servidor...',
+                    style: context.textStyles.bodyLarge?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
   Widget _buildStatisticsHeader(int activeBots, double totalProfit) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
-      ),
+      margin: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
           Expanded(
-            child: _buildStatItem('Bots Ativos', activeBots.toString(), Icons.smart_toy_rounded, const Color(0xFFFF8C00)),
+            child: StatsCard(
+              label: 'Bots Ativos',
+              value: activeBots.toString(),
+              icon: Icons.smart_toy_rounded,
+              color: AppColors.primary,
+            ),
           ),
-          Container(width: 1, height: 40, color: const Color(0xFF2A2A2A)),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: _buildStatItem('Total Bots', _bots.length.toString(), Icons.grid_view_rounded, Colors.white70),
+            child: StatsCard(
+              label: 'Total',
+              value: _bots.length.toString(),
+              icon: Icons.grid_view_rounded,
+              color: AppColors.secondary,
+            ),
           ),
-          Container(width: 1, height: 40, color: const Color(0xFF2A2A2A)),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: _buildStatItem(
-              'Lucro Total',
-              '${totalProfit >= 0 ? '+' : ''}\$${totalProfit.toStringAsFixed(2)}',
-              Icons.trending_up_rounded,
-              totalProfit >= 0 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444),
+            child: StatsCard(
+              label: 'Lucro',
+              value: '${totalProfit >= 0 ? '+' : ''}\$${totalProfit.toStringAsFixed(2)}',
+              icon: Icons.trending_up_rounded,
+              color: totalProfit >= 0 ? AppColors.success : AppColors.error,
             ),
           ),
         ],
@@ -479,121 +494,111 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 8),
-        Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11), textAlign: TextAlign.center),
-      ],
-    );
-  }
-
   Widget _buildBotCard(TradingBot bot) {
-    final status = bot.getStatus(); // CORRIGIDO: removido underscore
+    final status = bot.getStatus();
     final winRate = status.winRate * 100;
     final isProfit = status.sessionProfit >= 0;
 
-    return GestureDetector(
-      onTap: () => _showBotDetails(bot),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: bot.isRunning ? const Color(0xFFFF8C00) : const Color(0xFF2A2A2A),
-            width: bot.isRunning ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: bot.isRunning ? const Color(0xFFFF8C00) : const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(_getStrategyIcon(bot.config.strategy), color: Colors.white, size: 28),
+    return AnimatedCard(
+      onTap: () {
+        AppHaptics.selection();
+        _showBotDetails(bot);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: bot.isRunning 
+                      ? AppColors.primary.withOpacity(0.15)
+                      : context.colors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(AppShapes.medium),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(bot.config.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text(bot.config.description, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
+                child: Icon(
+                  _getStrategyIcon(bot.config.strategy),
+                  color: bot.isRunning ? AppColors.primary : context.colors.onSurfaceVariant,
+                  size: 28,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
-                children: [
-                  Expanded(child: _buildMetric('Trades', status.totalTrades.toString(), Colors.white70)),
-                  Expanded(child: _buildMetric('Win Rate', '${winRate.toStringAsFixed(1)}%', winRate >= 50 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444))),
-                  Expanded(child: _buildMetric('Profit', '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}', isProfit ? const Color(0xFFFF8C00) : const Color(0xFFFF4444))),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.attach_money_rounded, color: Colors.white70, size: 16),
-                      SizedBox(width: 6),
-                      Text('Stake Inicial', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        '\$${status.currentStake.toStringAsFixed(2)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                      if (!bot.isRunning) ...[
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _showEditStakeDialog(bot),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF8C00),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            bot.config.name,
+                            style: context.textStyles.titleMedium,
                           ),
                         ),
+                        if (bot.isRunning)
+                          AppBadge(
+                            text: 'Ativo',
+                            color: AppColors.success,
+                          ),
                       ],
-                    ],
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      bot.config.description,
+                      style: context.textStyles.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppShapes.medium),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: _buildMetric('Trades', status.totalTrades.toString(), context.colors.onSurfaceVariant)),
+                Expanded(child: _buildMetric('Win Rate', '${winRate.toStringAsFixed(1)}%', winRate >= 50 ? AppColors.success : AppColors.error)),
+                Expanded(child: _buildMetric('Profit', '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}', isProfit ? AppColors.success : AppColors.error)),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.attach_money_rounded, size: 16, color: context.colors.onSurfaceVariant),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text('Stake:', style: context.textStyles.bodySmall),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '\$${status.currentStake.toStringAsFixed(2)}',
+                    style: context.textStyles.titleSmall?.copyWith(color: AppColors.primary),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
+              if (!bot.isRunning)
+                IconButton(
+                  icon: const Icon(Icons.edit_rounded, size: 20),
+                  onPressed: () => _showEditStakeDialog(bot),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary.withOpacity(0.15),
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -601,9 +606,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   Widget _buildMetric(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(label, style: context.textStyles.labelSmall),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(value, style: context.textStyles.titleSmall?.copyWith(color: color)),
       ],
     );
   }
