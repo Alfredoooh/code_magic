@@ -1,23 +1,21 @@
 // lib/bot_details_screen.dart
-// Tela de detalhes e estatísticas do bot
+// Tela de detalhes e controle do bot com chart em tempo real
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
-import 'bot_create_screen.dart';
-import 'deriv_chart_widget.dart'; // ← ADICIONADO
+import 'deriv_chart_widget.dart';
 
 class BotDetailsScreen extends StatefulWidget {
   final TradingBot bot;
-  final Map<String, List<WebViewController>> chartControllers;
+  final Function() onUpdate;
   final Map<String, List<double>> marketPrices;
-  final int chartPointsCount;
 
   const BotDetailsScreen({
     Key? key,
     required this.bot,
-    required this.chartControllers,
+    required this.onUpdate,
     required this.marketPrices,
-    required this.chartPointsCount,
   }) : super(key: key);
 
   @override
@@ -25,21 +23,165 @@ class BotDetailsScreen extends StatefulWidget {
 }
 
 class _BotDetailsScreenState extends State<BotDetailsScreen> {
-  String _selectedChart = 'profit';
+  Timer? _updateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Atualização em tempo real a cada segundo
+    _updateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _showConfigDialog() {
+    final stakeController = TextEditingController(text: widget.bot.config.initialStake.toStringAsFixed(2));
+    final maxStakeController = TextEditingController(text: widget.bot.config.maxStake.toStringAsFixed(2));
+    final targetProfitController = TextEditingController(text: widget.bot.config.targetProfit.toStringAsFixed(2));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Configurar Bot', style: TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: stakeController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Stake Inicial (\$)',
+                  labelStyle: const TextStyle(color: Colors.white54),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: maxStakeController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Stake Máximo (\$)',
+                  labelStyle: const TextStyle(color: Colors.white54),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: targetProfitController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Target Profit (\$)',
+                  labelStyle: const TextStyle(color: Colors.white54),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
+              final newMaxStake = double.tryParse(maxStakeController.text.replaceAll(',', '.'));
+              final newTargetProfit = double.tryParse(targetProfitController.text.replaceAll(',', '.'));
+
+              if (newStake != null && newStake >= 0.35 && 
+                  newMaxStake != null && newMaxStake >= newStake &&
+                  newTargetProfit != null && newTargetProfit > 0) {
+                setState(() {
+                  widget.bot.config.initialStake = newStake;
+                  widget.bot.currentStake = newStake;
+                  widget.bot.config.maxStake = newMaxStake;
+                  widget.bot.config.targetProfit = newTargetProfit;
+                });
+                widget.onUpdate();
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF8C00),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final status = widget.bot.getStatus();
+    final winRate = status.winRate * 100;
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        elevation: 0,
         backgroundColor: const Color(0xFF1A1A1A),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A2A2A),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(widget.bot.config.name),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showSettings(),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
+              ),
+              onPressed: _showConfigDialog,
+            ),
           ),
         ],
       ),
@@ -48,16 +190,49 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Gráfico Deriv em tempo real
+            _buildDerivChart(),
+            const SizedBox(height: 16),
+            
+            // Status e controles
             _buildStatusCard(status),
             const SizedBox(height: 16),
-            _buildChartSelector(),
+            
+            // Botões de controle
+            _buildControlButtons(),
             const SizedBox(height: 16),
-            _buildMainChart(status),
+            
+            // Estatísticas
+            _buildStatisticsGrid(status, winRate),
             const SizedBox(height: 16),
-            _buildStatisticsGrid(status),
-            const SizedBox(height: 16),
+            
+            // Histórico de trades
             _buildTradeHistory(status),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDerivChart() {
+    // Pega os preços reais do mercado do bot
+    final marketData = widget.marketPrices[widget.bot.config.market] ?? [];
+    final chartData = marketData.isEmpty ? [100.0] : marketData;
+
+    return Container(
+      height: 300,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: DerivAreaChart(
+          points: chartData,
+          autoScale: true,
+          showGradient: false,
+          market: widget.bot.config.market,
+          height: 300,
         ),
       ),
     );
@@ -67,9 +242,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         children: [
@@ -84,7 +258,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   Text(
                     '${status.sessionProfit >= 0 ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}',
                     style: TextStyle(
-                      color: status.sessionProfit >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                      color: status.sessionProfit >= 0 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444),
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
@@ -94,12 +268,12 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: status.isRunning ? const Color(0xFF00C896).withOpacity(0.12) : Colors.white.withOpacity(0.06),
+                  color: status.isRunning ? const Color(0xFFFF8C00).withOpacity(0.2) : const Color(0xFF2A2A2A),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  status.isRunning ? Icons.play_arrow : Icons.pause,
-                  color: status.isRunning ? const Color(0xFF00C896) : Colors.white54,
+                  status.isRunning ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  color: status.isRunning ? const Color(0xFFFF8C00) : Colors.white54,
                   size: 32,
                 ),
               ),
@@ -128,153 +302,66 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     );
   }
 
-  Widget _buildChartSelector() {
+  Widget _buildControlButtons() {
     return Row(
       children: [
-        _buildChartButton('profit', 'Profit', Icons.trending_up),
-        const SizedBox(width: 8),
-        _buildChartButton('winrate', 'Win Rate', Icons.pie_chart),
-        const SizedBox(width: 8),
-        _buildChartButton('stake', 'Stake', Icons.attach_money),
+        Expanded(
+          flex: 3,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              if (widget.bot.isRunning) {
+                widget.bot.isPaused ? widget.bot.resume() : widget.bot.pause();
+              } else {
+                widget.bot.start();
+              }
+              widget.onUpdate();
+              setState(() {});
+            },
+            icon: Icon(
+              widget.bot.isRunning 
+                  ? (widget.bot.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded)
+                  : Icons.play_arrow_rounded,
+              size: 20,
+            ),
+            label: Text(
+              widget.bot.isRunning 
+                  ? (widget.bot.isPaused ? 'Continuar' : 'Pausar')
+                  : 'Iniciar Trade',
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.bot.isRunning 
+                  ? (widget.bot.isPaused ? const Color(0xFFFF8C00) : Colors.orange)
+                  : const Color(0xFFFF8C00),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ),
+        if (widget.bot.isRunning) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 1,
+            child: ElevatedButton(
+              onPressed: () {
+                widget.bot.stop();
+                widget.onUpdate();
+                setState(() {});
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4444),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Icon(Icons.stop_rounded, size: 24),
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildChartButton(String id, String label, IconData icon) {
-    final isSelected = _selectedChart == id;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedChart = id),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0066FF) : const Color(0xFF2A2A2A),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainChart(BotStatus status) {
-    if (status.tradeHistory.isEmpty) {
-      return Container(
-        height: 250,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: Text('Sem dados ainda', style: TextStyle(color: Colors.white54)),
-        ),
-      );
-    }
-
-    return Container(
-      height: 250,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: _selectedChart == 'profit'
-          ? _buildProfitChart(status.tradeHistory)
-          : _selectedChart == 'winrate'
-              ? _buildWinRateChart(status.tradeHistory)
-              : _buildStakeChart(status.tradeHistory),
-    );
-  }
-
-  Widget _buildProfitChart(List<TradeRecord> history) {
-    final cumulative = <double>[];
-    double sum = 0;
-
-    for (var trade in history) {
-      sum += trade.profit;
-      cumulative.add(sum);
-    }
-
-    return DerivAreaChart(
-      points: cumulative,
-      autoScale: true,
-      showGradient: false,
-      market: widget.bot.config.market,
-      onControllerCreated: (controller, market) {
-        if (market == null) return;
-        _registerControllerForMarket(controller, market);
-      },
-      height: 200,
-    );
-  }
-
-  void _registerControllerForMarket(WebViewController controller, String market) {
-    widget.chartControllers.putIfAbsent(market, () => []);
-    if (!widget.chartControllers[market]!.contains(controller)) {
-      widget.chartControllers[market]!.add(controller);
-
-      final allPoints = widget.marketPrices[market] ?? [];
-      final lastPoints = allPoints.length > widget.chartPointsCount
-          ? allPoints.sublist(allPoints.length - widget.chartPointsCount)
-          : allPoints;
-
-      if (lastPoints.isNotEmpty) {
-        final jsArray = lastPoints.map((p) => p.toString()).join(',');
-        final script = "try{ updateData([${jsArray}]); }catch(e){};";
-        try {
-          controller.runJavaScript(script);
-        } catch (_) {}
-      }
-    }
-  }
-
-  Widget _buildWinRateChart(List<TradeRecord> history) {
-    final windowSize = 10;
-    final winRates = <double>[];
-
-    for (int i = windowSize; i <= history.length; i++) {
-      final window = history.sublist(i - windowSize, i);
-      final wins = window.where((t) => t.won).length;
-      winRates.add(wins / windowSize * 100);
-    }
-
-    return DerivAreaChart(
-      points: winRates,
-      autoScale: false,
-      showGradient: false,
-      market: widget.bot.config.market,
-      onControllerCreated: (controller, market) {
-        if (market == null) return;
-        _registerControllerForMarket(controller, market);
-      },
-      height: 200,
-    );
-  }
-
-  Widget _buildStakeChart(List<TradeRecord> history) {
-    final stakes = history.map((t) => t.stake).toList();
-
-    return DerivAreaChart(
-      points: stakes,
-      autoScale: true,
-      showGradient: false,
-      market: widget.bot.config.market,
-      onControllerCreated: (controller, market) {
-        if (market == null) return;
-        _registerControllerForMarket(controller, market);
-      },
-      height: 200,
-    );
-  }
-
-  Widget _buildStatisticsGrid(BotStatus status) {
+  Widget _buildStatisticsGrid(BotStatus status, double winRate) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -284,12 +371,13 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       childAspectRatio: 1.5,
       children: [
         _buildStatCard('Total Profit', '\$${status.totalProfit.toStringAsFixed(2)}', 
-            status.totalProfit >= 0 ? const Color(0xFF00C896) : const Color(0xFFFF4444)),
-        _buildStatCard('Avg Win', '\$${status.avgWin.toStringAsFixed(2)}', const Color(0xFF00C896)),
+            status.totalProfit >= 0 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444)),
+        _buildStatCard('Win Rate', '${winRate.toStringAsFixed(1)}%', 
+            winRate >= 50 ? const Color(0xFFFF8C00) : const Color(0xFFFF4444)),
+        _buildStatCard('Avg Win', '\$${status.avgWin.toStringAsFixed(2)}', const Color(0xFFFF8C00)),
         _buildStatCard('Avg Loss', '\$${status.avgLoss.toStringAsFixed(2)}', const Color(0xFFFF4444)),
-        _buildStatCard('Max Drawdown', '${(status.maxDrawdown * 100).toStringAsFixed(1)}%', Colors.orange),
-        _buildStatCard('Current RSI', status.currentRSI.toStringAsFixed(0), const Color(0xFF0066FF)),
-        _buildStatCard('Current Stake', '\$${status.currentStake.toStringAsFixed(2)}', Colors.white70),
+        _buildStatCard('Current RSI', status.currentRSI.toStringAsFixed(0), Colors.white70),
+        _buildStatCard('Stake', '\$${status.currentStake.toStringAsFixed(2)}', Colors.white70),
       ],
     );
   }
@@ -299,8 +387,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.18)),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -314,6 +401,19 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   }
 
   Widget _buildTradeHistory(BotStatus status) {
+    if (status.tradeHistory.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Center(
+          child: Text('Nenhum trade ainda', style: TextStyle(color: Colors.white54)),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -330,10 +430,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: trade.won ? const Color(0xFF00C896).withOpacity(0.3) : const Color(0xFFFF4444).withOpacity(0.3),
-                ),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 children: [
@@ -341,12 +438,12 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: trade.won ? const Color(0xFF00C896).withOpacity(0.2) : const Color(0xFFFF4444).withOpacity(0.2),
+                      color: trade.won ? const Color(0xFFFF8C00).withOpacity(0.2) : const Color(0xFFFF4444).withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      trade.won ? Icons.trending_up : Icons.trending_down,
-                      color: trade.won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                      trade.won ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                      color: trade.won ? const Color(0xFFFF8C00) : const Color(0xFFFF4444),
                       size: 20,
                     ),
                   ),
@@ -358,7 +455,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                         Text(
                           trade.won ? 'WIN' : 'LOSS',
                           style: TextStyle(
-                            color: trade.won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                            color: trade.won ? const Color(0xFFFF8C00) : const Color(0xFFFF4444),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -376,7 +473,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                       Text(
                         '${trade.profit >= 0 ? '+' : ''}\$${trade.profit.toStringAsFixed(2)}',
                         style: TextStyle(
-                          color: trade.won ? const Color(0xFF00C896) : const Color(0xFFFF4444),
+                          color: trade.won ? const Color(0xFFFF8C00) : const Color(0xFFFF4444),
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -393,25 +490,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           },
         ),
       ],
-    );
-  }
-
-  void _showSettings() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A1A),
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Bot Settings', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            const Text('Settings coming soon...', style: TextStyle(color: Colors.white54)),
-          ],
-        ),
-      ),
     );
   }
 }
