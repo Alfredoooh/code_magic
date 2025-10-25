@@ -1,10 +1,10 @@
-// markets_screen.dart
+// lib/markets_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
+import 'styles.dart';
 import 'trade_screen.dart';
 import 'all_markets_screen.dart';
 import 'news_detail_screen.dart';
@@ -81,7 +81,6 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
     });
 
     try {
-      // CryptoPanic API - requer token gratuito em https://cryptopanic.com/developers/api/
       final response = await http.get(
         Uri.parse('https://cryptopanic.com/api/v1/posts/?auth_token=YOUR_API_TOKEN&public=true&kind=news'),
       );
@@ -184,8 +183,9 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   }
 
   void _openAllMarkets() {
+    AppHaptics.selection();
     Navigator.of(context).push(
-      IOSSlideUpRoute(
+      MaterialPageRoute(
         builder: (context) => AllMarketsScreen(
           token: widget.token,
           allMarkets: _allMarkets,
@@ -197,16 +197,18 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   }
 
   void _openNewsDetail(NewsItem news) {
+    AppHaptics.selection();
     Navigator.of(context).push(
-      IOSSlideUpRoute(
+      MaterialPageRoute(
         builder: (context) => NewsDetailScreen(news: news),
       ),
     );
   }
 
   void _openMarketDetail(String symbol) {
+    AppHaptics.selection();
     Navigator.of(context).push(
-      IOSSlideUpRoute(
+      MaterialPageRoute(
         builder: (context) => MarketDetailScreen(
           symbol: symbol,
           marketInfo: _allMarkets[symbol]!,
@@ -223,37 +225,24 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
     super.build(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 24),
-                  _buildTopMarketsSection(),
-                  const SizedBox(height: 32),
-                  _buildNewsSection(),
-                ],
-              ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _fetchCryptoNews();
+          AppSnackbar.success(context, 'Mercados atualizados');
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          children: [
+            FadeInWidget(
+              child: _buildTopMarketsSection(),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return const Text(
-      'Mercados',
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 34,
-        fontWeight: FontWeight.bold,
-        letterSpacing: -0.5,
+            const SizedBox(height: AppSpacing.xxl),
+            FadeInWidget(
+              delay: const Duration(milliseconds: 100),
+              child: _buildNewsSection(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -265,111 +254,134 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Top Mercados',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            GestureDetector(
-              onTap: _openAllMarkets,
-              child: const Text(
-                'Ver Todos',
-                style: TextStyle(
-                  color: Color(0xFF007AFF),
-                  fontSize: 17,
-                ),
-              ),
+            Text('Top Mercados', style: context.textStyles.titleLarge),
+            TextButton(
+              onPressed: _openAllMarkets,
+              child: const Text('Ver Todos'),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        ...(_topMarkets.map((symbol) {
+        const SizedBox(height: AppSpacing.md),
+        ...(_topMarkets.asMap().entries.map((entry) {
+          final index = entry.key;
+          final symbol = entry.value;
           final info = _allMarkets[symbol]!;
           final data = _marketData[symbol];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _buildIOSMarketCard(symbol, info, data),
+          return StaggeredListItem(
+            index: index,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _buildMarketCard(symbol, info, data),
+            ),
           );
         }).toList()),
       ],
     );
   }
 
-  Widget _buildIOSMarketCard(String symbol, MarketInfo info, MarketData? data) {
+  Widget _buildMarketCard(String symbol, MarketInfo info, MarketData? data) {
     final isPositive = (data?.change ?? 0) >= 0;
-    final changeColor = isPositive ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
+    final changeColor = isPositive ? AppColors.success : AppColors.error;
 
-    return GestureDetector(
+    return AnimatedCard(
       onTap: () => _openMarketDetail(symbol),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          // Ícone do GitHub com fallback
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: context.colors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppShapes.medium),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppShapes.medium),
               child: Image.network(
                 info.iconUrl,
-                width: 40,
-                height: 40,
+                width: 48,
+                height: 48,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppColors.primary.withOpacity(0.15),
+                    child: Icon(
+                      Icons.show_chart_rounded,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    info.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    symbol,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  data != null ? data.price.toStringAsFixed(2) : '...',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                if (data != null)
-                  Text(
-                    '${isPositive ? '+' : ''}${data.change.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      color: changeColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                Text(info.name, style: context.textStyles.titleSmall),
+                const SizedBox(height: AppSpacing.xxs),
+                Row(
+                  children: [
+                    Text(symbol, style: context.textStyles.bodySmall),
+                    const SizedBox(width: AppSpacing.xs),
+                    AppBadge(
+                      text: info.category,
+                      color: AppColors.secondary,
                     ),
-                  ),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                data != null ? '\$${data.price.toStringAsFixed(2)}' : '...',
+                style: context.textStyles.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              if (data != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: changeColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(AppShapes.small),
+                  ),
+                  child: Text(
+                    '${isPositive ? '+' : ''}${data.change.toStringAsFixed(2)}%',
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: changeColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -378,53 +390,28 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Notícias',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
+        Text('Notícias', style: context.textStyles.titleLarge),
+        const SizedBox(height: AppSpacing.md),
         if (_isLoadingNews)
           const Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(color: Color(0xFF007AFF)),
+              padding: EdgeInsets.all(AppSpacing.xxxl),
+              child: CircularProgressIndicator(),
             ),
           )
         else if (_newsError != null)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                children: [
-                  const Icon(Icons.error_outline, color: Color(0xFFFF3B30), size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    _newsError!,
-                    style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _fetchCryptoNews,
-                    child: const Text('Tentar Novamente'),
-                  ),
-                ],
-              ),
-            ),
+          EmptyStateWithAction(
+            icon: Icons.error_outline_rounded,
+            title: 'Erro ao carregar notícias',
+            subtitle: _newsError!,
+            actionText: 'Tentar Novamente',
+            onAction: _fetchCryptoNews,
           )
         else if (_newsItems.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Text(
-                'Nenhuma notícia disponível',
-                style: TextStyle(color: Colors.white.withOpacity(0.6)),
-              ),
-            ),
+          const EmptyStateWithAction(
+            icon: Icons.newspaper_rounded,
+            title: 'Nenhuma notícia',
+            subtitle: 'Não há notícias disponíveis no momento',
           )
         else
           _buildNewsGrid(),
@@ -433,40 +420,46 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   }
 
   Widget _buildNewsGrid() {
-    // Layouts variados tipo Google News
     return Column(
       children: [
-        // Featured (primeira notícia grande)
         if (_newsItems.isNotEmpty)
-          _buildFeaturedNews(_newsItems[0]),
-        
-        const SizedBox(height: 10),
-        
-        // Grid 2 colunas
+          StaggeredListItem(
+            index: 0,
+            child: _buildFeaturedNews(_newsItems[0]),
+          ),
+        const SizedBox(height: AppSpacing.md),
         if (_newsItems.length > 1)
           Row(
             children: [
               if (_newsItems.length > 1)
-                Expanded(child: _buildSmallNews(_newsItems[1])),
+                Expanded(
+                  child: StaggeredListItem(
+                    index: 1,
+                    child: _buildSmallNews(_newsItems[1]),
+                  ),
+                ),
+              if (_newsItems.length > 2) const SizedBox(width: AppSpacing.md),
               if (_newsItems.length > 2)
-                const SizedBox(width: 10),
-              if (_newsItems.length > 2)
-                Expanded(child: _buildSmallNews(_newsItems[2])),
+                Expanded(
+                  child: StaggeredListItem(
+                    index: 2,
+                    child: _buildSmallNews(_newsItems[2]),
+                  ),
+                ),
             ],
           ),
-        
-        const SizedBox(height: 10),
-        
-        // Lista horizontal
+        const SizedBox(height: AppSpacing.md),
         if (_newsItems.length > 3)
           SizedBox(
-            height: 200,
-            child: ListView.builder(
+            height: 220,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _newsItems.length - 3,
+              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
               itemBuilder: (context, index) {
-                return Padding(
-                  padding: EdgeInsets.only(right: index < _newsItems.length - 4 ? 10 : 0),
+                return StaggeredListItem(
+                  index: index + 3,
+                  delay: const Duration(milliseconds: 30),
                   child: _buildHorizontalNews(_newsItems[index + 3]),
                 );
               },
@@ -477,216 +470,224 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   }
 
   Widget _buildFeaturedNews(NewsItem news) {
-    return GestureDetector(
+    return AnimatedCard(
       onTap: () => _openNewsDetail(news),
-      child: Container(
-        height: 280,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (news.imageUrl != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  news.imageUrl!,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (news.imageUrl != null)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.medium)),
+              child: Image.network(
+                news.imageUrl!,
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 180,
+                    color: context.colors.surfaceVariant,
+                    child: Icon(
+                      Icons.image_not_supported_rounded,
+                      size: 48,
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  );
+                },
               ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF007AFF).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      news.category,
-                      style: const TextStyle(
-                        color: Color(0xFF007AFF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    news.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Image.network(
+            ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppBadge(text: news.category, color: AppColors.primary),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  news.title,
+                  style: context.textStyles.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppShapes.extraSmall),
+                      child: Image.network(
                         news.favicon,
                         width: 16,
                         height: 16,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.public_rounded,
+                            size: 16,
+                            color: context.colors.onSurfaceVariant,
+                          );
+                        },
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        news.source,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 13,
-                        ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        '${news.source} • ${news.time}',
+                        style: context.textStyles.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        ' • ${news.time}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSmallNews(NewsItem news) {
-    return GestureDetector(
+    return AnimatedCard(
       onTap: () => _openNewsDetail(news),
-      child: Container(
-        height: 200,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (news.imageUrl != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  news.imageUrl!,
-                  height: 100,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    news.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (news.imageUrl != null)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.medium)),
+              child: Image.network(
+                news.imageUrl!,
+                height: 100,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 100,
+                    color: context.colors.surfaceVariant,
+                    child: Icon(
+                      Icons.image_not_supported_rounded,
+                      size: 32,
+                      color: context.colors.onSurfaceVariant,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Image.network(
-                        news.favicon,
-                        width: 14,
-                        height: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          news.source,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 11,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-          ],
-        ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  news.title,
+                  style: context.textStyles.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppShapes.extraSmall),
+                      child: Image.network(
+                        news.favicon,
+                        width: 12,
+                        height: 12,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.public_rounded,
+                            size: 12,
+                            color: context.colors.onSurfaceVariant,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Expanded(
+                      child: Text(
+                        news.source,
+                        style: context.textStyles.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildHorizontalNews(NewsItem news) {
-    return GestureDetector(
+    return AnimatedCard(
       onTap: () => _openNewsDetail(news),
-      child: Container(
+      padding: EdgeInsets.zero,
+      child: SizedBox(
         width: 280,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (news.imageUrl != null)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.medium)),
                 child: Image.network(
                   news.imageUrl!,
                   height: 120,
                   width: double.infinity,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 120,
+                      color: context.colors.surfaceVariant,
+                      child: Icon(
+                        Icons.image_not_supported_rounded,
+                        size: 32,
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                    );
+                  },
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     news.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
+                    style: context.textStyles.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.xs),
                   Row(
                     children: [
-                      Image.network(
-                        news.favicon,
-                        width: 14,
-                        height: 14,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppShapes.extraSmall),
+                        child: Image.network(
+                          news.favicon,
+                          width: 12,
+                          height: 12,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.public_rounded,
+                              size: 12,
+                              color: context.colors.onSurfaceVariant,
+                            );
+                          },
+                        ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppSpacing.xxs),
                       Expanded(
                         child: Text(
                           '${news.source} • ${news.time}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 11,
-                          ),
+                          style: context.textStyles.labelSmall,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -739,24 +740,4 @@ class NewsItem {
     required this.category,
     this.imageUrl,
   });
-}
-
-class IOSSlideUpRoute extends PageRouteBuilder {
-  final WidgetBuilder builder;
-
-  IOSSlideUpRoute({required this.builder})
-      : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 1.0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 350),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
-        );
 }
