@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'styles.dart';
 import 'home_screen.dart';
@@ -46,7 +47,8 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
   Future<void> _checkExistingSession() async {
     final prefs = await SharedPreferences.getInstance();
     final savedToken = prefs.getString('deriv_token');
-    
+    final hasSeenDisclaimer = prefs.getBool('has_seen_disclaimer') ?? false;
+
     if (savedToken != null && savedToken.isNotEmpty) {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -57,7 +59,30 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     } else {
       setState(() => _isCheckingSession = false);
       _animationController.forward();
+      
+      // Mostra disclaimer se ainda não viu
+      if (!hasSeenDisclaimer) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _showTradingDisclaimer();
+          }
+        });
+      }
     }
+  }
+
+  Future<void> _showTradingDisclaimer() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollable: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const TradingDisclaimerSheet(),
+    );
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_disclaimer', true);
   }
 
   Future<void> _saveToken(String token) async {
@@ -65,7 +90,6 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     await prefs.setString('deriv_token', token);
   }
 
-  /// Login via OAuth2 com conta Deriv - DENTRO DO APP
   Future<void> _loginWithDeriv() async {
     setState(() => _isLoading = true);
 
@@ -80,12 +104,11 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
 
       if (result != null && result is Map<String, dynamic>) {
         final accounts = result['accounts'] as List<Map<String, String>>;
-        
+
         if (accounts.isEmpty) {
           throw Exception('Nenhuma conta encontrada');
         }
 
-        // Se houver múltiplas contas, mostra seleção
         if (accounts.length > 1) {
           final selectedAccount = await _showAccountSelectionDialog(accounts);
           if (selectedAccount == null) {
@@ -94,7 +117,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
           }
 
           await _saveToken(selectedAccount['token']!);
-          
+
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -104,7 +127,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
         } else {
           final firstAccount = accounts.first;
           await _saveToken(firstAccount['token']!);
-          
+
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -162,7 +185,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
                       account['currency'] ?? 'USD',
                       style: const TextStyle(color: Colors.white54, fontSize: 13),
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white54, size: 16),
                     onTap: () => Navigator.of(context).pop(account),
                   ),
                 );
@@ -198,6 +221,27 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => HomeScreen(token: token)),
     );
+  }
+
+  Future<void> _openWhatsApp() async {
+    final uri = Uri.parse('https://wa.me/258840000000');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openEmail() async {
+    final uri = Uri.parse('mailto:suporte@zoomtrade.com');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _openRegister() async {
+    final uri = Uri.parse('https://deriv.com/signup/');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -302,7 +346,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
                   decoration: const InputDecoration(
                     labelText: 'Token de API',
                     hintText: 'Cole seu token aqui',
-                    prefixIcon: Icon(Icons.vpn_key, color: Colors.white54),
+                    prefixIcon: Icon(Icons.vpn_key_rounded, color: Colors.white54),
                     labelStyle: TextStyle(color: Colors.white70),
                     hintStyle: TextStyle(color: Colors.white30),
                   ),
@@ -324,42 +368,156 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> with SingleTickerPr
                     child: const Text('Conectar com Token', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                   ),
                 ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: _openRegister,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF2A2A2A)),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Criar Conta Deriv', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  ),
+                ),
                 const Spacer(flex: 2),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF2A2A2A), width: 0.5),
-                  ),
-                  child: const Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.security_rounded, color: Color(0xFF00C896), size: 20),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Conexão Segura', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                                SizedBox(height: 2),
-                                Text('Seus dados são protegidos pela Deriv', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Text('Não tem conta? Crie uma em deriv.com', style: TextStyle(color: Colors.white54, fontSize: 11), textAlign: TextAlign.center),
-                    ],
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Precisa de ajuda?',
+                      style: TextStyle(color: Colors.white54, fontSize: 15),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      onPressed: _openWhatsApp,
+                      icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                    ),
+                    IconButton(
+                      onPressed: _openEmail,
+                      icon: const Icon(Icons.email_rounded, color: Color(0xFF0066FF)),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// Trading Disclaimer Sheet
+class TradingDisclaimerSheet extends StatelessWidget {
+  const TradingDisclaimerSheet({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Aviso Importante',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildDisclaimerItem(
+                Icons.warning_rounded,
+                'Risco Elevado',
+                'Trading envolve risco significativo de perda. Apenas negocie com dinheiro que você pode perder.',
+              ),
+              const SizedBox(height: 16),
+              _buildDisclaimerItem(
+                Icons.trending_down_rounded,
+                'Volatilidade',
+                'Os mercados podem ser extremamente voláteis. Os preços podem mudar rapidamente.',
+              ),
+              const SizedBox(height: 16),
+              _buildDisclaimerItem(
+                Icons.school_rounded,
+                'Educação',
+                'Certifique-se de entender completamente os produtos antes de negociar.',
+              ),
+              const SizedBox(height: 16),
+              _buildDisclaimerItem(
+                Icons.verified_user_rounded,
+                'Responsabilidade',
+                'Você é totalmente responsável por suas decisões de trading.',
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0066FF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continuar',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDisclaimerItem(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFFFF9500), size: 24),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -374,31 +532,27 @@ class DerivWebViewLogin extends StatefulWidget {
 
 class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
   late final WebViewController _controller;
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (url) => setState(() => _isLoading = true),
-          onPageFinished: (url) => setState(() => _isLoading = false),
           onNavigationRequest: (request) {
             final uri = Uri.parse(request.url);
-            
-            // Detecta o redirect com os tokens
+
             if (uri.queryParameters.containsKey('acct1') && 
                 uri.queryParameters.containsKey('token1')) {
-              
+
               final accounts = _extractAccounts(uri);
               Navigator.pop(context, {'accounts': accounts});
               return NavigationDecision.prevent;
             }
-            
+
             return NavigationDecision.navigate;
           },
         ),
@@ -413,7 +567,7 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
   List<Map<String, String>> _extractAccounts(Uri uri) {
     final accounts = <Map<String, String>>[];
     int index = 1;
-    
+
     while (uri.queryParameters.containsKey('acct$index')) {
       final account = uri.queryParameters['acct$index'];
       final token = uri.queryParameters['token$index'];
@@ -428,7 +582,7 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
       }
       index++;
     }
-    
+
     return accounts;
   }
 
@@ -440,19 +594,11 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
         backgroundColor: const Color(0xFF1A1A1A),
         title: const Text('Login Deriv'),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(color: Color(0xFF0066FF)),
-            ),
-        ],
-      ),
+      body: WebViewWidget(controller: _controller),
     );
   }
 }
