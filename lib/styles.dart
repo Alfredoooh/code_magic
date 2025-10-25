@@ -1476,7 +1476,601 @@ ThemeData lightTheme = ThemeData(
     ),
   ),
   
+  // CONTINUAÇÃO DO styles.dart - COLE ISTO APÓS O filledButtonTheme DO LIGHT THEME
+
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       foregroundColor: AppColors.primary,
-      side: const BorderSide(color: AppColors.primary, width
+      side: const BorderSide(color: AppColors.primary, width: 1),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical: AppSpacing.md,
+      ),
+      shape: AppShapes.shapeLarge,
+      textStyle: AppTypography.labelLarge,
+    ),
+  ),
+  
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(
+      foregroundColor: AppColors.primary,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      shape: AppShapes.shapeLarge,
+      textStyle: AppTypography.labelLarge,
+    ),
+  ),
+  
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: AppColors.lightSurfaceVariant,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.lg,
+      vertical: AppSpacing.md,
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppShapes.small),
+      borderSide: BorderSide(color: AppColors.lightOutline),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppShapes.small),
+      borderSide: BorderSide(color: AppColors.lightOutline),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppShapes.small),
+      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppShapes.small),
+      borderSide: const BorderSide(color: AppColors.error),
+    ),
+    labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
+    hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextTertiary),
+  ),
+  
+  chipTheme: ChipThemeData(
+    backgroundColor: AppColors.lightSurfaceVariant,
+    selectedColor: AppColors.primary,
+    labelStyle: AppTypography.labelLarge,
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+    shape: AppShapes.shapeSmall,
+  ),
+  
+  dialogTheme: DialogTheme(
+    backgroundColor: AppColors.lightSurfaceContainerHigh,
+    shape: AppShapes.shapeExtraLarge,
+    elevation: AppElevation.level3,
+    titleTextStyle: AppTypography.headlineSmall.copyWith(color: AppColors.lightTextPrimary),
+    contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
+  ),
+  
+  bottomSheetTheme: BottomSheetThemeData(
+    backgroundColor: AppColors.lightSurfaceContainer,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
+    ),
+    elevation: AppElevation.level1,
+  ),
+  
+  snackBarTheme: SnackBarThemeData(
+    backgroundColor: AppColors.lightSurfaceContainerHigh,
+    contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
+    shape: AppShapes.shapeMedium,
+    elevation: AppElevation.level3,
+    behavior: SnackBarBehavior.floating,
+  ),
+  
+  dividerTheme: DividerThemeData(
+    color: AppColors.lightOutlineVariant,
+    thickness: 1,
+    space: 1,
+  ),
+  
+  switchTheme: SwitchThemeData(
+    thumbColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return AppColors.onPrimary;
+      }
+      return AppColors.lightTextTertiary;
+    }),
+    trackColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return AppColors.primary;
+      }
+      return AppColors.lightSurfaceVariant;
+    }),
+  ),
+  
+  checkboxTheme: CheckboxThemeData(
+    fillColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return AppColors.primary;
+      }
+      return Colors.transparent;
+    }),
+    checkColor: WidgetStateProperty.all(AppColors.onPrimary),
+    shape: AppShapes.shapeExtraSmall,
+  ),
+  
+  radioTheme: RadioThemeData(
+    fillColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return AppColors.primary;
+      }
+      return AppColors.lightTextSecondary;
+    }),
+  ),
+  
+  sliderTheme: SliderThemeData(
+    activeTrackColor: AppColors.primary,
+    inactiveTrackColor: AppColors.lightSurfaceVariant,
+    thumbColor: AppColors.primary,
+    overlayColor: AppColors.primary.withOpacity(0.12),
+    valueIndicatorColor: AppColors.primary,
+  ),
+  
+  progressIndicatorTheme: const ProgressIndicatorThemeData(
+    color: AppColors.primary,
+    linearTrackColor: AppColors.lightSurfaceVariant,
+    circularTrackColor: AppColors.lightSurfaceVariant,
+  ),
+  
+  tabBarTheme: TabBarTheme(
+    labelColor: AppColors.primary,
+    unselectedLabelColor: AppColors.lightTextSecondary,
+    indicator: const UnderlineTabIndicator(
+      borderSide: BorderSide(color: AppColors.primary, width: 2),
+    ),
+    labelStyle: AppTypography.titleSmall,
+    unselectedLabelStyle: AppTypography.titleSmall,
+  ),
+  
+  bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    backgroundColor: AppColors.lightSurface,
+    selectedItemColor: AppColors.primary,
+    unselectedItemColor: AppColors.lightTextSecondary,
+    elevation: AppElevation.level2,
+    type: BottomNavigationBarType.fixed,
+  ),
+  
+  navigationRailTheme: const NavigationRailThemeData(
+    backgroundColor: AppColors.lightSurface,
+    selectedIconTheme: IconThemeData(color: AppColors.primary),
+    unselectedIconTheme: IconThemeData(color: AppColors.lightTextSecondary),
+    selectedLabelTextStyle: AppTypography.labelMedium,
+    unselectedLabelTextStyle: AppTypography.labelMedium,
+  ),
+  
+  floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    backgroundColor: AppColors.primary,
+    foregroundColor: AppColors.onPrimary,
+    elevation: AppElevation.level3,
+    highlightElevation: AppElevation.level4,
+  ),
+  
+  iconTheme: const IconThemeData(
+    color: AppColors.lightTextPrimary,
+    size: 24,
+  ),
+  
+  listTileTheme: ListTileThemeData(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.lg,
+      vertical: AppSpacing.xs,
+    ),
+    shape: AppShapes.shapeMedium,
+    tileColor: Colors.transparent,
+    selectedTileColor: AppColors.primary.withOpacity(0.08),
+  ),
+  
+  expansionTileTheme: ExpansionTileThemeData(
+    backgroundColor: Colors.transparent,
+    collapsedBackgroundColor: Colors.transparent,
+    textColor: AppColors.lightTextPrimary,
+    iconColor: AppColors.lightTextSecondary,
+    collapsedTextColor: AppColors.lightTextPrimary,
+    collapsedIconColor: AppColors.lightTextSecondary,
+    shape: AppShapes.shapeMedium,
+  ),
+  
+  tooltipTheme: TooltipThemeData(
+    decoration: BoxDecoration(
+      color: AppColors.lightTextPrimary.withOpacity(0.9),
+      borderRadius: BorderRadius.circular(AppShapes.small),
+    ),
+    textStyle: AppTypography.bodySmall.copyWith(color: AppColors.lightSurface),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm,
+      vertical: AppSpacing.xs,
+    ),
+  ),
+  
+  popupMenuTheme: PopupMenuThemeData(
+    color: AppColors.lightSurfaceContainer,
+    elevation: AppElevation.level2,
+    shape: AppShapes.shapeMedium,
+    textStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
+  ),
+  
+  drawerTheme: DrawerThemeData(
+    backgroundColor: AppColors.lightSurface,
+    elevation: AppElevation.level1,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.horizontal(right: Radius.circular(AppShapes.large)),
+    ),
+  ),
+  
+  timePickerTheme: TimePickerThemeData(
+    backgroundColor: AppColors.lightSurfaceContainer,
+    dialBackgroundColor: AppColors.lightSurfaceVariant,
+    dialHandColor: AppColors.primary,
+    hourMinuteColor: AppColors.lightSurfaceVariant,
+    hourMinuteTextColor: AppColors.lightTextPrimary,
+    dayPeriodColor: AppColors.primary.withOpacity(0.12),
+    dayPeriodTextColor: AppColors.primary,
+    shape: AppShapes.shapeExtraLarge,
+  ),
+  
+  datePickerTheme: DatePickerThemeData(
+    backgroundColor: AppColors.lightSurfaceContainer,
+    headerBackgroundColor: AppColors.primary,
+    headerForegroundColor: AppColors.onPrimary,
+    weekdayStyle: AppTypography.labelMedium.copyWith(color: AppColors.lightTextSecondary),
+    dayStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
+    shape: AppShapes.shapeExtraLarge,
+  ),
+  
+  bannerTheme: MaterialBannerThemeData(
+    backgroundColor: AppColors.lightSurfaceVariant,
+    contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
+  ),
+  
+  dataTableTheme: DataTableThemeData(
+    decoration: BoxDecoration(
+      color: AppColors.lightSurfaceContainer,
+      borderRadius: BorderRadius.circular(AppShapes.medium),
+    ),
+    headingTextStyle: AppTypography.titleSmall.copyWith(color: AppColors.lightTextPrimary),
+    dataTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
+  ),
+);
+
+// ============================================
+// UTILITÁRIOS DE TEMA
+// ============================================
+
+// Theme Mode Provider - Use com Provider ou Riverpod
+class ThemeProvider extends ChangeNotifier {
+  ThemeMode _themeMode = ThemeMode.dark;
+  
+  ThemeMode get themeMode => _themeMode;
+  bool get isDark => _themeMode == ThemeMode.dark;
+  
+  void toggleTheme() {
+    _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    notifyListeners();
+  }
+  
+  void setTheme(ThemeMode mode) {
+    _themeMode = mode;
+    notifyListeners();
+  }
+  
+  // Salvar preferência
+  Future<void> saveThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', _themeMode.toString());
+  }
+  
+  // Carregar preferência
+  Future<void> loadThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('theme_mode');
+    if (saved != null) {
+      _themeMode = saved.contains('dark') ? ThemeMode.dark : ThemeMode.light;
+      notifyListeners();
+    }
+  }
+}
+
+// Helper para acessar cores do tema atual
+extension ThemeExtension on BuildContext {
+  ColorScheme get colors => Theme.of(this).colorScheme;
+  TextTheme get textStyles => Theme.of(this).textTheme;
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  
+  // Atalhos úteis
+  Color get surface => colors.surface;
+  Color get primary => colors.primary;
+  Color get error => colors.error;
+  Color get success => AppColors.success;
+  Color get warning => AppColors.warning;
+}
+
+// ============================================
+// COMPONENTES ADICIONAIS M3
+// ============================================
+
+// Segmented Button personalizado
+class SegmentedButtonGroup<T> extends StatelessWidget {
+  final List<T> values;
+  final T selected;
+  final Function(T) onChanged;
+  final String Function(T) labelBuilder;
+  final IconData Function(T)? iconBuilder;
+  
+  const SegmentedButtonGroup({
+    Key? key,
+    required this.values,
+    required this.selected,
+    required this.onChanged,
+    required this.labelBuilder,
+    this.iconBuilder,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: values.map((value) {
+        final isSelected = value == selected;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  AppHaptics.selection();
+                  onChanged(value);
+                },
+                borderRadius: BorderRadius.circular(AppShapes.small),
+                child: AnimatedContainer(
+                  duration: AppMotion.short,
+                  curve: AppMotion.standardEasing,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                        ? context.primary.withOpacity(0.15)
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected 
+                          ? context.primary 
+                          : context.colors.outline,
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(AppShapes.small),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (iconBuilder != null) ...[
+                        Icon(
+                          iconBuilder!(value),
+                          size: 18,
+                          color: isSelected 
+                              ? context.primary 
+                              : context.colors.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                      ],
+                      Text(
+                        labelBuilder(value),
+                        style: context.textStyles.labelMedium?.copyWith(
+                          color: isSelected 
+                              ? context.primary 
+                              : context.colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// Stats Card component
+class StatsCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color? color;
+  final String? subtitle;
+  final VoidCallback? onTap;
+  
+  const StatsCard({
+    Key? key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.color,
+    this.subtitle,
+    this.onTap,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    final cardColor = color ?? context.primary;
+    
+    return AnimatedCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: cardColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppShapes.small),
+                ),
+                child: Icon(icon, color: cardColor, size: 20),
+              ),
+              if (onTap != null)
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: context.colors.onSurfaceVariant.withOpacity(0.5),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            label,
+            style: context.textStyles.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            value,
+            style: context.textStyles.headlineSmall?.copyWith(
+              color: cardColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              subtitle!,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// Transaction List Item
+class TransactionListItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final double amount;
+  final IconData icon;
+  final VoidCallback? onTap;
+  
+  const TransactionListItem({
+    Key? key,
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    required this.icon,
+    this.onTap,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    final isPositive = amount >= 0;
+    final color = isPositive ? AppColors.success : AppColors.error;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppShapes.medium),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: context.textStyles.titleSmall),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      subtitle,
+                      style: context.textStyles.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '${isPositive ? '+' : ''}${amount.toStringAsFixed(2)}',
+                style: context.textStyles.titleMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Loading Overlay
+class LoadingOverlay extends StatelessWidget {
+  final bool isLoading;
+  final Widget child;
+  final String? message;
+  
+  const LoadingOverlay({
+    Key? key,
+    required this.isLoading,
+    required this.child,
+    this.message,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        if (isLoading)
+          Container(
+            color: AppColors.scrim,
+            child: Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      if (message != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          message!,
+                          style: context.textStyles.bodyMedium,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
