@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'bot_engine.dart';
-import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
+import 'theme/app_widgets.dart';
 
 class CreateBotScreen extends StatefulWidget {
   final WebSocketChannel channel;
@@ -21,6 +24,7 @@ class CreateBotScreen extends StatefulWidget {
 }
 
 class _CreateBotScreenState extends State<CreateBotScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   double _initialStake = 10.0;
@@ -51,121 +55,282 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.colors.surface,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text('Criar Bot Personalizado'),
-        elevation: 0,
+      appBar: SecondaryAppBar(
+        title: 'Criar Bot Personalizado',
+        onBack: () {
+          AppHaptics.light();
+          Navigator.pop(context);
+        },
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Nome do Bot
-            FadeInWidget(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Configuração Básica',
-                    style: context.textStyles.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.lg),
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome do Bot',
-                      hintText: 'Ex: Bot Agressivo',
-                      prefixIcon: Icon(Icons.smart_toy_rounded),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: AppSpacing.lg),
-
-            // Descrição
-            FadeInWidget(
-              delay: const Duration(milliseconds: 100),
-              child: TextField(
-                controller: _descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Descrição',
-                  hintText: 'Descreva a estratégia do seu bot...',
-                  prefixIcon: Icon(Icons.description_rounded),
-                  alignLabelWithHint: true,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Section
+              FadeInWidget(
+                child: _buildSectionHeader(
+                  icon: Icons.settings_rounded,
+                  title: 'Configuração Básica',
+                  subtitle: 'Defina o nome e descrição do seu bot',
                 ),
               ),
-            ),
 
-            SizedBox(height: AppSpacing.xxl),
+              SizedBox(height: AppSpacing.lg),
 
-            // Stake Inicial
-            FadeInWidget(
-              delay: const Duration(milliseconds: 200),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Investimento Inicial',
-                    style: context.textStyles.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.md),
-                  GestureDetector(
-                    onTap: () {
-                      AppHaptics.light();
-                      _openStakeModal();
-                    },
-                    child: InfoCard(
-                      icon: Icons.attach_money_rounded,
-                      title: 'Stake Inicial',
-                      subtitle: '\$${_initialStake.toStringAsFixed(2)}',
-                      color: AppColors.success,
-                    ),
-                  ),
-                ],
+              // Nome do Bot
+              FadeInWidget(
+                delay: Duration(milliseconds: 100),
+                child: AppTextField(
+                  controller: _nameController,
+                  label: 'Nome do Bot',
+                  hint: 'Ex: Bot Agressivo',
+                  prefix: Icon(Icons.smart_toy_rounded),
+                  validator: (value) {
+                    if (value?.trim().isEmpty ?? true) {
+                      return 'Por favor, insira um nome';
+                    }
+                    return null;
+                  },
+                ),
               ),
-            ),
 
-            SizedBox(height: AppSpacing.xxl),
+              SizedBox(height: AppSpacing.lg),
 
-            // Estratégia
-            FadeInWidget(
-              delay: const Duration(milliseconds: 300),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Estratégia de Trading',
-                    style: context.textStyles.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+              // Descrição
+              FadeInWidget(
+                delay: Duration(milliseconds: 150),
+                child: AppTextField(
+                  controller: _descriptionController,
+                  label: 'Descrição (opcional)',
+                  hint: 'Descreva a estratégia do seu bot...',
+                  prefix: Icon(Icons.description_rounded),
+                  maxLines: 3,
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.xxxl),
+
+              // Stake Section
+              FadeInWidget(
+                delay: Duration(milliseconds: 200),
+                child: _buildSectionHeader(
+                  icon: Icons.attach_money_rounded,
+                  title: 'Investimento',
+                  subtitle: 'Configure o valor inicial das operações',
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.lg),
+
+              FadeInWidget(
+                delay: Duration(milliseconds: 250),
+                child: GestureDetector(
+                  onTap: () {
+                    AppHaptics.light();
+                    _openStakeModal();
+                  },
+                  child: AnimatedCard(
+                    onTap: _openStakeModal,
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            ),
+                            child: Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: AppColors.success,
+                              size: 28,
+                            ),
+                          ),
+                          SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Stake Inicial',
+                                  style: context.textStyles.bodyMedium?.copyWith(
+                                    color: context.colors.onSurfaceVariant,
+                                  ),
+                                ),
+                                SizedBox(height: AppSpacing.xxs),
+                                Text(
+                                  '\$${_initialStake.toStringAsFixed(2)}',
+                                  style: context.textStyles.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.edit_rounded,
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  SizedBox(height: AppSpacing.md),
-                  DropdownButtonFormField<BotStrategy>(
-                    value: _selectedStrategy,
-                    decoration: const InputDecoration(
-                      labelText: 'Selecione a Estratégia',
-                      prefixIcon: Icon(Icons.psychology_rounded),
-                    ),
-                    items: BotStrategy.values.map((strategy) {
-                      return DropdownMenuItem(
-                        value: strategy,
-                        child: Text(_getStrategyName(strategy)),
-                      );
-                    }).toList(),
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.xxxl),
+
+              // Strategy Section
+              FadeInWidget(
+                delay: Duration(milliseconds: 300),
+                child: _buildSectionHeader(
+                  icon: Icons.psychology_rounded,
+                  title: 'Estratégia',
+                  subtitle: 'Escolha o método de progressão',
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.lg),
+
+              FadeInWidget(
+                delay: Duration(milliseconds: 350),
+                child: _buildStrategySelector(),
+              ),
+
+              SizedBox(height: AppSpacing.xxxl),
+
+              // Market Section
+              FadeInWidget(
+                delay: Duration(milliseconds: 400),
+                child: _buildSectionHeader(
+                  icon: Icons.show_chart_rounded,
+                  title: 'Mercado',
+                  subtitle: 'Selecione o ativo para negociação',
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.lg),
+
+              FadeInWidget(
+                delay: Duration(milliseconds: 450),
+                child: _buildMarketSelector(),
+              ),
+
+              SizedBox(height: AppSpacing.xxxl),
+
+              // Recovery Mode Section
+              FadeInWidget(
+                delay: Duration(milliseconds: 500),
+                child: _buildSectionHeader(
+                  icon: Icons.restore_rounded,
+                  title: 'Modo de Recuperação',
+                  subtitle: 'Defina o nível de agressividade',
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.lg),
+
+              FadeInWidget(
+                delay: Duration(milliseconds: 550),
+                child: _buildRecoveryModeSelector(),
+              ),
+
+              SizedBox(height: AppSpacing.massive),
+
+              // Create Button
+              FadeInWidget(
+                delay: Duration(milliseconds: 600),
+                child: PrimaryButton(
+                  text: 'Criar Bot',
+                  icon: Icons.rocket_launch_rounded,
+                  onPressed: _createBot,
+                  expanded: true,
+                ),
+              ),
+
+              SizedBox(height: AppSpacing.xxl),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: context.colors.primaryContainer,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          child: Icon(
+            icon,
+            color: context.colors.onPrimaryContainer,
+            size: 20,
+          ),
+        ),
+        SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: context.textStyles.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStrategySelector() {
+    return Column(
+      children: BotStrategy.values.map((strategy) {
+        final isSelected = _selectedStrategy == strategy;
+        return Padding(
+          padding: EdgeInsets.only(bottom: AppSpacing.md),
+          child: AnimatedCard(
+            onTap: () {
+              AppHaptics.selection();
+              setState(() => _selectedStrategy = strategy);
+            },
+            child: Container(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isSelected 
+                      ? context.colors.primary 
+                      : Colors.transparent,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              ),
+              child: Row(
+                children: [
+                  Radio<BotStrategy>(
+                    value: strategy,
+                    groupValue: _selectedStrategy,
                     onChanged: (value) {
                       if (value != null) {
                         AppHaptics.selection();
@@ -173,247 +338,110 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       }
                     },
                   ),
-                  SizedBox(height: AppSpacing.sm),
-                  Container(
-                    padding: EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: context.colors.surfaceContainerHighest.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(AppShapes.medium),
-                      border: Border.all(
-                        color: context.colors.outlineVariant,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          color: context.colors.primary,
-                          size: 20,
+                        Text(
+                          _getStrategyName(strategy),
+                          style: context.textStyles.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isSelected 
+                                ? context.colors.primary 
+                                : context.colors.onSurface,
+                          ),
                         ),
-                        SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            _getStrategyDescription(_selectedStrategy),
-                            style: context.textStyles.bodySmall?.copyWith(
-                              color: context.colors.onSurfaceVariant,
-                            ),
+                        SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          _getStrategyDescription(strategy),
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: context.colors.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  if (isSelected)
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: context.colors.primary,
+                    ),
                 ],
               ),
             ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
-            SizedBox(height: AppSpacing.xxl),
+  Widget _buildMarketSelector() {
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: _marketOptions.map((market) {
+        final isSelected = _selectedMarket == market;
+        return FilterChip(
+          selected: isSelected,
+          label: Text(market),
+          onSelected: (selected) {
+            if (selected) {
+              AppHaptics.selection();
+              setState(() => _selectedMarket = market);
+            }
+          },
+          selectedColor: context.colors.primaryContainer,
+          checkmarkColor: context.colors.onPrimaryContainer,
+        );
+      }).toList(),
+    );
+  }
 
-            // Mercado
-            FadeInWidget(
-              delay: const Duration(milliseconds: 400),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Configurações de Mercado',
-                    style: context.textStyles.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.md),
-                  DropdownButtonFormField<String>(
-                    value: _selectedMarket,
-                    decoration: const InputDecoration(
-                      labelText: 'Mercado',
-                      prefixIcon: Icon(Icons.show_chart_rounded),
-                    ),
-                    items: _marketOptions.map((market) {
-                      return DropdownMenuItem(
-                        value: market,
-                        child: Text(market),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        AppHaptics.selection();
-                        setState(() => _selectedMarket = value);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: AppSpacing.xxl),
-
-            // Recovery Mode
-            FadeInWidget(
-              delay: const Duration(milliseconds: 500),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Modo de Recuperação',
-                    style: context.textStyles.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.md),
-                  DropdownButtonFormField<RecoveryMode>(
-                    value: _recoveryMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Recovery Mode',
-                      prefixIcon: Icon(Icons.restore_rounded),
-                    ),
-                    items: RecoveryMode.values.map((mode) {
-                      return DropdownMenuItem(
-                        value: mode,
-                        child: Text(_getRecoveryModeName(mode)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        AppHaptics.selection();
-                        setState(() => _recoveryMode = value);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: AppSpacing.massive),
-
-            // Botão Criar
-            FadeInWidget(
-              delay: const Duration(milliseconds: 600),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: AnimatedPrimaryButton(
-                  text: 'Criar Bot',
-                  icon: Icons.rocket_launch_rounded,
-                  onPressed: _createBot,
-                ),
-              ),
-            ),
-
-            SizedBox(height: AppSpacing.xxl),
-          ],
-        ),
-      ),
+  Widget _buildRecoveryModeSelector() {
+    return SegmentedButtonGroup<RecoveryMode>(
+      values: RecoveryMode.values,
+      selected: _recoveryMode,
+      onChanged: (value) {
+        AppHaptics.selection();
+        setState(() => _recoveryMode = value);
+      },
+      labelBuilder: (mode) => _getRecoveryModeName(mode),
+      iconBuilder: (mode) {
+        switch (mode) {
+          case RecoveryMode.aggressive:
+            return Icons.rocket_rounded;
+          case RecoveryMode.moderate:
+            return Icons.speed_rounded;
+          case RecoveryMode.conservative:
+            return Icons.shield_rounded;
+          default:
+            return Icons.circle;
+        }
+      },
     );
   }
 
   void _openStakeModal() {
-    final controller = TextEditingController(
-      text: _initialStake.toStringAsFixed(2),
-    );
-
-    showModalBottomSheet(
+    AppModalBottomSheet.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppShapes.extraLarge),
-          ),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-          left: AppSpacing.xl,
-          right: AppSpacing.xl,
-          top: AppSpacing.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Definir Stake Inicial',
-              style: context.textStyles.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: context.textStyles.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: InputDecoration(
-                prefixText: '\$ ',
-                prefixStyle: context.textStyles.headlineMedium?.copyWith(
-                  color: context.colors.onSurfaceVariant,
-                ),
-                hintText: '10.00',
-                helperText: 'Valor mínimo: \$0.35',
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-              ],
-            ),
-            SizedBox(height: AppSpacing.xl),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      AppHaptics.light();
-                      Navigator.pop(context);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Cancelar'),
-                  ),
-                ),
-                SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      final value = double.tryParse(
-                        controller.text.replaceAll(',', '.'),
-                      );
-                      if (value != null && value >= 0.35) {
-                        AppHaptics.heavy();
-                        setState(() => _initialStake = value);
-                        Navigator.pop(context);
-                      } else {
-                        AppHaptics.error();
-                        AppSnackbar.error(
-                          context,
-                          'Insira um valor válido (mínimo \$0.35)',
-                        );
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Confirmar'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      title: 'Definir Stake Inicial',
+      child: _StakeInputWidget(
+        initialValue: _initialStake,
+        onConfirm: (value) {
+          setState(() => _initialStake = value);
+        },
       ),
     );
   }
 
   void _createBot() {
-    if (_nameController.text.trim().isEmpty) {
+    if (!_formKey.currentState!.validate()) {
       AppHaptics.error();
-      AppSnackbar.error(context, 'Por favor, insira um nome para o bot');
       return;
     }
 
-    AppHaptics.heavy();
+    AppHaptics.success();
 
     final bot = TradingBot(
       config: BotConfiguration(
@@ -434,7 +462,10 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
     widget.onBotCreated(bot);
     Navigator.pop(context);
 
-    AppSnackbar.success(context, 'Bot "${bot.config.name}" criado com sucesso!');
+    AppSnackbar.success(
+      context, 
+      'Bot "${bot.config.name}" criado com sucesso!',
+    );
   }
 
   String _getStrategyName(BotStrategy strategy) {
@@ -478,5 +509,138 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       default:
         return mode.toString().split('.').last;
     }
+  }
+}
+
+// Widget separado para input de stake
+class _StakeInputWidget extends StatefulWidget {
+  final double initialValue;
+  final Function(double) onConfirm;
+
+  const _StakeInputWidget({
+    required this.initialValue,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_StakeInputWidget> createState() => _StakeInputWidgetState();
+}
+
+class _StakeInputWidgetState extends State<_StakeInputWidget> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialValue.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppTextField(
+          controller: _controller,
+          label: 'Valor em USD',
+          hint: '10.00',
+          prefix: Text(
+            '\$ ',
+            style: context.textStyles.headlineSmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+          ],
+          validator: (value) {
+            final amount = double.tryParse(value ?? '');
+            if (amount == null || amount < 0.35) {
+              return 'Valor mínimo: \$0.35';
+            }
+            return null;
+          },
+        ),
+        
+        SizedBox(height: AppSpacing.md),
+        
+        Container(
+          padding: EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            border: Border.all(
+              color: AppColors.info.withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.info,
+                size: 20,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Valor mínimo: \$0.35',
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: AppColors.info,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        SizedBox(height: AppSpacing.xl),
+        
+        Row(
+          children: [
+            Expanded(
+              child: SecondaryButton(
+                text: 'Cancelar',
+                onPressed: () {
+                  AppHaptics.light();
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+            SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: PrimaryButton(
+                text: 'Confirmar',
+                onPressed: () {
+                  final value = double.tryParse(
+                    _controller.text.replaceAll(',', '.'),
+                  );
+                  if (value != null && value >= 0.35) {
+                    AppHaptics.success();
+                    widget.onConfirm(value);
+                    Navigator.pop(context);
+                  } else {
+                    AppHaptics.error();
+                    AppSnackbar.error(
+                      context,
+                      'Insira um valor válido (mínimo \$0.35)',
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
