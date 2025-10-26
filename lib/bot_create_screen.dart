@@ -452,8 +452,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         return "D'Alembert";
       case BotStrategy.fibonacci:
         return 'Fibonacci';
-      case BotStrategy.conservative:
-        return 'Conservador';
       default:
         return strategy.toString().split('.').last;
     }
@@ -469,8 +467,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         return 'Aumenta gradualmente após perdas. Risco moderado.';
       case BotStrategy.fibonacci:
         return 'Segue a sequência de Fibonacci. Progressão equilibrada.';
-      case BotStrategy.conservative:
-        return 'Mantém stake fixo. Menor risco, retornos estáveis.';
       default:
         return 'Estratégia de trading';
     }
