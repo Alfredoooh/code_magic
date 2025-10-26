@@ -1,338 +1,316 @@
-// posts_screen.dart - Material Design 3
+// portfolio_screen.dart
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'all_transactions_screen.dart';
+import 'pin_setup_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_widgets.dart';
 
-class PostsScreen extends StatefulWidget {
+class PortfolioScreen extends StatefulWidget {
   final String token;
 
-  const PostsScreen({Key? key, required this.token}) : super(key: key);
+  const PortfolioScreen({Key? key, required this.token}) : super(key: key);
 
   @override
-  State<PostsScreen> createState() => _PostsScreenState();
+  State<PortfolioScreen> createState() => _PortfolioScreenState();
 }
 
-class _PostsScreenState extends State<PostsScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-  bool _notifyEnabled = false;
+class _PortfolioScreenState extends State<PortfolioScreen> {
+  WebSocketChannel? _channel;
+  bool _isConnected = false;
+  double _balance = 0.0;
+  String _currency = 'USD';
+  String _accountId = '';
+  String _loginId = '';
+  String _userName = '';
+  List<Map<String, dynamic>> _transactions = [];
+  Map<String, dynamic>? _profitTable;
+  Timer? _refreshTimer;
+
+  double _todayProfit = 0.0;
+  double _weekProfit = 0.0;
+  double _monthProfit = 0.0;
+  int _totalTrades = 0;
+  int _winningTrades = 0;
+  int _losingTrades = 0;
+
+  List<double> _weeklyData = [0, 0, 0, 0, 0, 0, 0];
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _connectWebSocket();
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _refreshTimer?.cancel();
+    _channel?.sink.close();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.surface,
-      appBar: PrimaryAppBar(
-        title: 'Community Posts',
+  void _startAutoRefresh() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (_isConnected) {
+        _fetchTransactions();
+        _fetchProfitTable();
+      }
+    });
+  }
+
+  void _connectWebSocket() {
+    try {
+      _channel = WebSocketChannel.connect(
+        Uri.parse('wss://ws.derivws.com/websockets/v3?app_id=71954'),
+      );
+
+      setState(() => _isConnected = true);
+
+      _channel!.stream.listen(
+        (message) {
+          final data = json.decode(message);
+
+          if (data['msg_type'] == 'authorize') {
+            setState(() {
+              _balance = double.parse(data['authorize']['balance'].toString());
+              _currency = data['authorize']['currency'];
+              _accountId = data['authorize']['account_list'][0]['loginid'];
+              _loginId = data['authorize']['loginid'];
+              _userName = data['authorize']['fullname'] ?? 
+                          data['authorize']['email']?.split('@')[0] ?? 
+                          'Usuário';
+            });
+
+            _fetchTransactions();
+            _fetchProfitTable();
+          } else if (data['msg_type'] == 'statement') {
+            setState(() {
+              _transactions = List<Map<String, dynamic>>.from(
+                data['statement']['transactions'] ?? []
+              );
+            });
+          } else if (data['msg_type'] == 'profit_table') {
+            setState(() {
+              _profitTable = data['profit_table'];
+              _calculateStats();
+            });
+          }
+        },
+        onError: (error) => setState(() => _isConnected = false),
+        onDone: () {
+          setState(() => _isConnected = false);
+          Future.delayed(const Duration(seconds: 3), _connectWebSocket);
+        },
+      );
+
+      _channel!.sink.add(json.encode({'authorize': widget.token}));
+    } catch (e) {
+      setState(() => _isConnected = false);
+    }
+  }
+
+  void _fetchTransactions() {
+    _channel?.sink.add(json.encode({
+      'statement': 1,
+      'description': 1,
+      'limit': 50,
+    }));
+  }
+
+  void _fetchProfitTable() {
+    _channel?.sink.add(json.encode({
+      'profit_table': 1,
+      'description': 1,
+      'limit': 100,
+    }));
+  }
+
+  void _calculateStats() {
+    if (_profitTable == null) return;
+
+    final transactions = _profitTable!['transactions'] as List?;
+    if (transactions == null || transactions.isEmpty) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final monthAgo = now.subtract(const Duration(days: 30));
+
+    double todayProfit = 0;
+    double weekProfit = 0;
+    double monthProfit = 0;
+    int totalTrades = 0;
+    int wins = 0;
+    int losses = 0;
+
+    List<double> weeklyData = List.filled(7, 0.0);
+
+    for (var tx in transactions) {
+      final sellTime = tx['sell_time'];
+      if (sellTime == null) continue;
+
+      final buyTime = DateTime.fromMillisecondsSinceEpoch(tx['buy_time'] * 1000);
+      final profit = double.parse(tx['sell_price'].toString()) - 
+                     double.parse(tx['buy_price'].toString());
+
+      totalTrades++;
+      if (profit > 0) {
+        wins++;
+      } else if (profit < 0) {
+        losses++;
+      }
+
+      if (buyTime.isAfter(today)) {
+        todayProfit += profit;
+      }
+      if (buyTime.isAfter(weekAgo)) {
+        weekProfit += profit;
+        final daysDiff = now.difference(buyTime).inDays;
+        if (daysDiff >= 0 && daysDiff < 7) {
+          weeklyData[6 - daysDiff] += profit;
+        }
+      }
+      if (buyTime.isAfter(monthAgo)) {
+        monthProfit += profit;
+      }
+    }
+
+    setState(() {
+      _todayProfit = todayProfit;
+      _weekProfit = weekProfit;
+      _monthProfit = monthProfit;
+      _totalTrades = totalTrades;
+      _winningTrades = wins;
+      _losingTrades = losses;
+      _weeklyData = weeklyData;
+    });
+  }
+
+  void _showAllTransactions() {
+    AppHaptics.light();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AllTransactionsScreen(
+          transactions: _transactions,
+          currency: _currency,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sair da Conta'),
+        content: const Text('Tem certeza que deseja sair?'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded),
-            onPressed: () => _showInfoDialog(context),
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context, false);
+            },
           ),
-        ],
-      ),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(),
-                  _buildHeroIcon(context),
-                  const SizedBox(height: AppSpacing.xxxl),
-                  _buildTitle(context),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildDescription(context),
-                  const SizedBox(height: AppSpacing.xxxl),
-                  _buildFeaturesCard(context),
-                  const SizedBox(height: AppSpacing.xxxl),
-                  _buildNotificationButton(context),
-                  const Spacer(),
-                  _buildFooterText(context),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-              ),
-            ),
+          FilledButton(
+            child: const Text('Sair'),
+            onPressed: () {
+              AppHaptics.medium();
+              Navigator.pop(context, true);
+            },
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('deriv_token');
+      await prefs.remove('app_lock_pin');
+
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    }
   }
 
-  Widget _buildHeroIcon(BuildContext context) {
-    return FadeInWidget(
-      duration: AppMotion.long,
-      child: ScaleTransition(
-        scale: _pulseAnimation,
-        child: Container(
-          width: 140,
-          height: 140,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary,
-                AppColors.primary.withOpacity(0.7),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 32,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.article_rounded,
-            size: 70,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
+  Future<void> _setupAppLock() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existingPin = prefs.getString('app_lock_pin');
 
-  Widget _buildTitle(BuildContext context) {
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 200),
-      child: Text(
-        'Coming Soon',
-        style: context.textStyles.displaySmall?.copyWith(
-          fontWeight: FontWeight.w900,
-          color: context.colors.onSurface,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-
-  Widget _buildDescription(BuildContext context) {
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 300),
-      child: Text(
-        'Connect with the trading community.\nShare insights, strategies, and learn together.',
-        textAlign: TextAlign.center,
-        style: context.textStyles.bodyLarge?.copyWith(
-          color: context.colors.onSurfaceVariant,
-          height: 1.6,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeaturesCard(BuildContext context) {
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 400),
-      child: GlassCard(
-        blur: 15,
-        opacity: 0.05,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-            border: Border.all(
-              color: context.colors.outlineVariant.withOpacity(0.5),
-              width: 1,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    AppBadge(
-                      text: 'Upcoming',
-                      color: AppColors.info,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'What\'s Coming',
-                        style: context.textStyles.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const LabeledDivider(label: 'Features'),
-                const SizedBox(height: AppSpacing.lg),
-                _buildFeatureItem(
-                  context,
-                  Icons.people_rounded,
-                  'Community Hub',
-                  'Connect with traders worldwide',
-                  AppColors.primary,
-                  0,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _buildFeatureItem(
-                  context,
-                  Icons.school_rounded,
-                  'Learning Center',
-                  'Expert tutorials and strategies',
-                  AppColors.success,
-                  1,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _buildFeatureItem(
-                  context,
-                  Icons.trending_up_rounded,
-                  'Market Insights',
-                  'Real-time analysis and signals',
-                  AppColors.tertiary,
-                  2,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _buildFeatureItem(
-                  context,
-                  Icons.notifications_active_rounded,
-                  'Smart Alerts',
-                  'Stay updated with push notifications',
-                  AppColors.warning,
-                  3,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeatureItem(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String description,
-    Color color,
-    int index,
-  ) {
-    return StaggeredListItem(
-      index: index,
-      delay: const Duration(milliseconds: 100),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: context.textStyles.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  description,
-                  style: context.textStyles.bodySmall?.copyWith(
-                    color: context.colors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: context.colors.onSurfaceVariant.withOpacity(0.3),
-            size: 20,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationButton(BuildContext context) {
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 600),
-      child: AnimatedContainer(
-        duration: AppMotion.medium,
-        curve: AppMotion.standardEasing,
-        child: Column(
-          children: [
-            PrimaryButton(
-              text: _notifyEnabled ? 'Notifications Active' : 'Notify Me',
-              icon: _notifyEnabled
-                  ? Icons.notifications_active_rounded
-                  : Icons.notifications_none_rounded,
-              onPressed: () {
-                AppHaptics.selection();
-                setState(() {
-                  _notifyEnabled = !_notifyEnabled;
-                });
-                
-                if (_notifyEnabled) {
-                  AppSnackbar.success(
-                    context,
-                    'You\'ll be notified when this feature launches! 🎉',
-                  );
-                } else {
-                  AppSnackbar.info(
-                    context,
-                    'Notification disabled',
-                  );
-                }
-              },
-              expanded: false,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SecondaryButton(
-              text: 'Learn More',
-              icon: Icons.arrow_forward_rounded,
+    if (existingPin != null) {
+      final remove = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Bloqueio Ativo'),
+          content: const Text('Deseja remover o bloqueio?'),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
               onPressed: () {
                 AppHaptics.light();
-                _showInfoDialog(context);
+                Navigator.pop(context, false);
               },
-              expanded: false,
+            ),
+            FilledButton(
+              child: const Text('Remover'),
+              onPressed: () {
+                AppHaptics.medium();
+                Navigator.pop(context, true);
+              },
+            ),
+          ],
+        ),
+      );
+
+      if (remove == true) {
+        await prefs.remove('app_lock_pin');
+        if (!mounted) return;
+        AppSnackbar.warning(context, 'Bloqueio removido');
+      }
+    } else {
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (context) => const PinSetupScreen(),
+        ),
+      );
+
+      if (result != null && result is String) {
+        await prefs.setString('app_lock_pin', result);
+        if (!mounted) return;
+        AppSnackbar.success(context, 'Bloqueio ativado');
+      }
+    }
+  }
+
+  void _showSettingsMenu() {
+    AppHaptics.light();
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.lock_outline_rounded),
+              title: const Text('Bloquear App'),
+              onTap: () {
+                Navigator.pop(context);
+                _setupAppLock();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout_rounded, color: AppColors.error),
+              title: Text('Sair da Conta', style: TextStyle(color: AppColors.error)),
+              onTap: () {
+                Navigator.pop(context);
+                _logout();
+              },
             ),
           ],
         ),
@@ -340,33 +318,311 @@ class _PostsScreenState extends State<PostsScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildFooterText(BuildContext context) {
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 700),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+  @override
+  Widget build(BuildContext context) {
+    final winRate = _totalTrades > 0 
+        ? (_winningTrades / _totalTrades * 100) 
+        : 0.0;
+
+    return Scaffold(
+      backgroundColor: context.surface,
+      appBar: PrimaryAppBar(
+        title: 'Portfólio',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert_rounded),
+            onPressed: _showSettingsMenu,
+          ),
+        ],
+      ),
+      body: _isConnected
+          ? RefreshIndicator(
+              onRefresh: () async {
+                AppHaptics.light();
+                _fetchTransactions();
+                _fetchProfitTable();
+                await Future.delayed(const Duration(milliseconds: 500));
+              },
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Balance Card
+                          FadeInWidget(
+                            child: Container(
+                              height: 200,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    context.colors.surfaceContainer,
+                                    context.colors.surfaceContainerHighest,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _userName,
+                                          style: context.textStyles.bodyLarge?.copyWith(
+                                            color: context.colors.onSurface,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.xxs),
+                                        Text(
+                                          _loginId,
+                                          style: context.textStyles.bodySmall?.copyWith(
+                                            color: context.colors.onSurfaceVariant,
+                                            fontFamily: 'monospace',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Saldo Disponível',
+                                          style: context.textStyles.bodySmall?.copyWith(
+                                            color: context.colors.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.xs),
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                                          textBaseline: TextBaseline.alphabetic,
+                                          children: [
+                                            Text(
+                                              _balance.toStringAsFixed(2),
+                                              style: context.textStyles.displaySmall?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(width: AppSpacing.sm),
+                                            Text(
+                                              _currency,
+                                              style: context.textStyles.titleLarge?.copyWith(
+                                                color: context.colors.onSurfaceVariant,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Profit Summary
+                          FadeInWidget(
+                            delay: const Duration(milliseconds: 100),
+                            child: Row(
+                              children: [
+                                Expanded(child: _buildCompactProfitCard('Hoje', _todayProfit)),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(child: _buildCompactProfitCard('7D', _weekProfit)),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(child: _buildCompactProfitCard('30D', _monthProfit)),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Weekly Chart
+                          FadeInWidget(
+                            delay: const Duration(milliseconds: 200),
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceContainer,
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Últimos 7 dias',
+                                    style: context.textStyles.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  _buildIOSBarChart(),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Stats Card
+                          FadeInWidget(
+                            delay: const Duration(milliseconds: 300),
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceContainer,
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Estatísticas',
+                                    style: context.textStyles.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildStatItem('Total', _totalTrades.toString(), context.colors.primary)),
+                                      Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), AppColors.success)),
+                                      Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), AppColors.error)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                                    child: LinearProgressIndicator(
+                                      value: winRate / 100,
+                                      backgroundColor: context.colors.surfaceContainerHighest,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        winRate >= 50 ? AppColors.success : AppColors.error,
+                                      ),
+                                      minHeight: 6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                  Text(
+                                    'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
+                                    style: context.textStyles.bodySmall?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Recent Transactions
+                          FadeInWidget(
+                            delay: const Duration(milliseconds: 400),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Transações Recentes',
+                                  style: context.textStyles.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (_transactions.length > 5)
+                                  GestureDetector(
+                                    onTap: _showAllTransactions,
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          'Ver Todas',
+                                          style: context.textStyles.bodyMedium?.copyWith(
+                                            color: context.colors.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: AppSpacing.xxs),
+                                        Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          color: context.colors.primary,
+                                          size: 14,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.md),
+
+                          if (_transactions.isEmpty)
+                            FadeInWidget(
+                              delay: const Duration(milliseconds: 500),
+                              child: EmptyState(
+                                icon: Icons.inbox_outlined,
+                                title: 'Nenhuma transação',
+                                subtitle: 'Suas transações aparecerão aqui',
+                              ),
+                            )
+                          else
+                            ..._buildTransactionsList(),
+
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Center(
+              child: LoadingOverlay(
+                isLoading: true,
+                message: 'Carregando portfólio...',
+                child: const SizedBox(),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildCompactProfitCard(String label, double profit) {
+    final isProfit = profit >= 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.md, 
+        horizontal: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Column(
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: AppColors.success,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.success.withOpacity(0.5),
-                  blurRadius: 8,
-                  spreadRadius: 2,
-                ),
-              ],
+          Text(
+            label,
+            style: context.textStyles.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'In Development',
-            style: context.textStyles.labelMedium?.copyWith(
-              color: context.colors.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+            '${isProfit ? '+' : ''}${profit.toStringAsFixed(2)}',
+            style: context.textStyles.titleMedium?.copyWith(
+              color: isProfit ? AppColors.success : AppColors.error,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -374,150 +630,121 @@ class _PostsScreenState extends State<PostsScreen> with SingleTickerProviderStat
     );
   }
 
-  void _showInfoDialog(BuildContext context) {
-    AppDialog.show(
-      context: context,
-      title: 'Community Posts',
-      icon: Icons.article_rounded,
-      iconColor: AppColors.primary,
-      content: 'We\'re building an amazing community feature where you can:\n\n'
-          '• Share trading strategies\n'
-          '• Discuss market trends\n'
-          '• Learn from experts\n'
-          '• Get real-time updates\n\n'
-          'Enable notifications to be the first to know when it launches!',
-      actions: [
-        TertiaryButton(
-          text: 'Maybe Later',
-          onPressed: () => Navigator.pop(context),
+  Widget _buildStatItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: context.textStyles.headlineSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        PrimaryButton(
-          text: 'Notify Me',
-          icon: Icons.notifications_active_rounded,
-          onPressed: () {
-            Navigator.pop(context);
-            setState(() {
-              _notifyEnabled = true;
-            });
-            AppSnackbar.success(
-              context,
-              'Notification enabled! 🔔',
-            );
-          },
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          label,
+          style: context.textStyles.bodySmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
         ),
       ],
     );
   }
-}
 
-// Alternative: Grid-based feature showcase
-class PostsScreenGrid extends StatelessWidget {
-  final String token;
+  List<Widget> _buildTransactionsList() {
+    final displayTransactions = _transactions.take(5).toList();
 
-  const PostsScreenGrid({Key? key, required this.token}) : super(key: key);
+    return displayTransactions.asMap().entries.map((entry) {
+      final index = entry.key;
+      final tx = entry.value;
+      final amount = double.parse(tx['amount'].toString());
+      final isCredit = amount > 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.surface,
-      appBar: PrimaryAppBar(title: 'Community'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            EmptyState(
-              icon: Icons.article_rounded,
-              title: 'Posts Coming Soon',
-              subtitle: 'Connect with traders worldwide',
-              actionText: 'Notify Me',
-              onAction: () {
-                AppSnackbar.success(
-                  context,
-                  'You\'ll be notified! 🎉',
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
-              children: [
-                _buildFeatureCard(
-                  context,
-                  Icons.people_rounded,
-                  'Community',
-                  AppColors.primary,
-                ),
-                _buildFeatureCard(
-                  context,
-                  Icons.school_rounded,
-                  'Learn',
-                  AppColors.success,
-                ),
-                _buildFeatureCard(
-                  context,
-                  Icons.trending_up_rounded,
-                  'Insights',
-                  AppColors.tertiary,
-                ),
-                _buildFeatureCard(
-                  context,
-                  Icons.notifications_active_rounded,
-                  'Alerts',
-                  AppColors.warning,
-                ),
-              ],
-            ),
-          ],
+      return StaggeredListItem(
+        index: index,
+        delay: const Duration(milliseconds: 50),
+        child: TransactionListItem(
+          title: tx['action_type'] ?? 'Trade',
+          subtitle: _formatDate(tx['transaction_time']),
+          amount: amount,
+          icon: isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+          onTap: () {
+            AppHaptics.light();
+            // Navigate to transaction details
+          },
         ),
+      );
+    }).toList();
+  }
+
+  Widget _buildIOSBarChart() {
+    final maxValue = _weeklyData.reduce((a, b) => a.abs() > b.abs() ? a : b).abs();
+    final days = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+    return SizedBox(
+      height: 140,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(7, (index) {
+          final value = _weeklyData[index];
+          final isPositive = value >= 0;
+          final heightPercent = maxValue != 0 ? (value.abs() / maxValue) : 0.0;
+          final barHeight = 100 * heightPercent;
+
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (value != 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                      child: Text(
+                        value.abs().toStringAsFixed(0),
+                        style: context.textStyles.labelSmall?.copyWith(
+                          color: isPositive ? AppColors.success : AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  Container(
+                    width: double.infinity,
+                    height: barHeight.clamp(3.0, 100.0),
+                    decoration: BoxDecoration(
+                      color: isPositive ? AppColors.success : AppColors.error,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    days[index],
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildFeatureCard(
-    BuildContext context,
-    IconData icon,
-    String title,
-    Color color,
-  ) {
-    return AnimatedCard(
-      onTap: () {
-        AppHaptics.light();
-        AppSnackbar.info(context, '$title coming soon!');
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(icon, color: color, size: 32),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            title,
-            style: context.textStyles.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          AppBadge(
-            text: 'Soon',
-            color: color,
-            outlined: true,
-          ),
-        ],
-      ),
-    );
+  String _formatDate(int timestamp) {
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inDays == 0) {
+      return 'Hoje ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 1) {
+      return 'Ontem';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }
