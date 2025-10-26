@@ -2028,6 +2028,54 @@ class TransactionListItem extends StatelessWidget {
   }
 }
 
+// Glass Container (Glassmorphism effect)
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double blur;
+  final double opacity;
+  final double? width;
+  final double? height;
+  final EdgeInsetsGeometry? padding;
+  final double borderRadius;
+  final Color? color;
+
+  const GlassContainer({
+    Key? key,
+    required this.child,
+    this.blur = 10,
+    this.opacity = 0.2,
+    this.width,
+    this.height,
+    this.padding,
+    this.borderRadius = AppShapes.medium,
+    this.color,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          width: width,
+          height: height,
+          padding: padding,
+          decoration: BoxDecoration(
+            color: (color ?? Colors.white).withOpacity(opacity),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 // Loading Overlay
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
