@@ -256,10 +256,10 @@ class _MarketsScreenState extends State<MarketsScreen>
     }
   }
 
-  void _openAllMarkets() {
+void _openAllMarkets() {
     AppHaptics.selection();
     Navigator.of(context).push(
-      AppRoutes._buildRoute(
+      MaterialPageRoute(
         builder: (context) => AllMarketsScreen(
           token: widget.token,
           allMarkets: _allMarkets,
@@ -274,7 +274,7 @@ class _MarketsScreenState extends State<MarketsScreen>
   void _openNewsDetail(NewsItem news) {
     AppHaptics.selection();
     Navigator.of(context).push(
-      AppRoutes._buildRoute(
+      MaterialPageRoute(
         builder: (context) => NewsDetailScreen(news: news),
         settings: const RouteSettings(name: '/news_detail'),
       ),
@@ -284,7 +284,7 @@ class _MarketsScreenState extends State<MarketsScreen>
   void _openMarketDetail(String symbol) {
     AppHaptics.selection();
     Navigator.of(context).push(
-      AppRoutes._buildRoute(
+      MaterialPageRoute(
         builder: (context) => MarketDetailScreen(
           symbol: symbol,
           marketInfo: _allMarkets[symbol]!,
@@ -296,7 +296,7 @@ class _MarketsScreenState extends State<MarketsScreen>
       ),
     );
   }
-
+  
   Future<void> _handleRefresh() async {
     AppHaptics.medium();
     await _fetchCryptoNews();
@@ -474,7 +474,7 @@ class _MarketsScreenState extends State<MarketsScreen>
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          
+
           // Info
           Expanded(
             child: Column(
@@ -506,7 +506,7 @@ class _MarketsScreenState extends State<MarketsScreen>
               ],
             ),
           ),
-          
+
           // Price
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -616,9 +616,9 @@ class _MarketsScreenState extends State<MarketsScreen>
             index: 0,
             child: _buildFeaturedNews(_newsItems[0]),
           ),
-        
+
         const SizedBox(height: AppSpacing.md),
-        
+
         // Two column grid
         if (_newsItems.length > 1)
           Row(
@@ -644,9 +644,9 @@ class _MarketsScreenState extends State<MarketsScreen>
                 ),
             ],
           ),
-        
+
         const SizedBox(height: AppSpacing.md),
-        
+
         // Horizontal scroll
         if (_newsItems.length > 3)
           SizedBox(
