@@ -1,6 +1,6 @@
 // all_transactions_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'styles.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> transactions;
@@ -36,182 +36,171 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     });
   }
 
+  int get _creditCount {
+    return widget.transactions.where((tx) {
+      return double.parse(tx['amount'].toString()) > 0;
+    }).length;
+  }
+
+  int get _debitCount {
+    return widget.transactions.where((tx) {
+      return double.parse(tx['amount'].toString()) < 0;
+    }).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
-        elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
         ),
-        title: const Text(
-          'Todas as Transações',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
-          ),
-        ),
+        title: const Text('Todas as Transações'),
+        centerTitle: true,
       ),
       body: Column(
         children: [
           // Filter Tabs
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 0.5,
-                ),
+          FadeInWidget(
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildFilterChip('all', 'Todas', Icons.list_rounded),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _buildFilterChip('credit', 'Entradas', Icons.arrow_downward_rounded),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _buildFilterChip('debit', 'Saídas', Icons.arrow_upward_rounded),
+                  ),
+                ],
               ),
-            ),
-            child: CupertinoSlidingSegmentedControl<String>(
-              backgroundColor: const Color(0xFF1C1C1E),
-              thumbColor: const Color(0xFF0066FF),
-              groupValue: _filter,
-              onValueChanged: (value) {
-                if (value != null) {
-                  setState(() => _filter = value);
-                }
-              },
-              children: const {
-                'all': Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Text('Todas', style: TextStyle(fontSize: 13)),
-                ),
-                'credit': Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Text('Entradas', style: TextStyle(fontSize: 13)),
-                ),
-                'debit': Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Text('Saídas', style: TextStyle(fontSize: 13)),
-                ),
-              },
             ),
           ),
 
-          // Summary
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Total',
-                    _filteredTransactions.length.toString(),
-                    const Color(0xFF0066FF),
+          // Summary Cards
+          FadeInWidget(
+            delay: const Duration(milliseconds: 100),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Total',
+                      _filteredTransactions.length.toString(),
+                      AppColors.primary,
+                      Icons.receipt_long_rounded,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Volume',
-                    _calculateTotal().toStringAsFixed(2),
-                    const Color(0xFF34C759),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Volume',
+                      '${_calculateTotal().toStringAsFixed(2)} ${widget.currency}',
+                      AppColors.success,
+                      Icons.account_balance_wallet_rounded,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          // Statistics Bar
+          if (_filter == 'all')
+            FadeInWidget(
+              delay: const Duration(milliseconds: 200),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceContainer,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                  border: Border.all(
+                    color: context.colors.outlineVariant,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(
+                      'Entradas',
+                      _creditCount.toString(),
+                      AppColors.success,
+                    ),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: context.colors.outlineVariant,
+                    ),
+                    _buildStatItem(
+                      'Saídas',
+                      _debitCount.toString(),
+                      AppColors.error,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          const SizedBox(height: AppSpacing.lg),
 
           // Transactions List
           Expanded(
             child: _filteredTransactions.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.filter_list_off_rounded,
-                          color: Colors.white.withOpacity(0.3),
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Nenhuma transação encontrada',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 14,
+                ? FadeInWidget(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            decoration: BoxDecoration(
+                              color: context.colors.surfaceContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.filter_list_off_rounded,
+                              color: context.colors.onSurfaceVariant,
+                              size: 48,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.xl),
+                          Text(
+                            'Nenhuma transação encontrada',
+                            style: context.textStyles.bodyLarge?.copyWith(
+                              color: context.colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm,
+                    ),
                     itemCount: _filteredTransactions.length,
                     itemBuilder: (context, index) {
                       final tx = _filteredTransactions[index];
-                      final amount = double.parse(tx['amount'].toString());
-                      final isCredit = amount > 0;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1C1C1E),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: (isCredit 
-                                  ? const Color(0xFF34C759) 
-                                  : const Color(0xFFFF3B30)).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              isCredit
-                                  ? Icons.arrow_downward_rounded
-                                  : Icons.arrow_upward_rounded,
-                              color: isCredit
-                                  ? const Color(0xFF34C759)
-                                  : const Color(0xFFFF3B30),
-                              size: 20,
-                            ),
-                          ),
-                          title: Text(
-                            tx['action_type'] ?? 'Trade',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              _formatDate(tx['transaction_time']),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          trailing: Text(
-                            '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)} ${widget.currency}',
-                            style: TextStyle(
-                              color: isCredit
-                                  ? const Color(0xFF34C759)
-                                  : const Color(0xFFFF3B30),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                      
+                      return StaggeredListItem(
+                        index: index,
+                        child: _buildTransactionCard(tx),
                       );
                     },
                   ),
@@ -221,34 +210,188 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String label, String value, Color color) {
+  Widget _buildFilterChip(String value, String label, IconData icon) {
+    final isSelected = _filter == value;
+    
+    return GestureDetector(
+      onTap: () {
+        AppHaptics.selection();
+        setState(() => _filter = value);
+      },
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.md,
+          horizontal: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? context.colors.primary
+              : context.colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: isSelected
+                ? context.colors.primary
+                : context.colors.outlineVariant,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? context.colors.onPrimary
+                  : context.colors.onSurface,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              label,
+              style: context.textStyles.labelMedium?.copyWith(
+                color: isSelected
+                    ? context.colors.onPrimary
+                    : context.colors.onSurface,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(12),
+        color: context.colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: context.colors.outlineVariant,
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+            style: context.textStyles.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             value,
-            style: TextStyle(
+            style: context.textStyles.titleLarge?.copyWith(
               color: color,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
+              fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: context.textStyles.titleLarge?.copyWith(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          label,
+          style: context.textStyles.bodySmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransactionCard(Map<String, dynamic> tx) {
+    final amount = double.parse(tx['amount'].toString());
+    final isCredit = amount > 0;
+    final color = isCredit ? AppColors.success : AppColors.error;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          child: Icon(
+            isCredit
+                ? Icons.arrow_downward_rounded
+                : Icons.arrow_upward_rounded,
+            color: color,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          tx['action_type'] ?? 'Trade',
+          style: context.textStyles.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.xs),
+          child: Text(
+            _formatDate(tx['transaction_time']),
+            style: context.textStyles.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
+              style: context.textStyles.titleMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              widget.currency,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
