@@ -67,14 +67,14 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       height: widget.height ?? 280,
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        borderRadius: BorderRadius.circular(AppShapes.large),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        borderRadius: BorderRadius.circular(AppShapes.large),
         child: WebViewWidget(controller: _controller),
       ),
     );
@@ -83,7 +83,7 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
   String _buildAdvancedHtml(List<double> points, bool autoScale, bool showGradient) {
     final initialData = points.map((p) => p.toString()).join(',');
     final isDark = true; // Detectar tema se necessário
-    
+
     return '''
 <!doctype html>
 <html>
