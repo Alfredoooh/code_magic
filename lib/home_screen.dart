@@ -1,6 +1,6 @@
 // lib/home_screen.dart
 import 'package:flutter/material.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets;
 import 'markets_screen.dart';
 import 'posts_screen.dart';
 import 'trade_screen.dart';
