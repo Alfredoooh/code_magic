@@ -1,4 +1,4 @@
-// lib/pin_setup_screen.dart - Material Design 3
+// lib/pin_setup_screen.dart - CORRIGIDO
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme/app_theme.dart';
@@ -356,7 +356,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
           hint: '••••••',
           obscureText: _isConfirmStep ? _obscureConfirm : _obscureText,
           keyboardType: TextInputType.visiblePassword,
-          textInputAction: TextInputAction.done,
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9a-zA-Z]')),
             LengthLimitingTextInputFormatter(12),
@@ -384,7 +383,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
             }
             setState(() {});
           },
-          onSubmitted: (_) => _onPinSubmit(),
         ),
       ),
     );
