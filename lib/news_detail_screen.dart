@@ -135,8 +135,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   FadeInWidget(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: context.colors.primaryContainer,
@@ -154,7 +154,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             size: 14,
                             color: context.colors.primary,
                           ),
-                          const SizedBox(width: AppSpacing.xs),
+                          const SizedBox(width: 4),
                           Text(
                             widget.news.category.toUpperCase(),
                             style: context.textStyles.labelSmall?.copyWith(
@@ -168,7 +168,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: 24),
 
                   FadeInWidget(
                     delay: const Duration(milliseconds: 100),
@@ -182,7 +182,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: 24),
 
                   FadeInWidget(
                     delay: const Duration(milliseconds: 200),
@@ -208,7 +208,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.md),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +219,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.xxs),
+                              const SizedBox(height: 2),
                               Row(
                                 children: [
                                   Icon(
@@ -227,14 +227,14 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                     size: 14,
                                     color: context.colors.onSurfaceVariant,
                                   ),
-                                  const SizedBox(width: AppSpacing.xxs),
+                                  const SizedBox(width: 2),
                                   Text(
                                     widget.news.time,
                                     style: context.textStyles.bodySmall?.copyWith(
                                       color: context.colors.onSurfaceVariant,
                                     ),
                                   ),
-                                  const SizedBox(width: AppSpacing.sm),
+                                  const SizedBox(width: 8),
                                   Container(
                                     width: 4,
                                     height: 4,
@@ -243,13 +243,13 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                       shape: BoxShape.circle,
                                     ),
                                   ),
-                                  const SizedBox(width: AppSpacing.sm),
+                                  const SizedBox(width: 8),
                                   Icon(
                                     Icons.remove_red_eye_rounded,
                                     size: 14,
                                     color: context.colors.onSurfaceVariant,
                                   ),
-                                  const SizedBox(width: AppSpacing.xxs),
+                                  const SizedBox(width: 2),
                                   Text(
                                     '${_getRandomViews()} leituras',
                                     style: context.textStyles.bodySmall?.copyWith(
@@ -265,9 +265,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: 32),
                   Divider(color: context.colors.outlineVariant),
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: 32),
 
                   FadeInWidget(
                     delay: const Duration(milliseconds: 300),
@@ -280,11 +280,11 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: 32),
 
                   ..._buildContentSections(),
 
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: 32),
 
                   FadeInWidget(
                     delay: const Duration(milliseconds: 400),
@@ -299,17 +299,17 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: 32),
 
                   _buildTags(),
 
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: 32),
                   Divider(color: context.colors.outlineVariant),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: 24),
 
                   _buildRelatedNews(),
 
-                  const SizedBox(height: AppSpacing.massive),
+                  const SizedBox(height: 64),
                 ],
               ),
             ),
@@ -345,8 +345,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
       return FadeInWidget(
         delay: Duration(milliseconds: section['delay'] as int),
         child: Container(
-          margin: const EdgeInsets.only(bottom: AppSpacing.xl),
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          margin: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: context.colors.surfaceContainer,
             borderRadius: BorderRadius.circular(16),
@@ -361,7 +361,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: context.colors.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
@@ -372,7 +372,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                       color: context.colors.primary,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       section['title'] as String,
@@ -383,7 +383,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 12),
               Text(
                 section['content'] as String,
                 style: context.textStyles.bodyMedium?.copyWith(
@@ -412,15 +412,15 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               color: context.colors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+            spacing: 8,
+            runSpacing: 8,
             children: tags.map((tag) {
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+                  horizontal: 12,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: context.colors.surfaceContainer,
@@ -438,7 +438,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                       size: 14,
                       color: context.colors.primary,
                     ),
-                    const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: 4),
                     Text(
                       tag,
                       style: context.textStyles.labelSmall?.copyWith(
@@ -492,7 +492,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 16),
         ...relatedNews.asMap().entries.map((entry) {
           final index = entry.key;
           final news = entry.value;
@@ -500,7 +500,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           return FadeInWidget(
             delay: Duration(milliseconds: 600 + (index * 50)),
             child: Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: context.colors.surfaceContainer,
                 borderRadius: BorderRadius.circular(16),
@@ -518,11 +518,11 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: context.colors.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
@@ -533,7 +533,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             size: 20,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.md),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -546,7 +546,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: AppSpacing.xs),
+                              const SizedBox(width: 4),
                               Text(
                                 news['summary'] as String,
                                 style: context.textStyles.bodySmall?.copyWith(
@@ -555,7 +555,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: AppSpacing.sm),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Text(
@@ -566,7 +566,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                     ),
                                   ),
                                   Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
                                     width: 3,
                                     height: 3,
                                     decoration: BoxDecoration(
