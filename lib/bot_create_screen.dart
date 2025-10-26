@@ -528,6 +528,7 @@ class _StakeInputWidget extends StatefulWidget {
 
 class _StakeInputWidgetState extends State<_StakeInputWidget> {
   late final TextEditingController _controller;
+  final _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -535,11 +536,16 @@ class _StakeInputWidgetState extends State<_StakeInputWidget> {
     _controller = TextEditingController(
       text: widget.initialValue.toStringAsFixed(2),
     );
+    // Request focus after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -559,7 +565,6 @@ class _StakeInputWidgetState extends State<_StakeInputWidget> {
             ),
           ),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
-          autofocus: true,
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
           ],
@@ -571,9 +576,9 @@ class _StakeInputWidgetState extends State<_StakeInputWidget> {
             return null;
           },
         ),
-        
+
         SizedBox(height: AppSpacing.md),
-        
+
         Container(
           padding: EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
@@ -602,9 +607,9 @@ class _StakeInputWidgetState extends State<_StakeInputWidget> {
             ],
           ),
         ),
-        
+
         SizedBox(height: AppSpacing.xl),
-        
+
         Row(
           children: [
             Expanded(
