@@ -37,14 +37,14 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   void initState() {
     super.initState();
     _currentData = widget.marketData;
-    
+
     // Adicionar alguns dados iniciais se já tiver marketData
     if (widget.marketData != null) {
       _priceHistory.add(widget.marketData!.price);
     }
-    
+
     _subscribeToMarket();
-    
+
     // Timer de timeout para indicar carregamento
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted && _isLoading) {
@@ -75,7 +75,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
         (message) {
           try {
             final data = json.decode(message);
-            
+
             if (data['msg_type'] == 'tick' && data['tick']['symbol'] == widget.symbol) {
               final tick = data['tick'];
               final quote = double.parse(tick['quote'].toString());
@@ -83,7 +83,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
               if (mounted) {
                 setState(() {
                   _isLoading = false;
-                  
+
                   if (_currentData != null) {
                     final oldPrice = _currentData!.price;
                     _currentData = MarketData(
@@ -169,7 +169,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
               children: [
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: EdgeInsets.all(AppSpacing.lg),
                     children: [
                       // Market Icon & Price
                       FadeInWidget(
@@ -239,7 +239,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                           padding: EdgeInsets.zero,
                           child: Container(
                             height: 240,
-                            padding: const EdgeInsets.all(AppSpacing.md),
+                            padding:   EdgeInsets.all(AppSpacing.md),
                             child: _priceHistory.length > 2
                                 ? CustomPaint(
                                     painter: SimpleChartPainter(_priceHistory, changeColor),
@@ -320,7 +320,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
 
                 // Trade Button
                 Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     color: context.surface,
                     border: Border(
@@ -361,7 +361,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: context.colors.surfaceVariant,
         borderRadius: BorderRadius.circular(AppShapes.medium),
@@ -369,7 +369,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.xs),
+            padding: EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
               borderRadius: BorderRadius.circular(AppShapes.small),
@@ -486,7 +486,7 @@ class SimpleChartPainter extends CustomPainter {
         final x = i * spacing;
         final normalizedY = (prices[i] - minPrice) / priceRange;
         final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
-        
+
         canvas.drawCircle(Offset(x, y), 4, pointPaint);
         canvas.drawCircle(
           Offset(x, y),
