@@ -355,11 +355,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
           label: _isConfirmStep ? 'Confirm PIN' : 'Enter PIN',
           hint: '••••••',
           obscureText: _isConfirmStep ? _obscureConfirm : _obscureText,
-          textAlign: TextAlign.center,
-          textStyle: context.textStyles.headlineMedium?.copyWith(
-            letterSpacing: 16,
-            fontWeight: FontWeight.w700,
-          ),
           keyboardType: TextInputType.visiblePassword,
           textInputAction: TextInputAction.done,
           inputFormatters: [
