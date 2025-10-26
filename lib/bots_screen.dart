@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
@@ -78,6 +78,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   void _loadDefaultBots() {
     if (_channel == null) return;
 
+    // IMPORTANT: initialStake mínimo 0.35. maxStake deixamos como null ( usuário define ).
     _bots = [
       TradingBot(
         config: BotConfiguration(
@@ -90,8 +91,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           recoveryMode: RecoveryMode.intelligent,
           entryConditions: [EntryCondition.immediate],
           maxConsecutiveLosses: 7,
-          maxStake: 50.0,
-          targetProfit: 10.0,
+          // maxStake intentionally omitted (null) — user may set it
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -101,28 +101,25 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           name: 'Fibonacci Master',
           description: 'Estratégia Fibonacci com análise RSI',
           strategy: BotStrategy.fibonacci,
-          initialStake: 0.50,
+          initialStake: 0.35,
           market: 'R_50',
           contractType: 'PUT',
           recoveryMode: RecoveryMode.moderate,
           entryConditions: [EntryCondition.rsiOversold],
           useRSI: true,
-          maxStake: 40.0,
-          targetProfit: 15.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
       TradingBot(
         config: BotConfiguration(
-          name: 'D\'Alembert Safe',
+          name: "D'Alembert Safe",
           description: 'Crescimento gradual com segurança',
           strategy: BotStrategy.dalembert,
-          initialStake: 0.75,
+          initialStake: 0.35,
           market: 'R_75',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.conservative,
-          maxStake: 30.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -132,13 +129,11 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           name: 'Adaptive AI',
           description: 'Adaptação inteligente ao mercado',
           strategy: BotStrategy.adaptive,
-          initialStake: 1.00,
+          initialStake: 0.35,
           market: 'R_100',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.intelligent,
           useRSI: true,
-          maxStake: 50.0,
-          targetProfit: 20.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -242,9 +237,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: context.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.xLarge)),
         ),
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -256,17 +251,17 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 borderRadius: BorderRadius.circular(AppShapes.full),
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: AppSpacing.xl),
             Text('Opções', style: context.textStyles.headlineSmall),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
+                padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(AppShapes.medium),
                 ),
-                child: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                child: Icon(Icons.add_circle_outline, color: AppColors.primary),
               ),
               title: const Text('Criar Novo Bot'),
               subtitle: const Text('Configure um novo bot de trading'),
@@ -275,15 +270,15 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 _showCreateBotDialog();
               },
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
+                padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(AppShapes.medium),
                 ),
-                child: const Icon(Icons.play_circle_outline, color: AppColors.success),
+                child: Icon(Icons.play_circle_outline, color: AppColors.success),
               ),
               title: const Text('Iniciar Múltiplos Bots'),
               subtitle: const Text('Ative todos os bots disponíveis'),
@@ -292,7 +287,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 _startMultipleBots();
               },
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
           ],
         ),
       ),
@@ -331,8 +326,11 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   void _showEditStakeDialog(TradingBot bot) {
     AppHaptics.light();
+
     final stakeController = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
-    final maxStakeController = TextEditingController(text: bot.config.maxStake.toStringAsFixed(2));
+    final maxStakeController = TextEditingController(
+      text: bot.config.maxStake != null ? bot.config.maxStake!.toStringAsFixed(2) : '',
+    );
 
     showDialog(
       context: context,
@@ -345,18 +343,18 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               controller: stakeController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Stake Inicial (\$)',
+                labelText: 'Stake Inicial (\$) — mínimo 0.35',
                 hintText: '0.35',
                 prefixIcon: Icon(Icons.attach_money_rounded),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             TextField(
               controller: maxStakeController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Stake Máximo (\$)',
-                hintText: '50.00',
+                labelText: 'Max Stake (\$) — deixe em branco para ilimitado',
+                hintText: 'Ex: 1000.00',
                 prefixIcon: Icon(Icons.account_balance_wallet_rounded),
               ),
             ),
@@ -373,21 +371,30 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           FilledButton(
             onPressed: () {
               final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
-              final newMaxStake = double.tryParse(maxStakeController.text.replaceAll(',', '.'));
+              final maxStakeText = maxStakeController.text.trim();
+              final newMaxStake = maxStakeText.isEmpty ? null : double.tryParse(maxStakeText.replaceAll(',', '.'));
 
-              if (newStake != null && newStake >= 0.35 && newMaxStake != null && newMaxStake >= newStake) {
-                AppHaptics.heavy();
-                setState(() {
-                  bot.config.initialStake = newStake;
-                  bot.currentStake = newStake;
-                  bot.config.maxStake = newMaxStake;
-                });
-                Navigator.pop(context);
-                AppSnackbar.success(context, 'Configurações atualizadas!');
-              } else {
+              if (newStake == null || newStake < 0.35) {
                 AppHaptics.error();
-                AppSnackbar.error(context, 'Stake mínimo é \$0.35 e Max Stake deve ser maior');
+                AppSnackbar.error(context, 'Stake inicial inválido. Mínimo: 0.35');
+                return;
               }
+
+              if (newMaxStake != null && newMaxStake < newStake) {
+                AppHaptics.error();
+                AppSnackbar.error(context, 'Max Stake deve ser maior ou igual ao Stake inicial');
+                return;
+              }
+
+              // Apply changes: initialStake (>=0.35) and maxStake (nullable)
+              AppHaptics.heavy();
+              setState(() {
+                bot.config.initialStake = newStake;
+                bot.currentStake = max(bot.currentStake, newStake);
+                bot.config.maxStake = newMaxStake; // nullable — user-defined or null
+              });
+              Navigator.pop(context);
+              AppSnackbar.success(context, 'Configurações atualizadas!');
             },
             child: const Text('Salvar'),
           ),
@@ -428,9 +435,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       }
                     },
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: EdgeInsets.all(AppSpacing.lg),
                       itemCount: _bots.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+                      separatorBuilder: (context, index) => SizedBox(height: AppSpacing.md),
                       itemBuilder: (context, index) => StaggeredListItem(
                         index: index,
                         child: _buildBotCard(_bots[index]),
@@ -445,7 +452,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CircularProgressIndicator(),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.lg),
                   Text(
                     'Conectando ao servidor...',
                     style: context.textStyles.bodyLarge?.copyWith(
@@ -460,7 +467,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   Widget _buildStatisticsHeader(int activeBots, double totalProfit) {
     return Container(
-      margin: const EdgeInsets.all(AppSpacing.lg),
+      margin: EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
           Expanded(
@@ -471,7 +478,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               color: AppColors.primary,
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: StatsCard(
               label: 'Total',
@@ -480,7 +487,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               color: AppColors.secondary,
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: StatsCard(
               label: 'Lucro',
@@ -513,7 +520,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: bot.isRunning 
+                  color: bot.isRunning
                       ? AppColors.primary.withOpacity(0.15)
                       : context.colors.surfaceVariant,
                   borderRadius: BorderRadius.circular(AppShapes.medium),
@@ -524,7 +531,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   size: 28,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,7 +551,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                           ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
+                    SizedBox(height: AppSpacing.xxs),
                     Text(
                       bot.config.description,
                       style: context.textStyles.bodySmall,
@@ -556,9 +563,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: AppSpacing.lg),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: context.colors.surfaceVariant,
               borderRadius: BorderRadius.circular(AppShapes.medium),
@@ -571,16 +578,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   Icon(Icons.attach_money_rounded, size: 16, color: context.colors.onSurfaceVariant),
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(width: AppSpacing.xs),
                   Text('Stake:', style: context.textStyles.bodySmall),
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(width: AppSpacing.xs),
                   Text(
                     '\$${status.currentStake.toStringAsFixed(2)}',
                     style: context.textStyles.titleSmall?.copyWith(color: AppColors.primary),
@@ -607,7 +614,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     return Column(
       children: [
         Text(label, style: context.textStyles.labelSmall),
-        const SizedBox(height: AppSpacing.xxs),
+        SizedBox(height: AppSpacing.xxs),
         Text(value, style: context.textStyles.titleSmall?.copyWith(color: color)),
       ],
     );
@@ -615,11 +622,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   IconData _getStrategyIcon(BotStrategy strategy) {
     switch (strategy) {
-      case BotStrategy.martingale: return Icons.trending_up_rounded;
-      case BotStrategy.fibonacci: return Icons.stairs_rounded;
-      case BotStrategy.dalembert: return Icons.analytics_rounded;
-      case BotStrategy.adaptive: return Icons.settings_suggest_rounded;
-      default: return Icons.smart_toy_rounded;
+      case BotStrategy.martingale:
+        return Icons.trending_up_rounded;
+      case BotStrategy.fibonacci:
+        return Icons.stairs_rounded;
+      case BotStrategy.dalembert:
+        return Icons.analytics_rounded;
+      case BotStrategy.adaptive:
+        return Icons.settings_suggest_rounded;
+      default:
+        return Icons.smart_toy_rounded;
     }
   }
 }
