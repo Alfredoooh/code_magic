@@ -356,10 +356,7 @@ class _PinSetupScreenState extends State<PinSetupScreen>
           hint: '••••••',
           obscureText: _isConfirmStep ? _obscureConfirm : _obscureText,
           keyboardType: TextInputType.visiblePassword,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9a-zA-Z]')),
-            LengthLimitingTextInputFormatter(12),
-          ],
+
           suffix: IconButton(
             icon: Icon(
               (_isConfirmStep ? _obscureConfirm : _obscureText)
