@@ -1,11 +1,12 @@
 // lib/markets_screen.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide EdgeInsets;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/painting.dart' show EdgeInsets;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
-import 'styles.dart' hide EdgeInsets;
+import 'styles.dart';
 import 'trade_screen.dart';
 import 'all_markets_screen.dart';
 import 'news_detail_screen.dart';
@@ -289,7 +290,6 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
       onTap: () => _openMarketDetail(symbol),
       child: Row(
         children: [
-          // Ícone do GitHub com fallback
           Container(
             width: 48,
             height: 48,
