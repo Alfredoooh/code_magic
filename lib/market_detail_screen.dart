@@ -3,7 +3,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'styles.dart' hide EdgeInsets; // escondemos EdgeInsets exportado por styles.dart para evitar conflito
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 import 'markets_screen.dart';
 import 'trade_screen.dart';
 
@@ -141,8 +143,9 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     final changeColor = isPositive ? AppColors.success : AppColors.error;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.marketInfo.name),
+      backgroundColor: context.surface,
+      appBar: SecondaryAppBar(
+        title: widget.marketInfo.name,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -155,21 +158,17 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
         ],
       ),
       body: _isLoading && _currentData == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  SizedBox(height: AppSpacing.lg),
-                  const Text('Carregando dados do mercado...'),
-                ],
-              ),
+          ? LoadingOverlay(
+              isLoading: true,
+              message: 'Carregando dados do mercado...',
+              child: const SizedBox(),
             )
           : Column(
               children: [
                 Expanded(
                   child: ListView(
-                    padding: EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    physics: const BouncingScrollPhysics(),
                     children: [
                       // Market Icon & Price
                       FadeInWidget(
@@ -181,7 +180,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                                 height: 96,
                                 decoration: BoxDecoration(
                                   color: context.colors.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(AppShapes.large),
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.1),
@@ -191,7 +190,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                                   ],
                                 ),
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppShapes.large),
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                                   child: Image.network(
                                     widget.marketInfo.iconUrl,
                                     width: 96,
@@ -210,7 +209,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                                   ),
                                 ),
                               ),
-                              SizedBox(height: AppSpacing.xl),
+                              const SizedBox(height: AppSpacing.xl),
                               Text(
                                 _currentData != null
                                     ? '\$${_currentData!.price.toStringAsFixed(2)}'
@@ -219,7 +218,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              SizedBox(height: AppSpacing.sm),
+                              const SizedBox(height: AppSpacing.sm),
                               if (_currentData != null)
                                 AppBadge(
                                   text: '${isPositive ? '+' : ''}${_currentData!.change.toStringAsFixed(2)}%',
@@ -230,16 +229,15 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                         ),
                       ),
 
-                      SizedBox(height: AppSpacing.xxl),
+                      const SizedBox(height: AppSpacing.xxl),
 
                       // Chart
                       FadeInWidget(
                         delay: const Duration(milliseconds: 100),
                         child: AnimatedCard(
-                          padding: EdgeInsets.zero,
                           child: Container(
                             height: 240,
-                            padding: EdgeInsets.all(AppSpacing.md),
+                            padding: const EdgeInsets.all(AppSpacing.md),
                             child: _priceHistory.length > 2
                                 ? CustomPaint(
                                     painter: SimpleChartPainter(_priceHistory, changeColor),
@@ -253,7 +251,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                                           size: 48,
                                           color: context.colors.onSurfaceVariant.withOpacity(0.5),
                                         ),
-                                        SizedBox(height: AppSpacing.md),
+                                        const SizedBox(height: AppSpacing.md),
                                         Text(
                                           'Aguardando dados do gráfico...',
                                           style: context.textStyles.bodyMedium?.copyWith(
@@ -267,7 +265,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                         ),
                       ),
 
-                      SizedBox(height: AppSpacing.xxl),
+                      const SizedBox(height: AppSpacing.xxl),
 
                       // Market Info
                       FadeInWidget(
@@ -277,30 +275,32 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                           children: [
                             Text(
                               'Informações do Mercado',
-                              style: context.textStyles.titleLarge,
+                              style: context.textStyles.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                            SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: AppSpacing.md),
                             _buildInfoCard(
                               icon: Icons.tag_rounded,
                               label: 'Símbolo',
                               value: widget.symbol,
                               color: AppColors.primary,
                             ),
-                            SizedBox(height: AppSpacing.sm),
+                            const SizedBox(height: AppSpacing.sm),
                             _buildInfoCard(
                               icon: Icons.category_rounded,
                               label: 'Categoria',
                               value: widget.marketInfo.category,
                               color: AppColors.secondary,
                             ),
-                            SizedBox(height: AppSpacing.sm),
+                            const SizedBox(height: AppSpacing.sm),
                             _buildInfoCard(
                               icon: Icons.label_rounded,
                               label: 'Nome Completo',
                               value: widget.marketInfo.name,
                               color: AppColors.tertiary,
                             ),
-                            SizedBox(height: AppSpacing.sm),
+                            const SizedBox(height: AppSpacing.sm),
                             _buildInfoCard(
                               icon: Icons.access_time_rounded,
                               label: 'Última Atualização',
@@ -311,14 +311,14 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                         ),
                       ),
 
-                      SizedBox(height: AppSpacing.massive),
+                      const SizedBox(height: AppSpacing.massive),
                     ],
                   ),
                 ),
 
                 // Trade Button
                 Container(
-                  padding: EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     color: context.surface,
                     border: Border(
@@ -339,10 +339,11 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                     top: false,
                     child: SizedBox(
                       width: double.infinity,
-                      child: AnimatedPrimaryButton(
+                      child: PrimaryButton(
                         text: 'Negociar ${widget.symbol}',
                         icon: Icons.trending_up_rounded,
                         onPressed: _openTrade,
+                        expanded: true,
                       ),
                     ),
                   ),
@@ -359,30 +360,33 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: context.colors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppShapes.medium),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(AppSpacing.xs),
+            padding: const EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(AppShapes.small),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: context.textStyles.labelSmall,
+                  style: context.textStyles.labelSmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
                 ),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   value,
                   style: context.textStyles.titleSmall?.copyWith(
