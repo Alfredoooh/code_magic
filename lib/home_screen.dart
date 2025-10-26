@@ -1,6 +1,8 @@
 // lib/home_screen.dart
 import 'package:flutter/material.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 import 'markets_screen.dart';
 import 'posts_screen.dart';
 import 'trade_screen.dart';
@@ -67,7 +69,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
+      backgroundColor: context.surface,
       appBar: AppBar(
+        backgroundColor: context.colors.surfaceContainer,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.menu_rounded),
           onPressed: () {
@@ -75,9 +80,14 @@ class _HomeScreenState extends State<HomeScreen> {
             _scaffoldKey.currentState?.openDrawer();
           },
         ),
-        title: Text(_getAppBarTitle()),
+        title: Text(
+          _getAppBarTitle(),
+          style: context.textStyles.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         actions: [
-          if (_currentIndex == 0) // Mostrar busca apenas na tela de Mercados
+          if (_currentIndex == 0)
             IconButton(
               icon: const Icon(Icons.search_rounded),
               onPressed: _openSearchScreen,
@@ -141,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 64,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppShapes.large),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                     border: Border.all(color: Colors.white, width: 3),
                   ),
                   child: const Icon(
@@ -155,6 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Usuário',
                   style: context.textStyles.titleLarge?.copyWith(
                     color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
@@ -174,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.small),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary),
               ),
@@ -199,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.secondary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.small),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: const Icon(Icons.smart_toy_rounded, color: AppColors.secondary),
               ),
@@ -225,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.info.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.small),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: const Icon(Icons.settings_rounded, color: AppColors.info),
               ),
@@ -250,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.small),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: const Icon(Icons.help_rounded, color: AppColors.warning),
               ),
@@ -278,6 +289,7 @@ class _TradingCenterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.surface,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -285,10 +297,17 @@ class _TradingCenterScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               FadeInWidget(
-                child: Icon(
-                  Icons.candlestick_chart_rounded,
-                  size: 120,
-                  color: context.colors.primary.withOpacity(0.3),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.xxl),
+                  decoration: BoxDecoration(
+                    color: context.colors.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.candlestick_chart_rounded,
+                    size: 80,
+                    color: context.colors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),
@@ -296,7 +315,9 @@ class _TradingCenterScreen extends StatelessWidget {
                 delay: const Duration(milliseconds: 100),
                 child: Text(
                   'Central de Negociação',
-                  style: context.textStyles.headlineMedium,
+                  style: context.textStyles.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -314,47 +335,37 @@ class _TradingCenterScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.massive),
               FadeInWidget(
                 delay: const Duration(milliseconds: 300),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: AnimatedPrimaryButton(
-                    text: 'Negociar Manualmente',
-                    icon: Icons.touch_app_rounded,
-                    onPressed: () {
-                      AppHaptics.heavy();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TradeScreen(token: token),
-                        ),
-                      );
-                    },
-                  ),
+                child: PrimaryButton(
+                  text: 'Negociar Manualmente',
+                  icon: Icons.touch_app_rounded,
+                  onPressed: () {
+                    AppHaptics.heavy();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TradeScreen(token: token),
+                      ),
+                    );
+                  },
+                  expanded: true,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               FadeInWidget(
                 delay: const Duration(milliseconds: 400),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      AppHaptics.heavy();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BotsScreen(token: token),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.smart_toy_rounded),
-                    label: const Text('Automatizar com Bots'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.md,
-                        horizontal: AppSpacing.xl,
+                child: SecondaryButton(
+                  text: 'Automatizar com Bots',
+                  icon: Icons.smart_toy_rounded,
+                  onPressed: () {
+                    AppHaptics.heavy();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BotsScreen(token: token),
                       ),
-                    ),
-                  ),
+                    );
+                  },
+                  expanded: true,
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),
@@ -364,7 +375,7 @@ class _TradingCenterScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     color: AppColors.info.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppShapes.medium),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     border: Border.all(
                       color: AppColors.info.withOpacity(0.3),
                     ),
@@ -447,7 +458,10 @@ class _SearchScreenState extends State<_SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.surface,
       appBar: AppBar(
+        backgroundColor: context.colors.surfaceContainer,
+        elevation: 0,
         title: TextField(
           controller: _searchController,
           focusNode: _searchFocusNode,
@@ -455,6 +469,7 @@ class _SearchScreenState extends State<_SearchScreen> {
           decoration: InputDecoration(
             hintText: 'Pesquisar mercados...',
             border: InputBorder.none,
+            hintStyle: TextStyle(color: context.colors.onSurfaceVariant),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear_rounded),
@@ -472,32 +487,37 @@ class _SearchScreenState extends State<_SearchScreen> {
         ),
       ),
       body: _searchController.text.isEmpty
-          ? EmptyStateWithAction(
+          ? EmptyState(
               icon: Icons.search_rounded,
               title: 'Pesquisar Mercados',
               subtitle: 'Digite para buscar mercados disponíveis',
             )
           : _searchResults.isEmpty
-              ? EmptyStateWithAction(
+              ? EmptyState(
                   icon: Icons.search_off_rounded,
                   title: 'Nenhum resultado',
                   subtitle: 'Tente buscar por outro termo',
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(AppSpacing.lg),
+                  physics: const BouncingScrollPhysics(),
                   itemCount: _searchResults.length,
                   itemBuilder: (context, index) {
                     return StaggeredListItem(
                       index: index,
-                      child: InfoCard(
-                        icon: Icons.show_chart_rounded,
-                        title: _searchResults[index],
-                        subtitle: 'Mercado sintético',
-                        color: AppColors.primary,
-                        onTap: () {
-                          AppHaptics.selection();
-                          AppSnackbar.info(context, 'Mercado ${_searchResults[index]} selecionado');
-                        },
+                      delay: const Duration(milliseconds: 50),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: InfoCard(
+                          icon: Icons.show_chart_rounded,
+                          title: _searchResults[index],
+                          subtitle: 'Mercado sintético',
+                          color: AppColors.primary,
+                          onTap: () {
+                            AppHaptics.selection();
+                            AppSnackbar.info(context, 'Mercado ${_searchResults[index]} selecionado');
+                          },
+                        ),
                       ),
                     );
                   },
