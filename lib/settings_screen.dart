@@ -1,6 +1,6 @@
 // lib/settings_screen.dart
 import 'package:flutter/material.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
