@@ -1,66 +1,116 @@
 // news_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'markets_screen.dart';
+import 'styles.dart';
 
-class NewsDetailScreen extends StatelessWidget {
+class NewsDetailScreen extends StatefulWidget {
   final NewsItem news;
 
   const NewsDetailScreen({Key? key, required this.news}) : super(key: key);
 
-  Future<void> _launchURL() async {
-    final Uri url = Uri.parse(news.url);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      throw Exception('Não foi possível abrir ${news.url}');
+  @override
+  State<NewsDetailScreen> createState() => _NewsDetailScreenState();
+}
+
+class _NewsDetailScreenState extends State<NewsDetailScreen> {
+  bool _isBookmarked = false;
+  final ScrollController _scrollController = ScrollController();
+  double _scrollProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final currentScroll = _scrollController.position.pixels;
+      setState(() {
+        _scrollProgress = (currentScroll / maxScroll).clamp(0.0, 1.0);
+      });
     }
+  }
+
+  Future<void> _launchURL() async {
+    AppHaptics.medium();
+    final Uri url = Uri.parse(widget.news.url);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        AppSnackbar.error(context, 'Não foi possível abrir o link');
+      }
+    }
+  }
+
+  void _shareNews() {
+    AppHaptics.light();
+    Share.share(
+      '${widget.news.title}\n\n${widget.news.summary}\n\nLeia mais em: ${widget.news.url}',
+      subject: widget.news.title,
+    );
+  }
+
+  void _toggleBookmark() {
+    AppHaptics.light();
+    setState(() {
+      _isBookmarked = !_isBookmarked;
+    });
+    AppSnackbar.info(
+      context,
+      _isBookmarked ? 'Notícia salva' : 'Notícia removida',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: context.colors.surface,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
+          // AppBar com progresso de leitura
           SliverAppBar(
-            backgroundColor: const Color(0xFF0A0A0A),
+            backgroundColor: context.colors.surface,
             elevation: 0,
             pinned: true,
-            expandedHeight: 120,
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
+            expandedHeight: 80,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () {
+                AppHaptics.light();
+                Navigator.pop(context);
+              },
             ),
             actions: [
-              Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.share, color: Colors.white),
-                  onPressed: () {},
-                ),
+              IconButton(
+                icon: const Icon(Icons.share_rounded),
+                onPressed: _shareNews,
               ),
-              Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  shape: BoxShape.circle,
+              IconButton(
+                icon: Icon(
+                  _isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.bookmark_border, color: Colors.white),
-                  onPressed: () {},
-                ),
+                onPressed: _toggleBookmark,
               ),
             ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(2),
+              child: LinearProgressIndicator(
+                value: _scrollProgress,
+                backgroundColor: context.colors.surfaceContainer,
+                valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
+                minHeight: 2,
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(
@@ -68,209 +118,213 @@ class NewsDetailScreen extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFF0066FF).withOpacity(0.2),
-                      const Color(0xFF0A0A0A),
+                      context.colors.primary.withOpacity(0.1),
+                      context.colors.surface,
                     ],
                   ),
                 ),
               ),
             ),
           ),
+
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(AppSpacing.xl),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Categoria Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0066FF).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFF0066FF).withOpacity(0.3),
-                        width: 1.5,
+                  FadeInWidget(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
                       ),
-                    ),
-                    child: Text(
-                      news.category.toUpperCase(),
-                      style: const TextStyle(
-                        color: Color(0xFF0066FF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Título
-                  Text(
-                    news.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Info da fonte
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                      decoration: BoxDecoration(
+                        color: context.colors.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                        border: Border.all(
+                          color: context.colors.primary.withOpacity(0.3),
+                          width: 1,
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            news.favicon,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(
-                              Icons.article,
-                              color: Colors.white.withOpacity(0.5),
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              news.source,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              news.time,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Divisor
-                  Container(
-                    height: 1,
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Conteúdo completo
-                  Text(
-                    news.summary,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
-                      height: 1.6,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Conteúdo adicional simulado
-                  _buildContentSection(
-                    'Contexto do Mercado',
-                    'Os mercados financeiros globais continuam a demonstrar alta volatilidade em meio a incertezas econômicas. Analistas apontam que fatores macroeconômicos, incluindo políticas monetárias dos bancos centrais e indicadores de inflação, têm exercido pressão significativa sobre os ativos de risco.',
-                  ),
-                  
-                  _buildContentSection(
-                    'Análise Técnica',
-                    'Do ponto de vista técnico, os principais índices apresentam padrões de consolidação, com resistências importantes sendo testadas. Traders experientes recomendam cautela e o uso adequado de stop-loss em posições atuais.',
-                  ),
-                  
-                  _buildContentSection(
-                    'Perspectivas Futuras',
-                    'Para os próximos dias, espera-se que a volatilidade permaneça elevada, especialmente durante divulgações de dados econômicos importantes. Investidores devem manter-se atualizados sobre eventos macroeconômicos que podem impactar significativamente as cotações.',
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Botão Ler Mais
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _launchURL,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0066FF),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getCategoryIcon(widget.news.category),
+                            size: 14,
+                            color: context.colors.primary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
-                            'Ler Artigo Completo',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
+                            widget.news.category.toUpperCase(),
+                            style: context.textStyles.labelSmall?.copyWith(
+                              color: context.colors.primary,
                               fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
                             ),
                           ),
-                          SizedBox(width: 8),
-                          Icon(Icons.open_in_new, color: Colors.white, size: 18),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Notícias relacionadas
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Notícias Relacionadas',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Título
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 100),
+                    child: Text(
+                      widget.news.title,
+                      style: context.textStyles.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  _buildRelatedNewsCard(
-                    'Volatilidade Atinge Níveis Recordes',
-                    'Mercados globais registram maior movimento em meses',
-                    'Bloomberg',
-                    '1h atrás',
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Info da fonte
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 200),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: context.colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            child: Image.network(
+                              widget.news.favicon,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.article_rounded,
+                                color: context.colors.onSurfaceVariant,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.news.source,
+                                style: context.textStyles.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 14,
+                                    color: context.colors.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xxs),
+                                  Text(
+                                    widget.news.time,
+                                    style: context.textStyles.bodySmall?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.onSurfaceVariant,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Icon(
+                                    Icons.remove_red_eye_rounded,
+                                    size: 14,
+                                    color: context.colors.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xxs),
+                                  Text(
+                                    '${_getRandomViews()} leituras',
+                                    style: context.textStyles.bodySmall?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildRelatedNewsCard(
-                    'Estratégias para Mercados Turbulentos',
-                    'Especialistas compartilham dicas de gerenciamento de risco',
-                    'MarketWatch',
-                    '3h atrás',
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Divisor
+                  Divider(color: context.colors.outlineVariant),
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Resumo/Conteúdo principal
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 300),
+                    child: Text(
+                      widget.news.summary,
+                      style: context.textStyles.bodyLarge?.copyWith(
+                        height: 1.7,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildRelatedNewsCard(
-                    'Índices Sintéticos Ganham Popularidade',
-                    'Traders preferem mercados disponíveis 24/7',
-                    'Finance Weekly',
-                    '5h atrás',
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Seções de conteúdo expandido
+                  ..._buildContentSections(),
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Botão Ler Artigo Completo
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 400),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: AnimatedPrimaryButton(
+                        text: 'Ler Artigo Completo',
+                        icon: Icons.open_in_new_rounded,
+                        onPressed: _launchURL,
+                      ),
+                    ),
                   ),
-                  
-                  const SizedBox(height: 40),
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Tags
+                  _buildTags(),
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Divisor
+                  Divider(color: context.colors.outlineVariant),
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Notícias relacionadas
+                  _buildRelatedNews(),
+
+                  const SizedBox(height: AppSpacing.massive),
                 ],
               ),
             ),
@@ -280,98 +334,311 @@ class NewsDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContentSection(String title, String content) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+  List<Widget> _buildContentSections() {
+    final sections = [
+      {
+        'title': 'Contexto do Mercado',
+        'content': 'Os mercados financeiros globais continuam a demonstrar alta volatilidade em meio a incertezas econômicas. Analistas apontam que fatores macroeconômicos, incluindo políticas monetárias dos bancos centrais e indicadores de inflação, têm exercido pressão significativa sobre os ativos de risco.',
+        'icon': Icons.public_rounded,
+        'delay': 350,
+      },
+      {
+        'title': 'Análise Técnica',
+        'content': 'Do ponto de vista técnico, os principais índices apresentam padrões de consolidação, com resistências importantes sendo testadas. Traders experientes recomendam cautela e o uso adequado de stop-loss em posições atuais.',
+        'icon': Icons.analytics_rounded,
+        'delay': 400,
+      },
+      {
+        'title': 'Perspectivas Futuras',
+        'content': 'Para os próximos dias, espera-se que a volatilidade permaneça elevada, especialmente durante divulgações de dados econômicos importantes. Investidores devem manter-se atualizados sobre eventos macroeconômicos que podem impactar significativamente as cotações.',
+        'icon': Icons.trending_up_rounded,
+        'delay': 450,
+      },
+    ];
+
+    return sections.map((section) {
+      return FadeInWidget(
+        delay: Duration(milliseconds: section['delay'] as int),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(
+              color: context.colors.outlineVariant,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: context.colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Icon(
+                      section['icon'] as IconData,
+                      size: 20,
+                      color: context.colors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      section['title'] as String,
+                      style: context.textStyles.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                section['content'] as String,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  height: 1.6,
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildTags() {
+    final tags = ['Trading', 'Mercados', 'Análise', 'Volatilidade'];
+    
+    return FadeInWidget(
+      delay: const Duration(milliseconds: 500),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.3,
+            'Tags',
+            style: context.textStyles.titleSmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            content,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.75),
-              fontSize: 15,
-              height: 1.6,
-              letterSpacing: 0.1,
-            ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: tags.map((tag) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceContainer,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                  border: Border.all(
+                    color: context.colors.outlineVariant,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.tag_rounded,
+                      size: 14,
+                      color: context.colors.primary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      tag,
+                      style: context.textStyles.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRelatedNewsCard(String title, String summary, String source, String time) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF151515),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
+  Widget _buildRelatedNews() {
+    final relatedNews = [
+      {
+        'title': 'Volatilidade Atinge Níveis Recordes',
+        'summary': 'Mercados globais registram maior movimento em meses',
+        'source': 'Bloomberg',
+        'time': '1h atrás',
+        'icon': Icons.trending_up_rounded,
+      },
+      {
+        'title': 'Estratégias para Mercados Turbulentos',
+        'summary': 'Especialistas compartilham dicas de gerenciamento de risco',
+        'source': 'MarketWatch',
+        'time': '3h atrás',
+        'icon': Icons.psychology_rounded,
+      },
+      {
+        'title': 'Índices Sintéticos Ganham Popularidade',
+        'summary': 'Traders preferem mercados disponíveis 24/7',
+        'source': 'Finance Weekly',
+        'time': '5h atrás',
+        'icon': Icons.show_chart_rounded,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FadeInWidget(
+          delay: const Duration(milliseconds: 550),
+          child: Text(
+            'Notícias Relacionadas',
+            style: context.textStyles.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 6),
-          Text(
-            summary,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 13,
-              height: 1.3,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ...relatedNews.asMap().entries.map((entry) {
+          final index = entry.key;
+          final news = entry.value;
+          
+          return FadeInWidget(
+            delay: Duration(milliseconds: 600 + (index * 50)),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainer,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(
+                  color: context.colors.outlineVariant,
+                  width: 1,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    AppHaptics.light();
+                    AppSnackbar.info(context, 'Abrindo notícia...');
+                  },
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: context.colors.primaryContainer,
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                          ),
+                          child: Icon(
+                            news['icon'] as IconData,
+                            color: context.colors.primary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                news['title'] as String,
+                                style: context.textStyles.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                news['summary'] as String,
+                                style: context.textStyles.bodySmall?.copyWith(
+                                  color: context.colors.onSurfaceVariant,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              Row(
+                                children: [
+                                  Text(
+                                    news['source'] as String,
+                                    style: context.textStyles.labelSmall?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.xs,
+                                    ),
+                                    width: 3,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.onSurfaceVariant,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  Text(
+                                    news['time'] as String,
+                                    style: context.textStyles.labelSmall?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: context.colors.onSurfaceVariant,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                source,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                ' • ',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                  fontSize: 12,
-                ),
-              ),
-              Text(
-                time,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          );
+        }).toList(),
+      ],
     );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'mercados':
+      case 'markets':
+        return Icons.trending_up_rounded;
+      case 'trading':
+        return Icons.show_chart_rounded;
+      case 'análise':
+      case 'analysis':
+        return Icons.analytics_rounded;
+      case 'notícias':
+      case 'news':
+        return Icons.newspaper_rounded;
+      default:
+        return Icons.article_rounded;
+    }
+  }
+
+  String _getRandomViews() {
+    final views = [234, 567, 892, 1234, 2456, 3421];
+    return views[DateTime.now().second % views.length].toString();
   }
 }
