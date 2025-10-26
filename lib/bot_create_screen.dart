@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'bot_engine.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
 
 class CreateBotScreen extends StatefulWidget {
   final WebSocketChannel channel;
@@ -63,7 +63,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -78,7 +78,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.lg),
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
@@ -91,7 +91,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
 
             // Descrição
             FadeInWidget(
@@ -108,7 +108,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(height: AppSpacing.xxl),
 
             // Stake Inicial
             FadeInWidget(
@@ -122,7 +122,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   InfoCard(
                     icon: Icons.attach_money_rounded,
                     title: 'Stake Inicial',
@@ -144,7 +144,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(height: AppSpacing.xxl),
 
             // Estratégia
             FadeInWidget(
@@ -158,7 +158,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<BotStrategy>(
                     value: _selectedStrategy,
                     decoration: const InputDecoration(
@@ -178,12 +178,12 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       }
                     },
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: AppSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: context.colors.surfaceContainerHighest.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderRadius: BorderRadius.circular(AppShapes.medium),
                       border: Border.all(
                         color: context.colors.outlineVariant,
                         width: 1,
@@ -196,7 +196,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                           color: context.colors.primary,
                           size: 20,
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             _getStrategyDescription(_selectedStrategy),
@@ -212,7 +212,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(height: AppSpacing.xxl),
 
             // Mercado
             FadeInWidget(
@@ -226,7 +226,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     value: _selectedMarket,
                     decoration: const InputDecoration(
@@ -250,7 +250,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(height: AppSpacing.xxl),
 
             // Recovery Mode
             FadeInWidget(
@@ -264,7 +264,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<RecoveryMode>(
                     value: _recoveryMode,
                     decoration: const InputDecoration(
@@ -288,7 +288,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.massive),
+            SizedBox(height: AppSpacing.massive),
 
             // Botão Criar
             FadeInWidget(
@@ -304,7 +304,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(height: AppSpacing.xxl),
           ],
         ),
       ),
@@ -323,8 +323,8 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: context.colors.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppSpacing.radiusXl),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppShapes.xLarge),
           ),
         ),
         padding: EdgeInsets.only(
@@ -343,7 +343,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             TextField(
               controller: controller,
               autofocus: true,
@@ -363,7 +363,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
               ],
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: AppSpacing.xl),
             Row(
               children: [
                 Expanded(
@@ -378,7 +378,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                     child: const Text('Cancelar'),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.md),
+                SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: FilledButton(
                     onPressed: () {
@@ -438,7 +438,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
 
     widget.onBotCreated(bot);
     Navigator.pop(context);
-    
+
     AppSnackbar.success(context, 'Bot "${bot.config.name}" criado com sucesso!');
   }
 
