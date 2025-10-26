@@ -1,10 +1,10 @@
 // all_markets_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'markets_screen.dart';
 import 'market_detail_screen.dart';
+import 'styles.dart';
 
 class AllMarketsScreen extends StatefulWidget {
   final String token;
@@ -38,8 +38,16 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   ];
 
   final Map<String, MarketInfo> _cryptoMarkets = {
-    'cryBTCUSD': MarketInfo('Bitcoin', 'https://cryptologos.cc/logos/bitcoin-btc-logo.png', 'Crypto'),
-    'cryETHUSD': MarketInfo('Ethereum', 'https://cryptologos.cc/logos/ethereum-eth-logo.png', 'Crypto'),
+    'cryBTCUSD': MarketInfo(
+      'Bitcoin',
+      'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+      'Crypto',
+    ),
+    'cryETHUSD': MarketInfo(
+      'Ethereum',
+      'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+      'Crypto',
+    ),
   };
 
   @override
@@ -51,7 +59,9 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   void _subscribeToAllMarkets() {
     if (widget.channel != null) {
       for (var symbol in [...widget.allMarkets.keys, ..._cryptoMarkets.keys]) {
-        widget.channel!.sink.add(json.encode({'ticks': symbol, 'subscribe': 1}));
+        widget.channel!.sink.add(
+          json.encode({'ticks': symbol, 'subscribe': 1}),
+        );
       }
     }
   }
@@ -81,11 +91,13 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   }
 
   void _openMarketDetail(String symbol) {
+    AppHaptics.light();
     final info = widget.allMarkets[symbol] ?? _cryptoMarkets[symbol];
     if (info != null) {
       Navigator.of(context).push(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => MarketDetailScreen(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              MarketDetailScreen(
             symbol: symbol,
             marketInfo: info,
             marketData: widget.marketData[symbol],
@@ -97,11 +109,13 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
               position: Tween<Offset>(
                 begin: const Offset(0.0, 1.0),
                 end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
               child: child,
             );
           },
-          transitionDuration: const Duration(milliseconds: 350),
+          transitionDuration: AppMotion.medium,
         ),
       );
     }
@@ -110,98 +124,122 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
-        elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
         ),
-        title: const Text(
-          'Todos os Mercados',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
-          ),
-        ),
+        title: const Text('Todos os Mercados'),
+        centerTitle: true,
       ),
       body: Column(
         children: [
           // Search Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 0.5,
+          FadeInWidget(
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar mercados...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            AppHaptics.light();
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
                 ),
+                onChanged: (value) {
+                  setState(() => _searchQuery = value);
+                },
               ),
-            ),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'Buscar mercados...',
-                hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                  fontSize: 15,
-                ),
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: Colors.white.withOpacity(0.4),
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: const Color(0xFF1C1C1E),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
 
-          // Category Filter
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 0.5,
-                ),
+          // Category Chips
+          FadeInWidget(
+            delay: const Duration(milliseconds: 100),
+            child: SizedBox(
+              height: 50,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length,
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  final isSelected = _selectedCategory == category;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.sm),
+                    child: FilterChip(
+                      selected: isSelected,
+                      label: Text(category),
+                      onSelected: (selected) {
+                        if (selected) {
+                          AppHaptics.selection();
+                          setState(() => _selectedCategory = category);
+                        }
+                      },
+                      backgroundColor: context.colors.surfaceContainer,
+                      selectedColor: context.colors.primary,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? context.colors.onPrimary
+                            : context.colors.onSurface,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                      side: BorderSide(
+                        color: isSelected
+                            ? context.colors.primary
+                            : context.colors.outlineVariant,
+                        width: 1,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-            child: CupertinoSlidingSegmentedControl<String>(
-              backgroundColor: const Color(0xFF1C1C1E),
-              thumbColor: const Color(0xFF0066FF),
-              groupValue: _selectedCategory,
-              onValueChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedCategory = value);
-                }
-              },
-              children: {
-                for (var category in _categories)
-                  category: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text(
-                      category,
-                      style: const TextStyle(fontSize: 12),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // Markets Count
+          FadeInWidget(
+            delay: const Duration(milliseconds: 200),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.analytics_rounded,
+                    size: 16,
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '${_getFilteredMarkets(_selectedCategory).length} mercados',
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
                     ),
                   ),
-              },
+                ],
+              ),
             ),
           ),
+
+          const SizedBox(height: AppSpacing.md),
 
           // Markets List
           Expanded(
@@ -210,30 +248,48 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                 final markets = _getFilteredMarkets(_selectedCategory);
 
                 if (markets.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          color: Colors.white.withOpacity(0.3),
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Nenhum mercado encontrado',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 14,
+                  return FadeInWidget(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            decoration: BoxDecoration(
+                              color: context.colors.surfaceContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.search_off_rounded,
+                              color: context.colors.onSurfaceVariant,
+                              size: 48,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.xl),
+                          Text(
+                            'Nenhum mercado encontrado',
+                            style: context.textStyles.bodyLarge?.copyWith(
+                              color: context.colors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Tente buscar por outro termo',
+                            style: context.textStyles.bodySmall?.copyWith(
+                              color: context.colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.sm,
+                  ),
                   itemCount: markets.length,
                   itemBuilder: (context, index) {
                     final entry = markets[index];
@@ -241,8 +297,8 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                     final info = entry.value;
                     final data = widget.marketData[symbol];
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                    return StaggeredListItem(
+                      index: index,
                       child: _buildMarketCard(symbol, info, data),
                     );
                   },
@@ -257,79 +313,125 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
 
   Widget _buildMarketCard(String symbol, MarketInfo info, MarketData? data) {
     final isPositive = (data?.change ?? 0) >= 0;
-    final changeColor = isPositive ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
+    final changeColor = isPositive ? AppColors.success : AppColors.error;
 
     return GestureDetector(
       onTap: () => _openMarketDetail(symbol),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
+          color: context.colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(
+            color: context.colors.outlineVariant,
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                info.iconUrl,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
+            // Icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: Image.network(
+                  info.iconUrl,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.currency_bitcoin_rounded,
+                      color: context.colors.primary,
+                      size: 24,
+                    );
+                  },
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+
+            const SizedBox(width: AppSpacing.md),
+
+            // Name and Symbol
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     info.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
+                    style: context.textStyles.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     symbol,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 15,
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
+
+            // Price and Change
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   data != null ? data.price.toStringAsFixed(2) : '...',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
+                  style: context.textStyles.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppSpacing.xxs),
                 if (data != null)
-                  Text(
-                    '${isPositive ? '+' : ''}${data.change.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      color: changeColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: changeColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPositive
+                              ? Icons.arrow_upward_rounded
+                              : Icons.arrow_downward_rounded,
+                          color: changeColor,
+                          size: 12,
+                        ),
+                        const SizedBox(width: AppSpacing.xxs),
+                        Text(
+                          '${data.change.abs().toStringAsFixed(2)}%',
+                          style: context.textStyles.labelSmall?.copyWith(
+                            color: changeColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],
             ),
-            const SizedBox(width: 8),
+
+            const SizedBox(width: AppSpacing.sm),
+
+            // Arrow
             Icon(
               Icons.chevron_right_rounded,
-              color: Colors.white.withOpacity(0.3),
-              size: 24,
+              color: context.colors.onSurfaceVariant,
+              size: 20,
             ),
           ],
         ),
