@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'deriv_chart_widget.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
 
 class BotDetailsScreen extends StatefulWidget {
   final TradingBot bot;
@@ -77,8 +77,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: context.colors.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppSpacing.radiusXl),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppShapes.xLarge), // radiusXl -> AppShapes.xLarge
           ),
         ),
         padding: EdgeInsets.only(
@@ -110,7 +110,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: AppSpacing.xl),
               TextField(
                 controller: stakeController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -123,7 +123,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
               TextField(
                 controller: maxStakeController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -136,7 +136,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
               TextField(
                 controller: targetProfitController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -149,7 +149,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xxl),
+              SizedBox(height: AppSpacing.xxl),
               Row(
                 children: [
                   Expanded(
@@ -164,7 +164,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                       child: const Text('Cancelar'),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: FilledButton(
                       onPressed: () {
@@ -240,7 +240,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       body: LoadingOverlay(
         isLoading: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -249,7 +249,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 child: _buildDerivChart(),
               ),
 
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
 
               // Card de Status Principal
               FadeInWidget(
@@ -257,7 +257,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 child: _buildStatusCard(status),
               ),
 
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
 
               // Botões de Controle
               FadeInWidget(
@@ -265,7 +265,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 child: _buildControlButtons(),
               ),
 
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: AppSpacing.xl),
 
               // Grid de Estatísticas
               FadeInWidget(
@@ -279,13 +279,13 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(height: AppSpacing.md),
                     _buildStatisticsGrid(status, winRate),
                   ],
                 ),
               ),
 
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: AppSpacing.xl),
 
               // Histórico de Trades
               FadeInWidget(
@@ -293,7 +293,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 child: _buildTradeHistory(status),
               ),
 
-              const SizedBox(height: AppSpacing.massive),
+              SizedBox(height: AppSpacing.massive),
             ],
           ),
         ),
@@ -309,14 +309,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       height: 280,
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        borderRadius: BorderRadius.circular(AppShapes.xLarge),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        borderRadius: BorderRadius.circular(AppShapes.xLarge),
         child: DerivAreaChart(
           points: chartData,
           autoScale: true,
@@ -333,9 +333,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   Widget _buildStatusCard(BotStatus status) {
     final isProfit = status.sessionProfit >= 0;
-    
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -347,7 +347,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             context.colors.surfaceContainer,
           ],
         ),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        borderRadius: BorderRadius.circular(AppShapes.xLarge),
         border: Border.all(
           color: isProfit 
               ? AppColors.success.withOpacity(0.3)
@@ -370,7 +370,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                         color: context.colors.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(height: AppSpacing.xs),
                     Text(
                       '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}',
                       style: context.textStyles.displaySmall?.copyWith(
@@ -382,7 +382,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
                   color: status.isRunning
                       ? AppColors.success.withOpacity(0.2)
@@ -401,7 +401,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          SizedBox(height: AppSpacing.xl),
           Row(
             children: [
               Expanded(
@@ -440,14 +440,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           color: context.colors.primary,
           size: 20,
         ),
-        const SizedBox(height: AppSpacing.xs),
+        SizedBox(height: AppSpacing.xs),
         Text(
           value,
           style: context.textStyles.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: AppSpacing.xxs),
+        SizedBox(height: AppSpacing.xxs),
         Text(
           label,
           style: context.textStyles.bodySmall?.copyWith(
@@ -485,7 +485,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           ),
         ),
         if (widget.bot.isRunning) ...[
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             flex: 1,
             child: FilledButton(
@@ -577,10 +577,10 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   Widget _buildStatCard(String label, String value, Color color, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        borderRadius: BorderRadius.circular(AppShapes.xLarge),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
@@ -590,7 +590,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: color, size: 24),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
           Text(
             value,
             style: context.textStyles.titleLarge?.copyWith(
@@ -598,7 +598,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: AppSpacing.xs),
           Text(
             label,
             style: context.textStyles.bodySmall?.copyWith(
@@ -624,12 +624,12 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.xxl),
+            padding: EdgeInsets.all(AppSpacing.xxl),
             decoration: BoxDecoration(
               color: context.colors.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+              borderRadius: BorderRadius.circular(AppShapes.xLarge),
             ),
             child: Center(
               child: Column(
@@ -639,7 +639,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                     size: 48,
                     color: context.colors.onSurfaceVariant,
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   Text(
                     'Nenhum trade ainda',
                     style: context.textStyles.bodyLarge?.copyWith(
@@ -676,7 +676,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: AppSpacing.md),
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -684,14 +684,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           itemBuilder: (context, index) {
             final trade = status.tradeHistory[status.tradeHistory.length - 1 - index];
             final isWin = trade.won;
-            
+
             return StaggeredListItem(
               index: index,
               child: Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                margin: EdgeInsets.only(bottom: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: context.colors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                  borderRadius: BorderRadius.circular(AppShapes.xLarge),
                   border: Border.all(
                     color: isWin
                         ? AppColors.success.withOpacity(0.3)
@@ -700,7 +700,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   ),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
+                  contentPadding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.sm,
                   ),
@@ -730,15 +730,15 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: AppSpacing.sm),
                       Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: AppSpacing.sm,
                           vertical: AppSpacing.xxs,
                         ),
                         decoration: BoxDecoration(
                           color: context.colors.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                          borderRadius: BorderRadius.circular(AppShapes.small),
                         ),
                         child: Text(
                           '${trade.timestamp.hour}:${trade.timestamp.minute.toString().padLeft(2, '0')}',
