@@ -1,9 +1,11 @@
-// create_post_screen.dart
+// lib/create_post_screen.dart
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
-import 'styles.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final String token;
@@ -24,7 +26,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isPosting = false;
   List<XFile> _selectedImages = [];
   String _selectedCategory = 'Análise';
-  
+
   final List<Map<String, dynamic>> _categories = [
     {'name': 'Análise', 'icon': Icons.analytics_rounded, 'color': AppColors.primary},
     {'name': 'Estratégia', 'icon': Icons.psychology_rounded, 'color': AppColors.success},
@@ -120,7 +122,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _isPosting = true);
     AppHaptics.medium();
 
-    // Simular upload e publicação
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
@@ -145,122 +146,76 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     AppHaptics.warning();
-    showDialog(
+    AppDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Descartar rascunho?'),
-        content: const Text('Suas alterações não serão salvas.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              AppHaptics.light();
-              Navigator.pop(context);
-            },
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              AppHaptics.light();
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.error,
-            ),
-            child: const Text('Descartar'),
-          ),
-        ],
-      ),
+      title: 'Descartar rascunho?',
+      content: 'Suas alterações não serão salvas.',
+      icon: Icons.delete_outline_rounded,
+      iconColor: AppColors.error,
+      actions: [
+        TertiaryButton(
+          text: 'Cancelar',
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
+        ),
+        PrimaryButton(
+          text: 'Descartar',
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+            Navigator.pop(context);
+          },
+        ),
+      ],
     );
   }
 
   void _showCategoryPicker() {
     AppHaptics.light();
-    showModalBottomSheet(
+    AppModalBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppSpacing.radiusXl),
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(
-                  top: AppSpacing.md,
-                  bottom: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: context.colors.outlineVariant,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(
-                  'Selecione a categoria',
-                  style: context.textStyles.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ..._categories.asMap().entries.map((entry) {
-                final index = entry.key;
-                final category = entry.value;
-                final isSelected = category['name'] == _selectedCategory;
+      title: 'Selecione a categoria',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _categories.asMap().entries.map((entry) {
+          final index = entry.key;
+          final category = entry.value;
+          final isSelected = category['name'] == _selectedCategory;
 
-                return FadeInWidget(
-                  delay: Duration(milliseconds: 50 * index),
-                  child: ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      decoration: BoxDecoration(
-                        color: (category['color'] as Color).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      ),
-                      child: Icon(
-                        category['icon'] as IconData,
-                        color: category['color'] as Color,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      category['name'] as String,
-                      style: context.textStyles.bodyLarge?.copyWith(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected
-                            ? context.colors.primary
-                            : context.colors.onSurface,
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? Icon(
-                            Icons.check_circle_rounded,
-                            color: context.colors.primary,
-                          )
-                        : null,
-                    onTap: () {
-                      AppHaptics.selection();
-                      setState(() {
-                        _selectedCategory = category['name'] as String;
-                      });
-                      Navigator.pop(context);
-                    },
-                  ),
-                );
-              }).toList(),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-          ),
-        ),
+          return FadeInWidget(
+            delay: Duration(milliseconds: 50 * index),
+            child: AppListTile(
+              leading: Container(
+                padding: EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: (category['color'] as Color).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Icon(
+                  category['icon'] as IconData,
+                  color: category['color'] as Color,
+                  size: 20,
+                ),
+              ),
+              title: category['name'] as String,
+              trailing: isSelected
+                  ? Icon(
+                      Icons.check_circle_rounded,
+                      color: context.colors.primary,
+                    )
+                  : null,
+              onTap: () {
+                AppHaptics.selection();
+                setState(() {
+                  _selectedCategory = category['name'] as String;
+                });
+                Navigator.pop(context);
+              },
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -278,7 +233,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     return Scaffold(
       backgroundColor: context.colors.surface,
-      appBar: AppBar(
+      appBar: PrimaryAppBar(
+        title: 'Nova Publicação',
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () {
@@ -286,16 +242,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             _showDiscardDialog();
           },
         ),
-        title: const Text('Nova Publicação'),
-        centerTitle: true,
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: AnimatedPrimaryButton(
+            padding: EdgeInsets.only(right: AppSpacing.md),
+            child: PrimaryButton(
               text: 'Publicar',
               icon: Icons.send_rounded,
               onPressed: canPublish ? _publishPost : null,
-              isLoading: _isPosting,
+              loading: _isPosting,
             ),
           ),
         ],
@@ -310,8 +264,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: GestureDetector(
                 onTap: _showCategoryPicker,
                 child: Container(
-                  margin: const EdgeInsets.all(AppSpacing.lg),
-                  padding: const EdgeInsets.symmetric(
+                  margin: EdgeInsets.all(AppSpacing.lg),
+                  padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
@@ -333,7 +287,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         color: selectedCategoryData['color'] as Color,
                         size: 18,
                       ),
-                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: AppSpacing.sm),
                       Text(
                         _selectedCategory,
                         style: context.textStyles.bodyMedium?.copyWith(
@@ -341,7 +295,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           color: selectedCategoryData['color'] as Color,
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.xs),
+                      SizedBox(width: AppSpacing.xs),
                       Icon(
                         Icons.arrow_drop_down_rounded,
                         color: selectedCategoryData['color'] as Color,
@@ -355,30 +309,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Título
                     FadeInWidget(
-                      delay: const Duration(milliseconds: 100),
-                      child: TextField(
+                      delay: Duration(milliseconds: 100),
+                      child: AppTextField(
                         controller: _titleController,
                         focusNode: _titleFocusNode,
-                        style: context.textStyles.headlineSmall?.copyWith(
+                        hint: 'Título',
+                        textStyle: context.textStyles.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
-                        decoration: InputDecoration(
-                          hintText: 'Título',
-                          hintStyle: context.textStyles.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: context.colors.onSurfaceVariant,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
                         maxLines: null,
-                        textInputAction: TextInputAction.next,
                         onSubmitted: (_) {
                           _contentFocusNode.requestFocus();
                         },
@@ -386,27 +331,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: AppSpacing.xl),
+                    SizedBox(height: AppSpacing.xl),
 
                     // Conteúdo
                     FadeInWidget(
-                      delay: const Duration(milliseconds: 200),
-                      child: TextField(
+                      delay: Duration(milliseconds: 200),
+                      child: AppTextField(
                         controller: _contentController,
                         focusNode: _contentFocusNode,
-                        style: context.textStyles.bodyLarge?.copyWith(
-                          height: 1.6,
-                        ),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Escreva sua análise, estratégia ou opinião sobre o mercado...',
-                          hintStyle: context.textStyles.bodyLarge?.copyWith(
-                            color: context.colors.onSurfaceVariant,
-                            height: 1.6,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                        hint: 'Escreva sua análise, estratégia ou opinião sobre o mercado...',
                         maxLines: null,
                         minLines: 10,
                         onChanged: (_) => setState(() {}),
@@ -415,17 +348,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                     // Imagens selecionadas
                     if (_selectedImages.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.xl),
+                      SizedBox(height: AppSpacing.xl),
                       FadeInWidget(
-                        delay: const Duration(milliseconds: 300),
+                        delay: Duration(milliseconds: 300),
                         child: Wrap(
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
-                          children:
-                              _selectedImages.asMap().entries.map((entry) {
+                          children: _selectedImages.asMap().entries.map((entry) {
                             final index = entry.key;
                             final image = entry.value;
-                            
+
                             return StaggeredListItem(
                               index: index,
                               child: Stack(
@@ -444,29 +376,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                   Positioned(
                                     top: AppSpacing.xs,
                                     right: AppSpacing.xs,
-                                    child: GestureDetector(
-                                      onTap: () => _removeImage(index),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(
-                                          AppSpacing.xs,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black87,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color:
-                                                  Colors.black.withOpacity(0.3),
-                                              blurRadius: 4,
-                                            ),
-                                          ],
-                                        ),
-                                        child: const Icon(
-                                          Icons.close_rounded,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                      ),
+                                    child: IconButtonWithBackground(
+                                      icon: Icons.close_rounded,
+                                      onPressed: () => _removeImage(index),
+                                      backgroundColor: Colors.black87,
+                                      iconColor: Colors.white,
+                                      size: 32,
                                     ),
                                   ),
                                 ],
@@ -477,7 +392,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ),
                     ],
 
-                    const SizedBox(height: AppSpacing.massive),
+                    SizedBox(height: AppSpacing.massive),
                   ],
                 ),
               ),
@@ -497,7 +412,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: SafeArea(
                 top: false,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                     vertical: AppSpacing.sm,
                   ),
@@ -558,7 +473,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -567,7 +482,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   color: context.colors.onSurfaceVariant,
                   size: 24,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                SizedBox(height: AppSpacing.xxs),
                 Text(
                   label,
                   style: context.textStyles.labelSmall?.copyWith(
