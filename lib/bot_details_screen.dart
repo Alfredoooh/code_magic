@@ -610,24 +610,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                       size: 24,
                     ),
                   ),
-                  title: Row(
-                    children: [
-                      Text(
-                        isWin ? 'WIN' : 'LOSS',
-                        style: context.textStyles.titleSmall?.copyWith(
-                          color: isWin ? AppColors.success : AppColors.error,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: AppSpacing.sm),
-                      AppBadge(
-                        text: '${trade.timestamp.hour}:${trade.timestamp.minute.toString().padLeft(2, '0')}',
-                        color: context.colors.onSurfaceVariant,
-                        outlined: true,
-                      ),
-                    ],
-                  ),
-                  subtitle: 'Stake: \$${trade.stake.toStringAsFixed(2)}',
+                  title: isWin ? 'WIN' : 'LOSS',
+                  subtitle: 'Stake: \$${trade.stake.toStringAsFixed(2)} • ${trade.timestamp.hour}:${trade.timestamp.minute.toString().padLeft(2, '0')}',
                   trailing: Text(
                     '${trade.profit >= 0 ? '+' : ''}\$${trade.profit.toStringAsFixed(2)}',
                     style: context.textStyles.titleMedium?.copyWith(
