@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
 import 'styles.dart' hide EdgeInsets;
@@ -185,7 +186,7 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   void _openAllMarkets() {
     AppHaptics.selection();
     Navigator.of(context).push(
-      MaterialPageRoute(
+      CupertinoPageRoute(
         builder: (context) => AllMarketsScreen(
           token: widget.token,
           allMarkets: _allMarkets,
@@ -199,7 +200,7 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   void _openNewsDetail(NewsItem news) {
     AppHaptics.selection();
     Navigator.of(context).push(
-      MaterialPageRoute(
+      CupertinoPageRoute(
         builder: (context) => NewsDetailScreen(news: news),
       ),
     );
@@ -208,7 +209,7 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
   void _openMarketDetail(String symbol) {
     AppHaptics.selection();
     Navigator.of(context).push(
-      MaterialPageRoute(
+      CupertinoPageRoute(
         builder: (context) => MarketDetailScreen(
           symbol: symbol,
           marketInfo: _allMarkets[symbol]!,
@@ -227,6 +228,7 @@ class _MarketsScreenState extends State<MarketsScreen> with AutomaticKeepAliveCl
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
+          AppHaptics.light();
           await _fetchCryptoNews();
           AppSnackbar.success(context, 'Mercados atualizados');
         },
