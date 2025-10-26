@@ -1,9 +1,10 @@
 // lib/bots_screen.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
+import 'styles.dart' hide EdgeInsets;
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
@@ -78,7 +79,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   void _loadDefaultBots() {
     if (_channel == null) return;
 
-    // IMPORTANT: initialStake mínimo 0.35. maxStake deixamos como null ( usuário define ).
     _bots = [
       TradingBot(
         config: BotConfiguration(
@@ -91,7 +91,6 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           recoveryMode: RecoveryMode.intelligent,
           entryConditions: [EntryCondition.immediate],
           maxConsecutiveLosses: 7,
-          // maxStake intentionally omitted (null) — user may set it
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -237,9 +236,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: context.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.xLarge)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.large)),
         ),
-        padding: EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -251,17 +250,17 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 borderRadius: BorderRadius.circular(AppShapes.full),
               ),
             ),
-            SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.xl),
             Text('Opções', style: context.textStyles.headlineSmall),
-            SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
             ListTile(
               leading: Container(
-                padding: EdgeInsets.all(AppSpacing.sm),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(AppShapes.medium),
                 ),
-                child: Icon(Icons.add_circle_outline, color: AppColors.primary),
+                child: const Icon(Icons.add_circle_outline, color: AppColors.primary),
               ),
               title: const Text('Criar Novo Bot'),
               subtitle: const Text('Configure um novo bot de trading'),
@@ -270,15 +269,15 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 _showCreateBotDialog();
               },
             ),
-            SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.sm),
             ListTile(
               leading: Container(
-                padding: EdgeInsets.all(AppSpacing.sm),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(AppShapes.medium),
                 ),
-                child: Icon(Icons.play_circle_outline, color: AppColors.success),
+                child: const Icon(Icons.play_circle_outline, color: AppColors.success),
               ),
               title: const Text('Iniciar Múltiplos Bots'),
               subtitle: const Text('Ative todos os bots disponíveis'),
@@ -287,7 +286,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 _startMultipleBots();
               },
             ),
-            SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
           ],
         ),
       ),
@@ -348,7 +347,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 prefixIcon: Icon(Icons.attach_money_rounded),
               ),
             ),
-            SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: maxStakeController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -386,12 +385,11 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 return;
               }
 
-              // Apply changes: initialStake (>=0.35) and maxStake (nullable)
               AppHaptics.heavy();
               setState(() {
                 bot.config.initialStake = newStake;
-                bot.currentStake = max(bot.currentStake, newStake);
-                bot.config.maxStake = newMaxStake; // nullable — user-defined or null
+                bot.currentStake = math.max(bot.currentStake, newStake);
+                bot.config.maxStake = newMaxStake;
               });
               Navigator.pop(context);
               AppSnackbar.success(context, 'Configurações atualizadas!');
@@ -435,9 +433,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       }
                     },
                     child: ListView.separated(
-                      padding: EdgeInsets.all(AppSpacing.lg),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       itemCount: _bots.length,
-                      separatorBuilder: (context, index) => SizedBox(height: AppSpacing.md),
+                      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
                       itemBuilder: (context, index) => StaggeredListItem(
                         index: index,
                         child: _buildBotCard(_bots[index]),
@@ -452,7 +450,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CircularProgressIndicator(),
-                  SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     'Conectando ao servidor...',
                     style: context.textStyles.bodyLarge?.copyWith(
@@ -467,18 +465,18 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   Widget _buildStatisticsHeader(int activeBots, double totalProfit) {
     return Container(
-      margin: EdgeInsets.all(AppSpacing.lg),
+      margin: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: StatsCard(
               label: 'Bots Ativos',
-              value: activeBots.toString(),
+              value: '0',
               icon: Icons.smart_toy_rounded,
               color: AppColors.primary,
             ),
           ),
-          SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: StatsCard(
               label: 'Total',
@@ -487,7 +485,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               color: AppColors.secondary,
             ),
           ),
-          SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: StatsCard(
               label: 'Lucro',
@@ -531,7 +529,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   size: 28,
                 ),
               ),
-              SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,13 +543,13 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                           ),
                         ),
                         if (bot.isRunning)
-                          AppBadge(
+                          const AppBadge(
                             text: 'Ativo',
                             color: AppColors.success,
                           ),
                       ],
                     ),
-                    SizedBox(height: AppSpacing.xxs),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       bot.config.description,
                       style: context.textStyles.bodySmall,
@@ -563,9 +561,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.lg),
           Container(
-            padding: EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: context.colors.surfaceVariant,
               borderRadius: BorderRadius.circular(AppShapes.medium),
@@ -578,16 +576,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ],
             ),
           ),
-          SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   Icon(Icons.attach_money_rounded, size: 16, color: context.colors.onSurfaceVariant),
-                  SizedBox(width: AppSpacing.xs),
+                  const SizedBox(width: AppSpacing.xs),
                   Text('Stake:', style: context.textStyles.bodySmall),
-                  SizedBox(width: AppSpacing.xs),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     '\$${status.currentStake.toStringAsFixed(2)}',
                     style: context.textStyles.titleSmall?.copyWith(color: AppColors.primary),
@@ -614,7 +612,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     return Column(
       children: [
         Text(label, style: context.textStyles.labelSmall),
-        SizedBox(height: AppSpacing.xxs),
+        const SizedBox(height: AppSpacing.xxs),
         Text(value, style: context.textStyles.titleSmall?.copyWith(color: color)),
       ],
     );
