@@ -23,8 +23,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
     with TickerProviderStateMixin {
   final TextEditingController _pinController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
-  final FocusNode _pinFocusNode = FocusNode();
-  final FocusNode _confirmFocusNode = FocusNode();
 
   late AnimationController _shakeController;
   late AnimationController _successController;
@@ -64,12 +62,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
         curve: AppMotion.emphasizedDecelerate,
       ),
     );
-
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _pinFocusNode.requestFocus();
-      }
-    });
   }
 
   @override
@@ -78,8 +70,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
     _successController.dispose();
     _pinController.dispose();
     _confirmController.dispose();
-    _pinFocusNode.dispose();
-    _confirmFocusNode.dispose();
     super.dispose();
   }
 
@@ -106,10 +96,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
         _firstPin = pin;
         _isConfirmStep = true;
       });
-
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _confirmFocusNode.requestFocus();
-      });
     } else {
       // Confirm PIN
       if (pin != _firstPin) {
@@ -121,10 +107,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
           _firstPin = '';
           _pinController.clear();
           _confirmController.clear();
-        });
-
-        Future.delayed(const Duration(milliseconds: 100), () {
-          _pinFocusNode.requestFocus();
         });
       } else {
         _savePin();
@@ -175,17 +157,17 @@ class _PinSetupScreenState extends State<PinSetupScreen>
   int _getPinStrength(String pin) {
     if (pin.length < 6) return 0;
     if (pin.length < 8) return 1;
-    
+
     final hasNumbers = pin.contains(RegExp(r'[0-9]'));
     final hasLetters = pin.contains(RegExp(r'[a-zA-Z]'));
     final hasUpperCase = pin.contains(RegExp(r'[A-Z]'));
     final hasLowerCase = pin.contains(RegExp(r'[a-z]'));
-    
+
     int strength = 1;
     if (hasNumbers && hasLetters) strength++;
     if (hasUpperCase && hasLowerCase) strength++;
     if (pin.length >= 10) strength++;
-    
+
     return strength;
   }
 
@@ -370,7 +352,6 @@ class _PinSetupScreenState extends State<PinSetupScreen>
         },
         child: AppTextField(
           controller: _isConfirmStep ? _confirmController : _pinController,
-          focusNode: _isConfirmStep ? _confirmFocusNode : _pinFocusNode,
           label: _isConfirmStep ? 'Confirm PIN' : 'Enter PIN',
           hint: '••••••',
           obscureText: _isConfirmStep ? _obscureConfirm : _obscureText,
