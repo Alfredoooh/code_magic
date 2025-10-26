@@ -219,7 +219,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         setState(() => _filter = value);
       },
       child: AnimatedContainer(
-        duration: AppMotion.fast,
+        duration: AppMotion.medium,
         padding: EdgeInsets.symmetric(
           vertical: AppSpacing.md,
           horizontal: AppSpacing.sm,
