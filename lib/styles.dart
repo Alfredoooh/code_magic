@@ -350,7 +350,7 @@ ThemeData darkTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.dark,
 
-  colorScheme: const ColorScheme(
+  colorScheme: ColorScheme(
     brightness: Brightness.dark,
     primary: AppColors.primary,
     onPrimary: AppColors.onPrimary,
@@ -1381,7 +1381,7 @@ ThemeData lightTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
 
-  colorScheme: const ColorScheme(
+  colorScheme: ColorScheme(
     brightness: Brightness.light,
     primary: AppColors.primary,
     onPrimary: AppColors.onPrimary,
