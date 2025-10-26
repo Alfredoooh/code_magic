@@ -328,6 +328,7 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
   final double blur;
   final double opacity;
+  final Color? borderColor;
 
   const GlassCard({
     Key? key,
@@ -336,6 +337,7 @@ class GlassCard extends StatelessWidget {
     this.margin,
     this.blur = 10,
     this.opacity = 0.2,
+    this.borderColor,
   }) : super(key: key);
 
   @override
@@ -352,6 +354,7 @@ class GlassCard extends StatelessWidget {
               color: context.surface.withOpacity(opacity),
               borderRadius: BorderRadius.circular(AppShapes.medium),
               border: Border.all(
+                color: borderColor ?? Colors.white.withOpacity(0.2),
                 color: Colors.white.withOpacity(0.2),
                 width: 1,
               ),
@@ -1421,12 +1424,14 @@ class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
+  final void Function(String)? onSubmitted;
   final TextInputType? keyboardType;
   final bool obscureText;
   final Widget? prefix;
   final Widget? suffix;
   final int? maxLines;
   final bool enabled;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
     Key? key,
@@ -1435,12 +1440,14 @@ class AppTextField extends StatelessWidget {
     this.controller,
     this.validator,
     this.onChanged,
+    this.onSubmitted,
     this.keyboardType,
     this.obscureText = false,
     this.prefix,
     this.suffix,
     this.maxLines = 1,
     this.enabled = true,
+    this.inputFormatters,
   }) : super(key: key);
 
   @override
@@ -1449,10 +1456,12 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       validator: validator,
       onChanged: onChanged,
+      onFieldSubmitted: onSubmitted,
       keyboardType: keyboardType,
       obscureText: obscureText,
       maxLines: maxLines,
       enabled: enabled,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
