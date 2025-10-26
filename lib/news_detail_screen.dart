@@ -77,7 +77,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // AppBar com progresso de leitura
           SliverAppBar(
             backgroundColor: context.colors.surface,
             elevation: 0,
@@ -133,7 +132,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Categoria Badge
                   FadeInWidget(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -142,7 +140,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: context.colors.primaryContainer,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: context.colors.primary.withOpacity(0.3),
                           width: 1,
@@ -172,7 +170,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  // Título
                   FadeInWidget(
                     delay: const Duration(milliseconds: 100),
                     child: Text(
@@ -187,7 +184,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  // Info da fonte
                   FadeInWidget(
                     delay: const Duration(milliseconds: 200),
                     child: Row(
@@ -197,10 +193,10 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                           height: 40,
                           decoration: BoxDecoration(
                             color: context.colors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            borderRadius: BorderRadius.circular(12),
                             child: Image.network(
                               widget.news.favicon,
                               fit: BoxFit.cover,
@@ -270,13 +266,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   ),
 
                   const SizedBox(height: AppSpacing.xxl),
-
-                  // Divisor
                   Divider(color: context.colors.outlineVariant),
-
                   const SizedBox(height: AppSpacing.xxl),
 
-                  // Resumo/Conteúdo principal
                   FadeInWidget(
                     delay: const Duration(milliseconds: 300),
                     child: Text(
@@ -290,12 +282,10 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
                   const SizedBox(height: AppSpacing.xxl),
 
-                  // Seções de conteúdo expandido
                   ..._buildContentSections(),
 
                   const SizedBox(height: AppSpacing.xxl),
 
-                  // Botão Ler Artigo Completo
                   FadeInWidget(
                     delay: const Duration(milliseconds: 400),
                     child: SizedBox(
@@ -311,17 +301,12 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
                   const SizedBox(height: AppSpacing.xxl),
 
-                  // Tags
                   _buildTags(),
 
                   const SizedBox(height: AppSpacing.xxl),
-
-                  // Divisor
                   Divider(color: context.colors.outlineVariant),
-
                   const SizedBox(height: AppSpacing.xl),
 
-                  // Notícias relacionadas
                   _buildRelatedNews(),
 
                   const SizedBox(height: AppSpacing.massive),
@@ -364,7 +349,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: context.colors.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: context.colors.outlineVariant,
               width: 1,
@@ -379,7 +364,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
                       color: context.colors.primaryContainer,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       section['icon'] as IconData,
@@ -415,7 +400,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   Widget _buildTags() {
     final tags = ['Trading', 'Mercados', 'Análise', 'Volatilidade'];
-    
+
     return FadeInWidget(
       delay: const Duration(milliseconds: 500),
       child: Column(
@@ -439,7 +424,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: context.colors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                  borderRadius: BorderRadius.circular(100),
                   border: Border.all(
                     color: context.colors.outlineVariant,
                     width: 1,
@@ -511,14 +496,14 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         ...relatedNews.asMap().entries.map((entry) {
           final index = entry.key;
           final news = entry.value;
-          
+
           return FadeInWidget(
             delay: Duration(milliseconds: 600 + (index * 50)),
             child: Container(
               margin: const EdgeInsets.only(bottom: AppSpacing.md),
               decoration: BoxDecoration(
                 color: context.colors.surfaceContainer,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: context.colors.outlineVariant,
                   width: 1,
@@ -531,7 +516,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     AppHaptics.light();
                     AppSnackbar.info(context, 'Abrindo notícia...');
                   },
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                  borderRadius: BorderRadius.circular(16),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Row(
@@ -540,7 +525,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                           padding: const EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(
                             color: context.colors.primaryContainer,
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             news['icon'] as IconData,
@@ -581,9 +566,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                     ),
                                   ),
                                   Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.xs,
-                                    ),
+                                    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                                     width: 3,
                                     height: 3,
                                     decoration: BoxDecoration(
