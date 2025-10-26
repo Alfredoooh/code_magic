@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'all_transactions_screen.dart';
 import 'pin_setup_screen.dart';
+import 'styles.dart' hide EdgeInsets;
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -189,6 +190,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   void _showAllTransactions() {
+    AppHaptics.light();
     Navigator.of(context).push(
       CupertinoPageRoute(
         builder: (context) => AllTransactionsScreen(
@@ -208,12 +210,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         actions: [
           CupertinoDialogAction(
             child: const Text('Cancelar'),
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context, false);
+            },
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             child: const Text('Sair'),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              AppHaptics.medium();
+              Navigator.pop(context, true);
+            },
           ),
         ],
       ),
@@ -242,12 +250,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           actions: [
             CupertinoDialogAction(
               child: const Text('Cancelar'),
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                AppHaptics.light();
+                Navigator.pop(context, false);
+              },
             ),
             CupertinoDialogAction(
               isDestructiveAction: true,
               child: const Text('Remover'),
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                AppHaptics.medium();
+                Navigator.pop(context, true);
+              },
             ),
           ],
         ),
@@ -256,12 +270,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       if (remove == true) {
         await prefs.remove('app_lock_pin');
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bloqueio removido'),
-            backgroundColor: Color(0xFFFF9500),
-          ),
-        );
+        AppSnackbar.warning(context, 'Bloqueio removido');
       }
     } else {
       final result = await Navigator.of(context).push(
@@ -274,17 +283,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       if (result != null && result is String) {
         await prefs.setString('app_lock_pin', result);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bloqueio ativado'),
-            backgroundColor: Color(0xFFFF9500),
-          ),
-        );
+        AppSnackbar.success(context, 'Bloqueio ativado');
       }
     }
   }
 
   void _showSettingsMenu() {
+    AppHaptics.light();
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
@@ -306,7 +311,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
           child: const Text('Cancelar'),
         ),
       ),
@@ -320,26 +328,35 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         : 0.0;
 
     return CupertinoPageScaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.colors.surface,
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: context.colors.surfaceContainer,
         border: null,
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
+          child: Icon(
+            Icons.arrow_back_ios_new_rounded, 
+            size: 20,
+            color: context.colors.onSurface,
+          ),
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
         ),
-        middle: const Text(
+        middle: Text(
           'Portfólio',
-          style: TextStyle(
-            fontSize: 17,
+          style: context.textStyles.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
           ),
         ),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
-          child: const Icon(Icons.more_horiz_rounded, size: 24),
+          child: Icon(
+            Icons.more_horiz_rounded, 
+            size: 24,
+            color: context.colors.onSurface,
+          ),
           onPressed: _showSettingsMenu,
         ),
       ),
@@ -348,6 +365,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               slivers: [
                 CupertinoSliverRefreshControl(
                   onRefresh: () async {
+                    AppHaptics.light();
                     _fetchTransactions();
                     _fetchProfitTable();
                     await Future.delayed(const Duration(milliseconds: 500));
@@ -355,7 +373,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -363,15 +381,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         Container(
                           height: 200,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
+                            gradient: LinearGradient(
+                              colors: [
+                                context.colors.surfaceContainer,
+                                context.colors.surfaceContainerHighest,
+                              ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppSpacing.lg),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(AppSpacing.lg),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -381,18 +402,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                   children: [
                                     Text(
                                       _userName,
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontSize: 15,
+                                      style: context.textStyles.bodyLarge?.copyWith(
+                                        color: context.colors.onSurface,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: AppSpacing.xxs),
                                     Text(
                                       _loginId,
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.5),
-                                        fontSize: 12,
+                                      style: context.textStyles.bodySmall?.copyWith(
+                                        color: context.colors.onSurfaceVariant,
                                         fontFamily: 'monospace',
                                       ),
                                     ),
@@ -403,31 +422,26 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                   children: [
                                     Text(
                                       'Saldo Disponível',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.6),
-                                        fontSize: 12,
+                                      style: context.textStyles.bodySmall?.copyWith(
+                                        color: context.colors.onSurfaceVariant,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: AppSpacing.xs),
                                     Row(
                                       crossAxisAlignment: CrossAxisAlignment.baseline,
                                       textBaseline: TextBaseline.alphabetic,
                                       children: [
                                         Text(
                                           _balance.toStringAsFixed(2),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 32,
+                                          style: context.textStyles.displaySmall?.copyWith(
                                             fontWeight: FontWeight.w700,
-                                            letterSpacing: -1,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: AppSpacing.sm),
                                         Text(
                                           _currency,
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
-                                            fontSize: 18,
+                                          style: context.textStyles.titleLarge?.copyWith(
+                                            color: context.colors.onSurfaceVariant,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -440,108 +454,101 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
 
                         // Profit Summary
                         Row(
                           children: [
                             Expanded(child: _buildCompactProfitCard('Hoje', _todayProfit)),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: AppSpacing.md),
                             Expanded(child: _buildCompactProfitCard('7D', _weekProfit)),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: AppSpacing.md),
                             Expanded(child: _buildCompactProfitCard('30D', _monthProfit)),
                           ],
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
 
                         // Weekly Chart
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C1C1E),
-                            borderRadius: BorderRadius.circular(12),
+                            color: context.colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(AppSpacing.md),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Últimos 7 dias',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                                style: context.textStyles.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpacing.lg),
                               _buildIOSBarChart(),
                             ],
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
 
                         // Stats Card
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C1C1E),
-                            borderRadius: BorderRadius.circular(12),
+                            color: context.colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(AppSpacing.md),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Estatísticas',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                                style: context.textStyles.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpacing.lg),
                               Row(
                                 children: [
-                                  Expanded(child: _buildStatItem('Total', _totalTrades.toString(), const Color(0xFFFF9500))),
-                                  Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), const Color(0xFFFF9500))),
-                                  Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), const Color(0xFFFF3B30))),
+                                  Expanded(child: _buildStatItem('Total', _totalTrades.toString(), context.colors.primary)),
+                                  Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), context.colors.primary)),
+                                  Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), context.colors.error)),
                                 ],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpacing.lg),
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(AppSpacing.xs),
                                 child: LinearProgressIndicator(
                                   value: winRate / 100,
-                                  backgroundColor: const Color(0xFF2C2C2E),
+                                  backgroundColor: context.colors.surfaceContainerHighest,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    winRate >= 50 ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
+                                    winRate >= 50 ? context.colors.primary : context.colors.error,
                                   ),
                                   minHeight: 6,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: AppSpacing.sm),
                               Text(
                                 'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
-                                  fontSize: 13,
+                                style: context.textStyles.bodySmall?.copyWith(
+                                  color: context.colors.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
 
                         // Recent Transactions
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Transações Recentes',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
+                              style: context.textStyles.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -550,17 +557,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                 onTap: _showAllTransactions,
                                 child: Row(
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Ver Todas',
-                                      style: TextStyle(
-                                        color: Color(0xFF007AFF),
-                                        fontSize: 15,
+                                      style: context.textStyles.bodyMedium?.copyWith(
+                                        color: context.colors.primary,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
+                                    const SizedBox(width: AppSpacing.xxs),
+                                    Icon(
                                       Icons.arrow_forward_ios_rounded,
-                                      color: Color(0xFF007AFF),
+                                      color: context.colors.primary,
                                       size: 14,
                                     ),
                                   ],
@@ -569,29 +575,28 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.md),
 
                         if (_transactions.isEmpty)
                           Container(
-                            padding: const EdgeInsets.all(40),
+                            padding: const EdgeInsets.all(AppSpacing.xxl),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1C1C1E),
-                              borderRadius: BorderRadius.circular(12),
+                              color: context.colors.surfaceContainer,
+                              borderRadius: BorderRadius.circular(AppSpacing.md),
                             ),
                             child: Center(
                               child: Column(
                                 children: [
                                   Icon(
                                     Icons.inbox_outlined,
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: context.colors.onSurfaceVariant,
                                     size: 40,
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: AppSpacing.md),
                                   Text(
                                     'Nenhuma transação',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.5),
-                                      fontSize: 14,
+                                    style: context.textStyles.bodyMedium?.copyWith(
+                                      color: context.colors.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -601,7 +606,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         else
                           ..._buildTransactionsList(),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
                       ],
                     ),
                   ),
@@ -612,14 +617,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CupertinoActivityIndicator(
-                    color: Color(0xFFFF9500),
-                    radius: 16,
+                  CircularProgressIndicator(
+                    color: context.colors.primary,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     'Carregando portfólio...',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                    style: context.textStyles.bodyMedium?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -631,29 +637,29 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final isProfit = profit >= 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.md, 
+        horizontal: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(10),
+        color: context.colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.sm),
       ),
       child: Column(
         children: [
           Text(
             label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 12,
+            style: context.textStyles.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             '${isProfit ? '+' : ''}${profit.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: isProfit ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
-              fontSize: 18,
+            style: context.textStyles.titleMedium?.copyWith(
+              color: isProfit ? context.colors.primary : context.colors.error,
               fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
             ),
           ),
         ],
@@ -666,19 +672,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
+          style: context.textStyles.headlineSmall?.copyWith(
             color: color,
-            fontSize: 24,
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
-            fontSize: 12,
+          style: context.textStyles.bodySmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
           ),
         ),
       ],
@@ -693,51 +696,50 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final isCredit = amount > 0;
 
       return Container(
-        margin: const EdgeInsets.only(bottom: 8),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
+          color: context.colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppSpacing.md),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, 
+            vertical: AppSpacing.sm,
+          ),
           leading: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
               color: (isCredit 
-                  ? const Color(0xFFFF9500) 
-                  : const Color(0xFFFF3B30)).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+                  ? context.colors.primary 
+                  : context.colors.error).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppSpacing.sm),
             ),
             child: Icon(
               isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-              color: isCredit ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
+              color: isCredit ? context.colors.primary : context.colors.error,
               size: 20,
             ),
           ),
           title: Text(
             tx['action_type'] ?? 'Trade',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
+            style: context.textStyles.bodyLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: AppSpacing.xxs),
             child: Text(
               _formatDate(tx['transaction_time']),
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 13,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
               ),
             ),
           ),
           trailing: Text(
             '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: isCredit ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
-              fontSize: 16,
+            style: context.textStyles.titleSmall?.copyWith(
+              color: isCredit ? context.colors.primary : context.colors.error,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -769,12 +771,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 children: [
                   if (value != 0)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
                       child: Text(
                         value.abs().toStringAsFixed(0),
-                        style: TextStyle(
-                          color: isPositive ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
-                          fontSize: 10,
+                        style: context.textStyles.labelSmall?.copyWith(
+                          color: isPositive ? context.colors.primary : context.colors.error,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -783,16 +784,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     width: double.infinity,
                     height: barHeight.clamp(3.0, 100.0),
                     decoration: BoxDecoration(
-                      color: isPositive ? const Color(0xFFFF9500) : const Color(0xFFFF3B30),
-                      borderRadius: BorderRadius.circular(4),
+                      color: isPositive ? context.colors.primary : context.colors.error,
+                      borderRadius: BorderRadius.circular(AppSpacing.xxs),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     days[index],
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 11,
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
