@@ -1,256 +1,493 @@
-// custom_keyboard_screen.dart
+// lib/market_detail_screen.dart
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'styles.dart';
+import 'markets_screen.dart';
+import 'trade_screen.dart';
 
-class CustomKeyboardScreen extends StatefulWidget {
-  final String title;
-  final double initialValue;
-  final String? prefix;
-  final bool isInteger;
-  final Function(double) onConfirm;
+class MarketDetailScreen extends StatefulWidget {
+  final String symbol;
+  final MarketInfo marketInfo;
+  final MarketData? marketData;
+  final String token;
+  final WebSocketChannel? channel;
 
-  const CustomKeyboardScreen({
+  const MarketDetailScreen({
     Key? key,
-    required this.title,
-    required this.initialValue,
-    this.prefix,
-    this.isInteger = false,
-    required this.onConfirm,
+    required this.symbol,
+    required this.marketInfo,
+    this.marketData,
+    required this.token,
+    this.channel,
   }) : super(key: key);
 
   @override
-  State<CustomKeyboardScreen> createState() => _CustomKeyboardScreenState();
+  State<MarketDetailScreen> createState() => _MarketDetailScreenState();
 }
 
-class _CustomKeyboardScreenState extends State<CustomKeyboardScreen>
-    with SingleTickerProviderStateMixin {
-  late String _display;
-  late AnimationController _animController;
-  late Animation<double> _scaleAnimation;
+class _MarketDetailScreenState extends State<MarketDetailScreen> {
+  MarketData? _currentData;
+  final List<double> _priceHistory = [];
+  StreamSubscription? _streamSubscription;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _display = widget.isInteger
-        ? widget.initialValue.toInt().toString()
-        : widget.initialValue.toStringAsFixed(2);
+    _currentData = widget.marketData;
 
-    _animController = AnimationController(
-      vsync: this,
-      duration: AppMotion.fast,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
-    );
-  }
+    if (widget.marketData != null) {
+      _priceHistory.add(widget.marketData!.price);
+    }
 
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
+    _subscribeToMarket();
 
-  void _onKeyPress(String key) {
-    AppHaptics.light();
-    _animController.forward().then((_) => _animController.reverse());
-
-    setState(() {
-      if (key == 'C') {
-        _display = '0';
-      } else if (key == '⌫') {
-        if (_display.length > 1) {
-          _display = _display.substring(0, _display.length - 1);
-        } else {
-          _display = '0';
-        }
-      } else if (key == '.') {
-        if (!widget.isInteger && !_display.contains('.')) {
-          _display += '.';
-        }
-      } else {
-        if (_display == '0' && key != '.') {
-          _display = key;
-        } else {
-          _display += key;
-        }
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
       }
     });
   }
 
-  void _confirm() {
-    final value = double.tryParse(_display);
-    if (value != null && value > 0) {
-      AppHaptics.success();
-      widget.onConfirm(value);
-    } else {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Valor inválido');
+  @override
+  void dispose() {
+    _streamSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToMarket() {
+    if (widget.channel == null) {
+      setState(() => _isLoading = false);
+      return;
     }
+
+    try {
+      widget.channel!.sink.add(json.encode({
+        'ticks': widget.symbol,
+        'subscribe': 1,
+      }));
+
+      _streamSubscription = widget.channel!.stream.listen(
+        (message) {
+          try {
+            final data = json.decode(message);
+
+            if (data['msg_type'] == 'tick' && data['tick']['symbol'] == widget.symbol) {
+              final tick = data['tick'];
+              final quote = double.parse(tick['quote'].toString());
+
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+
+                  if (_currentData != null) {
+                    final oldPrice = _currentData!.price;
+                    _currentData = MarketData(
+                      price: quote,
+                      change: ((quote - oldPrice) / (oldPrice == 0 ? 1 : oldPrice)) * 100,
+                      timestamp: DateTime.now(),
+                    );
+                  } else {
+                    _currentData = MarketData(
+                      price: quote,
+                      change: 0.0,
+                      timestamp: DateTime.now(),
+                    );
+                  }
+
+                  _priceHistory.add(quote);
+                  if (_priceHistory.length > 100) {
+                    _priceHistory.removeAt(0);
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            debugPrint('Error parsing market data: $e');
+          }
+        },
+        onError: (error) {
+          debugPrint('WebSocket error: $error');
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error subscribing to market: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _openTrade() {
+    AppHaptics.heavy();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => TradeScreen(
+          token: widget.token,
+          initialMarket: widget.symbol,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isPositive = (_currentData?.change ?? 0) >= 0;
+    final changeColor = isPositive ? AppColors.success : AppColors.error;
+
     return Scaffold(
-      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        title: Text(widget.title),
-        centerTitle: true,
+        title: Text(widget.marketInfo.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () {
+              AppHaptics.light();
+              _subscribeToMarket();
+              AppSnackbar.info(context, 'Atualizando dados...');
+            },
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Display
-            Expanded(
-              child: Center(
-                child: FadeInWidget(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      body: _isLoading && _currentData == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: AppSpacing.lg),
+                  const Text('Carregando dados do mercado...'),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
-                      Text(
-                        widget.prefix ?? '',
-                        style: context.textStyles.headlineMedium?.copyWith(
-                          color: context.colors.onSurfaceVariant,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: Text(
-                          _display,
-                          style: context.textStyles.displayLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2,
-                            fontSize: 72,
+                      // Market Icon & Price
+                      FadeInWidget(
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  color: context.colors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(AppShapes.large),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppShapes.large),
+                                  child: Image.network(
+                                    widget.marketInfo.iconUrl,
+                                    width: 96,
+                                    height: 96,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: AppColors.primary.withOpacity(0.15),
+                                        child: const Icon(
+                                          Icons.show_chart_rounded,
+                                          color: AppColors.primary,
+                                          size: 48,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+                              Text(
+                                _currentData != null
+                                    ? '\$${_currentData!.price.toStringAsFixed(2)}'
+                                    : 'Carregando...',
+                                style: context.textStyles.displayLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              if (_currentData != null)
+                                AppBadge(
+                                  text: '${isPositive ? '+' : ''}${_currentData!.change.toStringAsFixed(2)}%',
+                                  color: changeColor,
+                                ),
+                            ],
                           ),
                         ),
                       ),
+
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // Chart
+                      FadeInWidget(
+                        delay: const Duration(milliseconds: 100),
+                        child: AnimatedCard(
+                          padding: const EdgeInsets.all(0),
+                          child: Container(
+                            height: 240,
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: _priceHistory.length > 2
+                                ? CustomPaint(
+                                    painter: SimpleChartPainter(_priceHistory, changeColor),
+                                  )
+                                : Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.show_chart_rounded,
+                                          size: 48,
+                                          color: context.colors.onSurfaceVariant.withOpacity(0.5),
+                                        ),
+                                        const SizedBox(height: AppSpacing.md),
+                                        Text(
+                                          'Aguardando dados do gráfico...',
+                                          style: context.textStyles.bodyMedium?.copyWith(
+                                            color: context.colors.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // Market Info
+                      FadeInWidget(
+                        delay: const Duration(milliseconds: 200),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Informações do Mercado',
+                              style: context.textStyles.titleLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildInfoCard(
+                              icon: Icons.tag_rounded,
+                              label: 'Símbolo',
+                              value: widget.symbol,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildInfoCard(
+                              icon: Icons.category_rounded,
+                              label: 'Categoria',
+                              value: widget.marketInfo.category,
+                              color: AppColors.secondary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildInfoCard(
+                              icon: Icons.label_rounded,
+                              label: 'Nome Completo',
+                              value: widget.marketInfo.name,
+                              color: AppColors.tertiary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildInfoCard(
+                              icon: Icons.access_time_rounded,
+                              label: 'Última Atualização',
+                              value: _currentData != null ? _formatTime(_currentData!.timestamp) : 'N/A',
+                              color: AppColors.info,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.massive),
                     ],
                   ),
                 ),
-              ),
-            ),
 
-            // Teclado
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              decoration: BoxDecoration(
-                color: context.colors.surfaceContainer,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppSpacing.radiusXxl),
+                // Trade Button
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: context.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: context.colors.outlineVariant,
+                        width: 1,
+                      ),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: AnimatedPrimaryButton(
+                        text: 'Negociar ${widget.symbol}',
+                        icon: Icons.trending_up_rounded,
+                        onPressed: _openTrade,
+                      ),
+                    ),
+                  ),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 100),
-                    child: _buildKeyboardRow(['1', '2', '3']),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 150),
-                    child: _buildKeyboardRow(['4', '5', '6']),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 200),
-                    child: _buildKeyboardRow(['7', '8', '9']),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 250),
-                    child: _buildKeyboardRow([
-                      widget.isInteger ? 'C' : '.',
-                      '0',
-                      '⌫'
-                    ]),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 300),
-                    child: _buildConfirmButton(),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppShapes.medium),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppShapes.small),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: context.textStyles.labelSmall,
+                ),
+                Text(
+                  value,
+                  style: context.textStyles.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildKeyboardRow(List<String> keys) {
-    return Row(
-      children: keys.map((key) {
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-            child: _buildKey(key),
-          ),
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s atrás';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m atrás';
+    if (diff.inHours < 24) return '${diff.inHours}h atrás';
+    return '${diff.inDays}d atrás';
+  }
+}
+
+class SimpleChartPainter extends CustomPainter {
+  final List<double> prices;
+  final Color color;
+
+  SimpleChartPainter(this.prices, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (prices.length < 2) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final minPrice = prices.reduce((a, b) => a < b ? a : b);
+    final maxPrice = prices.reduce((a, b) => a > b ? a : b);
+    final priceRange = maxPrice - minPrice;
+
+    if (priceRange == 0) {
+      final y = size.height / 2;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+      return;
+    }
+
+    final path = Path();
+    final spacing = size.width / (prices.length - 1);
+
+    for (var i = 0; i < prices.length; i++) {
+      final x = i * spacing;
+      final normalizedY = (prices[i] - minPrice) / priceRange;
+      final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+
+    final fillPath = Path.from(path);
+    fillPath.lineTo(size.width, size.height);
+    fillPath.lineTo(0, size.height);
+    fillPath.close();
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          color.withOpacity(0.3),
+          color.withOpacity(0.05),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawPath(fillPath, fillPaint);
+
+    final pointPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < prices.length; i++) {
+      if (i % 5 == 0 || i == prices.length - 1) {
+        final x = i * spacing;
+        final normalizedY = (prices[i] - minPrice) / priceRange;
+        final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
+
+        canvas.drawCircle(Offset(x, y), 4, pointPaint);
+        canvas.drawCircle(
+          Offset(x, y),
+          6,
+          Paint()
+            ..color = color.withOpacity(0.3)
+            ..style = PaintingStyle.fill,
         );
-      }).toList(),
-    );
+      }
+    }
   }
 
-  Widget _buildKey(String key) {
-    final isSpecial = key == 'C' || key == '⌫' || key == '.';
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _onKeyPress(key),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        child: Ink(
-          height: 68,
-          decoration: BoxDecoration(
-            color: isSpecial
-                ? context.colors.surfaceContainerHighest
-                : context.colors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            border: Border.all(
-              color: context.colors.outlineVariant,
-              width: 0.5,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              key,
-              style: context.textStyles.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isSpecial
-                    ? context.colors.primary
-                    : context.colors.onSurface,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConfirmButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 64,
-      child: AnimatedPrimaryButton(
-        text: 'CONFIRMAR',
-        icon: Icons.check_rounded,
-        onPressed: _confirm,
-      ),
-    );
-  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
