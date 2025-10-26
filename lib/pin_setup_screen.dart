@@ -1,7 +1,7 @@
 // lib/pin_setup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets
 
 class PinSetupScreen extends StatefulWidget {
   const PinSetupScreen({Key? key}) : super(key: key);
@@ -15,7 +15,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
   final TextEditingController _confirmController = TextEditingController();
   final FocusNode _pinFocusNode = FocusNode();
   final FocusNode _confirmFocusNode = FocusNode();
-  
+
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
 
@@ -26,16 +26,16 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    
+
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    
+
     _shakeAnimation = Tween<double>(begin: 0, end: 10).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
-    
+
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         _pinFocusNode.requestFocus();
@@ -62,13 +62,13 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
         _shakeError();
         return;
       }
-      
+
       AppHaptics.medium();
       setState(() {
         _firstPin = pin;
         _isConfirmStep = true;
       });
-      
+
       Future.delayed(const Duration(milliseconds: 100), () {
         _confirmFocusNode.requestFocus();
       });
@@ -76,14 +76,14 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
       if (pin != _firstPin) {
         _showError('PINs não coincidem');
         _shakeError();
-        
+
         setState(() {
           _isConfirmStep = false;
           _firstPin = '';
           _pinController.clear();
           _confirmController.clear();
         });
-        
+
         Future.delayed(const Duration(milliseconds: 100), () {
           _pinFocusNode.requestFocus();
         });
@@ -121,16 +121,16 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: EdgeInsets.all(AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: AppSpacing.massive),
-              
+              SizedBox(height: AppSpacing.massive),
+
               // Icon
               FadeInWidget(
                 child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.xxl),
+                  padding: EdgeInsets.all(AppSpacing.xxl),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withOpacity(0.15),
                     shape: BoxShape.circle,
@@ -142,9 +142,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                   ),
                 ),
               ),
-              
-              const SizedBox(height: AppSpacing.xxxl),
-              
+
+              SizedBox(height: AppSpacing.xxxl),
+
               // Title
               FadeInWidget(
                 delay: const Duration(milliseconds: 100),
@@ -156,9 +156,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                   textAlign: TextAlign.center,
                 ),
               ),
-              
-              const SizedBox(height: AppSpacing.sm),
-              
+
+              SizedBox(height: AppSpacing.sm),
+
               // Subtitle
               FadeInWidget(
                 delay: const Duration(milliseconds: 200),
@@ -172,9 +172,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                   textAlign: TextAlign.center,
                 ),
               ),
-              
-              const SizedBox(height: AppSpacing.massive),
-              
+
+              SizedBox(height: AppSpacing.massive),
+
               // PIN Input
               FadeInWidget(
                 delay: const Duration(milliseconds: 300),
@@ -211,7 +211,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                           letterSpacing: 16,
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
+                        contentPadding: EdgeInsets.symmetric(
                           vertical: AppSpacing.xl,
                           horizontal: AppSpacing.lg,
                         ),
@@ -242,9 +242,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                   ),
                 ),
               ),
-              
-              const SizedBox(height: AppSpacing.lg),
-              
+
+              SizedBox(height: AppSpacing.lg),
+
               // Helper Text
               FadeInWidget(
                 delay: const Duration(milliseconds: 400),
@@ -256,7 +256,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                       size: 16,
                       color: context.colors.onSurfaceVariant,
                     ),
-                    const SizedBox(width: AppSpacing.xs),
+                    SizedBox(width: AppSpacing.xs),
                     Text(
                       'Use números e letras para maior segurança',
                       style: context.textStyles.bodySmall?.copyWith(
@@ -266,9 +266,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                   ],
                 ),
               ),
-              
+
               const Spacer(),
-              
+
               // Continue Button
               FadeInWidget(
                 delay: const Duration(milliseconds: 500),
@@ -281,8 +281,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> with TickerProviderStat
                   ),
                 ),
               ),
-              
-              const SizedBox(height: AppSpacing.md),
+
+              SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
