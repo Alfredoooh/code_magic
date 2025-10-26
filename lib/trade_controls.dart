@@ -1,6 +1,6 @@
 // lib/trade_controls.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'package:flutter/material.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets;
 import 'trade_logic_controller.dart';
 
 class TradeControls extends StatelessWidget {
@@ -20,7 +20,7 @@ class TradeControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: context.surface,
         border: Border(
@@ -36,14 +36,14 @@ class TradeControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildTradeTypeSelector(context),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             _buildStakeAndDurationRow(context),
             if (controller.selectedTradeType == 'match_differ' ||
                 controller.selectedTradeType == 'over_under') ...[
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: AppSpacing.md),
               _buildPredictionSelector(context),
             ],
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             _buildTradeButtons(context),
           ],
         ),
@@ -61,7 +61,7 @@ class TradeControls extends StatelessWidget {
             final isSelected = controller.selectedTradeType == type['id'];
 
             return Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              padding: EdgeInsets.only(right: AppSpacing.sm),
               child: AnimatedContainer(
                 duration: AppMotion.short,
                 curve: AppMotion.standardEasing,
@@ -84,7 +84,7 @@ class TradeControls extends StatelessWidget {
                             : null,
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: AppSpacing.md,
                           vertical: AppSpacing.sm,
                         ),
@@ -98,7 +98,7 @@ class TradeControls extends StatelessWidget {
                                   : context.colors.onSurfaceVariant,
                               size: 18,
                             ),
-                            const SizedBox(width: AppSpacing.xs),
+                            SizedBox(width: AppSpacing.xs),
                             Text(
                               type['label'] as String,
                               style: context.textStyles.labelLarge?.copyWith(
@@ -120,7 +120,7 @@ class TradeControls extends StatelessWidget {
             );
           }).toList(),
           // Sound Toggle Button
-          const SizedBox(width: AppSpacing.xs),
+          SizedBox(width: AppSpacing.xs),
           _buildSoundToggle(context),
         ],
       ),
@@ -175,7 +175,7 @@ class TradeControls extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(AppSpacing.xs),
+                  padding: EdgeInsets.all(AppSpacing.xs),
                   decoration: BoxDecoration(
                     color: AppColors.success.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(AppShapes.small),
@@ -186,7 +186,7 @@ class TradeControls extends StatelessWidget {
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +215,7 @@ class TradeControls extends StatelessWidget {
         ),
         if (controller.selectedTradeType != 'accumulators' &&
             controller.selectedTradeType != 'turbos') ...[
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: AppSpacing.sm),
           Expanded(
             flex: 2,
             child: AnimatedCard(
@@ -226,7 +226,7 @@ class TradeControls extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    padding: EdgeInsets.all(AppSpacing.xs),
                     decoration: BoxDecoration(
                       color: AppColors.info.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(AppShapes.small),
@@ -237,7 +237,7 @@ class TradeControls extends StatelessWidget {
                       size: 20,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +272,7 @@ class TradeControls extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(AppSpacing.xs),
+                padding: EdgeInsets.all(AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(AppShapes.small),
@@ -283,7 +283,7 @@ class TradeControls extends StatelessWidget {
                   size: 20,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: AppSpacing.sm),
               Text(
                 'Prediction',
                 style: context.textStyles.titleSmall,
@@ -347,7 +347,7 @@ class TradeControls extends StatelessWidget {
             Icons.arrow_upward_rounded,
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
+        SizedBox(width: AppSpacing.md),
         Expanded(
           child: _buildTradeButton(
             context,
@@ -400,7 +400,7 @@ class TradeControls extends StatelessWidget {
         child: AnimatedContainer(
           duration: AppMotion.short,
           curve: AppMotion.standardEasing,
-          padding: const EdgeInsets.symmetric(
+          padding: EdgeInsets.symmetric(
             vertical: AppSpacing.lg,
             horizontal: AppSpacing.xl,
           ),
@@ -435,7 +435,7 @@ class TradeControls extends StatelessWidget {
                 color: Colors.white,
                 size: 28,
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: AppSpacing.sm),
               Text(
                 label,
                 style: context.textStyles.headlineSmall?.copyWith(
