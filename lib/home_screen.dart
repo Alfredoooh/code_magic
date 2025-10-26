@@ -1,4 +1,4 @@
-// lib/home_screen.dart
+// lib/home_screen.dart - Material Design 3
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -248,7 +248,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
+                    builder: (context) => SettingsScreen(
+                      onThemeChanged: () {
+                        // Theme change callback - implement if needed
+                      },
+                    ),
                   ),
                 );
               },
