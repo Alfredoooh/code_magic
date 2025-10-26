@@ -1,4 +1,4 @@
-// lib/custom_keyboard_screen.dart - CORRIGIDO
+// lib/custom_keyboard_screen.dart - Material Design 3
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -6,10 +6,11 @@ import 'theme/app_widgets.dart';
 
 class CustomKeyboardScreen extends StatefulWidget {
   final String title;
-  final String? initialValue;
+  final dynamic initialValue; // Aceita String ou double
   final String? hint;
-  final Function(String) onSubmit;
-  final bool isDecimal;
+  final String? prefix;
+  final Function(String) onConfirm;
+  final bool isInteger;
   final double? minValue;
   final double? maxValue;
 
@@ -18,8 +19,9 @@ class CustomKeyboardScreen extends StatefulWidget {
     required this.title,
     this.initialValue,
     this.hint,
-    required this.onSubmit,
-    this.isDecimal = false,
+    this.prefix,
+    required this.onConfirm,
+    this.isInteger = false,
     this.minValue,
     this.maxValue,
   }) : super(key: key);
@@ -34,7 +36,14 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
   @override
   void initState() {
     super.initState();
-    _displayValue = widget.initialValue ?? '';
+    // Converte initialValue para String
+    if (widget.initialValue != null) {
+      if (widget.initialValue is String) {
+        _displayValue = widget.initialValue as String;
+      } else if (widget.initialValue is num) {
+        _displayValue = widget.initialValue.toString();
+      }
+    }
   }
 
   void _onKeyPress(String key) {
@@ -49,8 +58,12 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
         _displayValue = '';
       } else if (key == '.') {
         // Decimal point
-        if (widget.isDecimal && !_displayValue.contains('.')) {
-          _displayValue += key;
+        if (!widget.isInteger && !_displayValue.contains('.')) {
+          if (_displayValue.isEmpty) {
+            _displayValue = '0.';
+          } else {
+            _displayValue += key;
+          }
         }
       } else {
         // Number
@@ -89,14 +102,13 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
     }
 
     AppHaptics.success();
-    widget.onSubmit(_displayValue);
-    Navigator.pop(context);
+    widget.onConfirm(_displayValue);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.surface,
       appBar: SecondaryAppBar(
         title: widget.title,
         onBack: () {
@@ -111,7 +123,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
             flex: 2,
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.all(AppSpacing.xxl),
+              padding: const EdgeInsets.all(AppSpacing.xxl),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -125,19 +137,35 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
                     )
                   else
                     FadeInWidget(
-                      child: Text(
-                        _displayValue,
-                        style: context.textStyles.displayLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: context.colors.primary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          if (widget.prefix != null)
+                            Text(
+                              widget.prefix!,
+                              style: context.textStyles.headlineMedium?.copyWith(
+                                color: context.colors.onSurfaceVariant,
+                              ),
+                            ),
+                          Flexible(
+                            child: Text(
+                              _displayValue,
+                              style: context.textStyles.displayLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: context.colors.primary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
                   if (widget.minValue != null || widget.maxValue != null) ...[
-                    SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
                       'Min: ${widget.minValue ?? 0} - Max: ${widget.maxValue ?? '∞'}',
                       style: context.textStyles.bodySmall?.copyWith(
@@ -156,7 +184,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: context.colors.surfaceContainer,
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(AppSpacing.radiusXl),
                   topRight: Radius.circular(AppSpacing.radiusXl),
                 ),
@@ -164,28 +192,28 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 20,
-                    offset: Offset(0, -5),
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
               child: Column(
                 children: [
-                  SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.lg),
 
                   // Number pad
                   Expanded(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       child: Column(
                         children: [
                           _buildKeyRow(['1', '2', '3']),
-                          SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: AppSpacing.md),
                           _buildKeyRow(['4', '5', '6']),
-                          SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: AppSpacing.md),
                           _buildKeyRow(['7', '8', '9']),
-                          SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: AppSpacing.md),
                           _buildKeyRow([
-                            widget.isDecimal ? '.' : 'C',
+                            widget.isInteger ? 'C' : '.',
                             '0',
                             '⌫'
                           ]),
@@ -196,7 +224,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
 
                   // Submit button
                   Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: PrimaryButton(
                       text: 'Confirmar',
                       icon: Icons.check_rounded,
@@ -219,7 +247,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
         children: keys.map((key) {
           return Expanded(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
               child: _buildKey(key),
             ),
           );
