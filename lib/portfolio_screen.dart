@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'all_transactions_screen.dart';
 import 'pin_setup_screen.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'styles.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -327,16 +327,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         ? (_winningTrades / _totalTrades * 100) 
         : 0.0;
 
-    return CupertinoPageScaffold(
+    return Scaffold(
       backgroundColor: context.colors.surface,
-      navigationBar: CupertinoNavigationBar(
+      appBar: AppBar(
         backgroundColor: context.colors.surfaceContainer,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            Icons.arrow_back_ios_new_rounded, 
-            size: 20,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
             color: context.colors.onSurface,
           ),
           onPressed: () {
@@ -344,274 +342,274 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             Navigator.pop(context);
           },
         ),
-        middle: Text(
+        title: Text(
           'Portfólio',
           style: context.textStyles.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            Icons.more_horiz_rounded, 
-            size: 24,
-            color: context.colors.onSurface,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.more_horiz_rounded,
+              color: context.colors.onSurface,
+            ),
+            onPressed: _showSettingsMenu,
           ),
-          onPressed: _showSettingsMenu,
-        ),
+        ],
       ),
-      child: _isConnected
-          ? CustomScrollView(
-              slivers: [
-                CupertinoSliverRefreshControl(
-                  onRefresh: () async {
-                    AppHaptics.light();
-                    _fetchTransactions();
-                    _fetchProfitTable();
-                    await Future.delayed(const Duration(milliseconds: 500));
-                  },
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Balance Card
-                        Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                context.colors.surfaceContainer,
-                                context.colors.surfaceContainerHighest,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(AppSpacing.lg),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _userName,
-                                      style: context.textStyles.bodyLarge?.copyWith(
-                                        color: context.colors.onSurface,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.xxs),
-                                    Text(
-                                      _loginId,
-                                      style: context.textStyles.bodySmall?.copyWith(
-                                        color: context.colors.onSurfaceVariant,
-                                        fontFamily: 'monospace',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Saldo Disponível',
-                                      style: context.textStyles.bodySmall?.copyWith(
-                                        color: context.colors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.xs),
-                                    Row(
-                                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                                      textBaseline: TextBaseline.alphabetic,
-                                      children: [
-                                        Text(
-                                          _balance.toStringAsFixed(2),
-                                          style: context.textStyles.displaySmall?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(width: AppSpacing.sm),
-                                        Text(
-                                          _currency,
-                                          style: context.textStyles.titleLarge?.copyWith(
-                                            color: context.colors.onSurfaceVariant,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Profit Summary
-                        Row(
-                          children: [
-                            Expanded(child: _buildCompactProfitCard('Hoje', _todayProfit)),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(child: _buildCompactProfitCard('7D', _weekProfit)),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(child: _buildCompactProfitCard('30D', _monthProfit)),
-                          ],
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Weekly Chart
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: context.colors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(AppSpacing.md),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Últimos 7 dias',
-                                style: context.textStyles.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+      body: _isConnected
+          ? RefreshIndicator(
+              onRefresh: () async {
+                AppHaptics.light();
+                _fetchTransactions();
+                _fetchProfitTable();
+                await Future.delayed(const Duration(milliseconds: 500));
+              },
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Balance Card
+                          Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  context.colors.surfaceContainer,
+                                  context.colors.surfaceContainerHighest,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              const SizedBox(height: AppSpacing.lg),
-                              _buildIOSBarChart(),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Stats Card
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: context.colors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(AppSpacing.md),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Estatísticas',
-                                style: context.textStyles.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              Row(
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Expanded(child: _buildStatItem('Total', _totalTrades.toString(), context.colors.primary)),
-                                  Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), context.colors.primary)),
-                                  Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), context.colors.error)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _userName,
+                                        style: context.textStyles.bodyLarge?.copyWith(
+                                          color: context.colors.onSurface,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.xxs),
+                                      Text(
+                                        _loginId,
+                                        style: context.textStyles.bodySmall?.copyWith(
+                                          color: context.colors.onSurfaceVariant,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Saldo Disponível',
+                                        style: context.textStyles.bodySmall?.copyWith(
+                                          color: context.colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.xs),
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Text(
+                                            _balance.toStringAsFixed(2),
+                                            style: context.textStyles.displaySmall?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: AppSpacing.sm),
+                                          Text(
+                                            _currency,
+                                            style: context.textStyles.titleLarge?.copyWith(
+                                              color: context.colors.onSurfaceVariant,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
-                              const SizedBox(height: AppSpacing.lg),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(AppSpacing.xs),
-                                child: LinearProgressIndicator(
-                                  value: winRate / 100,
-                                  backgroundColor: context.colors.surfaceContainerHighest,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    winRate >= 50 ? context.colors.primary : context.colors.error,
-                                  ),
-                                  minHeight: 6,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
-                                style: context.textStyles.bodySmall?.copyWith(
-                                  color: context.colors.onSurfaceVariant,
-                                ),
-                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Profit Summary
+                          Row(
+                            children: [
+                              Expanded(child: _buildCompactProfitCard('Hoje', _todayProfit)),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(child: _buildCompactProfitCard('7D', _weekProfit)),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(child: _buildCompactProfitCard('30D', _monthProfit)),
                             ],
                           ),
-                        ),
 
-                        const SizedBox(height: AppSpacing.lg),
+                          const SizedBox(height: AppSpacing.lg),
 
-                        // Recent Transactions
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Transações Recentes',
-                              style: context.textStyles.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (_transactions.length > 5)
-                              GestureDetector(
-                                onTap: _showAllTransactions,
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'Ver Todas',
-                                      style: context.textStyles.bodyMedium?.copyWith(
-                                        color: context.colors.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.xxs),
-                                    Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      color: context.colors.primary,
-                                      size: 14,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        if (_transactions.isEmpty)
+                          // Weekly Chart
                           Container(
-                            padding: const EdgeInsets.all(AppSpacing.xxl),
+                            padding: const EdgeInsets.all(AppSpacing.lg),
                             decoration: BoxDecoration(
                               color: context.colors.surfaceContainer,
-                              borderRadius: BorderRadius.circular(AppSpacing.md),
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                             ),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.inbox_outlined,
-                                    color: context.colors.onSurfaceVariant,
-                                    size: 40,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Últimos 7 dias',
+                                  style: context.textStyles.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  const SizedBox(height: AppSpacing.md),
-                                  Text(
-                                    'Nenhuma transação',
-                                    style: context.textStyles.bodyMedium?.copyWith(
-                                      color: context.colors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                _buildIOSBarChart(),
+                              ],
                             ),
-                          )
-                        else
-                          ..._buildTransactionsList(),
+                          ),
 
-                        const SizedBox(height: AppSpacing.lg),
-                      ],
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Stats Card
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: context.colors.surfaceContainer,
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Estatísticas',
+                                  style: context.textStyles.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                Row(
+                                  children: [
+                                    Expanded(child: _buildStatItem('Total', _totalTrades.toString(), context.colors.primary)),
+                                    Expanded(child: _buildStatItem('Vitórias', _winningTrades.toString(), context.colors.primary)),
+                                    Expanded(child: _buildStatItem('Derrotas', _losingTrades.toString(), context.colors.error)),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                                  child: LinearProgressIndicator(
+                                    value: winRate / 100,
+                                    backgroundColor: context.colors.surfaceContainerHighest,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      winRate >= 50 ? context.colors.primary : context.colors.error,
+                                    ),
+                                    minHeight: 6,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  'Taxa de Vitória: ${winRate.toStringAsFixed(1)}%',
+                                  style: context.textStyles.bodySmall?.copyWith(
+                                    color: context.colors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Recent Transactions
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Transações Recentes',
+                                style: context.textStyles.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (_transactions.length > 5)
+                                GestureDetector(
+                                  onTap: _showAllTransactions,
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Ver Todas',
+                                        style: context.textStyles.bodyMedium?.copyWith(
+                                          color: context.colors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.xxs),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: context.colors.primary,
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                          const SizedBox(height: AppSpacing.md),
+
+                          if (_transactions.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.xxl),
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceContainer,
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.inbox_outlined,
+                                      color: context.colors.onSurfaceVariant,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    Text(
+                                      'Nenhuma transação',
+                                      style: context.textStyles.bodyMedium?.copyWith(
+                                        color: context.colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ..._buildTransactionsList(),
+
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             )
           : Center(
               child: Column(
@@ -643,7 +641,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       ),
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppSpacing.sm),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
       child: Column(
         children: [
@@ -699,7 +697,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         decoration: BoxDecoration(
           color: context.colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppSpacing.md),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
@@ -712,8 +710,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             decoration: BoxDecoration(
               color: (isCredit 
                   ? context.colors.primary 
-                  : context.colors.error).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(AppSpacing.sm),
+                  : context.colors.error).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Icon(
               isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
@@ -785,7 +783,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     height: barHeight.clamp(3.0, 100.0),
                     decoration: BoxDecoration(
                       color: isPositive ? context.colors.primary : context.colors.error,
-                      borderRadius: BorderRadius.circular(AppSpacing.xxs),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
