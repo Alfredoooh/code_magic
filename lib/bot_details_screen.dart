@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'deriv_chart_widget.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 
 class BotDetailsScreen extends StatefulWidget {
   final TradingBot bot;
@@ -69,144 +71,80 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       text: widget.bot.config.targetProfit.toStringAsFixed(2),
     );
 
-    showModalBottomSheet(
+    AppDialog.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppShapes.extraLarge),
+      title: 'Configurar Bot',
+      icon: Icons.settings_rounded,
+      iconColor: AppColors.primary,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppTextField(
+            controller: stakeController,
+            label: 'Stake Inicial (\$)',
+            hint: '0.35',
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            prefix: Icon(Icons.attach_money_rounded),
           ),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-          left: AppSpacing.xl,
-          right: AppSpacing.xl,
-          top: AppSpacing.xl,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Configurar Bot',
-                    style: context.textStyles.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () {
-                      AppHaptics.light();
-                      Navigator.pop(context);
-                    },
-                  ),
-                ],
-              ),
-              SizedBox(height: AppSpacing.xl),
-              TextField(
-                controller: stakeController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Stake Inicial (\$)',
-                  prefixIcon: Icon(Icons.attach_money_rounded),
-                  helperText: 'Valor mínimo: \$0.35',
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                ],
-              ),
-              SizedBox(height: AppSpacing.lg),
-              TextField(
-                controller: maxStakeController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Stake Máximo (\$)',
-                  prefixIcon: Icon(Icons.trending_up_rounded),
-                  helperText: 'Limite de segurança',
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                ],
-              ),
-              SizedBox(height: AppSpacing.lg),
-              TextField(
-                controller: targetProfitController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Target Profit (\$)',
-                  prefixIcon: Icon(Icons.flag_rounded),
-                  helperText: 'Bot para quando atingir',
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                ],
-              ),
-              SizedBox(height: AppSpacing.xxl),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        AppHaptics.light();
-                        Navigator.pop(context);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Cancelar'),
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () {
-                        final newStake = double.tryParse(
-                          stakeController.text.replaceAll(',', '.'),
-                        );
-                        final newMaxStake = double.tryParse(
-                          maxStakeController.text.replaceAll(',', '.'),
-                        );
-                        final newTargetProfit = double.tryParse(
-                          targetProfitController.text.replaceAll(',', '.'),
-                        );
-
-                        if (newStake != null && newStake >= 0.35 &&
-                            newMaxStake != null && newMaxStake >= newStake &&
-                            newTargetProfit != null && newTargetProfit > 0) {
-                          AppHaptics.heavy();
-                          setState(() {
-                            widget.bot.config.initialStake = newStake;
-                            widget.bot.currentStake = newStake;
-                            widget.bot.config.maxStake = newMaxStake;
-                            widget.bot.config.targetProfit = newTargetProfit;
-                          });
-                          widget.onUpdate();
-                          Navigator.pop(context);
-                          AppSnackbar.success(context, 'Configurações atualizadas');
-                        } else {
-                          AppHaptics.error();
-                          AppSnackbar.error(context, 'Valores inválidos');
-                        }
-                      },
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Salvar'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          SizedBox(height: AppSpacing.lg),
+          AppTextField(
+            controller: maxStakeController,
+            label: 'Stake Máximo (\$)',
+            hint: '10.00',
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            prefix: Icon(Icons.trending_up_rounded),
           ),
-        ),
+          SizedBox(height: AppSpacing.lg),
+          AppTextField(
+            controller: targetProfitController,
+            label: 'Target Profit (\$)',
+            hint: '5.00',
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            prefix: Icon(Icons.flag_rounded),
+          ),
+        ],
       ),
+      actions: [
+        TertiaryButton(
+          text: 'Cancelar',
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
+        ),
+        PrimaryButton(
+          text: 'Salvar',
+          onPressed: () {
+            final newStake = double.tryParse(
+              stakeController.text.replaceAll(',', '.'),
+            );
+            final newMaxStake = double.tryParse(
+              maxStakeController.text.replaceAll(',', '.'),
+            );
+            final newTargetProfit = double.tryParse(
+              targetProfitController.text.replaceAll(',', '.'),
+            );
+
+            if (newStake != null && newStake >= 0.35 &&
+                newMaxStake != null && newMaxStake >= newStake &&
+                newTargetProfit != null && newTargetProfit > 0) {
+              AppHaptics.heavy();
+              setState(() {
+                widget.bot.config.initialStake = newStake;
+                widget.bot.currentStake = newStake;
+                widget.bot.config.maxStake = newMaxStake;
+                widget.bot.config.targetProfit = newTargetProfit;
+              });
+              widget.onUpdate();
+              Navigator.pop(context);
+              AppSnackbar.success(context, 'Configurações atualizadas');
+            } else {
+              AppHaptics.error();
+              AppSnackbar.error(context, 'Valores inválidos');
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -217,15 +155,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
     return Scaffold(
       backgroundColor: context.colors.surface,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        title: Text(widget.bot.config.name),
+      appBar: SecondaryAppBar(
+        title: widget.bot.config.name,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -250,21 +181,21 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               SizedBox(height: AppSpacing.lg),
 
               FadeInWidget(
-                delay: const Duration(milliseconds: 100),
+                delay: Duration(milliseconds: 100),
                 child: _buildStatusCard(status, winRate),
               ),
 
               SizedBox(height: AppSpacing.lg),
 
               FadeInWidget(
-                delay: const Duration(milliseconds: 200),
+                delay: Duration(milliseconds: 200),
                 child: _buildControlButtons(),
               ),
 
               SizedBox(height: AppSpacing.xl),
 
               FadeInWidget(
-                delay: const Duration(milliseconds: 300),
+                delay: Duration(milliseconds: 300),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -283,7 +214,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               SizedBox(height: AppSpacing.xl),
 
               FadeInWidget(
-                delay: const Duration(milliseconds: 400),
+                delay: Duration(milliseconds: 400),
                 child: _buildTradeHistory(status),
               ),
 
@@ -303,14 +234,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       height: 280,
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         child: DerivAreaChart(
           points: chartData,
           autoScale: true,
@@ -328,100 +259,97 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   Widget _buildStatusCard(BotStatus status, double winRate) {
     final isProfit = status.sessionProfit >= 0;
 
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            isProfit 
-                ? AppColors.success.withOpacity(0.1)
-                : AppColors.error.withOpacity(0.1),
-            context.colors.surfaceContainer,
-          ],
+    return GlassCard(
+      child: Container(
+        padding: EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              isProfit 
+                  ? AppColors.success.withOpacity(0.1)
+                  : AppColors.error.withOpacity(0.1),
+              context.colors.surfaceContainer,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+          border: Border.all(
+            color: isProfit 
+                ? AppColors.success.withOpacity(0.3)
+                : AppColors.error.withOpacity(0.3),
+            width: 1,
+          ),
         ),
-        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
-        border: Border.all(
-          color: isProfit 
-              ? AppColors.success.withOpacity(0.3)
-              : AppColors.error.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Lucro da Sessão',
-                      style: context.textStyles.bodyMedium?.copyWith(
-                        color: context.colors.onSurfaceVariant,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Lucro da Sessão',
+                        style: context.textStyles.bodyMedium?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}',
-                      style: context.textStyles.displaySmall?.copyWith(
-                        color: isProfit ? AppColors.success : AppColors.error,
-                        fontWeight: FontWeight.bold,
+                      SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}',
+                        style: context.textStyles.displaySmall?.copyWith(
+                          color: isProfit ? AppColors.success : AppColors.error,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                padding: EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: status.isRunning
-                      ? AppColors.success.withOpacity(0.2)
-                      : context.colors.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  status.isRunning
+                IconButtonWithBackground(
+                  icon: status.isRunning
                       ? Icons.play_arrow_rounded
                       : Icons.pause_rounded,
-                  color: status.isRunning
+                  onPressed: () {},
+                  backgroundColor: status.isRunning
+                      ? AppColors.success.withOpacity(0.2)
+                      : context.colors.surfaceContainerHighest,
+                  iconColor: status.isRunning
                       ? AppColors.success
                       : context.colors.onSurfaceVariant,
-                  size: 32,
+                  size: 64,
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppSpacing.xl),
-          Row(
-            children: [
-              Expanded(
-                child: _buildQuickStat(
-                  'Win Rate',
-                  '${winRate.toStringAsFixed(1)}%',
-                  Icons.percent_rounded,
+              ],
+            ),
+            SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickStat(
+                    'Win Rate',
+                    '${winRate.toStringAsFixed(1)}%',
+                    Icons.percent_rounded,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _buildQuickStat(
-                  'Trades',
-                  status.totalTrades.toString(),
-                  Icons.swap_horiz_rounded,
+                Expanded(
+                  child: _buildQuickStat(
+                    'Trades',
+                    status.totalTrades.toString(),
+                    Icons.swap_horiz_rounded,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _buildQuickStat(
-                  'Streak',
-                  '${status.consecutiveWins - status.consecutiveLosses}',
-                  Icons.local_fire_department_rounded,
+                Expanded(
+                  child: _buildQuickStat(
+                    'Streak',
+                    '${status.consecutiveWins - status.consecutiveLosses}',
+                    Icons.local_fire_department_rounded,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -457,7 +385,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       children: [
         Expanded(
           flex: 3,
-          child: AnimatedPrimaryButton(
+          child: PrimaryButton(
             text: widget.bot.isRunning
                 ? (widget.bot.isPaused ? 'Continuar' : 'Pausar')
                 : 'Iniciar Trade',
@@ -476,13 +404,15 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               widget.onUpdate();
               setState(() {});
             },
+            expanded: true,
           ),
         ),
         if (widget.bot.isRunning) ...[
           SizedBox(width: AppSpacing.md),
           Expanded(
             flex: 1,
-            child: FilledButton(
+            child: IconButtonWithBackground(
+              icon: Icons.stop_rounded,
               onPressed: () {
                 AppHaptics.heavy();
                 widget.bot.stop();
@@ -490,11 +420,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 setState(() {});
                 AppSnackbar.info(context, 'Bot parado');
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Icon(Icons.stop_rounded, size: 24),
+              backgroundColor: AppColors.error,
+              iconColor: Colors.white,
+              size: 56,
             ),
           ),
         ],
@@ -570,16 +498,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   }
 
   Widget _buildStatCard(String label, String value, Color color, IconData icon) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
-        border: Border.all(
-          color: context.colors.outlineVariant,
-          width: 1,
-        ),
-      ),
+    return ElevatedCard(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -619,30 +538,10 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             ),
           ),
           SizedBox(height: AppSpacing.md),
-          Container(
-            padding: EdgeInsets.all(AppSpacing.xxl),
-            decoration: BoxDecoration(
-              color: context.colors.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppShapes.extraLarge),
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.history_rounded,
-                    size: 48,
-                    color: context.colors.onSurfaceVariant,
-                  ),
-                  SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Nenhum trade ainda',
-                    style: context.textStyles.bodyLarge?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          EmptyState(
+            icon: Icons.history_rounded,
+            title: 'Nenhum trade ainda',
+            subtitle: 'Os trades aparecerão aqui',
           ),
         ],
       );
@@ -660,13 +559,13 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            TextButton.icon(
+            TertiaryButton(
+              text: 'Filtrar',
+              icon: Icons.filter_list_rounded,
               onPressed: () {
                 AppHaptics.light();
                 AppSnackbar.info(context, 'Ver todos os ${status.tradeHistory.length} trades');
               },
-              icon: const Icon(Icons.filter_list_rounded, size: 18),
-              label: const Text('Filtrar'),
             ),
           ],
         ),
@@ -685,7 +584,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 margin: EdgeInsets.only(bottom: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: context.colors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(AppShapes.extraLarge),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
                   border: Border.all(
                     color: isWin
                         ? AppColors.success.withOpacity(0.3)
@@ -693,11 +592,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                     width: 1,
                   ),
                 ),
-                child: ListTile(
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.sm,
-                  ),
+                child: AppListTile(
                   leading: Container(
                     width: 48,
                     height: 48,
@@ -725,30 +620,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                         ),
                       ),
                       SizedBox(width: AppSpacing.sm),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.colors.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppShapes.small),
-                        ),
-                        child: Text(
-                          '${trade.timestamp.hour}:${trade.timestamp.minute.toString().padLeft(2, '0')}',
-                          style: context.textStyles.labelSmall?.copyWith(
-                            color: context.colors.onSurfaceVariant,
-                          ),
-                        ),
+                      AppBadge(
+                        text: '${trade.timestamp.hour}:${trade.timestamp.minute.toString().padLeft(2, '0')}',
+                        color: context.colors.onSurfaceVariant,
+                        outlined: true,
                       ),
                     ],
                   ),
-                  subtitle: Text(
-                    'Stake: \$${trade.stake.toStringAsFixed(2)}',
-                    style: context.textStyles.bodySmall?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
+                  subtitle: 'Stake: \$${trade.stake.toStringAsFixed(2)}',
                   trailing: Text(
                     '${trade.profit >= 0 ? '+' : ''}\$${trade.profit.toStringAsFixed(2)}',
                     style: context.textStyles.titleMedium?.copyWith(
