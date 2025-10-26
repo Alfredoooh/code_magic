@@ -1,14 +1,16 @@
-// portfolio_screen.dart
+// lib/portfolio_screen.dart - Material Design 3
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 import 'all_transactions_screen.dart';
 import 'pin_setup_screen.dart';
-import 'styles.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -192,7 +194,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   void _showAllTransactions() {
     AppHaptics.light();
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => AllTransactionsScreen(
           transactions: _transactions,
           currency: _currency,
@@ -202,21 +204,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   Future<void> _logout() async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Sair da Conta'),
         content: const Text('Tem certeza que deseja sair?'),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancelar'),
             onPressed: () {
               AppHaptics.light();
               Navigator.pop(context, false);
             },
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          FilledButton(
             child: const Text('Sair'),
             onPressed: () {
               AppHaptics.medium();
@@ -233,7 +234,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       await prefs.remove('app_lock_pin');
 
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     }
   }
 
@@ -242,21 +243,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final existingPin = prefs.getString('app_lock_pin');
 
     if (existingPin != null) {
-      final remove = await showCupertinoDialog<bool>(
+      final remove = await showDialog<bool>(
         context: context,
-        builder: (context) => CupertinoAlertDialog(
+        builder: (context) => AlertDialog(
           title: const Text('Bloqueio Ativo'),
           content: const Text('Deseja remover o bloqueio?'),
           actions: [
-            CupertinoDialogAction(
+            TextButton(
               child: const Text('Cancelar'),
               onPressed: () {
                 AppHaptics.light();
                 Navigator.pop(context, false);
               },
             ),
-            CupertinoDialogAction(
-              isDestructiveAction: true,
+            FilledButton(
               child: const Text('Remover'),
               onPressed: () {
                 AppHaptics.medium();
@@ -274,7 +274,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       }
     } else {
       final result = await Navigator.of(context).push(
-        CupertinoPageRoute(
+        MaterialPageRoute(
           fullscreenDialog: true,
           builder: (context) => const PinSetupScreen(),
         ),
@@ -290,32 +290,30 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   void _showSettingsMenu() {
     AppHaptics.light();
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _setupAppLock();
-            },
-            child: const Text('Bloquear App'),
-          ),
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(context);
-              _logout();
-            },
-            child: const Text('Sair da Conta'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-          child: const Text('Cancelar'),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppListTile(
+              title: 'Bloquear App',
+              leading: const Icon(Icons.lock_rounded),
+              onTap: () {
+                Navigator.pop(context);
+                _setupAppLock();
+              },
+            ),
+            AppListTile(
+              title: 'Sair da Conta',
+              leading: Icon(Icons.logout_rounded, color: AppColors.error),
+              onTap: () {
+                Navigator.pop(context);
+                _logout();
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
         ),
       ),
     );
@@ -328,32 +326,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         : 0.0;
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
-      appBar: AppBar(
-        backgroundColor: context.colors.surfaceContainer,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: context.colors.onSurface,
-          ),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        title: Text(
-          'Portfólio',
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+      backgroundColor: context.surface,
+      appBar: SecondaryAppBar(
+        title: 'Portfólio',
+        onBack: () => Navigator.pop(context),
         actions: [
           IconButton(
-            icon: Icon(
-              Icons.more_horiz_rounded,
-              color: context.colors.onSurface,
-            ),
+            icon: const Icon(Icons.more_horiz_rounded),
             onPressed: _showSettingsMenu,
           ),
         ],
@@ -483,7 +462,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
-                                _buildIOSBarChart(),
+                                _buildBarChart(),
                               ],
                             ),
                           ),
@@ -575,30 +554,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                           const SizedBox(height: AppSpacing.md),
 
                           if (_transactions.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.xxl),
-                              decoration: BoxDecoration(
-                                color: context.colors.surfaceContainer,
-                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.inbox_outlined,
-                                      color: context.colors.onSurfaceVariant,
-                                      size: 40,
-                                    ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    Text(
-                                      'Nenhuma transação',
-                                      style: context.textStyles.bodyMedium?.copyWith(
-                                        color: context.colors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            EmptyState(
+                              icon: Icons.inbox_rounded,
+                              title: 'Nenhuma transação',
+                              subtitle: 'Suas transações aparecerão aqui',
                             )
                           else
                             ..._buildTransactionsList(),
@@ -611,22 +570,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 ],
               ),
             )
-          : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: context.colors.primary,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    'Carregando portfólio...',
-                    style: context.textStyles.bodyMedium?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+          : LoadingOverlay(
+              isLoading: true,
+              message: 'Carregando portfólio...',
+              child: const SizedBox.expand(),
             ),
     );
   }
@@ -710,7 +657,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             decoration: BoxDecoration(
               color: (isCredit 
                   ? context.colors.primary 
-                  : context.colors.error).withValues(alpha: 0.15),
+                  : context.colors.error).withOpacity(0.15),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Icon(
@@ -746,7 +693,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     }).toList();
   }
 
-  Widget _buildIOSBarChart() {
+  Widget _buildBarChart() {
     final maxValue = _weeklyData.reduce((a, b) => a.abs() > b.abs() ? a : b).abs();
     final days = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
