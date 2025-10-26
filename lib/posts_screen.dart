@@ -1,6 +1,6 @@
 // posts_screen.dart
 import 'package:flutter/material.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets;
 
 class PostsScreen extends StatelessWidget {
   final String token;
@@ -31,9 +31,9 @@ class PostsScreen extends StatelessWidget {
                     color: context.colors.primary,
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xxl),
-                
+
                 // Título
                 Text(
                   'Publicações',
@@ -42,9 +42,9 @@ class PostsScreen extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: AppSpacing.md),
-                
+
                 // Descrição
                 Text(
                   'Em breve você poderá ver publicações\ne atualizações da comunidade',
@@ -54,15 +54,15 @@ class PostsScreen extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xxl),
-                
+
                 // Features vindas
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xl),
                   decoration: BoxDecoration(
                     color: context.colors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+                    borderRadius: BorderRadius.circular(AppSpacing.xl),
                     border: Border.all(
                       color: context.colors.outlineVariant,
                       width: 1,
@@ -93,9 +93,9 @@ class PostsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xxl),
-                
+
                 // Botão de notificação
                 OutlinedButton.icon(
                   onPressed: () {
@@ -134,7 +134,7 @@ class PostsScreen extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: context.colors.primaryContainer,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            borderRadius: BorderRadius.circular(AppSpacing.md),
           ),
           child: Icon(
             icon,
