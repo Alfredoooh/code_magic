@@ -123,22 +123,17 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                     ),
                   ),
                   SizedBox(height: AppSpacing.md),
-                  InfoCard(
-                    icon: Icons.attach_money_rounded,
-                    title: 'Stake Inicial',
-                    subtitle: '\$${_initialStake.toStringAsFixed(2)}',
-                    color: AppColors.success,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_rounded),
-                      onPressed: () {
-                        AppHaptics.light();
-                        _openStakeModal();
-                      },
-                    ),
+                  GestureDetector(
                     onTap: () {
                       AppHaptics.light();
                       _openStakeModal();
                     },
+                    child: InfoCard(
+                      icon: Icons.attach_money_rounded,
+                      title: 'Stake Inicial',
+                      subtitle: '\$${_initialStake.toStringAsFixed(2)}',
+                      color: AppColors.success,
+                    ),
                   ),
                 ],
               ),
@@ -324,7 +319,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         decoration: BoxDecoration(
           color: context.colors.surface,
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppShapes.xLarge),
+            top: Radius.circular(AppShapes.extraLarge),
           ),
         ),
         padding: EdgeInsets.only(
@@ -386,7 +381,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                         controller.text.replaceAll(',', '.'),
                       );
                       if (value != null && value >= 0.35) {
-                        AppHaptics.success();
+                        AppHaptics.heavy();
                         setState(() => _initialStake = value);
                         Navigator.pop(context);
                       } else {
@@ -418,7 +413,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       return;
     }
 
-    AppHaptics.success();
+    AppHaptics.heavy();
 
     final bot = TradingBot(
       config: BotConfiguration(
