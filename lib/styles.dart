@@ -8,13 +8,13 @@ import 'package:flutter/services.dart';
 // ============================================
 class AppTheme {
   static bool _isDark = true;
-  
+
   static bool get isDark => _isDark;
-  
+
   static void toggleTheme() {
     _isDark = !_isDark;
   }
-  
+
   static ThemeData get theme => _isDark ? darkTheme : lightTheme;
 }
 
@@ -28,32 +28,32 @@ class AppColors {
   static const darkSurfaceVariant = Color(0xFF2A2A2A);
   static const darkSurfaceContainer = Color(0xFF1C1C1E);
   static const darkSurfaceContainerHigh = Color(0xFF2C2C2E);
-  
+
   // LIGHT THEME COLORS
   static const lightBackground = Color(0xFFFFFBFF);
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightSurfaceVariant = Color(0xFFF5F5F5);
   static const lightSurfaceContainer = Color(0xFFF8F8F8);
   static const lightSurfaceContainerHigh = Color(0xFFEEEEEE);
-  
+
   // PRIMARY COLORS (consistent across themes)
   static const primary = Color(0xFF0066FF);
   static const primaryContainer = Color(0xFF1A3D7A);
   static const onPrimary = Color(0xFFFFFFFF);
   static const onPrimaryContainer = Color(0xFFD4E3FF);
-  
+
   // SECONDARY COLORS
   static const secondary = Color(0xFF006494);
   static const secondaryContainer = Color(0xFFCAE6FF);
   static const onSecondary = Color(0xFFFFFFFF);
   static const onSecondaryContainer = Color(0xFF001D31);
-  
+
   // TERTIARY COLORS
   static const tertiary = Color(0xFF7D5260);
   static const tertiaryContainer = Color(0xFFFFD8E4);
   static const onTertiary = Color(0xFFFFFFFF);
   static const onTertiaryContainer = Color(0xFF31111D);
-  
+
   // STATUS COLORS
   static const success = Color(0xFF00C896);
   static const successContainer = Color(0xFF003826);
@@ -63,25 +63,25 @@ class AppColors {
   static const warningContainer = Color(0xFF4E2F00);
   static const info = Color(0xFF2196F3);
   static const infoContainer = Color(0xFF003258);
-  
+
   // TEXT COLORS - DARK
   static const darkTextPrimary = Color(0xFFFFFFFF);
   static const darkTextSecondary = Color(0xFFB3B3B3);
   static const darkTextTertiary = Color(0xFF666666);
   static const darkTextDisabled = Color(0xFF444444);
-  
+
   // TEXT COLORS - LIGHT
   static const lightTextPrimary = Color(0xFF1C1B1F);
   static const lightTextSecondary = Color(0xFF49454F);
   static const lightTextTertiary = Color(0xFF79747E);
   static const lightTextDisabled = Color(0xFFB3B3B3);
-  
+
   // OUTLINE COLORS
-  static Color darkOutline = Colors.white.withOpacity(0.12);
-  static Color darkOutlineVariant = Colors.white.withOpacity(0.08);
-  static Color lightOutline = Colors.black.withOpacity(0.12);
-  static Color lightOutlineVariant = Colors.black.withOpacity(0.08);
-  
+  static final Color darkOutline = Colors.white.withOpacity(0.12);
+  static final Color darkOutlineVariant = Colors.white.withOpacity(0.08);
+  static final Color lightOutline = Colors.black.withOpacity(0.12);
+  static final Color lightOutlineVariant = Colors.black.withOpacity(0.08);
+
   // SCRIM & OVERLAY
   static Color scrim = Colors.black.withOpacity(0.32);
   static Color darkOverlay = Colors.white.withOpacity(0.05);
@@ -95,7 +95,7 @@ class AppColors {
 class AppTypography {
   // Font Family
   static const fontFamily = 'Roboto';
-  
+
   // DISPLAY - Large, prominent text
   static const displayLarge = TextStyle(
     fontFamily: fontFamily,
@@ -104,7 +104,7 @@ class AppTypography {
     letterSpacing: -0.25,
     height: 1.12,
   );
-  
+
   static const displayMedium = TextStyle(
     fontFamily: fontFamily,
     fontSize: 45,
@@ -112,7 +112,7 @@ class AppTypography {
     letterSpacing: 0,
     height: 1.16,
   );
-  
+
   static const displaySmall = TextStyle(
     fontFamily: fontFamily,
     fontSize: 36,
@@ -120,7 +120,7 @@ class AppTypography {
     letterSpacing: 0,
     height: 1.22,
   );
-  
+
   // HEADLINE - High-emphasis text
   static const headlineLarge = TextStyle(
     fontFamily: fontFamily,
@@ -129,7 +129,7 @@ class AppTypography {
     letterSpacing: 0,
     height: 1.25,
   );
-  
+
   static const headlineMedium = TextStyle(
     fontFamily: fontFamily,
     fontSize: 28,
@@ -137,7 +137,7 @@ class AppTypography {
     letterSpacing: 0,
     height: 1.29,
   );
-  
+
   static const headlineSmall = TextStyle(
     fontFamily: fontFamily,
     fontSize: 24,
@@ -145,7 +145,7 @@ class AppTypography {
     letterSpacing: 0,
     height: 1.33,
   );
-  
+
   // TITLE - Medium-emphasis text
   static const titleLarge = TextStyle(
     fontFamily: fontFamily,
@@ -154,7 +154,7 @@ class AppTypography {
     letterSpacing: 0,
     height: 1.27,
   );
-  
+
   static const titleMedium = TextStyle(
     fontFamily: fontFamily,
     fontSize: 16,
@@ -162,7 +162,7 @@ class AppTypography {
     letterSpacing: 0.15,
     height: 1.50,
   );
-  
+
   static const titleSmall = TextStyle(
     fontFamily: fontFamily,
     fontSize: 14,
@@ -170,7 +170,7 @@ class AppTypography {
     letterSpacing: 0.1,
     height: 1.43,
   );
-  
+
   // BODY - Standard reading text
   static const bodyLarge = TextStyle(
     fontFamily: fontFamily,
@@ -179,7 +179,7 @@ class AppTypography {
     letterSpacing: 0.5,
     height: 1.50,
   );
-  
+
   static const bodyMedium = TextStyle(
     fontFamily: fontFamily,
     fontSize: 14,
@@ -187,7 +187,7 @@ class AppTypography {
     letterSpacing: 0.25,
     height: 1.43,
   );
-  
+
   static const bodySmall = TextStyle(
     fontFamily: fontFamily,
     fontSize: 12,
@@ -195,7 +195,7 @@ class AppTypography {
     letterSpacing: 0.4,
     height: 1.33,
   );
-  
+
   // LABEL - Small, functional text
   static const labelLarge = TextStyle(
     fontFamily: fontFamily,
@@ -204,7 +204,7 @@ class AppTypography {
     letterSpacing: 0.1,
     height: 1.43,
   );
-  
+
   static const labelMedium = TextStyle(
     fontFamily: fontFamily,
     fontSize: 12,
@@ -212,7 +212,7 @@ class AppTypography {
     letterSpacing: 0.5,
     height: 1.33,
   );
-  
+
   static const labelSmall = TextStyle(
     fontFamily: fontFamily,
     fontSize: 11,
@@ -249,32 +249,32 @@ class AppShapes {
   static const large = 16.0;
   static const extraLarge = 28.0;
   static const full = 9999.0;
-  
+
   // Shape styles
   static RoundedRectangleBorder shapeNone = const RoundedRectangleBorder(
     borderRadius: BorderRadius.zero,
   );
-  
+
   static RoundedRectangleBorder shapeExtraSmall = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(extraSmall),
   );
-  
+
   static RoundedRectangleBorder shapeSmall = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(small),
   );
-  
+
   static RoundedRectangleBorder shapeMedium = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(medium),
   );
-  
+
   static RoundedRectangleBorder shapeLarge = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(large),
   );
-  
+
   static RoundedRectangleBorder shapeExtraLarge = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(extraLarge),
   );
-  
+
   static RoundedRectangleBorder shapeFull = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(full),
   );
@@ -305,26 +305,26 @@ class AppMotion {
   static const long = Duration(milliseconds: 300);
   static const veryLong = Duration(milliseconds: 400);
   static const extraLong = Duration(milliseconds: 500);
-  
+
   // EASING CURVES - M3 emphasized curves
   static const standardEasing = Curves.easeInOutCubicEmphasized;
   static const emphasizedDecelerate = Curves.easeOutCubic;
   static const emphasizedAccelerate = Curves.easeInCubic;
   static const linear = Curves.linear;
-  
+
   // SPRING CONFIGURATIONS
   static const fastSpring = SpringDescription(
     mass: 1.0,
     stiffness: 200.0,
     damping: 20.0,
   );
-  
+
   static const mediumSpring = SpringDescription(
     mass: 1.0,
     stiffness: 100.0,
     damping: 15.0,
   );
-  
+
   static const slowSpring = SpringDescription(
     mass: 1.0,
     stiffness: 50.0,
@@ -349,7 +349,7 @@ class AppStateOpacity {
 ThemeData darkTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.dark,
-  
+
   colorScheme: const ColorScheme(
     brightness: Brightness.dark,
     primary: AppColors.primary,
@@ -381,9 +381,9 @@ ThemeData darkTheme = ThemeData(
     inversePrimary: AppColors.primary,
     surfaceTint: AppColors.primary,
   ),
-  
+
   scaffoldBackgroundColor: AppColors.darkBackground,
-  
+
   textTheme: TextTheme(
     displayLarge: AppTypography.displayLarge.copyWith(color: AppColors.darkTextPrimary),
     displayMedium: AppTypography.displayMedium.copyWith(color: AppColors.darkTextPrimary),
@@ -401,7 +401,7 @@ ThemeData darkTheme = ThemeData(
     labelMedium: AppTypography.labelMedium.copyWith(color: AppColors.darkTextSecondary),
     labelSmall: AppTypography.labelSmall.copyWith(color: AppColors.darkTextTertiary),
   ),
-  
+
   // Component themes with M3 styling
   appBarTheme: AppBarTheme(
     backgroundColor: AppColors.darkSurface,
@@ -411,14 +411,14 @@ ThemeData darkTheme = ThemeData(
     iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
     systemOverlayStyle: SystemUiOverlayStyle.light,
   ),
-  
+
   cardTheme: CardTheme(
     color: AppColors.darkSurfaceContainer,
     elevation: AppElevation.level1,
     shape: AppShapes.shapeMedium,
     margin: const EdgeInsets.all(AppSpacing.xs),
   ),
-  
+
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       backgroundColor: AppColors.primary,
@@ -432,7 +432,7 @@ ThemeData darkTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   filledButtonTheme: FilledButtonThemeData(
     style: FilledButton.styleFrom(
       backgroundColor: AppColors.primary,
@@ -445,7 +445,7 @@ ThemeData darkTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       foregroundColor: AppColors.primary,
@@ -458,7 +458,7 @@ ThemeData darkTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.primary,
@@ -470,7 +470,7 @@ ThemeData darkTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
     fillColor: AppColors.lightSurfaceVariant,
@@ -497,7 +497,7 @@ ThemeData darkTheme = ThemeData(
     labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
     hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextTertiary),
   ),
-  
+
   chipTheme: ChipThemeData(
     backgroundColor: AppColors.lightSurfaceVariant,
     selectedColor: AppColors.primary,
@@ -505,7 +505,7 @@ ThemeData darkTheme = ThemeData(
     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
     shape: AppShapes.shapeSmall,
   ),
-  
+
   dialogTheme: DialogTheme(
     backgroundColor: AppColors.lightSurfaceContainerHigh,
     shape: AppShapes.shapeExtraLarge,
@@ -513,7 +513,7 @@ ThemeData darkTheme = ThemeData(
     titleTextStyle: AppTypography.headlineSmall.copyWith(color: AppColors.lightTextPrimary),
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
   ),
-  
+
   bottomSheetTheme: BottomSheetThemeData(
     backgroundColor: AppColors.lightSurfaceContainer,
     shape: const RoundedRectangleBorder(
@@ -521,7 +521,7 @@ ThemeData darkTheme = ThemeData(
     ),
     elevation: AppElevation.level1,
   ),
-  
+
   snackBarTheme: SnackBarThemeData(
     backgroundColor: AppColors.lightSurfaceContainerHigh,
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
@@ -529,13 +529,13 @@ ThemeData darkTheme = ThemeData(
     elevation: AppElevation.level3,
     behavior: SnackBarBehavior.floating,
   ),
-  
+
   dividerTheme: DividerThemeData(
     color: AppColors.lightOutlineVariant,
     thickness: 1,
     space: 1,
   ),
-  
+
   switchTheme: SwitchThemeData(
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -550,7 +550,7 @@ ThemeData darkTheme = ThemeData(
       return AppColors.lightSurfaceVariant;
     }),
   ),
-  
+
   checkboxTheme: CheckboxThemeData(
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -561,7 +561,7 @@ ThemeData darkTheme = ThemeData(
     checkColor: WidgetStateProperty.all(AppColors.onPrimary),
     shape: AppShapes.shapeExtraSmall,
   ),
-  
+
   radioTheme: RadioThemeData(
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -570,7 +570,7 @@ ThemeData darkTheme = ThemeData(
       return AppColors.lightTextSecondary;
     }),
   ),
-  
+
   sliderTheme: SliderThemeData(
     activeTrackColor: AppColors.primary,
     inactiveTrackColor: AppColors.lightSurfaceVariant,
@@ -578,13 +578,13 @@ ThemeData darkTheme = ThemeData(
     overlayColor: AppColors.primary.withOpacity(0.12),
     valueIndicatorColor: AppColors.primary,
   ),
-  
+
   progressIndicatorTheme: const ProgressIndicatorThemeData(
     color: AppColors.primary,
     linearTrackColor: AppColors.lightSurfaceVariant,
     circularTrackColor: AppColors.lightSurfaceVariant,
   ),
-  
+
   tabBarTheme: TabBarTheme(
     labelColor: AppColors.primary,
     unselectedLabelColor: AppColors.lightTextSecondary,
@@ -594,7 +594,7 @@ ThemeData darkTheme = ThemeData(
     labelStyle: AppTypography.titleSmall,
     unselectedLabelStyle: AppTypography.titleSmall,
   ),
-  
+
   bottomNavigationBarTheme: const BottomNavigationBarThemeData(
     backgroundColor: AppColors.lightSurface,
     selectedItemColor: AppColors.primary,
@@ -602,7 +602,7 @@ ThemeData darkTheme = ThemeData(
     elevation: AppElevation.level2,
     type: BottomNavigationBarType.fixed,
   ),
-  
+
   navigationRailTheme: const NavigationRailThemeData(
     backgroundColor: AppColors.lightSurface,
     selectedIconTheme: IconThemeData(color: AppColors.primary),
@@ -610,14 +610,14 @@ ThemeData darkTheme = ThemeData(
     selectedLabelTextStyle: AppTypography.labelMedium,
     unselectedLabelTextStyle: AppTypography.labelMedium,
   ),
-  
+
   floatingActionButtonTheme: const FloatingActionButtonThemeData(
     backgroundColor: AppColors.primary,
     foregroundColor: AppColors.onPrimary,
     elevation: AppElevation.level3,
     highlightElevation: AppElevation.level4,
   ),
-  
+
   iconTheme: const IconThemeData(
     color: AppColors.lightTextPrimary,
     size: 24,
@@ -633,14 +633,14 @@ class AnimatedCard extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsets? padding;
-  
+
   const AnimatedCard({
     Key? key,
     required this.child,
     this.onTap,
     this.padding,
   }) : super(key: key);
-  
+
   @override
   State<AnimatedCard> createState() => _AnimatedCardState();
 }
@@ -648,7 +648,7 @@ class AnimatedCard extends StatefulWidget {
 class _AnimatedCardState extends State<AnimatedCard> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -660,17 +660,17 @@ class _AnimatedCardState extends State<AnimatedCard> with SingleTickerProviderSt
       CurvedAnimation(parent: _controller, curve: AppMotion.standardEasing),
     );
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) {
@@ -697,7 +697,7 @@ class AnimatedPrimaryButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool loading;
-  
+
   const AnimatedPrimaryButton({
     Key? key,
     required this.text,
@@ -705,7 +705,7 @@ class AnimatedPrimaryButton extends StatefulWidget {
     this.icon,
     this.loading = false,
   }) : super(key: key);
-  
+
   @override
   State<AnimatedPrimaryButton> createState() => _AnimatedPrimaryButtonState();
 }
@@ -714,7 +714,7 @@ class _AnimatedPrimaryButtonState extends State<AnimatedPrimaryButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -726,13 +726,13 @@ class _AnimatedPrimaryButtonState extends State<AnimatedPrimaryButton>
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -778,14 +778,14 @@ class FadeInWidget extends StatefulWidget {
   final Widget child;
   final Duration duration;
   final Duration delay;
-  
+
   const FadeInWidget({
     Key? key,
     required this.child,
     this.duration = AppMotion.medium,
     this.delay = Duration.zero,
   }) : super(key: key);
-  
+
   @override
   State<FadeInWidget> createState() => _FadeInWidgetState();
 }
@@ -795,7 +795,7 @@ class _FadeInWidgetState extends State<FadeInWidget>
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -803,29 +803,29 @@ class _FadeInWidgetState extends State<FadeInWidget>
       vsync: this,
       duration: widget.duration,
     );
-    
+
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: AppMotion.emphasizedDecelerate),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _controller, curve: AppMotion.emphasizedDecelerate),
     );
-    
+
     Future.delayed(widget.delay, () {
       if (mounted) _controller.forward();
     });
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
@@ -843,14 +843,14 @@ class StaggeredListItem extends StatelessWidget {
   final Widget child;
   final int index;
   final Duration delay;
-  
+
   const StaggeredListItem({
     Key? key,
     required this.child,
     required this.index,
     this.delay = const Duration(milliseconds: 50),
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     return FadeInWidget(
@@ -866,14 +866,14 @@ class SkeletonLoader extends StatefulWidget {
   final double width;
   final double height;
   final BorderRadius? borderRadius;
-  
+
   const SkeletonLoader({
     Key? key,
     required this.width,
     required this.height,
     this.borderRadius,
   }) : super(key: key);
-  
+
   @override
   State<SkeletonLoader> createState() => _SkeletonLoaderState();
 }
@@ -882,7 +882,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -890,18 +890,18 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
-    
+
     _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -909,7 +909,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
     final highlightColor = isDark 
         ? AppColors.darkSurfaceContainerHigh 
         : AppColors.lightSurfaceContainerHigh;
-    
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -940,18 +940,18 @@ class AppBadge extends StatelessWidget {
   final String text;
   final Color? color;
   final bool outlined;
-  
+
   const AppBadge({
     Key? key,
     required this.text,
     this.color,
     this.outlined = false,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     final badgeColor = color ?? AppColors.primary;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -976,13 +976,13 @@ class AppBadge extends StatelessWidget {
 // Divider with label
 class LabeledDivider extends StatelessWidget {
   final String label;
-  
+
   const LabeledDivider({Key? key, required this.label}) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Row(
       children: [
         Expanded(child: Divider(color: theme.dividerTheme.color)),
@@ -1006,7 +1006,7 @@ class InfoCard extends StatelessWidget {
   final String subtitle;
   final Color? color;
   final VoidCallback? onTap;
-  
+
   const InfoCard({
     Key? key,
     required this.icon,
@@ -1015,12 +1015,12 @@ class InfoCard extends StatelessWidget {
     this.color,
     this.onTap,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cardColor = color ?? AppColors.primary;
-    
+
     return AnimatedCard(
       onTap: onTap,
       child: Row(
@@ -1062,7 +1062,7 @@ class EmptyStateWithAction extends StatelessWidget {
   final String subtitle;
   final String? actionText;
   final VoidCallback? onAction;
-  
+
   const EmptyStateWithAction({
     Key? key,
     required this.icon,
@@ -1071,11 +1071,11 @@ class EmptyStateWithAction extends StatelessWidget {
     this.actionText,
     this.onAction,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxxl),
@@ -1118,19 +1118,19 @@ class AppHaptics {
   static void light() {
     HapticFeedback.lightImpact();
   }
-  
+
   static void medium() {
     HapticFeedback.mediumImpact();
   }
-  
+
   static void heavy() {
     HapticFeedback.heavyImpact();
   }
-  
+
   static void selection() {
     HapticFeedback.selectionClick();
   }
-  
+
   static void error() {
     HapticFeedback.vibrate();
   }
@@ -1163,7 +1163,7 @@ class AppSnackbar {
       ),
     );
   }
-  
+
   static void success(BuildContext context, String message) {
     show(
       context,
@@ -1172,7 +1172,7 @@ class AppSnackbar {
       backgroundColor: AppColors.success,
     );
   }
-  
+
   static void error(BuildContext context, String message) {
     show(
       context,
@@ -1181,7 +1181,7 @@ class AppSnackbar {
       backgroundColor: AppColors.error,
     );
   }
-  
+
   static void warning(BuildContext context, String message) {
     show(
       context,
@@ -1190,7 +1190,7 @@ class AppSnackbar {
       backgroundColor: AppColors.warning,
     );
   }
-  
+
   static void info(BuildContext context, String message) {
     show(
       context,
@@ -1208,7 +1208,7 @@ class AppSnackbar {
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.primary,
@@ -1220,7 +1220,7 @@ class AppSnackbar {
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
     fillColor: AppColors.darkSurfaceVariant,
@@ -1247,7 +1247,7 @@ class AppSnackbar {
     labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.darkTextSecondary),
     hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.darkTextTertiary),
   ),
-  
+
   chipTheme: ChipThemeData(
     backgroundColor: AppColors.darkSurfaceVariant,
     selectedColor: AppColors.primary,
@@ -1255,7 +1255,7 @@ class AppSnackbar {
     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
     shape: AppShapes.shapeSmall,
   ),
-  
+
   dialogTheme: DialogTheme(
     backgroundColor: AppColors.darkSurfaceContainerHigh,
     shape: AppShapes.shapeExtraLarge,
@@ -1263,7 +1263,7 @@ class AppSnackbar {
     titleTextStyle: AppTypography.headlineSmall.copyWith(color: AppColors.darkTextPrimary),
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.darkTextSecondary),
   ),
-  
+
   bottomSheetTheme: BottomSheetThemeData(
     backgroundColor: AppColors.darkSurfaceContainer,
     shape: const RoundedRectangleBorder(
@@ -1271,7 +1271,7 @@ class AppSnackbar {
     ),
     elevation: AppElevation.level1,
   ),
-  
+
   snackBarTheme: SnackBarThemeData(
     backgroundColor: AppColors.darkSurfaceContainerHigh,
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.darkTextPrimary),
@@ -1279,13 +1279,13 @@ class AppSnackbar {
     elevation: AppElevation.level3,
     behavior: SnackBarBehavior.floating,
   ),
-  
+
   dividerTheme: DividerThemeData(
     color: AppColors.darkOutlineVariant,
     thickness: 1,
     space: 1,
   ),
-  
+
   switchTheme: SwitchThemeData(
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -1300,7 +1300,7 @@ class AppSnackbar {
       return AppColors.darkSurfaceVariant;
     }),
   ),
-  
+
   checkboxTheme: CheckboxThemeData(
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -1311,7 +1311,7 @@ class AppSnackbar {
     checkColor: WidgetStateProperty.all(AppColors.onPrimary),
     shape: AppShapes.shapeExtraSmall,
   ),
-  
+
   radioTheme: RadioThemeData(
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -1320,7 +1320,7 @@ class AppSnackbar {
       return AppColors.darkTextSecondary;
     }),
   ),
-  
+
   sliderTheme: SliderThemeData(
     activeTrackColor: AppColors.primary,
     inactiveTrackColor: AppColors.darkSurfaceVariant,
@@ -1328,13 +1328,13 @@ class AppSnackbar {
     overlayColor: AppColors.primary.withOpacity(0.12),
     valueIndicatorColor: AppColors.primary,
   ),
-  
+
   progressIndicatorTheme: const ProgressIndicatorThemeData(
     color: AppColors.primary,
     linearTrackColor: AppColors.darkSurfaceVariant,
     circularTrackColor: AppColors.darkSurfaceVariant,
   ),
-  
+
   tabBarTheme: TabBarTheme(
     labelColor: AppColors.primary,
     unselectedLabelColor: AppColors.darkTextSecondary,
@@ -1344,7 +1344,7 @@ class AppSnackbar {
     labelStyle: AppTypography.titleSmall,
     unselectedLabelStyle: AppTypography.titleSmall,
   ),
-  
+
   bottomNavigationBarTheme: const BottomNavigationBarThemeData(
     backgroundColor: AppColors.darkSurface,
     selectedItemColor: AppColors.primary,
@@ -1352,7 +1352,7 @@ class AppSnackbar {
     elevation: AppElevation.level2,
     type: BottomNavigationBarType.fixed,
   ),
-  
+
   navigationRailTheme: const NavigationRailThemeData(
     backgroundColor: AppColors.darkSurface,
     selectedIconTheme: IconThemeData(color: AppColors.primary),
@@ -1360,14 +1360,14 @@ class AppSnackbar {
     selectedLabelTextStyle: AppTypography.labelMedium,
     unselectedLabelTextStyle: AppTypography.labelMedium,
   ),
-  
+
   floatingActionButtonTheme: const FloatingActionButtonThemeData(
     backgroundColor: AppColors.primary,
     foregroundColor: AppColors.onPrimary,
     elevation: AppElevation.level3,
     highlightElevation: AppElevation.level4,
   ),
-  
+
   iconTheme: const IconThemeData(
     color: AppColors.darkTextPrimary,
     size: 24,
@@ -1380,7 +1380,7 @@ class AppSnackbar {
 ThemeData lightTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
-  
+
   colorScheme: const ColorScheme(
     brightness: Brightness.light,
     primary: AppColors.primary,
@@ -1412,9 +1412,9 @@ ThemeData lightTheme = ThemeData(
     inversePrimary: AppColors.primary,
     surfaceTint: AppColors.primary,
   ),
-  
+
   scaffoldBackgroundColor: AppColors.lightBackground,
-  
+
   textTheme: TextTheme(
     displayLarge: AppTypography.displayLarge.copyWith(color: AppColors.lightTextPrimary),
     displayMedium: AppTypography.displayMedium.copyWith(color: AppColors.lightTextPrimary),
@@ -1432,7 +1432,7 @@ ThemeData lightTheme = ThemeData(
     labelMedium: AppTypography.labelMedium.copyWith(color: AppColors.lightTextSecondary),
     labelSmall: AppTypography.labelSmall.copyWith(color: AppColors.lightTextTertiary),
   ),
-  
+
   appBarTheme: AppBarTheme(
     backgroundColor: AppColors.lightSurface,
     elevation: 0,
@@ -1441,14 +1441,14 @@ ThemeData lightTheme = ThemeData(
     iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
     systemOverlayStyle: SystemUiOverlayStyle.dark,
   ),
-  
+
   cardTheme: CardTheme(
     color: AppColors.lightSurfaceContainer,
     elevation: AppElevation.level1,
     shape: AppShapes.shapeMedium,
     margin: const EdgeInsets.all(AppSpacing.xs),
   ),
-  
+
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       backgroundColor: AppColors.primary,
@@ -1462,7 +1462,7 @@ ThemeData lightTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   filledButtonTheme: FilledButtonThemeData(
     style: FilledButton.styleFrom(
       backgroundColor: AppColors.primary,
@@ -1475,7 +1475,7 @@ ThemeData lightTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   // CONTINUAÇÃO DO styles.dart - COLE ISTO APÓS O filledButtonTheme DO LIGHT THEME
 
   outlinedButtonTheme: OutlinedButtonThemeData(
@@ -1490,7 +1490,7 @@ ThemeData lightTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.primary,
@@ -1502,7 +1502,7 @@ ThemeData lightTheme = ThemeData(
       textStyle: AppTypography.labelLarge,
     ),
   ),
-  
+
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
     fillColor: AppColors.lightSurfaceVariant,
@@ -1529,7 +1529,7 @@ ThemeData lightTheme = ThemeData(
     labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
     hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextTertiary),
   ),
-  
+
   chipTheme: ChipThemeData(
     backgroundColor: AppColors.lightSurfaceVariant,
     selectedColor: AppColors.primary,
@@ -1537,7 +1537,7 @@ ThemeData lightTheme = ThemeData(
     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
     shape: AppShapes.shapeSmall,
   ),
-  
+
   dialogTheme: DialogTheme(
     backgroundColor: AppColors.lightSurfaceContainerHigh,
     shape: AppShapes.shapeExtraLarge,
@@ -1545,7 +1545,7 @@ ThemeData lightTheme = ThemeData(
     titleTextStyle: AppTypography.headlineSmall.copyWith(color: AppColors.lightTextPrimary),
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
   ),
-  
+
   bottomSheetTheme: BottomSheetThemeData(
     backgroundColor: AppColors.lightSurfaceContainer,
     shape: const RoundedRectangleBorder(
@@ -1553,7 +1553,7 @@ ThemeData lightTheme = ThemeData(
     ),
     elevation: AppElevation.level1,
   ),
-  
+
   snackBarTheme: SnackBarThemeData(
     backgroundColor: AppColors.lightSurfaceContainerHigh,
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
@@ -1561,13 +1561,13 @@ ThemeData lightTheme = ThemeData(
     elevation: AppElevation.level3,
     behavior: SnackBarBehavior.floating,
   ),
-  
+
   dividerTheme: DividerThemeData(
     color: AppColors.lightOutlineVariant,
     thickness: 1,
     space: 1,
   ),
-  
+
   switchTheme: SwitchThemeData(
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -1582,7 +1582,7 @@ ThemeData lightTheme = ThemeData(
       return AppColors.lightSurfaceVariant;
     }),
   ),
-  
+
   checkboxTheme: CheckboxThemeData(
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -1593,7 +1593,7 @@ ThemeData lightTheme = ThemeData(
     checkColor: WidgetStateProperty.all(AppColors.onPrimary),
     shape: AppShapes.shapeExtraSmall,
   ),
-  
+
   radioTheme: RadioThemeData(
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -1602,7 +1602,7 @@ ThemeData lightTheme = ThemeData(
       return AppColors.lightTextSecondary;
     }),
   ),
-  
+
   sliderTheme: SliderThemeData(
     activeTrackColor: AppColors.primary,
     inactiveTrackColor: AppColors.lightSurfaceVariant,
@@ -1610,13 +1610,13 @@ ThemeData lightTheme = ThemeData(
     overlayColor: AppColors.primary.withOpacity(0.12),
     valueIndicatorColor: AppColors.primary,
   ),
-  
+
   progressIndicatorTheme: const ProgressIndicatorThemeData(
     color: AppColors.primary,
     linearTrackColor: AppColors.lightSurfaceVariant,
     circularTrackColor: AppColors.lightSurfaceVariant,
   ),
-  
+
   tabBarTheme: TabBarTheme(
     labelColor: AppColors.primary,
     unselectedLabelColor: AppColors.lightTextSecondary,
@@ -1626,7 +1626,7 @@ ThemeData lightTheme = ThemeData(
     labelStyle: AppTypography.titleSmall,
     unselectedLabelStyle: AppTypography.titleSmall,
   ),
-  
+
   bottomNavigationBarTheme: const BottomNavigationBarThemeData(
     backgroundColor: AppColors.lightSurface,
     selectedItemColor: AppColors.primary,
@@ -1634,7 +1634,7 @@ ThemeData lightTheme = ThemeData(
     elevation: AppElevation.level2,
     type: BottomNavigationBarType.fixed,
   ),
-  
+
   navigationRailTheme: const NavigationRailThemeData(
     backgroundColor: AppColors.lightSurface,
     selectedIconTheme: IconThemeData(color: AppColors.primary),
@@ -1642,19 +1642,19 @@ ThemeData lightTheme = ThemeData(
     selectedLabelTextStyle: AppTypography.labelMedium,
     unselectedLabelTextStyle: AppTypography.labelMedium,
   ),
-  
+
   floatingActionButtonTheme: const FloatingActionButtonThemeData(
     backgroundColor: AppColors.primary,
     foregroundColor: AppColors.onPrimary,
     elevation: AppElevation.level3,
     highlightElevation: AppElevation.level4,
   ),
-  
+
   iconTheme: const IconThemeData(
     color: AppColors.lightTextPrimary,
     size: 24,
   ),
-  
+
   listTileTheme: ListTileThemeData(
     contentPadding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.lg,
@@ -1664,7 +1664,7 @@ ThemeData lightTheme = ThemeData(
     tileColor: Colors.transparent,
     selectedTileColor: AppColors.primary.withOpacity(0.08),
   ),
-  
+
   expansionTileTheme: ExpansionTileThemeData(
     backgroundColor: Colors.transparent,
     collapsedBackgroundColor: Colors.transparent,
@@ -1674,7 +1674,7 @@ ThemeData lightTheme = ThemeData(
     collapsedIconColor: AppColors.lightTextSecondary,
     shape: AppShapes.shapeMedium,
   ),
-  
+
   tooltipTheme: TooltipThemeData(
     decoration: BoxDecoration(
       color: AppColors.lightTextPrimary.withOpacity(0.9),
@@ -1686,14 +1686,14 @@ ThemeData lightTheme = ThemeData(
       vertical: AppSpacing.xs,
     ),
   ),
-  
+
   popupMenuTheme: PopupMenuThemeData(
     color: AppColors.lightSurfaceContainer,
     elevation: AppElevation.level2,
     shape: AppShapes.shapeMedium,
     textStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
   ),
-  
+
   drawerTheme: DrawerThemeData(
     backgroundColor: AppColors.lightSurface,
     elevation: AppElevation.level1,
@@ -1701,7 +1701,7 @@ ThemeData lightTheme = ThemeData(
       borderRadius: BorderRadius.horizontal(right: Radius.circular(AppShapes.large)),
     ),
   ),
-  
+
   timePickerTheme: TimePickerThemeData(
     backgroundColor: AppColors.lightSurfaceContainer,
     dialBackgroundColor: AppColors.lightSurfaceVariant,
@@ -1712,7 +1712,7 @@ ThemeData lightTheme = ThemeData(
     dayPeriodTextColor: AppColors.primary,
     shape: AppShapes.shapeExtraLarge,
   ),
-  
+
   datePickerTheme: DatePickerThemeData(
     backgroundColor: AppColors.lightSurfaceContainer,
     headerBackgroundColor: AppColors.primary,
@@ -1721,12 +1721,12 @@ ThemeData lightTheme = ThemeData(
     dayStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
     shape: AppShapes.shapeExtraLarge,
   ),
-  
+
   bannerTheme: MaterialBannerThemeData(
     backgroundColor: AppColors.lightSurfaceVariant,
     contentTextStyle: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextPrimary),
   ),
-  
+
   dataTableTheme: DataTableThemeData(
     decoration: BoxDecoration(
       color: AppColors.lightSurfaceContainer,
@@ -1744,26 +1744,26 @@ ThemeData lightTheme = ThemeData(
 // Theme Mode Provider - Use com Provider ou Riverpod
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.dark;
-  
+
   ThemeMode get themeMode => _themeMode;
   bool get isDark => _themeMode == ThemeMode.dark;
-  
+
   void toggleTheme() {
     _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     notifyListeners();
   }
-  
+
   void setTheme(ThemeMode mode) {
     _themeMode = mode;
     notifyListeners();
   }
-  
+
   // Salvar preferência
   Future<void> saveThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme_mode', _themeMode.toString());
   }
-  
+
   // Carregar preferência
   Future<void> loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1780,7 +1780,7 @@ extension ThemeExtension on BuildContext {
   ColorScheme get colors => Theme.of(this).colorScheme;
   TextTheme get textStyles => Theme.of(this).textTheme;
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
-  
+
   // Atalhos úteis
   Color get surface => colors.surface;
   Color get primary => colors.primary;
@@ -1800,7 +1800,7 @@ class SegmentedButtonGroup<T> extends StatelessWidget {
   final Function(T) onChanged;
   final String Function(T) labelBuilder;
   final IconData Function(T)? iconBuilder;
-  
+
   const SegmentedButtonGroup({
     Key? key,
     required this.values,
@@ -1809,7 +1809,7 @@ class SegmentedButtonGroup<T> extends StatelessWidget {
     required this.labelBuilder,
     this.iconBuilder,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -1886,7 +1886,7 @@ class StatsCard extends StatelessWidget {
   final Color? color;
   final String? subtitle;
   final VoidCallback? onTap;
-  
+
   const StatsCard({
     Key? key,
     required this.label,
@@ -1896,11 +1896,11 @@ class StatsCard extends StatelessWidget {
     this.subtitle,
     this.onTap,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     final cardColor = color ?? context.primary;
-    
+
     return AnimatedCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1961,7 +1961,7 @@ class TransactionListItem extends StatelessWidget {
   final double amount;
   final IconData icon;
   final VoidCallback? onTap;
-  
+
   const TransactionListItem({
     Key? key,
     required this.title,
@@ -1970,12 +1970,12 @@ class TransactionListItem extends StatelessWidget {
     required this.icon,
     this.onTap,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     final isPositive = amount >= 0;
     final color = isPositive ? AppColors.success : AppColors.error;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2033,14 +2033,14 @@ class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
   final Widget child;
   final String? message;
-  
+
   const LoadingOverlay({
     Key? key,
     required this.isLoading,
     required this.child,
     this.message,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     return Stack(
