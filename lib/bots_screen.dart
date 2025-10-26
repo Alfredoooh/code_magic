@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 import 'bot_engine.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
@@ -230,65 +232,46 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
 
   void _showOptionsMenu() {
     AppHaptics.light();
-    showModalBottomSheet(
+    AppModalBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: context.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.large)),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
+      title: 'Opções',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListTile(
+            leading: Container(
+              padding: EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: context.colors.outlineVariant,
-                borderRadius: BorderRadius.circular(AppShapes.full),
+                color: AppColors.primary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               ),
+              child: const Icon(Icons.add_circle_outline, color: AppColors.primary),
             ),
-            const SizedBox(height: AppSpacing.xl),
-            Text('Opções', style: context.textStyles.headlineSmall),
-            const SizedBox(height: AppSpacing.lg),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.medium),
-                ),
-                child: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+            title: 'Criar Novo Bot',
+            subtitle: 'Configure um novo bot de trading',
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateBotDialog();
+            },
+          ),
+          SizedBox(height: AppSpacing.sm),
+          AppListTile(
+            leading: Container(
+              padding: EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               ),
-              title: const Text('Criar Novo Bot'),
-              subtitle: const Text('Configure um novo bot de trading'),
-              onTap: () {
-                Navigator.pop(context);
-                _showCreateBotDialog();
-              },
+              child: const Icon(Icons.play_circle_outline, color: AppColors.success),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.medium),
-                ),
-                child: const Icon(Icons.play_circle_outline, color: AppColors.success),
-              ),
-              title: const Text('Iniciar Múltiplos Bots'),
-              subtitle: const Text('Ative todos os bots disponíveis'),
-              onTap: () {
-                Navigator.pop(context);
-                _startMultipleBots();
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-        ),
+            title: 'Iniciar Múltiplos Bots',
+            subtitle: 'Ative todos os bots disponíveis',
+            onTap: () {
+              Navigator.pop(context);
+              _startMultipleBots();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -331,73 +314,69 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       text: bot.config.maxStake != null ? bot.config.maxStake!.toStringAsFixed(2) : '',
     );
 
-    showDialog(
+    AppDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar Configurações'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: stakeController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Stake Inicial (\$) — mínimo 0.35',
-                hintText: '0.35',
-                prefixIcon: Icon(Icons.attach_money_rounded),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            TextField(
-              controller: maxStakeController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Max Stake (\$) — deixe em branco para ilimitado',
-                hintText: 'Ex: 1000.00',
-                prefixIcon: Icon(Icons.account_balance_wallet_rounded),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              AppHaptics.light();
-              Navigator.pop(context);
-            },
-            child: const Text('Cancelar'),
+      title: 'Editar Configurações',
+      icon: Icons.settings_rounded,
+      iconColor: AppColors.primary,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppTextField(
+            controller: stakeController,
+            label: 'Stake Inicial (\$)',
+            hint: '0.35',
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            prefix: Icon(Icons.attach_money_rounded),
           ),
-          FilledButton(
-            onPressed: () {
-              final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
-              final maxStakeText = maxStakeController.text.trim();
-              final newMaxStake = maxStakeText.isEmpty ? null : double.tryParse(maxStakeText.replaceAll(',', '.'));
-
-              if (newStake == null || newStake < 0.35) {
-                AppHaptics.error();
-                AppSnackbar.error(context, 'Stake inicial inválido. Mínimo: 0.35');
-                return;
-              }
-
-              if (newMaxStake != null && newMaxStake < newStake) {
-                AppHaptics.error();
-                AppSnackbar.error(context, 'Max Stake deve ser maior ou igual ao Stake inicial');
-                return;
-              }
-
-              AppHaptics.heavy();
-              setState(() {
-                bot.config.initialStake = newStake;
-                bot.currentStake = math.max(bot.currentStake, newStake);
-                bot.config.maxStake = newMaxStake;
-              });
-              Navigator.pop(context);
-              AppSnackbar.success(context, 'Configurações atualizadas!');
-            },
-            child: const Text('Salvar'),
+          SizedBox(height: AppSpacing.lg),
+          AppTextField(
+            controller: maxStakeController,
+            label: 'Max Stake (\$)',
+            hint: 'Ex: 1000.00',
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            prefix: Icon(Icons.account_balance_wallet_rounded),
           ),
         ],
       ),
+      actions: [
+        TertiaryButton(
+          text: 'Cancelar',
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
+        ),
+        PrimaryButton(
+          text: 'Salvar',
+          onPressed: () {
+            final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
+            final maxStakeText = maxStakeController.text.trim();
+            final newMaxStake = maxStakeText.isEmpty ? null : double.tryParse(maxStakeText.replaceAll(',', '.'));
+
+            if (newStake == null || newStake < 0.35) {
+              AppHaptics.error();
+              AppSnackbar.error(context, 'Stake inicial inválido. Mínimo: 0.35');
+              return;
+            }
+
+            if (newMaxStake != null && newMaxStake < newStake) {
+              AppHaptics.error();
+              AppSnackbar.error(context, 'Max Stake deve ser maior ou igual ao Stake inicial');
+              return;
+            }
+
+            AppHaptics.heavy();
+            setState(() {
+              bot.config.initialStake = newStake;
+              bot.currentStake = math.max(bot.currentStake, newStake);
+              bot.config.maxStake = newMaxStake;
+            });
+            Navigator.pop(context);
+            AppSnackbar.success(context, 'Configurações atualizadas!');
+          },
+        ),
+      ],
     );
   }
 
@@ -408,8 +387,8 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     final totalProfit = _bots.fold(0.0, (sum, bot) => sum + bot.totalProfit);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trading Bots'),
+      appBar: PrimaryAppBar(
+        title: 'Trading Bots',
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
@@ -433,9 +412,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       }
                     },
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: EdgeInsets.all(AppSpacing.lg),
                       itemCount: _bots.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+                      separatorBuilder: (context, index) => SizedBox(height: AppSpacing.md),
                       itemBuilder: (context, index) => StaggeredListItem(
                         index: index,
                         child: _buildBotCard(_bots[index]),
@@ -445,38 +424,28 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 ),
               ],
             )
-          : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    'Conectando ao servidor...',
-                    style: context.textStyles.bodyLarge?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+          : LoadingOverlay(
+              isLoading: true,
+              message: 'Conectando ao servidor...',
+              child: const SizedBox.shrink(),
             ),
     );
   }
 
   Widget _buildStatisticsHeader(int activeBots, double totalProfit) {
     return Container(
-      margin: const EdgeInsets.all(AppSpacing.lg),
+      margin: EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: StatsCard(
               label: 'Bots Ativos',
-              value: '0',
+              value: activeBots.toString(),
               icon: Icons.smart_toy_rounded,
               color: AppColors.primary,
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: StatsCard(
               label: 'Total',
@@ -485,7 +454,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               color: AppColors.secondary,
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: StatsCard(
               label: 'Lucro',
@@ -521,7 +490,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   color: bot.isRunning
                       ? AppColors.primary.withOpacity(0.15)
                       : context.colors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(AppShapes.medium),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
                 child: Icon(
                   _getStrategyIcon(bot.config.strategy),
@@ -529,7 +498,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                   size: 28,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,7 +518,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                           ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
+                    SizedBox(height: AppSpacing.xxs),
                     Text(
                       bot.config.description,
                       style: context.textStyles.bodySmall,
@@ -561,12 +530,12 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: AppSpacing.lg),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: context.colors.surfaceVariant,
-              borderRadius: BorderRadius.circular(AppShapes.medium),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: Row(
               children: [
@@ -576,16 +545,16 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   Icon(Icons.attach_money_rounded, size: 16, color: context.colors.onSurfaceVariant),
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(width: AppSpacing.xs),
                   Text('Stake:', style: context.textStyles.bodySmall),
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(width: AppSpacing.xs),
                   Text(
                     '\$${status.currentStake.toStringAsFixed(2)}',
                     style: context.textStyles.titleSmall?.copyWith(color: AppColors.primary),
@@ -593,13 +562,12 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                 ],
               ),
               if (!bot.isRunning)
-                IconButton(
-                  icon: const Icon(Icons.edit_rounded, size: 20),
+                IconButtonWithBackground(
+                  icon: Icons.edit_rounded,
                   onPressed: () => _showEditStakeDialog(bot),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withOpacity(0.15),
-                    foregroundColor: AppColors.primary,
-                  ),
+                  backgroundColor: AppColors.primary.withOpacity(0.15),
+                  iconColor: AppColors.primary,
+                  size: 36,
                 ),
             ],
           ),
@@ -612,7 +580,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     return Column(
       children: [
         Text(label, style: context.textStyles.labelSmall),
-        const SizedBox(height: AppSpacing.xxs),
+        SizedBox(height: AppSpacing.xxs),
         Text(value, style: context.textStyles.titleSmall?.copyWith(color: color)),
       ],
     );
