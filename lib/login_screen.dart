@@ -4,8 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:convert';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 import 'home_screen.dart';
 
 class DerivLoginScreen extends StatefulWidget {
@@ -60,13 +61,11 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
   }
 
   Future<void> _showTradingDisclaimer() async {
-    await showModalBottomSheet(
+    await AppModalBottomSheet.show(
       context: context,
       isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const TradingDisclaimerSheet(),
+      title: 'Aviso Importante',
+      child: const TradingDisclaimerContent(),
     );
 
     final prefs = await SharedPreferences.getInstance();
@@ -143,15 +142,10 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: context.colors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-          ),
-          title: Text(
-            'Selecione sua conta',
-            style: context.textStyles.titleLarge,
-          ),
+        return AppDialog(
+          title: 'Selecione sua conta',
+          icon: Icons.account_balance_wallet_rounded,
+          iconColor: AppColors.primary,
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -159,32 +153,35 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
               itemCount: accounts.length,
               itemBuilder: (context, index) {
                 final account = accounts[index];
-                return FadeInWidget(
-                  delay: Duration(milliseconds: 100 * index),
-                  child: Card(
-                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: ListTile(
-                      title: Text(
-                        account['account'] ?? '',
-                        style: context.textStyles.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        account['currency'] ?? 'USD',
-                        style: context.textStyles.bodyMedium?.copyWith(
-                          color: context.colors.onSurfaceVariant,
-                        ),
-                      ),
-                      trailing: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: context.colors.onSurfaceVariant,
-                        size: 16,
-                      ),
+                return StaggeredListItem(
+                  index: index,
+                  delay: const Duration(milliseconds: 50),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: AnimatedCard(
                       onTap: () {
                         AppHaptics.selection();
                         Navigator.of(context).pop(account);
                       },
+                      child: ListTile(
+                        title: Text(
+                          account['account'] ?? '',
+                          style: context.textStyles.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          account['currency'] ?? 'USD',
+                          style: context.textStyles.bodyMedium?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: context.colors.onSurfaceVariant,
+                          size: 16,
+                        ),
+                      ),
                     ),
                   ),
                 );
@@ -192,15 +189,12 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            TertiaryButton(
+              text: 'Cancelar',
               onPressed: () {
                 AppHaptics.light();
                 Navigator.of(context).pop(null);
               },
-              child: Text(
-                'Cancelar',
-                style: TextStyle(color: context.colors.error),
-              ),
             ),
           ],
         );
@@ -259,74 +253,82 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
   Widget build(BuildContext context) {
     if (_isCheckingSession) {
       return Scaffold(
-        backgroundColor: context.colors.surface,
-        body: const Center(
-          child: CircularProgressIndicator(),
+        backgroundColor: context.surface,
+        body: LoadingOverlay(
+          isLoading: true,
+          message: 'Verificando sessão...',
+          child: const SizedBox(),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: context.colors.surface,
+      backgroundColor: context.surface,
       body: LoadingOverlay(
         isLoading: _isLoading,
         message: 'Conectando...',
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Spacer(),
-                
+                const SizedBox(height: AppSpacing.massive),
+
                 // Logo
                 FadeInWidget(
                   child: Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-                      child: Image.asset(
-                        'assets/icon/icon.png',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: context.colors.primary,
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-                            ),
-                            child: Icon(
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: context.colors.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+                        boxShadow: [
+                          BoxShadow(
+                            color: context.colors.primary.withOpacity(0.3),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+                        child: Image.asset(
+                          'assets/icon/icon.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
                               Icons.trending_up_rounded,
-                              color: context.colors.onPrimary,
-                              size: 40,
-                            ),
-                          );
-                        },
+                              color: context.colors.primary,
+                              size: 48,
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xxl),
-                
+
                 // Título
                 FadeInWidget(
                   delay: const Duration(milliseconds: 100),
                   child: Text(
                     'ZoomTrade',
                     style: context.textStyles.displaySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       letterSpacing: -1.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xs),
-                
+
                 FadeInWidget(
                   delay: const Duration(milliseconds: 200),
                   child: Text(
@@ -337,112 +339,74 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.massive),
-                
+
                 // Botão Login com Email/Senha
                 FadeInWidget(
                   delay: const Duration(milliseconds: 300),
-                  child: SizedBox(
-                    height: 52,
-                    child: AnimatedPrimaryButton(
-                      text: 'Login com Email/Senha Deriv',
-                      icon: Icons.login_rounded,
-                      isLoading: _isLoading,
-                      onPressed: _loginWithDeriv,
-                    ),
+                  child: PrimaryButton(
+                    text: 'Login com Email/Senha Deriv',
+                    icon: Icons.login_rounded,
+                    onPressed: _isLoading ? null : _loginWithDeriv,
+                    expanded: true,
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xl),
-                
+
                 // Divider
                 FadeInWidget(
                   delay: const Duration(milliseconds: 400),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Divider(color: context.colors.outlineVariant),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                        child: Text(
-                          'ou',
-                          style: context.textStyles.bodyMedium?.copyWith(
-                            color: context.colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(color: context.colors.outlineVariant),
-                      ),
-                    ],
-                  ),
+                  child: const LabeledDivider(label: 'ou'),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.xl),
-                
+
                 // Campo de Token
                 FadeInWidget(
                   delay: const Duration(milliseconds: 500),
-                  child: TextField(
+                  child: AppTextField(
                     controller: _tokenController,
-                    decoration: const InputDecoration(
-                      labelText: 'Token de API',
-                      hintText: 'Cole seu token aqui',
-                      prefixIcon: Icon(Icons.vpn_key_rounded),
-                    ),
+                    label: 'Token de API',
+                    hint: 'Cole seu token aqui',
+                    prefix: const Icon(Icons.vpn_key_rounded),
                     enabled: !_isLoading,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_\-]')),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.lg),
-                
+
                 // Botão Conectar com Token
                 FadeInWidget(
                   delay: const Duration(milliseconds: 600),
-                  child: SizedBox(
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _login,
-                      icon: const Icon(Icons.link_rounded),
-                      label: const Text(
-                        'Conectar com Token',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  child: SecondaryButton(
+                    text: 'Conectar com Token',
+                    icon: Icons.link_rounded,
+                    onPressed: _isLoading ? null : _login,
+                    expanded: true,
                   ),
                 ),
-                
+
                 const SizedBox(height: AppSpacing.lg),
-                
+
                 // Botão Criar Conta
                 FadeInWidget(
                   delay: const Duration(milliseconds: 700),
-                  child: SizedBox(
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: _openRegister,
-                      child: const Text(
-                        'Criar Conta Deriv',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  child: TertiaryButton(
+                    text: 'Criar Conta Deriv',
+                    icon: Icons.person_add_rounded,
+                    onPressed: _openRegister,
+                    expanded: true,
                   ),
                 ),
-                
-                const Spacer(flex: 2),
-                
-                // Suporte com ícones oficiais
+
+                const SizedBox(height: AppSpacing.massive),
+
+                // Suporte
                 FadeInWidget(
                   delay: const Duration(milliseconds: 800),
                   child: Row(
@@ -455,50 +419,28 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.lg),
-                      // WhatsApp oficial
-                      InkWell(
-                        onTap: _openWhatsApp,
-                        borderRadius: BorderRadius.circular(50),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: Image.asset(
-                            'assets/icons/whatsapp.png',
-                            width: 32,
-                            height: 32,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.chat_rounded,
-                                color: Color(0xFF25D366),
-                                size: 32,
-                              );
-                            },
-                          ),
-                        ),
+                      // WhatsApp
+                      IconButtonWithBackground(
+                        icon: Icons.chat_rounded,
+                        onPressed: _openWhatsApp,
+                        backgroundColor: const Color(0xFF25D366).withOpacity(0.15),
+                        iconColor: const Color(0xFF25D366),
+                        size: 48,
                       ),
-                      const SizedBox(width: AppSpacing.xs),
-                      // Gmail oficial
-                      InkWell(
-                        onTap: _openEmail,
-                        borderRadius: BorderRadius.circular(50),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: Image.asset(
-                            'assets/icons/gmail.png',
-                            width: 32,
-                            height: 32,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.email_rounded,
-                                color: context.colors.primary,
-                                size: 32,
-                              );
-                            },
-                          ),
-                        ),
+                      const SizedBox(width: AppSpacing.sm),
+                      // Email
+                      IconButtonWithBackground(
+                        icon: Icons.email_rounded,
+                        onPressed: _openEmail,
+                        backgroundColor: context.colors.primary.withOpacity(0.15),
+                        iconColor: context.colors.primary,
+                        size: 48,
                       ),
                     ],
                   ),
                 ),
+
+                const SizedBox(height: AppSpacing.xxl),
               ],
             ),
           ),
@@ -508,99 +450,70 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
   }
 }
 
-class TradingDisclaimerSheet extends StatelessWidget {
-  const TradingDisclaimerSheet({Key? key}) : super(key: key);
+class TradingDisclaimerContent extends StatelessWidget {
+  const TradingDisclaimerContent({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppSpacing.radiusXl),
-        ),
-      ),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FadeInWidget(
-                  child: Text(
-                    'Aviso Importante',
-                    style: context.textStyles.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 100),
-                  child: _buildDisclaimerItem(
-                    context,
-                    Icons.warning_rounded,
-                    'Risco Elevado',
-                    'Trading envolve risco significativo de perda. Apenas negocie com dinheiro que você pode perder.',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 200),
-                  child: _buildDisclaimerItem(
-                    context,
-                    Icons.trending_down_rounded,
-                    'Volatilidade',
-                    'Os mercados podem ser extremamente voláteis. Os preços podem mudar rapidamente.',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 300),
-                  child: _buildDisclaimerItem(
-                    context,
-                    Icons.school_rounded,
-                    'Educação',
-                    'Certifique-se de entender completamente os produtos antes de negociar.',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 400),
-                  child: _buildDisclaimerItem(
-                    context,
-                    Icons.verified_user_rounded,
-                    'Responsabilidade',
-                    'Você é totalmente responsável por suas decisões de trading.',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 500),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: AnimatedPrimaryButton(
-                      text: 'Continuar',
-                      icon: Icons.check_rounded,
-                      onPressed: () {
-                        AppHaptics.medium();
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FadeInWidget(
+          child: _buildDisclaimerItem(
+            context,
+            Icons.warning_rounded,
+            'Risco Elevado',
+            'Trading envolve risco significativo de perda. Apenas negocie com dinheiro que você pode perder.',
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        FadeInWidget(
+          delay: const Duration(milliseconds: 100),
+          child: _buildDisclaimerItem(
+            context,
+            Icons.trending_down_rounded,
+            'Volatilidade',
+            'Os mercados podem ser extremamente voláteis. Os preços podem mudar rapidamente.',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        FadeInWidget(
+          delay: const Duration(milliseconds: 200),
+          child: _buildDisclaimerItem(
+            context,
+            Icons.school_rounded,
+            'Educação',
+            'Certifique-se de entender completamente os produtos antes de negociar.',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        FadeInWidget(
+          delay: const Duration(milliseconds: 300),
+          child: _buildDisclaimerItem(
+            context,
+            Icons.verified_user_rounded,
+            'Responsabilidade',
+            'Você é totalmente responsável por suas decisões de trading.',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+        FadeInWidget(
+          delay: const Duration(milliseconds: 400),
+          child: PrimaryButton(
+            text: 'Continuar',
+            icon: Icons.check_rounded,
+            onPressed: () {
+              AppHaptics.medium();
+              Navigator.pop(context);
+            },
+            expanded: true,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildDisclaimerItem(
+  static Widget _buildDisclaimerItem(
     BuildContext context,
     IconData icon,
     String title,
@@ -609,10 +522,17 @@ class TradingDisclaimerSheet extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: AppColors.warning,
-          size: 24,
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.warning,
+            size: 24,
+          ),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -622,7 +542,7 @@ class TradingDisclaimerSheet extends StatelessWidget {
               Text(
                 title,
                 style: context.textStyles.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -630,7 +550,7 @@ class TradingDisclaimerSheet extends StatelessWidget {
                 description,
                 style: context.textStyles.bodyMedium?.copyWith(
                   color: context.colors.onSurfaceVariant,
-                  height: 1.4,
+                  height: 1.5,
                 ),
               ),
             ],
@@ -657,7 +577,7 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(context.colors.surface)
+      ..setBackgroundColor(context.surface)
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {
@@ -708,9 +628,9 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.colors.surface,
-      appBar: AppBar(
-        title: const Text('Login Deriv'),
+      backgroundColor: context.surface,
+      appBar: SecondaryAppBar(
+        title: 'Login Deriv',
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () {
