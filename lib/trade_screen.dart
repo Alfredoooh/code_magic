@@ -1,7 +1,9 @@
 // lib/trade_screen.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 import 'trade_logic_controller.dart';
 import 'trade_chart_view.dart';
 import 'trade_controls.dart';
@@ -73,14 +75,14 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(_controller.selectedMarketName),
-              SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: AppSpacing.xs),
               const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
             ],
           ),
         ),
         actions: [
           Padding(
-            padding: EdgeInsets.only(right: AppSpacing.md),
+            padding: const EdgeInsets.only(right: AppSpacing.md),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -91,9 +93,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xxs),
                 Container(
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.xs,
                     vertical: 2,
                   ),
@@ -101,7 +103,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                     color: _controller.priceChange >= 0
                         ? AppColors.success.withOpacity(0.15)
                         : AppColors.error.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(AppShapes.full),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
                   ),
                   child: Text(
                     '${_controller.priceChange >= 0 ? '+' : ''}${_controller.priceChange.toStringAsFixed(2)}%',
@@ -171,7 +173,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       child: FadeTransition(
         opacity: _mlBannerAnimation,
         child: Container(
-          margin: EdgeInsets.all(AppSpacing.md),
+          margin: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -179,7 +181,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 AppColors.primary.withOpacity(0.1),
               ],
             ),
-            borderRadius: BorderRadius.circular(AppShapes.medium),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
               color: AppColors.info.withOpacity(0.3),
               width: 1,
@@ -192,18 +194,18 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 AppHaptics.selection();
                 _showMLDetailsBottomSheet();
               },
-              borderRadius: BorderRadius.circular(AppShapes.medium),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               child: Padding(
-                padding: EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 child: Column(
                   children: [
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.all(AppSpacing.sm),
+                          padding: const EdgeInsets.all(AppSpacing.sm),
                           decoration: BoxDecoration(
                             color: AppColors.info.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(AppShapes.small),
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                           ),
                           child: const Icon(
                             Icons.psychology_rounded,
@@ -211,7 +213,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                             size: 20,
                           ),
                         ),
-                        SizedBox(width: AppSpacing.sm),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,14 +226,14 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                                       color: context.colors.onSurfaceVariant,
                                     ),
                                   ),
-                                  SizedBox(width: AppSpacing.xs),
+                                  const SizedBox(width: AppSpacing.xs),
                                   AppBadge(
                                     text: direction.toUpperCase(),
                                     color: directionColor,
                                   ),
                                 ],
                               ),
-                              SizedBox(height: AppSpacing.xxs),
+                              const SizedBox(height: AppSpacing.xxs),
                               Row(
                                 children: [
                                   Icon(
@@ -239,7 +241,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                                     size: 14,
                                     color: confidenceColor,
                                   ),
-                                  SizedBox(width: AppSpacing.xxs),
+                                  const SizedBox(width: AppSpacing.xxs),
                                   Text(
                                     'Confidence: ${(confidence * 100).toStringAsFixed(0)}%',
                                     style: context.textStyles.bodySmall?.copyWith(
@@ -247,13 +249,13 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  SizedBox(width: AppSpacing.sm),
+                                  const SizedBox(width: AppSpacing.sm),
                                   Icon(
                                     Icons.speed_rounded,
                                     size: 14,
                                     color: context.colors.onSurfaceVariant,
                                   ),
-                                  SizedBox(width: AppSpacing.xxs),
+                                  const SizedBox(width: AppSpacing.xxs),
                                   Text(
                                     'Strength: ${(strength * 100).toStringAsFixed(0)}%',
                                     style: context.textStyles.bodySmall,
@@ -274,12 +276,12 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                         ),
                       ],
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     Container(
-                      padding: EdgeInsets.all(AppSpacing.sm),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
-                        color: context.colors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(AppShapes.small),
+                        color: context.colors.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -319,7 +321,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                         ],
                       ),
                     ),
-                    SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.xs),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -328,7 +330,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                           size: 14,
                           color: context.colors.onSurfaceVariant,
                         ),
-                        SizedBox(width: AppSpacing.xxs),
+                        const SizedBox(width: AppSpacing.xxs),
                         Text(
                           'Tap for detailed analysis',
                           style: context.textStyles.labelSmall?.copyWith(
@@ -386,51 +388,35 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     final riskReward = prediction['risk_reward'] as Map<String, dynamic>? ?? {};
     final marketConditions = prediction['market_conditions'] as Map<String, dynamic>? ?? {};
 
-    showModalBottomSheet(
+    AppModalBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        decoration: BoxDecoration(
-          color: context.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.colors.outlineVariant,
-                borderRadius: BorderRadius.circular(AppShapes.full),
-              ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: Row(
+      title: 'ML Analysis',
+      showHandle: true,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
                 children: [
                   Container(
-                    padding: EdgeInsets.all(AppSpacing.sm),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
                       color: AppColors.info.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(AppShapes.medium),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
                     child: const Icon(Icons.auto_graph_rounded, color: AppColors.info),
                   ),
-                  SizedBox(width: AppSpacing.md),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('ML Analysis', style: context.textStyles.headlineSmall),
+                        Text('Detailed Analysis', style: context.textStyles.titleLarge),
                         Text(
-                          'Detailed prediction breakdown',
+                          'ML prediction breakdown',
                           style: context.textStyles.bodySmall,
                         ),
                       ],
@@ -438,100 +424,91 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            Flexible(
-              child: ListView(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                shrinkWrap: true,
-                children: [
-                  // Padrões Detectados
-                  if (patterns.isNotEmpty) ...[
-                    Text('Detected Patterns', style: context.textStyles.titleMedium),
-                    SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      children: patterns.map((p) => AppBadge(
-                        text: p.replaceAll('_', ' ').toUpperCase(),
-                        color: AppColors.secondary,
-                      )).toList(),
-                    ),
-                    SizedBox(height: AppSpacing.lg),
-                  ],
+              const SizedBox(height: AppSpacing.xl),
 
-                  // Risk/Reward
-                  Text('Risk/Reward Analysis', style: context.textStyles.titleMedium),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.trending_up_rounded,
-                    label: 'Potential Reward',
-                    value: '\$${(riskReward['reward'] ?? 0.0).toStringAsFixed(2)}',
-                    color: AppColors.success,
-                  ),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.trending_down_rounded,
-                    label: 'Potential Risk',
-                    value: '\$${(riskReward['risk'] ?? 0.0).toStringAsFixed(2)}',
-                    color: AppColors.error,
-                  ),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.balance_rounded,
-                    label: 'Risk/Reward Ratio',
-                    value: '1:${(riskReward['ratio'] ?? 1.0).toStringAsFixed(2)}',
-                    color: AppColors.warning,
-                  ),
-                  SizedBox(height: AppSpacing.lg),
-
-                  // Market Conditions
-                  Text('Market Conditions', style: context.textStyles.titleMedium),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.show_chart_rounded,
-                    label: 'Volatility',
-                    value: '${((marketConditions['volatility'] ?? 0.0) * 100).toStringAsFixed(0)}%',
-                    color: AppColors.warning,
-                  ),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.insights_rounded,
-                    label: 'RSI',
-                    value: '${((marketConditions['rsi'] ?? 0.5) * 100).toStringAsFixed(0)}',
-                    color: AppColors.info,
-                  ),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.mood_rounded,
-                    label: 'Market Sentiment',
-                    value: '${(marketConditions['sentiment'] ?? 50.0).toStringAsFixed(0)}',
-                    color: AppColors.primary,
-                  ),
-                  SizedBox(height: AppSpacing.lg),
-
-                  // ML Stats
-                  Text('ML Performance', style: context.textStyles.titleMedium),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.percent_rounded,
-                    label: 'Accuracy',
-                    value: '${(_controller.mlAccuracy * 100).toStringAsFixed(1)}%',
-                    color: AppColors.success,
-                  ),
-                  SizedBox(height: AppSpacing.sm),
-                  _buildInfoCard(
-                    icon: Icons.numbers_rounded,
-                    label: 'Total Predictions',
-                    value: _controller.mlTotalPredictions.toString(),
+              // Padrões Detectados
+              if (patterns.isNotEmpty) ...[
+                Text('Detected Patterns', style: context.textStyles.titleMedium),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: patterns.map((p) => AppBadge(
+                    text: p.replaceAll('_', ' ').toUpperCase(),
                     color: AppColors.secondary,
-                  ),
+                  )).toList(),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+              ],
 
-                  SizedBox(height: AppSpacing.xxl),
-                ],
+              // Risk/Reward
+              Text('Risk/Reward Analysis', style: context.textStyles.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.trending_up_rounded,
+                label: 'Potential Reward',
+                value: '\$${(riskReward['reward'] ?? 0.0).toStringAsFixed(2)}',
+                color: AppColors.success,
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.trending_down_rounded,
+                label: 'Potential Risk',
+                value: '\$${(riskReward['risk'] ?? 0.0).toStringAsFixed(2)}',
+                color: AppColors.error,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.balance_rounded,
+                label: 'Risk/Reward Ratio',
+                value: '1:${(riskReward['ratio'] ?? 1.0).toStringAsFixed(2)}',
+                color: AppColors.warning,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // Market Conditions
+              Text('Market Conditions', style: context.textStyles.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.show_chart_rounded,
+                label: 'Volatility',
+                value: '${((marketConditions['volatility'] ?? 0.0) * 100).toStringAsFixed(0)}%',
+                color: AppColors.warning,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.insights_rounded,
+                label: 'RSI',
+                value: '${((marketConditions['rsi'] ?? 0.5) * 100).toStringAsFixed(0)}',
+                color: AppColors.info,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.mood_rounded,
+                label: 'Market Sentiment',
+                value: '${(marketConditions['sentiment'] ?? 50.0).toStringAsFixed(0)}',
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // ML Stats
+              Text('ML Performance', style: context.textStyles.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.percent_rounded,
+                label: 'Accuracy',
+                value: '${(_controller.mlAccuracy * 100).toStringAsFixed(1)}%',
+                color: AppColors.success,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _buildInfoCard(
+                icon: Icons.numbers_rounded,
+                label: 'Total Predictions',
+                value: _controller.mlTotalPredictions.toString(),
+                color: AppColors.secondary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -544,22 +521,22 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: context.colors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppShapes.medium),
+        color: context.colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(AppSpacing.xs),
+            padding: const EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(AppShapes.small),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(label, style: context.textStyles.bodyMedium),
           ),
@@ -609,35 +586,26 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   void _showDurationSelector() {
-    showModalBottomSheet(
+    AppModalBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: context.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: AppSpacing.md),
-            Text('Select Duration Type', style: context.textStyles.titleLarge),
-            SizedBox(height: AppSpacing.lg),
-            _buildDurationOption('Ticks', 't'),
-            _buildDurationOption('Seconds', 's'),
-            _buildDurationOption('Minutes', 'm'),
-            _buildDurationOption('Hours', 'h'),
-            _buildDurationOption('Days', 'd'),
-            SizedBox(height: AppSpacing.xl),
-          ],
-        ),
+      title: 'Select Duration Type',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildDurationOption('Ticks', 't'),
+          _buildDurationOption('Seconds', 's'),
+          _buildDurationOption('Minutes', 'm'),
+          _buildDurationOption('Hours', 'h'),
+          _buildDurationOption('Days', 'd'),
+        ],
       ),
     );
   }
 
   Widget _buildDurationOption(String label, String type) {
-    return ListTile(
-      title: Text(label),
+    return AppListTile(
+      title: label,
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () {
         AppHaptics.selection();
         _controller.setDurationType(type);
