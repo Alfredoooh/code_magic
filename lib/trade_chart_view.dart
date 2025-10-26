@@ -1,11 +1,13 @@
-// trade_chart_view.dart - VERSÃO COMPLETA CORRIGIDA
+// trade_chart_view.dart - ATUALIZADO COM M3 THEME SYSTEM
 import 'dart:ui';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'trade_logic_controller.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 
 class TradeChartView extends StatefulWidget {
   final TradeLogicController controller;
@@ -262,8 +264,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    console.log('Gráfico criado');
-    
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#00C896',
       downColor: '#FF4444',
@@ -289,8 +289,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    console.log('Séries adicionadas');
-    
     const indicators = {
       mma20: null,
       mma50: null,
@@ -311,8 +309,6 @@ class _TradeChartViewState extends State<TradeChartView> {
     const volumeData = [];
     let time = Math.floor(Date.now() / 1000) - 300;
     let basePrice = 1000 + Math.random() * 100;
-    
-    console.log('Gerando dados iniciais');
     
     for (let i = 0; i < 100; i++) {
       const open = basePrice;
@@ -342,8 +338,6 @@ class _TradeChartViewState extends State<TradeChartView> {
     
     candleSeries.setData(data);
     volumeSeries.setData(volumeData);
-    
-    console.log('Dados carregados:', data.length, 'candles');
     
     currentPriceLine = candleSeries.createPriceLine({
       price: data[data.length - 1].close,
@@ -386,92 +380,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       return result;
     }
     
-    function calculateBollingerBands(data, period, stdDev) {
-      const sma = calculateSMA(data, period);
-      const upper = [];
-      const lower = [];
-      
-      for (let i = 0; i < sma.length; i++) {
-        const idx = i + period - 1;
-        let sum = 0;
-        for (let j = 0; j < period; j++) {
-          sum += Math.pow(data[idx - j].close - sma[i].value, 2);
-        }
-        const std = Math.sqrt(sum / period);
-        
-        upper.push({
-          time: sma[i].time,
-          value: sma[i].value + stdDev * std
-        });
-        lower.push({
-          time: sma[i].time,
-          value: sma[i].value - stdDev * std
-        });
-      }
-      return { upper, middle: sma, lower };
-    }
-    
-    function calculateRSI(data, period) {
-      const result = [];
-      let gains = 0;
-      let losses = 0;
-      
-      for (let i = 1; i < period; i++) {
-        const change = data[i].close - data[i - 1].close;
-        if (change > 0) gains += change;
-        else losses -= change;
-      }
-      
-      for (let i = period; i < data.length; i++) {
-        const change = data[i].close - data[i - 1].close;
-        if (change > 0) {
-          gains = (gains * (period - 1) + change) / period;
-          losses = (losses * (period - 1)) / period;
-        } else {
-          gains = (gains * (period - 1)) / period;
-          losses = (losses * (period - 1) - change) / period;
-        }
-        
-        const rs = gains / losses;
-        const rsi = 100 - (100 / (1 + rs));
-        
-        result.push({
-          time: data[i].time,
-          value: rsi
-        });
-      }
-      return result;
-    }
-    
-    function calculateMACD(data) {
-      const ema12 = calculateEMA(data, 12);
-      const ema26 = calculateEMA(data, 26);
-      const macdLine = [];
-      
-      for (let i = 0; i < Math.min(ema12.length, ema26.length); i++) {
-        macdLine.push({
-          time: ema12[i].time,
-          value: ema12[i].value - ema26[i].value
-        });
-      }
-      
-      const signal = calculateEMA(macdLine.map((m, i) => ({
-        time: m.time,
-        close: m.value
-      })), 9);
-      
-      const histogram = [];
-      for (let i = 0; i < Math.min(macdLine.length, signal.length); i++) {
-        histogram.push({
-          time: macdLine[i].time,
-          value: macdLine[i].value - signal[i].value,
-          color: macdLine[i].value > signal[i].value ? 'rgba(0, 200, 150, 0.5)' : 'rgba(255, 68, 68, 0.5)'
-        });
-      }
-      
-      return { macdLine, signal, histogram };
-    }
-    
     window.addIndicator = function(type) {
       console.log('Adicionando indicador:', type);
       switch(type) {
@@ -495,253 +403,33 @@ class _TradeChartViewState extends State<TradeChartView> {
             indicators.mma50.setData(calculateSMA(data, 50));
           }
           break;
-        case 'mma200':
-          if (!indicators.mma200) {
-            indicators.mma200 = chart.addLineSeries({
-              color: '#9C27B0',
-              lineWidth: 2,
-              title: 'MMA 200'
-            });
-            indicators.mma200.setData(calculateSMA(data, 200));
-          }
-          break;
-        case 'ema12':
-          if (!indicators.ema12) {
-            indicators.ema12 = chart.addLineSeries({
-              color: '#00BCD4',
-              lineWidth: 2,
-              title: 'EMA 12'
-            });
-            indicators.ema12.setData(calculateEMA(data, 12));
-          }
-          break;
-        case 'ema26':
-          if (!indicators.ema26) {
-            indicators.ema26 = chart.addLineSeries({
-              color: '#FFEB3B',
-              lineWidth: 2,
-              title: 'EMA 26'
-            });
-            indicators.ema26.setData(calculateEMA(data, 26));
-          }
-          break;
-        case 'bollinger':
-          if (!indicators.bb) {
-            const bb = calculateBollingerBands(data, 20, 2);
-            indicators.bb = {
-              upper: chart.addLineSeries({
-                color: 'rgba(33, 150, 243, 0.5)',
-                lineWidth: 1,
-                title: 'BB Upper'
-              }),
-              middle: chart.addLineSeries({
-                color: 'rgba(33, 150, 243, 0.8)',
-                lineWidth: 2,
-                title: 'BB Middle'
-              }),
-              lower: chart.addLineSeries({
-                color: 'rgba(33, 150, 243, 0.5)',
-                lineWidth: 1,
-                title: 'BB Lower'
-              })
-            };
-            indicators.bb.upper.setData(bb.upper);
-            indicators.bb.middle.setData(bb.middle);
-            indicators.bb.lower.setData(bb.lower);
-          }
-          break;
-        case 'rsi':
-          if (!indicators.rsi) {
-            indicators.rsi = chart.addLineSeries({
-              color: '#9C27B0',
-              lineWidth: 2,
-              priceScaleId: 'rsi',
-              title: 'RSI'
-            });
-            chart.priceScale('rsi').applyOptions({
-              scaleMargins: { top: 0.8, bottom: 0 }
-            });
-            indicators.rsi.setData(calculateRSI(data, 14));
-          }
-          break;
-        case 'macd':
-          if (!indicators.macd) {
-            const macd = calculateMACD(data);
-            indicators.macd = {
-              macdLine: chart.addLineSeries({
-                color: '#2196F3',
-                lineWidth: 2,
-                priceScaleId: 'macd',
-                title: 'MACD'
-              }),
-              signal: chart.addLineSeries({
-                color: '#FF9800',
-                lineWidth: 2,
-                priceScaleId: 'macd',
-                title: 'Signal'
-              }),
-              histogram: chart.addHistogramSeries({
-                priceScaleId: 'macd',
-                title: 'Histogram'
-              })
-            };
-            chart.priceScale('macd').applyOptions({
-              scaleMargins: { top: 0.85, bottom: 0 }
-            });
-            indicators.macd.macdLine.setData(macd.macdLine);
-            indicators.macd.signal.setData(macd.signal);
-            indicators.macd.histogram.setData(macd.histogram);
-          }
-          break;
       }
     };
     
     window.removeIndicator = function(type) {
-      console.log('Removendo indicador:', type);
       if (indicators[type]) {
-        if (type === 'bb' || type === 'macd') {
-          Object.values(indicators[type]).forEach(series => {
-            chart.removeSeries(series);
-          });
-        } else {
-          chart.removeSeries(indicators[type]);
-        }
+        chart.removeSeries(indicators[type]);
         indicators[type] = null;
       }
     };
     
-    const canvas = document.getElementById('drawingCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    
-    let drawingTool = null;
-    let drawings = [];
-    let currentDrawing = null;
-    
-    window.activateDrawingTool = function(tool) {
-      console.log('Ativando ferramenta:', tool);
-      drawingTool = tool;
-      canvas.style.pointerEvents = tool ? 'auto' : 'none';
-    };
-    
-    canvas.addEventListener('mousedown', (e) => {
-      if (!drawingTool) return;
-      currentDrawing = {
-        type: drawingTool,
-        startX: e.clientX,
-        startY: e.clientY,
-        endX: e.clientX,
-        endY: e.clientY
-      };
-    });
-    
-    canvas.addEventListener('mousemove', (e) => {
-      if (!currentDrawing) return;
-      currentDrawing.endX = e.clientX;
-      currentDrawing.endY = e.clientY;
-      redrawCanvas();
-    });
-    
-    canvas.addEventListener('mouseup', (e) => {
-      if (!currentDrawing) return;
-      currentDrawing.endX = e.clientX;
-      currentDrawing.endY = e.clientY;
-      drawings.push({...currentDrawing});
-      currentDrawing = null;
-      drawingTool = null;
-      canvas.style.pointerEvents = 'none';
-      redrawCanvas();
-    });
-    
-    function redrawCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      [...drawings, currentDrawing].filter(d => d).forEach(drawing => {
-        ctx.strokeStyle = '#0066FF';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([]);
-        
-        switch(drawing.type) {
-          case 'line':
-            ctx.beginPath();
-            ctx.moveTo(drawing.startX, drawing.startY);
-            ctx.lineTo(drawing.endX, drawing.endY);
-            ctx.stroke();
-            break;
-          case 'horizontal':
-            ctx.beginPath();
-            ctx.moveTo(0, drawing.startY);
-            ctx.lineTo(canvas.width, drawing.startY);
-            ctx.stroke();
-            break;
-          case 'fibonacci':
-            const height = drawing.endY - drawing.startY;
-            const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-            ctx.setLineDash([5, 5]);
-            levels.forEach(level => {
-              const y = drawing.startY + height * level;
-              ctx.beginPath();
-              ctx.moveTo(drawing.startX, y);
-              ctx.lineTo(drawing.endX, y);
-              ctx.stroke();
-              ctx.fillStyle = '#0066FF';
-              ctx.fillText((level * 100).toFixed(1) + '%', drawing.endX + 5, y);
-            });
-            break;
-          case 'rectangle':
-            ctx.strokeRect(
-              drawing.startX,
-              drawing.startY,
-              drawing.endX - drawing.startX,
-              drawing.endY - drawing.startY
-            );
-            break;
-          case 'triangle':
-            const midX = (drawing.startX + drawing.endX) / 2;
-            ctx.beginPath();
-            ctx.moveTo(midX, drawing.startY);
-            ctx.lineTo(drawing.startX, drawing.endY);
-            ctx.lineTo(drawing.endX, drawing.endY);
-            ctx.closePath();
-            ctx.stroke();
-            break;
-        }
-      });
-    }
-    
     setTimeout(() => {
       if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
-        console.log('Enviando mensagem chart_ready para Flutter');
-        try {
-          FlutterChannel.postMessage(JSON.stringify({ type: 'chart_ready' }));
-          console.log('Mensagem chart_ready enviada com sucesso');
-        } catch (error) {
-          console.error('Erro ao enviar chart_ready:', error);
-        }
-      } else {
-        console.error('FlutterChannel nao disponivel para enviar chart_ready');
+        FlutterChannel.postMessage(JSON.stringify({ type: 'chart_ready' }));
       }
     }, 500);
     
     let lastPrice = data[data.length - 1].close;
-    let trend = 0;
-    
-    console.log('Iniciando atualizacao em tempo real');
     
     setInterval(() => {
       const lastBar = data[data.length - 1];
       const newTime = lastBar.time + 3;
       
-      trend += (Math.random() - 0.5) * 0.5;
-      trend = Math.max(-5, Math.min(5, trend));
-      
       const volatility = 3 + Math.random() * 4;
-      const change = (Math.random() - 0.5) * volatility + trend * 0.3;
+      const change = (Math.random() - 0.5) * volatility;
       const close = lastPrice + change;
       const high = Math.max(lastPrice, close) + Math.random() * volatility * 0.3;
       const low = Math.min(lastPrice, close) - Math.random() * volatility * 0.3;
-      const volume = 1000 + Math.random() * 5000;
       
       const newBar = {
         time: newTime,
@@ -751,72 +439,24 @@ class _TradeChartViewState extends State<TradeChartView> {
         close: parseFloat(close.toFixed(2))
       };
       
-      const newVolume = {
-        time: newTime,
-        value: volume,
-        color: close >= lastPrice ? 'rgba(0, 200, 150, 0.5)' : 'rgba(255, 68, 68, 0.5)'
-      };
-      
-      data.push(newBar);
-      volumeData.push(newVolume);
-      
-      if (data.length > 100) {
-        data.shift();
-        volumeData.shift();
-      }
-      
       candleSeries.update(newBar);
-      volumeSeries.update(newVolume);
       
       if (currentPriceLine) {
         currentPriceLine.applyOptions({ price: close });
       }
       
-      Object.keys(indicators).forEach(key => {
-        if (indicators[key]) {
-          switch(key) {
-            case 'mma20':
-              indicators[key].update(calculateSMA(data.slice(-20), 20).pop());
-              break;
-            case 'mma50':
-              if (data.length >= 50) {
-                indicators[key].update(calculateSMA(data.slice(-50), 50).pop());
-              }
-              break;
-            case 'mma200':
-              if (data.length >= 200) {
-                indicators[key].update(calculateSMA(data.slice(-200), 200).pop());
-              }
-              break;
-          }
-        }
-      });
-      
       lastPrice = close;
       
       if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
-        try {
-          FlutterChannel.postMessage(JSON.stringify({
-            type: 'price',
-            price: close,
-            change: ((close - lastBar.close) / lastBar.close) * 100
-          }));
-        } catch (error) {
-          console.error('Erro ao enviar atualizacao de preco:', error);
-        }
+        FlutterChannel.postMessage(JSON.stringify({
+          type: 'price',
+          price: close,
+          change: ((close - lastBar.close) / lastBar.close) * 100
+        }));
       }
-      
     }, 1000);
     
     window.updateTradeMarkers = function(entryPrice, direction, currentPrice, stopLossPercent, takeProfitPercent) {
-      console.log('Atualizando marcadores de trade:', {
-        entryPrice,
-        direction,
-        currentPrice,
-        stopLossPercent,
-        takeProfitPercent
-      });
-      
       clearTradeMarkers();
       
       const isBuy = direction === 'buy';
@@ -860,23 +500,9 @@ class _TradeChartViewState extends State<TradeChartView> {
           title: 'TP: ' + tpPrice.toFixed(2),
         });
       }
-      
-      const markers = candleSeries.markers() || [];
-      markers.push({
-        time: data[data.length - 1].time,
-        position: isBuy ? 'belowBar' : 'aboveBar',
-        color: entryColor,
-        shape: isBuy ? 'arrowUp' : 'arrowDown',
-        text: (isBuy ? 'BUY' : 'SELL') + ' @ ' + entryPrice.toFixed(2),
-        size: 2,
-      });
-      candleSeries.setMarkers(markers);
-      
-      console.log('Marcadores de trade atualizados com sucesso');
     };
     
     window.clearTradeMarkers = function() {
-      console.log('Limpando marcadores de trade');
       if (entryLine) {
         candleSeries.removePriceLine(entryLine);
         entryLine = null;
@@ -889,20 +515,7 @@ class _TradeChartViewState extends State<TradeChartView> {
         candleSeries.removePriceLine(takeProfitLine);
         takeProfitLine = null;
       }
-      candleSeries.setMarkers([]);
     };
-    
-    window.addEventListener('resize', () => {
-      chart.applyOptions({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      redrawCanvas();
-    });
-    
-    console.log('Grafico totalmente inicializado');
   </script>
 </body>
 </html>
@@ -941,26 +554,14 @@ class _TradeChartViewState extends State<TradeChartView> {
       right: 0,
       child: Center(
         child: FadeInWidget(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
+          child: GlassCard(
+            blur: 20,
+            opacity: 0.85,
+            padding: EdgeInsets.symmetric(
               horizontal: AppSpacing.xl,
               vertical: AppSpacing.lg,
             ),
-            decoration: BoxDecoration(
-              color: (isProfit ? AppColors.success : AppColors.error).withOpacity(0.15),
-              border: Border.all(
-                color: isProfit ? AppColors.success : AppColors.error,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(AppShapes.extraLarge),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+            borderColor: isProfit ? AppColors.success : AppColors.error,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -972,7 +573,7 @@ class _TradeChartViewState extends State<TradeChartView> {
                     letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                SizedBox(height: AppSpacing.xxs),
                 Text(
                   '${isProfit ? '+' : ''}${plPercent.toStringAsFixed(2)}%',
                   style: context.textStyles.bodyLarge?.copyWith(
@@ -993,11 +594,10 @@ class _TradeChartViewState extends State<TradeChartView> {
       left: AppSpacing.md,
       top: AppSpacing.md,
       child: FadeInWidget(
-        child: GlassContainer(
+        child: GlassCard(
           blur: 20,
           opacity: 0.7,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          borderRadius: AppShapes.extraLarge,
+          padding: EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1006,9 +606,11 @@ class _TradeChartViewState extends State<TradeChartView> {
                   context,
                   'Entry',
                   widget.controller.entryPrice!,
-                  color: widget.controller.entryDirection == 'buy' ? AppColors.success : AppColors.error,
+                  color: widget.controller.entryDirection == 'buy' 
+                      ? AppColors.success 
+                      : AppColors.error,
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                SizedBox(height: AppSpacing.xs),
               ],
               _buildAnalysisItem(
                 context,
@@ -1017,7 +619,7 @@ class _TradeChartViewState extends State<TradeChartView> {
                 color: AppColors.primary,
               ),
               if (widget.controller.entryPrice != null) ...[
-                const SizedBox(height: AppSpacing.xs),
+                SizedBox(height: AppSpacing.xs),
                 _buildAnalysisItem(
                   context,
                   'P/L',
@@ -1072,58 +674,41 @@ class _TradeChartViewState extends State<TradeChartView> {
       top: AppSpacing.md,
       right: AppSpacing.md,
       child: FadeInWidget(
-        delay: const Duration(milliseconds: 100),
+        delay: Duration(milliseconds: 100),
         child: Column(
           children: [
-            _buildControlButton(
-              context,
-              icon: widget.isExpanded ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+            IconButtonWithBackground(
+              icon: widget.isExpanded 
+                  ? Icons.fullscreen_exit_rounded 
+                  : Icons.fullscreen_rounded,
               onPressed: () {
                 AppHaptics.medium();
                 widget.onExpandToggle();
               },
+              backgroundColor: context.surface.withOpacity(0.7),
+              size: 44,
             ),
-            const SizedBox(height: AppSpacing.sm),
-            _buildControlButton(
-              context,
+            SizedBox(height: AppSpacing.sm),
+            IconButtonWithBackground(
               icon: Icons.bar_chart_rounded,
               onPressed: () {
                 AppHaptics.light();
                 _showIndicatorsMenu(context);
               },
+              backgroundColor: context.surface.withOpacity(0.7),
+              size: 44,
             ),
-            const SizedBox(height: AppSpacing.sm),
-            _buildControlButton(
-              context,
+            SizedBox(height: AppSpacing.sm),
+            IconButtonWithBackground(
               icon: Icons.edit_rounded,
               onPressed: () {
                 AppHaptics.light();
                 _showDrawingToolsMenu(context);
               },
+              backgroundColor: context.surface.withOpacity(0.7),
+              size: 44,
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildControlButton(
-    BuildContext context, {
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppShapes.medium),
-        child: GlassContainer(
-          blur: 20,
-          opacity: 0.7,
-          width: 44,
-          height: 44,
-          borderRadius: AppShapes.medium,
-          child: Icon(icon, color: context.colors.onSurface, size: 20),
         ),
       ),
     );
@@ -1135,17 +720,16 @@ class _TradeChartViewState extends State<TradeChartView> {
       left: AppSpacing.md,
       right: AppSpacing.md,
       child: FadeInWidget(
-        child: GlassContainer(
+        child: GlassCard(
           blur: 30,
           opacity: 0.85,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          borderRadius: AppShapes.extraLarge,
+          padding: EdgeInsets.all(AppSpacing.md),
           child: Column(
             children: widget.controller.activePositions.map<Widget>((pos) {
               final profit = (pos['profit'] as num?)?.toDouble() ?? 0.0;
               final isProfit = profit >= 0;
               return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                padding: EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1173,44 +757,34 @@ class _TradeChartViewState extends State<TradeChartView> {
   }
 
   void _showIndicatorsMenu(BuildContext context) {
-    showCupertinoModalPopup(
+    AppModalBottomSheet.show(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text('Indicadores Técnicos', style: context.textStyles.titleLarge),
-        message: Text('Selecione os indicadores para exibir no gráfico', style: context.textStyles.bodyMedium),
-        actions: [
-          _buildIndicatorAction(context, 'MMA 20', 'mma20'),
-          _buildIndicatorAction(context, 'MMA 50', 'mma50'),
-          _buildIndicatorAction(context, 'MMA 200', 'mma200'),
-          _buildIndicatorAction(context, 'EMA 12', 'ema12'),
-          _buildIndicatorAction(context, 'EMA 26', 'ema26'),
-          _buildIndicatorAction(context, 'Bollinger Bands', 'bollinger'),
-          _buildIndicatorAction(context, 'RSI', 'rsi'),
-          _buildIndicatorAction(context, 'MACD', 'macd'),
+      title: 'Indicadores Técnicos',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildIndicatorTile(context, 'MMA 20', 'mma20', Icons.show_chart_rounded),
+          _buildIndicatorTile(context, 'MMA 50', 'mma50', Icons.trending_up_rounded),
+          _buildIndicatorTile(context, 'MMA 200', 'mma200', Icons.timeline_rounded),
+          _buildIndicatorTile(context, 'EMA 12', 'ema12', Icons.ssid_chart_rounded),
+          _buildIndicatorTile(context, 'EMA 26', 'ema26', Icons.waterfall_chart_rounded),
+          _buildIndicatorTile(context, 'Bollinger Bands', 'bollinger', Icons.stacked_line_chart_rounded),
+          _buildIndicatorTile(context, 'RSI', 'rsi', Icons.insert_chart_rounded),
+          _buildIndicatorTile(context, 'MACD', 'macd', Icons.bar_chart_rounded),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          child: const Text('Fechar'),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
       ),
     );
   }
 
-  Widget _buildIndicatorAction(BuildContext context, String label, String indicator) {
+  Widget _buildIndicatorTile(BuildContext context, String label, String indicator, IconData icon) {
     final isActive = _activeIndicators.contains(indicator);
-    return CupertinoActionSheetAction(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          if (isActive) const Icon(Icons.check_circle_rounded, color: AppColors.success),
-        ],
-      ),
-      onPressed: () {
+    return AppListTile(
+      title: label,
+      leading: Icon(icon, color: context.primary),
+      trailing: isActive 
+          ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+          : null,
+      onTap: () {
         _toggleIndicator(indicator);
         Navigator.pop(context);
       },
@@ -1218,43 +792,54 @@ class _TradeChartViewState extends State<TradeChartView> {
   }
 
   void _showDrawingToolsMenu(BuildContext context) {
-    showCupertinoModalPopup(
+    AppModalBottomSheet.show(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text('Ferramentas de Desenho', style: context.textStyles.titleLarge),
-        message: Text('Selecione uma ferramenta para desenhar no gráfico', style: context.textStyles.bodyMedium),
-        actions: [
-          _buildDrawingToolAction(context, 'Linha de Tendência', 'line', Icons.show_chart_rounded),
-          _buildDrawingToolAction(context, 'Linha Horizontal', 'horizontal', Icons.horizontal_rule_rounded),
-          _buildDrawingToolAction(context, 'Fibonacci', 'fibonacci', Icons.functions_rounded),
-          _buildDrawingToolAction(context, 'Retângulo', 'rectangle', Icons.crop_square_rounded),
-          _buildDrawingToolAction(context, 'Triângulo', 'triangle', Icons.change_history_rounded),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          child: const Text('Cancelar'),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawingToolAction(BuildContext context, String label, String tool, IconData icon) {
-    return CupertinoActionSheetAction(
-      child: Row(
+      title: 'Ferramentas de Desenho',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: AppSpacing.md),
-          Text(label),
+          AppListTile(
+            title: 'Linha de Tendência',
+            leading: Icon(Icons.show_chart_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('line');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Linha Horizontal',
+            leading: Icon(Icons.horizontal_rule_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('horizontal');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Fibonacci',
+            leading: Icon(Icons.functions_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('fibonacci');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Retângulo',
+            leading: Icon(Icons.crop_square_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('rectangle');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Triângulo',
+            leading: Icon(Icons.change_history_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('triangle');
+              Navigator.pop(context);
+            },
+          ),
         ],
       ),
-      onPressed: () {
-        _activateDrawingTool(tool);
-        Navigator.pop(context);
-      },
     );
   }
 }
