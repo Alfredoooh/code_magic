@@ -1,7 +1,24 @@
 // main.dart
+
+// ========================================
+// 🌐 VERSÃO WEB (ATIVA)
+// ========================================
+// Descomente as linhas abaixo para compilar para WEB
+import 'package:flutter/material.dart';
+import 'web/example.dart';
+
+void main() {
+  runApp(const WebTestApp());
+}
+
+// ========================================
+// 📱 VERSÃO MOBILE (COMENTADA)
+// ========================================
+// Comente a versão WEB acima e descomente abaixo para compilar MOBILE
+/*
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'styles.dart';
+import 'theme/app_theme.dart';
 import 'routes.dart';
 
 void main() {
@@ -21,7 +38,9 @@ class DerivTradingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Deriv Trading',
-      theme: AppStyles.darkTheme,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.login,
       routes: AppRoutes.getRoutes(),
@@ -29,3 +48,4 @@ class DerivTradingApp extends StatelessWidget {
     );
   }
 }
+*/
