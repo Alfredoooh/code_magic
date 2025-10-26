@@ -1,4 +1,4 @@
-// trade_chart_view.dart - VERSÃO COMPLETA COM STYLES
+// trade_chart_view.dart - VERSÃO COMPLETA CORRIGIDA
 import 'dart:ui';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -59,7 +59,7 @@ class _TradeChartViewState extends State<TradeChartView> {
       ..addJavaScriptChannel(
         'FlutterChannel',
         onMessageReceived: (JavaScriptMessage message) {
-          debugPrint('📨 Mensagem recebida do chart: ${message.message}');
+          debugPrint('Mensagem recebida do chart: ${message.message}');
           try {
             final data = json.decode(message.message);
             if (data['type'] == 'price') {
@@ -68,24 +68,24 @@ class _TradeChartViewState extends State<TradeChartView> {
                 (data['change'] ?? 0.0) is num ? (data['change'] as num).toDouble() : 0.0,
               );
             } else if (data['type'] == 'chart_ready') {
-              debugPrint('✅ Gráfico carregado e pronto!');
+              debugPrint('Gráfico carregado e pronto');
               setState(() => _chartReady = true);
               if (widget.controller.entryPrice != null) {
                 _updateEntryMarker();
               }
             }
           } catch (e) {
-            debugPrint('❌ Erro ao processar mensagem do chart: $e');
+            debugPrint('Erro ao processar mensagem do chart: $e');
           }
         },
       )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (String url) {
-            debugPrint('🌐 WebView carregada: $url');
+            debugPrint('WebView carregada: $url');
           },
           onWebResourceError: (WebResourceError error) {
-            debugPrint('❌ Erro no WebView: ${error.description}');
+            debugPrint('Erro no WebView: ${error.description}');
           },
         ),
       )
@@ -99,7 +99,7 @@ class _TradeChartViewState extends State<TradeChartView> {
     final direction = widget.controller.entryDirection ?? 'buy';
     final current = widget.controller.currentPrice;
 
-    debugPrint('🎯 Atualizando marcador: entry=$entry, direction=$direction, current=$current');
+    debugPrint('Atualizando marcador: entry=$entry, direction=$direction, current=$current');
 
     _webViewController.runJavaScript('''
       try {
@@ -110,16 +110,16 @@ class _TradeChartViewState extends State<TradeChartView> {
           ${widget.controller.multiplierStopLossPercent},
           ${widget.controller.multiplierTakeProfitPercent}
         );
-        console.log('✅ Marcadores atualizados com sucesso');
+        console.log('Marcadores atualizados com sucesso');
       } catch (error) {
-        console.error('❌ Erro ao atualizar marcadores:', error);
+        console.error('Erro ao atualizar marcadores:', error);
       }
     ''');
   }
 
   void _clearMarkers() {
     if (!_chartReady) return;
-    debugPrint('🧹 Limpando marcadores');
+    debugPrint('Limpando marcadores');
     _webViewController.runJavaScript('clearTradeMarkers();');
   }
 
@@ -206,12 +206,12 @@ class _TradeChartViewState extends State<TradeChartView> {
   <canvas id="drawingCanvas" class="drawing-layer"></canvas>
   
   <script>
-    console.log('🚀 Iniciando gráfico...');
+    console.log('Iniciando gráfico');
     
     if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
-      console.log('✅ FlutterChannel disponível!');
+      console.log('FlutterChannel disponível');
     } else {
-      console.warn('⚠️ FlutterChannel NÃO disponível - dados não serão enviados ao Flutter');
+      console.warn('FlutterChannel NAO disponível');
     }
     
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
@@ -262,7 +262,7 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    console.log('📊 Gráfico criado');
+    console.log('Gráfico criado');
     
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#00C896',
@@ -289,9 +289,8 @@ class _TradeChartViewState extends State<TradeChartView> {
       },
     });
     
-    console.log('📈 Séries adicionadas');
+    console.log('Séries adicionadas');
     
-    // Indicadores técnicos
     const indicators = {
       mma20: null,
       mma50: null,
@@ -313,7 +312,7 @@ class _TradeChartViewState extends State<TradeChartView> {
     let time = Math.floor(Date.now() / 1000) - 300;
     let basePrice = 1000 + Math.random() * 100;
     
-    console.log('🎲 Gerando dados iniciais...');
+    console.log('Gerando dados iniciais');
     
     for (let i = 0; i < 100; i++) {
       const open = basePrice;
@@ -344,7 +343,7 @@ class _TradeChartViewState extends State<TradeChartView> {
     candleSeries.setData(data);
     volumeSeries.setData(volumeData);
     
-    console.log('✅ Dados carregados:', data.length, 'candles');
+    console.log('Dados carregados:', data.length, 'candles');
     
     currentPriceLine = candleSeries.createPriceLine({
       price: data[data.length - 1].close,
@@ -357,7 +356,6 @@ class _TradeChartViewState extends State<TradeChartView> {
     
     chart.timeScale().fitContent();
     
-    // Funções de cálculo de indicadores
     function calculateSMA(data, period) {
       const result = [];
       for (let i = period - 1; i < data.length; i++) {
@@ -474,9 +472,8 @@ class _TradeChartViewState extends State<TradeChartView> {
       return { macdLine, signal, histogram };
     }
     
-    // Adicionar indicadores
     window.addIndicator = function(type) {
-      console.log('📊 Adicionando indicador:', type);
+      console.log('Adicionando indicador:', type);
       switch(type) {
         case 'mma20':
           if (!indicators.mma20) {
@@ -600,7 +597,7 @@ class _TradeChartViewState extends State<TradeChartView> {
     };
     
     window.removeIndicator = function(type) {
-      console.log('🗑️ Removendo indicador:', type);
+      console.log('Removendo indicador:', type);
       if (indicators[type]) {
         if (type === 'bb' || type === 'macd') {
           Object.values(indicators[type]).forEach(series => {
@@ -613,7 +610,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       }
     };
     
-    // Canvas de desenho para ferramentas
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
@@ -624,7 +620,7 @@ class _TradeChartViewState extends State<TradeChartView> {
     let currentDrawing = null;
     
     window.activateDrawingTool = function(tool) {
-      console.log('✏️ Ativando ferramenta:', tool);
+      console.log('Ativando ferramenta:', tool);
       drawingTool = tool;
       canvas.style.pointerEvents = tool ? 'auto' : 'none';
     };
@@ -714,25 +710,24 @@ class _TradeChartViewState extends State<TradeChartView> {
       });
     }
     
-    // Notificar Flutter que o gráfico está pronto
     setTimeout(() => {
       if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
-        console.log('📤 Enviando mensagem chart_ready para Flutter');
+        console.log('Enviando mensagem chart_ready para Flutter');
         try {
           FlutterChannel.postMessage(JSON.stringify({ type: 'chart_ready' }));
-          console.log('✅ Mensagem chart_ready enviada com sucesso');
+          console.log('Mensagem chart_ready enviada com sucesso');
         } catch (error) {
-          console.error('❌ Erro ao enviar chart_ready:', error);
+          console.error('Erro ao enviar chart_ready:', error);
         }
       } else {
-        console.error('❌ FlutterChannel não disponível para enviar chart_ready');
+        console.error('FlutterChannel nao disponivel para enviar chart_ready');
       }
     }, 500);
     
     let lastPrice = data[data.length - 1].close;
     let trend = 0;
     
-    console.log('⏱️ Iniciando atualização em tempo real');
+    console.log('Iniciando atualizacao em tempo real');
     
     setInterval(() => {
       const lastBar = data[data.length - 1];
@@ -777,7 +772,6 @@ class _TradeChartViewState extends State<TradeChartView> {
         currentPriceLine.applyOptions({ price: close });
       }
       
-      // Atualizar indicadores ativos
       Object.keys(indicators).forEach(key => {
         if (indicators[key]) {
           switch(key) {
@@ -800,7 +794,6 @@ class _TradeChartViewState extends State<TradeChartView> {
       
       lastPrice = close;
       
-      // Enviar atualização de preço para Flutter
       if (typeof FlutterChannel !== 'undefined' && FlutterChannel.postMessage) {
         try {
           FlutterChannel.postMessage(JSON.stringify({
@@ -809,14 +802,14 @@ class _TradeChartViewState extends State<TradeChartView> {
             change: ((close - lastBar.close) / lastBar.close) * 100
           }));
         } catch (error) {
-          console.error('❌ Erro ao enviar atualização de preço:', error);
+          console.error('Erro ao enviar atualizacao de preco:', error);
         }
       }
       
     }, 1000);
     
     window.updateTradeMarkers = function(entryPrice, direction, currentPrice, stopLossPercent, takeProfitPercent) {
-      console.log('🎯 Atualizando marcadores de trade:', {
+      console.log('Atualizando marcadores de trade:', {
         entryPrice,
         direction,
         currentPrice,
@@ -879,11 +872,11 @@ class _TradeChartViewState extends State<TradeChartView> {
       });
       candleSeries.setMarkers(markers);
       
-      console.log('✅ Marcadores de trade atualizados com sucesso');
+      console.log('Marcadores de trade atualizados com sucesso');
     };
     
     window.clearTradeMarkers = function() {
-      console.log('🧹 Limpando marcadores de trade');
+      console.log('Limpando marcadores de trade');
       if (entryLine) {
         candleSeries.removePriceLine(entryLine);
         entryLine = null;
@@ -909,7 +902,7 @@ class _TradeChartViewState extends State<TradeChartView> {
       redrawCanvas();
     });
     
-    console.log('🎉 Gráfico totalmente inicializado!');
+    console.log('Grafico totalmente inicializado');
   </script>
 </body>
 </html>
@@ -954,14 +947,19 @@ class _TradeChartViewState extends State<TradeChartView> {
               vertical: AppSpacing.lg,
             ),
             decoration: BoxDecoration(
-              color: (isProfit ? AppColors.success : AppColors.error)
-                  .withOpacity(0.15),
+              color: (isProfit ? AppColors.success : AppColors.error).withOpacity(0.15),
               border: Border.all(
                 color: isProfit ? AppColors.success : AppColors.error,
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              boxShadow: [AppShadows.medium],
+              borderRadius: BorderRadius.circular(AppShapes.extraLarge),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -978,8 +976,7 @@ class _TradeChartViewState extends State<TradeChartView> {
                 Text(
                   '${isProfit ? '+' : ''}${plPercent.toStringAsFixed(2)}%',
                   style: context.textStyles.bodyLarge?.copyWith(
-                    color: (isProfit ? AppColors.success : AppColors.error)
-                        .withOpacity(0.8),
+                    color: (isProfit ? AppColors.success : AppColors.error).withOpacity(0.8),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1000,7 +997,7 @@ class _TradeChartViewState extends State<TradeChartView> {
           blur: 20,
           opacity: 0.7,
           padding: const EdgeInsets.all(AppSpacing.md),
-          borderRadius: AppRadius.xl,
+          borderRadius: AppShapes.extraLarge,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1009,9 +1006,7 @@ class _TradeChartViewState extends State<TradeChartView> {
                   context,
                   'Entry',
                   widget.controller.entryPrice!,
-                  color: widget.controller.entryDirection == 'buy'
-                      ? AppColors.success
-                      : AppColors.error,
+                  color: widget.controller.entryDirection == 'buy' ? AppColors.success : AppColors.error,
                 ),
                 const SizedBox(height: AppSpacing.xs),
               ],
@@ -1082,9 +1077,7 @@ class _TradeChartViewState extends State<TradeChartView> {
           children: [
             _buildControlButton(
               context,
-              icon: widget.isExpanded
-                  ? CupertinoIcons.fullscreen_exit
-                  : CupertinoIcons.fullscreen,
+              icon: widget.isExpanded ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
               onPressed: () {
                 AppHaptics.medium();
                 widget.onExpandToggle();
@@ -1093,7 +1086,7 @@ class _TradeChartViewState extends State<TradeChartView> {
             const SizedBox(height: AppSpacing.sm),
             _buildControlButton(
               context,
-              icon: CupertinoIcons.chart_bar,
+              icon: Icons.bar_chart_rounded,
               onPressed: () {
                 AppHaptics.light();
                 _showIndicatorsMenu(context);
@@ -1102,7 +1095,7 @@ class _TradeChartViewState extends State<TradeChartView> {
             const SizedBox(height: AppSpacing.sm),
             _buildControlButton(
               context,
-              icon: CupertinoIcons.pencil,
+              icon: Icons.edit_rounded,
               onPressed: () {
                 AppHaptics.light();
                 _showDrawingToolsMenu(context);
@@ -1119,20 +1112,18 @@ class _TradeChartViewState extends State<TradeChartView> {
     required IconData icon,
     required VoidCallback onPressed,
   }) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      minSize: 0,
-      onPressed: onPressed,
-      child: GlassContainer(
-        blur: 20,
-        opacity: 0.7,
-        width: 44,
-        height: 44,
-        borderRadius: AppRadius.md,
-        child: Icon(
-          icon,
-          color: context.colors.onSurface,
-          size: 20,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppShapes.medium),
+        child: GlassContainer(
+          blur: 20,
+          opacity: 0.7,
+          width: 44,
+          height: 44,
+          borderRadius: AppShapes.medium,
+          child: Icon(icon, color: context.colors.onSurface, size: 20),
         ),
       ),
     );
@@ -1148,7 +1139,7 @@ class _TradeChartViewState extends State<TradeChartView> {
           blur: 30,
           opacity: 0.85,
           padding: const EdgeInsets.all(AppSpacing.md),
-          borderRadius: AppRadius.xl,
+          borderRadius: AppShapes.extraLarge,
           child: Column(
             children: widget.controller.activePositions.map<Widget>((pos) {
               final profit = (pos['profit'] as num?)?.toDouble() ?? 0.0;
@@ -1185,14 +1176,8 @@ class _TradeChartViewState extends State<TradeChartView> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: Text(
-          'Indicadores Técnicos',
-          style: context.textStyles.titleLarge,
-        ),
-        message: Text(
-          'Selecione os indicadores para exibir no gráfico',
-          style: context.textStyles.bodyMedium,
-        ),
+        title: Text('Indicadores Técnicos', style: context.textStyles.titleLarge),
+        message: Text('Selecione os indicadores para exibir no gráfico', style: context.textStyles.bodyMedium),
         actions: [
           _buildIndicatorAction(context, 'MMA 20', 'mma20'),
           _buildIndicatorAction(context, 'MMA 50', 'mma50'),
@@ -1215,22 +1200,14 @@ class _TradeChartViewState extends State<TradeChartView> {
     );
   }
 
-  Widget _buildIndicatorAction(
-    BuildContext context,
-    String label,
-    String indicator,
-  ) {
+  Widget _buildIndicatorAction(BuildContext context, String label, String indicator) {
     final isActive = _activeIndicators.contains(indicator);
     return CupertinoActionSheetAction(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          if (isActive)
-            const Icon(
-              CupertinoIcons.check_mark,
-              color: AppColors.success,
-            ),
+          if (isActive) const Icon(Icons.check_circle_rounded, color: AppColors.success),
         ],
       ),
       onPressed: () {
@@ -1244,45 +1221,14 @@ class _TradeChartViewState extends State<TradeChartView> {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: Text(
-          'Ferramentas de Desenho',
-          style: context.textStyles.titleLarge,
-        ),
-        message: Text(
-          'Selecione uma ferramenta para desenhar no gráfico',
-          style: context.textStyles.bodyMedium,
-        ),
+        title: Text('Ferramentas de Desenho', style: context.textStyles.titleLarge),
+        message: Text('Selecione uma ferramenta para desenhar no gráfico', style: context.textStyles.bodyMedium),
         actions: [
-          _buildDrawingToolAction(
-            context,
-            'Linha de Tendência',
-            'line',
-            CupertinoIcons.minus,
-          ),
-          _buildDrawingToolAction(
-            context,
-            'Linha Horizontal',
-            'horizontal',
-            CupertinoIcons.arrow_right_arrow_left,
-          ),
-          _buildDrawingToolAction(
-            context,
-            'Fibonacci',
-            'fibonacci',
-            CupertinoIcons.number,
-          ),
-          _buildDrawingToolAction(
-            context,
-            'Retângulo',
-            'rectangle',
-            CupertinoIcons.square,
-          ),
-          _buildDrawingToolAction(
-            context,
-            'Triângulo',
-            'triangle',
-            CupertinoIcons.triangle,
-          ),
+          _buildDrawingToolAction(context, 'Linha de Tendência', 'line', Icons.show_chart_rounded),
+          _buildDrawingToolAction(context, 'Linha Horizontal', 'horizontal', Icons.horizontal_rule_rounded),
+          _buildDrawingToolAction(context, 'Fibonacci', 'fibonacci', Icons.functions_rounded),
+          _buildDrawingToolAction(context, 'Retângulo', 'rectangle', Icons.crop_square_rounded),
+          _buildDrawingToolAction(context, 'Triângulo', 'triangle', Icons.change_history_rounded),
         ],
         cancelButton: CupertinoActionSheetAction(
           isDefaultAction: true,
@@ -1296,12 +1242,7 @@ class _TradeChartViewState extends State<TradeChartView> {
     );
   }
 
-  Widget _buildDrawingToolAction(
-    BuildContext context,
-    String label,
-    String tool,
-    IconData icon,
-  ) {
+  Widget _buildDrawingToolAction(BuildContext context, String label, String tool, IconData icon) {
     return CupertinoActionSheetAction(
       child: Row(
         children: [
