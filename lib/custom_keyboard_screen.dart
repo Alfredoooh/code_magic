@@ -1,4 +1,4 @@
-// lib/custom_keyboard_screen.dart
+// lib/custom_keyboard_screen.dart - CORRIGIDO
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -30,7 +30,7 @@ class CustomKeyboardScreen extends StatefulWidget {
 
 class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
   String _displayValue = '';
-  
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +57,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
         _displayValue += key;
       }
     });
-    
+
     AppHaptics.light();
   }
 
@@ -69,7 +69,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
     }
 
     final value = double.tryParse(_displayValue);
-    
+
     if (value == null) {
       AppHaptics.error();
       AppSnackbar.error(context, 'Valor inválido');
@@ -135,7 +135,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  
+
                   if (widget.minValue != null || widget.maxValue != null) ...[
                     SizedBox(height: AppSpacing.md),
                     Text(
@@ -157,8 +157,8 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
               decoration: BoxDecoration(
                 color: context.colors.surfaceContainer,
                 borderRadius: BorderRadius.only(
-                  top: Radius.circular(AppSpacing.radiusXl),
-                  bottom: Radius.zero,
+                  topLeft: Radius.circular(AppSpacing.radiusXl),
+                  topRight: Radius.circular(AppSpacing.radiusXl),
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -171,7 +171,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
               child: Column(
                 children: [
                   SizedBox(height: AppSpacing.lg),
-                  
+
                   // Number pad
                   Expanded(
                     child: Padding(
@@ -230,7 +230,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
 
   Widget _buildKey(String key) {
     final isSpecial = key == '⌫' || key == 'C' || key == '.';
-    
+
     return AnimatedCard(
       onTap: () => _onKeyPress(key),
       child: Container(
@@ -259,25 +259,3 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
     );
   }
 }
-
-// Exemplo de uso:
-/*
-Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => CustomKeyboardScreen(
-      title: 'Digite o Stake',
-      hint: '\$0.00',
-      isDecimal: true,
-      minValue: 0.35,
-      maxValue: 1000.0,
-      onSubmit: (value) {
-        print('Valor digitado: $value');
-        setState(() {
-          _stakeValue = double.parse(value);
-        });
-      },
-    ),
-  ),
-);
-*/
