@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'trade_logic_controller.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets;
 
 class TradeChartView extends StatefulWidget {
   final TradeLogicController controller;
