@@ -1,9 +1,16 @@
 // lib/settings_screen.dart
 import 'package:flutter/material.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  final VoidCallback onThemeChanged;
+
+  const SettingsScreen({
+    Key? key,
+    required this.onThemeChanged,
+  }) : super(key: key);
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -14,12 +21,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   String _selectedLanguage = 'Português';
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configurações'),
+      appBar: SecondaryAppBar(
+        title: 'Configurações',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: () {
+              AppHaptics.light();
+              AppSnackbar.info(context, 'Ajuda em breve');
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -29,28 +45,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Aparência',
-                  style: context.textStyles.titleLarge,
-                ),
+                Text('Aparência', style: context.textStyles.titleLarge),
                 const SizedBox(height: AppSpacing.md),
                 _buildThemeSelector(),
               ],
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.xxl),
-          
+
           // Seção de Notificações
           FadeInWidget(
             delay: const Duration(milliseconds: 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Notificações',
-                  style: context.textStyles.titleLarge,
-                ),
+                Text('Notificações', style: context.textStyles.titleLarge),
                 const SizedBox(height: AppSpacing.md),
                 _buildSettingsCard(
                   icon: Icons.notifications_rounded,
@@ -97,19 +107,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.xxl),
-          
+
           // Seção de Preferências
           FadeInWidget(
             delay: const Duration(milliseconds: 200),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Preferências',
-                  style: context.textStyles.titleLarge,
-                ),
+                Text('Preferências', style: context.textStyles.titleLarge),
                 const SizedBox(height: AppSpacing.md),
                 _buildSettingsCard(
                   icon: Icons.language_rounded,
@@ -135,19 +142,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.xxl),
-          
+
           // Seção de Segurança
           FadeInWidget(
             delay: const Duration(milliseconds: 300),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Segurança',
-                  style: context.textStyles.titleLarge,
-                ),
+                Text('Segurança', style: context.textStyles.titleLarge),
                 const SizedBox(height: AppSpacing.md),
                 _buildSettingsCard(
                   icon: Icons.fingerprint_rounded,
@@ -173,19 +177,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.xxl),
-          
+
           // Seção Sobre
           FadeInWidget(
             delay: const Duration(milliseconds: 400),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Sobre',
-                  style: context.textStyles.titleLarge,
-                ),
+                Text('Sobre', style: context.textStyles.titleLarge),
                 const SizedBox(height: AppSpacing.md),
                 _buildSettingsCard(
                   icon: Icons.info_rounded,
@@ -222,30 +223,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.xxl),
-          
+
           // Botão de Logout
           FadeInWidget(
             delay: const Duration(milliseconds: 500),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  AppHaptics.heavy();
-                  _showLogoutDialog();
-                },
-                icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-                label: const Text('Sair da Conta'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                ),
-              ),
+            child: SecondaryButton(
+              text: 'Sair da Conta',
+              icon: Icons.logout_rounded,
+              expanded: true,
+              onPressed: () {
+                AppHaptics.heavy();
+                _showLogoutDialog();
+              },
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.massive),
         ],
       ),
@@ -262,10 +256,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.light_mode_rounded,
             isSelected: !context.isDark,
             onTap: () {
-              AppHaptics.medium();
-              AppTheme.toggleTheme();
-              setState(() {});
-              AppSnackbar.success(context, 'Tema alterado para claro');
+              if (context.isDark) {
+                AppHaptics.medium();
+                widget.onThemeChanged();
+                setState(() {});
+                AppSnackbar.success(context, 'Tema alterado para claro');
+              }
             },
           ),
           Divider(height: 1, color: context.colors.outlineVariant),
@@ -275,10 +271,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.dark_mode_rounded,
             isSelected: context.isDark,
             onTap: () {
+              if (!context.isDark) {
+                AppHaptics.medium();
+                widget.onThemeChanged();
+                setState(() {});
+                AppSnackbar.success(context, 'Tema alterado para escuro');
+              }
+            },
+          ),
+          Divider(height: 1, color: context.colors.outlineVariant),
+          _buildThemeOption(
+            title: 'Automático',
+            subtitle: 'Seguir configuração do sistema',
+            icon: Icons.brightness_auto_rounded,
+            isSelected: false, // Implement system theme detection if needed
+            onTap: () {
               AppHaptics.medium();
-              AppTheme.toggleTheme();
-              setState(() {});
-              AppSnackbar.success(context, 'Tema alterado para escuro');
+              AppSnackbar.info(context, 'Tema automático em breve');
             },
           ),
         ],
@@ -293,26 +302,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: isSelected 
-              ? AppColors.primary.withOpacity(0.15)
-              : context.colors.surfaceVariant,
-          borderRadius: BorderRadius.circular(AppShapes.medium),
-        ),
-        child: Icon(
-          icon,
-          color: isSelected ? AppColors.primary : context.colors.onSurfaceVariant,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? AppColors.primary.withOpacity(0.15)
+                      : context.colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(AppShapes.medium),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? AppColors.primary : context.colors.onSurfaceVariant,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: context.textStyles.titleSmall?.copyWith(
+                        color: isSelected ? AppColors.primary : null,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      subtitle,
+                      style: context.textStyles.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+            ],
+          ),
         ),
       ),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: isSelected
-          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-          : null,
-      onTap: onTap,
     );
   }
 
@@ -358,45 +401,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showLanguageBottomSheet() {
-    showModalBottomSheet(
+    AppModalBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: context.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.extraLarge)),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.colors.outlineVariant,
-                borderRadius: BorderRadius.circular(AppShapes.full),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text('Selecione o Idioma', style: context.textStyles.headlineSmall),
-            const SizedBox(height: AppSpacing.lg),
-            _buildLanguageOption('Português', 'pt'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildLanguageOption('English', 'en'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildLanguageOption('Español', 'es'),
-            const SizedBox(height: AppSpacing.md),
-          ],
-        ),
+      title: 'Selecione o Idioma',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildLanguageOption('Português', 'pt'),
+          const SizedBox(height: AppSpacing.sm),
+          _buildLanguageOption('English', 'en'),
+          const SizedBox(height: AppSpacing.sm),
+          _buildLanguageOption('Español', 'es'),
+          const SizedBox(height: AppSpacing.sm),
+          _buildLanguageOption('Français', 'fr'),
+        ],
       ),
     );
   }
 
   Widget _buildLanguageOption(String language, String code) {
     final isSelected = _selectedLanguage == language;
-    return ListTile(
-      title: Text(language),
+    return AppListTile(
+      title: language,
       trailing: isSelected
           ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
           : null,
@@ -410,103 +436,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showAboutDialog() {
-    showDialog(
+    AppDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(AppShapes.medium),
+      title: 'Sobre o App',
+      icon: Icons.info_rounded,
+      iconColor: AppColors.primary,
+      contentWidget: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ZoomTrade Trading Bot',
+            style: context.textStyles.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Versão 1.0.0 (Build 1)',
+            style: context.textStyles.bodyMedium?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Aplicativo de trading automatizado com bots inteligentes e análise de mercado em tempo real.',
+            style: context.textStyles.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const LabeledDivider(label: 'Desenvolvido com'),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.favorite_rounded, color: AppColors.error, size: 16),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'Flutter & Material Design 3',
+                style: context.textStyles.bodySmall,
               ),
-              child: const Icon(Icons.info_rounded, color: AppColors.primary),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            const Text('Sobre o App'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'ZoomTrade Trading Bot',
-              style: context.textStyles.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Versão 1.0.0 (Build 1)',
-              style: context.textStyles.bodyMedium?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Aplicativo de trading automatizado com bots inteligentes e análise de mercado em tempo real.',
-              style: context.textStyles.bodySmall,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const LabeledDivider(label: 'Desenvolvido com'),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.favorite_rounded, color: AppColors.error, size: 16),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  'Flutter & Material Design 3',
-                  style: context.textStyles.bodySmall,
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              AppHaptics.light();
-              Navigator.pop(context);
-            },
-            child: const Text('Fechar'),
+            ],
           ),
         ],
       ),
+      actions: [
+        PrimaryButton(
+          text: 'Fechar',
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
     );
   }
 
   void _showLogoutDialog() {
-    showDialog(
+    AppDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sair da Conta'),
-        content: const Text(
-          'Tem certeza que deseja sair? Você precisará fazer login novamente.',
+      title: 'Sair da Conta',
+      content: 'Tem certeza que deseja sair? Você precisará fazer login novamente.',
+      icon: Icons.logout_rounded,
+      iconColor: AppColors.error,
+      actions: [
+        TertiaryButton(
+          text: 'Cancelar',
+          onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              AppHaptics.light();
-              Navigator.pop(context);
-            },
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              AppHaptics.heavy();
-              Navigator.pop(context);
-              // Aqui você implementaria a lógica de logout
-              AppSnackbar.success(context, 'Logout realizado com sucesso');
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
-            child: const Text('Sair'),
-          ),
-        ],
-      ),
+        PrimaryButton(
+          text: 'Sair',
+          onPressed: () {
+            AppHaptics.heavy();
+            Navigator.pop(context);
+            Navigator.pop(context); // Go back to previous screen
+            AppSnackbar.success(context, 'Logout realizado com sucesso');
+          },
+        ),
+      ],
     );
   }
 }
