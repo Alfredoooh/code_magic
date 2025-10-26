@@ -500,6 +500,399 @@ class _TradeChartViewState extends State<TradeChartView> {
           title: 'TP: ' + tpPrice.toFixed(2),
         });
       }
+      
+      const markers = candleSeries.markers() || [];
+      markers.push({
+        time: data[data.length - 1].time,
+        position: isBuy ? 'belowBar' : 'aboveBar',
+        color: entryColor,
+        shape: isBuy ? 'arrowUp' : 'arrowDown',
+        text: (isBuy ? 'BUY' : 'SELL') + ' @ ' + entryPrice.toFixed(2),
+        size: 2,
+      });
+      candleSeries.setMarkers(markers);
+      
+      console.log('Marcadores de trade atualizados com sucesso');
+    };
+    
+    window.clearTradeMarkers = function() {
+      console.log('Limpando marcadores de trade');
+      if (entryLine) {
+        candleSeries.removePriceLine(entryLine);
+        entryLine = null;
+      }
+      if (stopLossLine) {
+        candleSeries.removePriceLine(stopLossLine);
+        stopLossLine = null;
+      }
+      if (takeProfitLine) {
+        candleSeries.removePriceLine(takeProfitLine);
+        takeProfitLine = null;
+      }
+      candleSeries.setMarkers([]);
+    };
+    
+    window.addEventListener('resize', () => {
+      chart.applyOptions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      redrawCanvas();
+    });
+    
+    console.log('Grafico totalmente inicializado');
+  </script>
+</body>
+</html>
+''';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        WebViewWidget(controller: _webViewController),
+        if (widget.isExpanded && widget.controller.entryPrice != null) 
+          _buildProfitLossOverlay(context),
+        if (widget.isExpanded) _buildTechnicalAnalysis(context),
+        _buildChartControls(context),
+        if (widget.controller.activePositions.isNotEmpty) 
+          _buildPositionsOverlay(context),
+      ],
+    );
+  }
+
+  Widget _buildProfitLossOverlay(BuildContext context) {
+    if (widget.controller.entryPrice == null) return const SizedBox.shrink();
+
+    final entry = widget.controller.entryPrice!;
+    final current = widget.controller.currentPrice;
+    final isBuy = widget.controller.entryDirection == 'buy';
+
+    final pips = (current - entry) * (isBuy ? 1 : -1);
+    final plPercent = (pips / entry) * 100;
+    final isProfit = pips > 0;
+
+    return Positioned(
+      top: AppSpacing.xxl * 1.5,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: FadeInWidget(
+          child: GlassCard(
+            blur: 20,
+            opacity: 0.85,
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.lg,
+            ),
+            borderColor: isProfit ? AppColors.success : AppColors.error,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${isProfit ? '+' : ''}${pips.toStringAsFixed(2)} pips',
+                  style: context.textStyles.headlineMedium?.copyWith(
+                    color: isProfit ? AppColors.success : AppColors.error,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '${isProfit ? '+' : ''}${plPercent.toStringAsFixed(2)}%',
+                  style: context.textStyles.bodyLarge?.copyWith(
+                    color: (isProfit ? AppColors.success : AppColors.error).withOpacity(0.8),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTechnicalAnalysis(BuildContext context) {
+    return Positioned(
+      left: AppSpacing.md,
+      top: AppSpacing.md,
+      child: FadeInWidget(
+        child: GlassCard(
+          blur: 20,
+          opacity: 0.7,
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.controller.entryPrice != null) ...[
+                _buildAnalysisItem(
+                  context,
+                  'Entry',
+                  widget.controller.entryPrice!,
+                  color: widget.controller.entryDirection == 'buy' 
+                      ? AppColors.success 
+                      : AppColors.error,
+                ),
+                SizedBox(height: AppSpacing.xs),
+              ],
+              _buildAnalysisItem(
+                context,
+                'Current',
+                widget.controller.currentPrice,
+                color: AppColors.primary,
+              ),
+              if (widget.controller.entryPrice != null) ...[
+                SizedBox(height: AppSpacing.xs),
+                _buildAnalysisItem(
+                  context,
+                  'P/L',
+                  (widget.controller.currentPrice - widget.controller.entryPrice!) *
+                      (widget.controller.entryDirection == 'buy' ? 1 : -1),
+                  isPL: true,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalysisItem(
+    BuildContext context,
+    String label,
+    double value, {
+    bool isPL = false,
+    Color? color,
+  }) {
+    Color valueColor = color ?? context.colors.onSurface;
+    String prefix = '';
+
+    if (isPL) {
+      valueColor = value >= 0 ? AppColors.success : AppColors.error;
+      prefix = value >= 0 ? '+' : '';
+    }
+
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: context.textStyles.bodySmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          '$prefix${value.toStringAsFixed(2)}',
+          style: context.textStyles.bodySmall?.copyWith(
+            color: valueColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChartControls(BuildContext context) {
+    return Positioned(
+      top: AppSpacing.md,
+      right: AppSpacing.md,
+      child: FadeInWidget(
+        delay: Duration(milliseconds: 100),
+        child: Column(
+          children: [
+            IconButtonWithBackground(
+              icon: widget.isExpanded 
+                  ? Icons.fullscreen_exit_rounded 
+                  : Icons.fullscreen_rounded,
+              onPressed: () {
+                AppHaptics.medium();
+                widget.onExpandToggle();
+              },
+              backgroundColor: context.surface.withOpacity(0.7),
+              size: 44,
+            ),
+            SizedBox(height: AppSpacing.sm),
+            IconButtonWithBackground(
+              icon: Icons.bar_chart_rounded,
+              onPressed: () {
+                AppHaptics.light();
+                _showIndicatorsMenu(context);
+              },
+              backgroundColor: context.surface.withOpacity(0.7),
+              size: 44,
+            ),
+            SizedBox(height: AppSpacing.sm),
+            IconButtonWithBackground(
+              icon: Icons.edit_rounded,
+              onPressed: () {
+                AppHaptics.light();
+                _showDrawingToolsMenu(context);
+              },
+              backgroundColor: context.surface.withOpacity(0.7),
+              size: 44,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPositionsOverlay(BuildContext context) {
+    return Positioned(
+      bottom: AppSpacing.md,
+      left: AppSpacing.md,
+      right: AppSpacing.md,
+      child: FadeInWidget(
+        child: GlassCard(
+          blur: 30,
+          opacity: 0.85,
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            children: widget.controller.activePositions.map<Widget>((pos) {
+              final profit = (pos['profit'] as num?)?.toDouble() ?? 0.0;
+              final isProfit = profit >= 0;
+              return Padding(
+                padding: EdgeInsets.only(bottom: AppSpacing.xs),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Position',
+                      style: context.textStyles.bodyMedium?.copyWith(
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      '${isProfit ? '+' : ''}\$${profit.toStringAsFixed(2)}',
+                      style: context.textStyles.bodyLarge?.copyWith(
+                        color: isProfit ? AppColors.success : AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showIndicatorsMenu(BuildContext context) {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Indicadores Técnicos',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildIndicatorTile(context, 'MMA 20', 'mma20', Icons.show_chart_rounded),
+          _buildIndicatorTile(context, 'MMA 50', 'mma50', Icons.trending_up_rounded),
+          _buildIndicatorTile(context, 'MMA 200', 'mma200', Icons.timeline_rounded),
+          _buildIndicatorTile(context, 'EMA 12', 'ema12', Icons.ssid_chart_rounded),
+          _buildIndicatorTile(context, 'EMA 26', 'ema26', Icons.waterfall_chart_rounded),
+          _buildIndicatorTile(context, 'Bollinger Bands', 'bollinger', Icons.stacked_line_chart_rounded),
+          _buildIndicatorTile(context, 'RSI', 'rsi', Icons.insert_chart_rounded),
+          _buildIndicatorTile(context, 'MACD', 'macd', Icons.bar_chart_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndicatorTile(BuildContext context, String label, String indicator, IconData icon) {
+    final isActive = _activeIndicators.contains(indicator);
+    return AppListTile(
+      title: label,
+      leading: Icon(icon, color: context.primary),
+      trailing: isActive 
+          ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+          : null,
+      onTap: () {
+        _toggleIndicator(indicator);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _showDrawingToolsMenu(BuildContext context) {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Ferramentas de Desenho',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListTile(
+            title: 'Linha de Tendência',
+            leading: Icon(Icons.show_chart_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('line');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Linha Horizontal',
+            leading: Icon(Icons.horizontal_rule_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('horizontal');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Fibonacci',
+            leading: Icon(Icons.functions_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('fibonacci');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Retângulo',
+            leading: Icon(Icons.crop_square_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('rectangle');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Triângulo',
+            leading: Icon(Icons.change_history_rounded, color: context.primary),
+            onTap: () {
+              _activateDrawingTool('triangle');
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}.createPriceLine({
+          price: slPrice,
+          color: '#FF4444',
+          lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: 'SL: ' + slPrice.toFixed(2),
+        });
+      }
+      
+      if (takeProfitPercent > 0) {
+        const tpPrice = isBuy
+          ? entryPrice * (1 + takeProfitPercent / 100)
+          : entryPrice * (1 - takeProfitPercent / 100);
+          
+        takeProfitLine = candleSeries.createPriceLine({
+          price: tpPrice,
+          color: '#00C896',
+          lineWidth: 1,
+          lineStyle: LightweightCharts.LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: 'TP: ' + tpPrice.toFixed(2),
+        });
+      }
     };
     
     window.clearTradeMarkers = function() {
