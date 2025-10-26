@@ -1,10 +1,10 @@
-// all_markets_screen.dart
+// lib/all_markets_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'markets_screen.dart';
 import 'market_detail_screen.dart';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets; // evitamos conflito com EdgeInsets exportado por styles.dart
 
 class AllMarketsScreen extends StatefulWidget {
   final String token;
@@ -141,7 +141,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
           // Search Bar
           FadeInWidget(
             child: Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -173,7 +173,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
             child: SizedBox(
               height: 50,
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 scrollDirection: Axis.horizontal,
                 itemCount: _categories.length,
                 itemBuilder: (context, index) {
@@ -181,7 +181,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                   final isSelected = _selectedCategory == category;
 
                   return Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.sm),
+                    padding: EdgeInsets.only(right: AppSpacing.sm),
                     child: FilterChip(
                       selected: isSelected,
                       label: Text(category),
@@ -213,13 +213,13 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
             ),
           ),
 
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
 
           // Markets Count
           FadeInWidget(
             delay: const Duration(milliseconds: 200),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Icon(
@@ -227,7 +227,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                     size: 16,
                     color: context.colors.onSurfaceVariant,
                   ),
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(width: AppSpacing.xs),
                   Text(
                     '${_getFilteredMarkets(_selectedCategory).length} mercados',
                     style: context.textStyles.bodySmall?.copyWith(
@@ -239,7 +239,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
             ),
           ),
 
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
 
           // Markets List
           Expanded(
@@ -254,7 +254,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            padding: EdgeInsets.all(AppSpacing.xl),
                             decoration: BoxDecoration(
                               color: context.colors.surfaceContainer,
                               shape: BoxShape.circle,
@@ -265,14 +265,14 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                               size: 48,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xl),
+                          SizedBox(height: AppSpacing.xl),
                           Text(
                             'Nenhum mercado encontrado',
                             style: context.textStyles.bodyLarge?.copyWith(
                               color: context.colors.onSurfaceVariant,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.sm),
+                          SizedBox(height: AppSpacing.sm),
                           Text(
                             'Tente buscar por outro termo',
                             style: context.textStyles.bodySmall?.copyWith(
@@ -286,7 +286,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.sm,
                   ),
@@ -318,11 +318,11 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
     return GestureDetector(
       onTap: () => _openMarketDetail(symbol),
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        margin: EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: context.colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppShapes.large), // radiusLg -> AppShapes.large
           border: Border.all(
             color: context.colors.outlineVariant,
             width: 1,
@@ -336,10 +336,10 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
               height: 48,
               decoration: BoxDecoration(
                 color: context.colors.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius: BorderRadius.circular(AppShapes.medium), // radiusMd -> AppShapes.medium
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius: BorderRadius.circular(AppShapes.medium),
                 child: Image.network(
                   info.iconUrl,
                   width: 48,
@@ -356,7 +356,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
               ),
             ),
 
-            const SizedBox(width: AppSpacing.md),
+            SizedBox(width: AppSpacing.md),
 
             // Name and Symbol
             Expanded(
@@ -369,7 +369,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
+                  SizedBox(height: AppSpacing.xxs),
                   Text(
                     symbol,
                     style: context.textStyles.bodySmall?.copyWith(
@@ -390,16 +390,16 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                SizedBox(height: AppSpacing.xxs),
                 if (data != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
                       vertical: AppSpacing.xxs,
                     ),
                     decoration: BoxDecoration(
                       color: changeColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      borderRadius: BorderRadius.circular(AppShapes.small), // radiusSm -> AppShapes.small
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -411,7 +411,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                           color: changeColor,
                           size: 12,
                         ),
-                        const SizedBox(width: AppSpacing.xxs),
+                        SizedBox(width: AppSpacing.xxs),
                         Text(
                           '${data.change.abs().toStringAsFixed(2)}%',
                           style: context.textStyles.labelSmall?.copyWith(
@@ -425,7 +425,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
               ],
             ),
 
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
 
             // Arrow
             Icon(
