@@ -996,7 +996,6 @@ class _TradeChartViewState extends State<TradeChartView> {
               horizontal: AppSpacing.xl,
               vertical: AppSpacing.lg,
             ),
-            borderColor: isProfit ? AppColors.success : AppColors.error,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
