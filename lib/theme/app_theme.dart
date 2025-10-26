@@ -18,7 +18,7 @@ class AppSpacing {
   static const xxxl = 32.0;
   static const huge = 40.0;
   static const massive = 48.0;
-  
+
   // Border radius values
   static const radiusXs = 4.0;
   static const radiusSm = 8.0;
@@ -229,7 +229,7 @@ ThemeData get darkTheme => ThemeData(
     systemOverlayStyle: SystemUiOverlayStyle.light,
   ),
 
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     color: AppColors.darkSurfaceContainer,
     elevation: AppElevation.level1,
     shape: AppShapes.shapeMedium,
@@ -403,7 +403,7 @@ ThemeData get lightTheme => ThemeData(
     systemOverlayStyle: SystemUiOverlayStyle.dark,
   ),
 
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     color: AppColors.lightSurfaceContainer,
     elevation: AppElevation.level1,
     shape: AppShapes.shapeMedium,
@@ -518,6 +518,7 @@ extension ThemeExtension on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 
   Color get surface => colors.surface;
+  Color get surfaceContainer => colors.surfaceContainerHighest;
   Color get primary => colors.primary;
   Color get error => colors.error;
   Color get success => AppColors.success;
