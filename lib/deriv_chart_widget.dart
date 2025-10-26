@@ -1,11 +1,14 @@
 // =====================================================================
 // lib/deriv_chart_widget.dart
 // Widget de gráfico ultra avançado com Chart.js - Análise técnica completa
+// Atualizado com Material Design 3 Theme System
 // =====================================================================
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'styles.dart' hide EdgeInsets;
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
 
 class DerivAreaChart extends StatefulWidget {
   final List<double> points;
@@ -31,11 +34,14 @@ class DerivAreaChart extends StatefulWidget {
 
 class _DerivAreaChartState extends State<DerivAreaChart> {
   late final WebViewController _controller;
+  bool _isDark = true;
+
   String get _initialHtml => _buildAdvancedHtml(widget.points, widget.autoScale, widget.showGradient);
 
   @override
   void initState() {
     super.initState();
+    
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
@@ -45,6 +51,13 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       ..loadHtmlString(_initialHtml);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isDark = context.isDark;
+        });
+        _controller.loadHtmlString(_buildAdvancedHtml(widget.points, widget.autoScale, widget.showGradient));
+      }
+      
       if (widget.onControllerCreated != null) {
         widget.onControllerCreated!(_controller, widget.market);
       }
@@ -54,6 +67,14 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
   @override
   void didUpdateWidget(covariant DerivAreaChart oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
+    if (mounted && _isDark != context.isDark) {
+      setState(() {
+        _isDark = context.isDark;
+      });
+      _controller.loadHtmlString(_buildAdvancedHtml(widget.points, widget.autoScale, widget.showGradient));
+    }
+    
     if (widget.points != oldWidget.points) {
       final jsArray = widget.points.map((p) => p.toString()).join(',');
       final script = "try{ updateData([${jsArray}]); }catch(e){ console.log('Update error:', e); };";
@@ -67,14 +88,14 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       height: widget.height ?? 320,
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.large),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppShapes.large),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         child: WebViewWidget(controller: _controller),
       ),
     );
@@ -82,7 +103,31 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
 
   String _buildAdvancedHtml(List<double> points, bool autoScale, bool showGradient) {
     final initialData = points.map((p) => p.toString()).join(',');
-    final isDark = true;
+    final isDark = _isDark;
+
+    final bgColor = isDark ? '#0A0A0A' : '#FFFFFF';
+    final surfaceColor = isDark ? '#1C1B1F' : '#FFFBFE';
+    final textPrimary = isDark ? '#E6E1E5' : '#1C1B1F';
+    final textSecondary = isDark ? 'rgba(230, 225, 229, 0.6)' : 'rgba(28, 27, 31, 0.6)';
+    final gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    final outline = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+    
+    final primaryColor = '#6750A4';
+    final successColor = '#34C759';
+    final errorColor = '#FF3B30';
+    final warningColor = '#FFCC00';
+    final infoColor = '#007AFF';
+    
+    final spacingXs = '4px';
+    final spacingSm = '8px';
+    final spacingMd = '12px';
+    final spacingLg = '16px';
+    
+    final radiusMd = '12px';
+    final radiusLg = '14px';
+    
+    final animDuration = '200ms';
+    final animCurve = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
     return '''
 <!doctype html>
@@ -94,56 +139,41 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     html, body { 
       width: 100%; 
       height: 100%; 
-      background: ${isDark ? '#0A0A0A' : '#FFFFFF'}; 
+      background: $bgColor; 
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
     }
-    #chartContainer { 
-      width: 100%; 
-      height: 100%; 
-      position: relative;
-    }
-    #chart { 
-      width: 100%; 
-      height: 100%; 
-    }
+    #chartContainer { width: 100%; height: 100%; position: relative; }
+    #chart { width: 100%; height: 100%; }
     
-    /* Stats Panel - Redesenhado */
     #stats {
       position: absolute;
-      top: 16px;
-      left: 16px;
-      background: ${isDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
+      top: $spacingLg;
+      left: $spacingLg;
+      background: ${isDark ? 'rgba(28, 27, 31, 0.95)' : 'rgba(255, 251, 254, 0.95)'};
       backdrop-filter: blur(20px) saturate(180%);
-      padding: 12px 16px;
-      border-radius: 14px;
+      padding: $spacingMd $spacingLg;
+      border-radius: $radiusLg;
       font-size: 11px;
-      color: ${isDark ? '#FFFFFF' : '#000000'};
+      color: $textPrimary;
       font-weight: 600;
       z-index: 100;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 
-                  0 2px 8px rgba(0, 0, 0, 0.2),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 1px solid $outline;
       min-width: 180px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all $animDuration $animCurve;
     }
-    #stats:hover {
-      transform: scale(1.02);
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-    }
+    #stats:hover { transform: scale(1.02); box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5); }
     .stat-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: $spacingSm;
       align-items: center;
-      padding: 4px 0;
+      padding: $spacingXs 0;
     }
-    .stat-row:last-child {
-      margin-bottom: 0;
-    }
+    .stat-row:last-child { margin-bottom: 0; }
     .stat-label {
-      color: ${isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'};
+      color: $textSecondary;
       font-weight: 500;
       font-size: 10px;
       text-transform: uppercase;
@@ -151,33 +181,26 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     }
     .stat-value {
       font-weight: 700;
-      margin-left: 16px;
+      margin-left: $spacingLg;
       font-size: 13px;
       font-variant-numeric: tabular-nums;
     }
-    .stat-value.positive { 
-      color: #34C759;
-      text-shadow: 0 0 8px rgba(52, 199, 89, 0.3);
-    }
-    .stat-value.negative { 
-      color: #FF3B30;
-      text-shadow: 0 0 8px rgba(255, 59, 48, 0.3);
-    }
+    .stat-value.positive { color: $successColor; text-shadow: 0 0 8px rgba(52, 199, 89, 0.3); }
+    .stat-value.negative { color: $errorColor; text-shadow: 0 0 8px rgba(255, 59, 48, 0.3); }
     
-    /* Indicators Panel */
     #indicators {
       position: absolute;
-      top: 16px;
-      right: 16px;
-      background: ${isDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
+      top: $spacingLg;
+      right: $spacingLg;
+      background: ${isDark ? 'rgba(28, 27, 31, 0.95)' : 'rgba(255, 251, 254, 0.95)'};
       backdrop-filter: blur(20px) saturate(180%);
-      padding: 12px 16px;
-      border-radius: 14px;
+      padding: $spacingMd $spacingLg;
+      border-radius: $radiusLg;
       font-size: 10px;
-      color: ${isDark ? '#FFFFFF' : '#000000'};
+      color: $textPrimary;
       z-index: 100;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+      border: 1px solid $outline;
       min-width: 140px;
     }
     .indicator-row {
@@ -188,7 +211,7 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     }
     .indicator-row:last-child { margin-bottom: 0; }
     .indicator-label {
-      color: ${isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+      color: $textSecondary;
       font-weight: 500;
       font-size: 9px;
       text-transform: uppercase;
@@ -197,55 +220,53 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     .indicator-value {
       font-weight: 700;
       font-size: 11px;
-      margin-left: 8px;
+      margin-left: $spacingSm;
     }
     
-    /* Tick Info */
     #tickInfo {
       position: absolute;
-      bottom: 16px;
-      right: 16px;
-      background: ${isDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
+      bottom: $spacingLg;
+      right: $spacingLg;
+      background: ${isDark ? 'rgba(28, 27, 31, 0.95)' : 'rgba(255, 251, 254, 0.95)'};
       backdrop-filter: blur(20px) saturate(180%);
       padding: 10px 14px;
-      border-radius: 10px;
+      border-radius: $radiusMd;
       font-size: 10px;
-      color: ${isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+      color: $textSecondary;
       z-index: 100;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-      border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
+      border: 1px solid $outline;
       font-weight: 600;
     }
     
-    /* Signal Badge */
     #signal {
       position: absolute;
-      bottom: 16px;
-      left: 16px;
-      padding: 10px 16px;
-      border-radius: 10px;
+      bottom: $spacingLg;
+      left: $spacingLg;
+      padding: 10px $spacingLg;
+      border-radius: $radiusMd;
       font-size: 11px;
       font-weight: 700;
       z-index: 100;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: $spacingSm;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-      transition: all 0.3s ease;
+      transition: all $animDuration $animCurve;
     }
     #signal.bullish {
       background: linear-gradient(135deg, rgba(52, 199, 89, 0.2), rgba(52, 199, 89, 0.1));
-      color: #34C759;
+      color: $successColor;
       border: 1px solid rgba(52, 199, 89, 0.3);
     }
     #signal.bearish {
       background: linear-gradient(135deg, rgba(255, 59, 48, 0.2), rgba(255, 59, 48, 0.1));
-      color: #FF3B30;
+      color: $errorColor;
       border: 1px solid rgba(255, 59, 48, 0.3);
     }
     #signal.neutral {
       background: linear-gradient(135deg, rgba(255, 204, 0, 0.2), rgba(255, 204, 0, 0.1));
-      color: #FFCC00;
+      color: $warningColor;
       border: 1px solid rgba(255, 204, 0, 0.3);
     }
     .signal-icon {
@@ -258,65 +279,33 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.5; transform: scale(1.2); }
     }
-    
     canvas { display: block; }
   </style>
 </head>
 <body>
   <div id="chartContainer">
-    <!-- Stats Panel -->
     <div id="stats">
-      <div class="stat-row">
-        <span class="stat-label">Preço</span>
-        <span class="stat-value" id="currentPrice">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Variação</span>
-        <span class="stat-value" id="priceChange">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Volatilidade</span>
-        <span class="stat-value" id="volatility">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Ticks</span>
-        <span class="stat-value" id="tickCount">0</span>
-      </div>
+      <div class="stat-row"><span class="stat-label">Preço</span><span class="stat-value" id="currentPrice">--</span></div>
+      <div class="stat-row"><span class="stat-label">Variação</span><span class="stat-value" id="priceChange">--</span></div>
+      <div class="stat-row"><span class="stat-label">Volatilidade</span><span class="stat-value" id="volatility">--</span></div>
+      <div class="stat-row"><span class="stat-label">Ticks</span><span class="stat-value" id="tickCount">0</span></div>
     </div>
     
-    <!-- Technical Indicators -->
     <div id="indicators">
-      <div class="indicator-row">
-        <span class="indicator-label">RSI</span>
-        <span class="indicator-value" id="rsi">--</span>
-      </div>
-      <div class="indicator-row">
-        <span class="indicator-label">MA(20)</span>
-        <span class="indicator-value" id="ma20">--</span>
-      </div>
-      <div class="indicator-row">
-        <span class="indicator-label">Bollinger</span>
-        <span class="indicator-value" id="bbands">--</span>
-      </div>
-      <div class="indicator-row">
-        <span class="indicator-label">Trend</span>
-        <span class="indicator-value" id="trend">--</span>
-      </div>
+      <div class="indicator-row"><span class="indicator-label">RSI</span><span class="indicator-value" id="rsi">--</span></div>
+      <div class="indicator-row"><span class="indicator-label">MA(20)</span><span class="indicator-value" id="ma20">--</span></div>
+      <div class="indicator-row"><span class="indicator-label">Bollinger</span><span class="indicator-value" id="bbands">--</span></div>
+      <div class="indicator-row"><span class="indicator-label">Trend</span><span class="indicator-value" id="trend">--</span></div>
     </div>
     
-    <!-- Chart Canvas -->
     <canvas id="chart"></canvas>
     
-    <!-- Signal Badge -->
     <div id="signal" class="neutral">
       <span class="signal-icon"></span>
       <span id="signalText">AGUARDANDO</span>
     </div>
     
-    <!-- Tick Info -->
-    <div id="tickInfo">
-      <span id="timeInfo">Aguardando dados...</span>
-    </div>
+    <div id="tickInfo"><span id="timeInfo">Aguardando dados...</span></div>
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
@@ -324,22 +313,26 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
   
   <script>
     const ctx = document.getElementById('chart').getContext('2d');
-    
     const colors = {
-      background: '${isDark ? '#0A0A0A' : '#FFFFFF'}',
-      text: '${isDark ? '#FFFFFF' : '#000000'}',
-      grid: '${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}',
-      positive: '#34C759',
-      negative: '#FF3B30',
-      neutral: '${isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)'}',
-      ma: '#007AFF',
+      background: '$bgColor',
+      surface: '$surfaceColor',
+      text: '$textPrimary',
+      textSecondary: '$textSecondary',
+      grid: '$gridColor',
+      primary: '$primaryColor',
+      positive: '$successColor',
+      negative: '$errorColor',
+      warning: '$warningColor',
+      info: '$infoColor',
+      neutral: '$textSecondary',
+      ma: '$infoColor',
       bb: '#FF9500',
     };
     
-    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    Chart.defaults.font.family = 'Roboto, -apple-system, BlinkMacSystemFont';
     Chart.defaults.color = colors.text;
     
-    const dataPoints = [${initialData}];
+    const dataPoints = [$initialData];
     const timestamps = dataPoints.map((_, i) => {
       const now = new Date();
       now.setSeconds(now.getSeconds() - (dataPoints.length - i));
@@ -351,7 +344,6 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     let upperBand = [];
     let lowerBand = [];
     
-    // Calcular Moving Average
     function calculateMA(data, period) {
       const result = [];
       for (let i = 0; i < data.length; i++) {
@@ -365,7 +357,6 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       return result;
     }
     
-    // Calcular Bollinger Bands
     function calculateBollingerBands(data, period = 20, stdDev = 2) {
       const ma = calculateMA(data, period);
       const upper = [];
@@ -387,28 +378,21 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       return { upper, lower };
     }
     
-    // Calcular RSI
     function calculateRSI(data, period = 14) {
       if (data.length < period + 1) return 50;
-      
-      let gains = 0;
-      let losses = 0;
-      
+      let gains = 0, losses = 0;
       for (let i = data.length - period; i < data.length; i++) {
         const change = data[i] - data[i - 1];
         if (change > 0) gains += change;
         else losses -= change;
       }
-      
       const avgGain = gains / period;
       const avgLoss = losses / period;
-      
       if (avgLoss === 0) return 100;
       const rs = avgGain / avgLoss;
       return 100 - (100 / (1 + rs));
     }
     
-    // Calcular Volatilidade
     function calculateVolatility(data, period = 10) {
       if (data.length < period) return 0;
       const slice = data.slice(-period);
@@ -417,7 +401,6 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       return Math.sqrt(variance);
     }
     
-    // Inicializar indicadores
     ma20Data = calculateMA(dataPoints, 20);
     const bands = calculateBollingerBands(dataPoints);
     upperBand = bands.upper;
@@ -436,11 +419,8 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
               const chart = context.chart;
               const {ctx, chartArea} = chart;
               if (!chartArea) return null;
-              
               const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-              const isPositive = dataPoints.length > 1 && 
-                dataPoints[dataPoints.length - 1] >= dataPoints[dataPoints.length - 2];
-              
+              const isPositive = dataPoints.length > 1 && dataPoints[dataPoints.length - 1] >= dataPoints[dataPoints.length - 2];
               if (isPositive) {
                 gradient.addColorStop(0, 'rgba(52, 199, 89, 0.4)');
                 gradient.addColorStop(0.5, 'rgba(52, 199, 89, 0.2)');
@@ -452,10 +432,9 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
               }
               return gradient;
             },
-            borderColor: function(context) {
+            borderColor: function() {
               if (dataPoints.length < 2) return colors.neutral;
-              const isPositive = dataPoints[dataPoints.length - 1] >= dataPoints[dataPoints.length - 2];
-              return isPositive ? colors.positive : colors.negative;
+              return dataPoints[dataPoints.length - 1] >= dataPoints[dataPoints.length - 2] ? colors.positive : colors.negative;
             },
             tension: 0.4,
             pointRadius: 0,
@@ -505,86 +484,45 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: {
-          duration: 250,
-          easing: 'easeInOutCubic'
-        },
-        interaction: {
-          intersect: false,
-          mode: 'index'
-        },
+        animation: { duration: 200, easing: 'easeInOutCubic' },
+        interaction: { intersect: false, mode: 'index' },
         scales: {
           x: {
             type: 'time',
-            time: {
-              unit: 'second',
-              displayFormats: {
-                second: 'HH:mm:ss'
-              },
-              tooltipFormat: 'HH:mm:ss'
-            },
-            grid: {
-              color: colors.grid,
-              drawTicks: false,
-            },
-            ticks: {
-              color: colors.neutral,
-              font: {
-                size: 10,
-                weight: '600'
-              },
-              maxRotation: 0,
-              autoSkipPadding: 20,
-              padding: 10
-            },
-            border: {
-              display: false
-            }
+            time: { unit: 'second', displayFormats: { second: 'HH:mm:ss' }, tooltipFormat: 'HH:mm:ss' },
+            grid: { color: colors.grid, drawTicks: false },
+            ticks: { color: colors.neutral, font: { size: 10, weight: '600', family: 'Roboto' }, maxRotation: 0, autoSkipPadding: 20, padding: 10 },
+            border: { display: false }
           },
           y: {
             position: 'right',
             beginAtZero: false,
-            grid: {
-              color: colors.grid,
-              drawTicks: false,
-            },
+            grid: { color: colors.grid, drawTicks: false },
             ticks: {
               color: colors.neutral,
-              font: {
-                size: 10,
-                weight: '700'
-              },
+              font: { size: 10, weight: '700', family: 'Roboto' },
               padding: 10,
-              callback: function(value) {
-                return value.toFixed(3);
-              }
+              callback: function(value) { return value.toFixed(3); }
             },
-            border: {
-              display: false
-            }
+            border: { display: false }
           }
         },
         plugins: {
-          legend: { 
-            display: false 
-          },
+          legend: { display: false },
           tooltip: {
             enabled: true,
-            backgroundColor: '${isDark ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)'}',
+            backgroundColor: '${isDark ? 'rgba(28, 27, 31, 0.98)' : 'rgba(255, 251, 254, 0.98)'}',
             titleColor: colors.text,
             bodyColor: colors.text,
             borderColor: colors.grid,
             borderWidth: 1,
             padding: 14,
             displayColors: true,
+            titleFont: { size: 12, weight: '600', family: 'Roboto' },
+            bodyFont: { size: 11, weight: '500', family: 'Roboto' },
             callbacks: {
-              title: function(context) {
-                const date = new Date(context[0].parsed.x);
-                return date.toLocaleTimeString('pt-BR');
-              },
-              label: function(context) {
-                return context.dataset.label + ': ' + context.parsed.y.toFixed(4);
-              }
+              title: function(context) { return new Date(context[0].parsed.x).toLocaleTimeString('pt-BR'); },
+              label: function(context) { return context.dataset.label + ': ' + context.parsed.y.toFixed(4); }
             }
           }
         }
@@ -600,36 +538,25 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       const volatility = calculateVolatility(dataPoints);
       const rsi = calculateRSI(dataPoints);
       
-      // Update price
       document.getElementById('currentPrice').textContent = currentPrice.toFixed(4);
       
-      // Update change
       const changeEl = document.getElementById('priceChange');
-      const changeText = (change >= 0 ? '+' : '') + change.toFixed(4) + 
-                        ' (' + (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%)';
-      changeEl.textContent = changeText;
+      changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(4) + ' (' + (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%)';
       changeEl.className = 'stat-value ' + (change >= 0 ? 'positive' : 'negative');
       
-      // Update volatility
       const volEl = document.getElementById('volatility');
       volEl.textContent = (volatility * 100).toFixed(2) + '%';
       volEl.className = 'stat-value ' + (volatility > 0.02 ? 'negative' : 'positive');
       
-      // Update tick count
       document.getElementById('tickCount').textContent = dataPoints.length;
       
-      // Update RSI
       const rsiEl = document.getElementById('rsi');
       rsiEl.textContent = rsi.toFixed(1);
       rsiEl.style.color = rsi > 70 ? colors.negative : rsi < 30 ? colors.positive : colors.neutral;
       
-      // Update MA
       const ma20Val = ma20Data[ma20Data.length - 1];
-      if (ma20Val) {
-        document.getElementById('ma20').textContent = ma20Val.toFixed(4);
-      }
+      if (ma20Val) document.getElementById('ma20').textContent = ma20Val.toFixed(4);
       
-      // Update Bollinger
       const upperVal = upperBand[upperBand.length - 1];
       const lowerVal = lowerBand[lowerBand.length - 1];
       if (upperVal && lowerVal) {
@@ -637,7 +564,6 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
         document.getElementById('bbands').textContent = bbPos + '%';
       }
       
-      // Update Trend
       const trendEl = document.getElementById('trend');
       if (dataPoints.length >= 5) {
         const recent = dataPoints.slice(-5);
@@ -646,13 +572,8 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
         trendEl.style.color = isUptrend ? colors.positive : colors.negative;
       }
       
-      // Update Signal
       updateSignal(rsi, currentPrice, ma20Val);
-      
-      // Update time
-      const now = new Date();
-      document.getElementById('timeInfo').textContent = 
-        'Último tick: ' + now.toLocaleTimeString('pt-BR');
+      document.getElementById('timeInfo').textContent = 'Último tick: ' + new Date().toLocaleTimeString('pt-BR');
     }
     
     function updateSignal(rsi, price, ma) {
@@ -679,9 +600,7 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
       
       signalEl.className = signal;
       signalText.textContent = text;
-      signalIcon.style.backgroundColor = 
-        signal === 'bullish' ? colors.positive : 
-        signal === 'bearish' ? colors.negative : '#FFCC00';
+      signalIcon.style.backgroundColor = signal === 'bullish' ? colors.positive : signal === 'bearish' ? colors.negative : colors.warning;
     }
     
     function updateData(newPoints) {
@@ -698,11 +617,8 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
           timestamps.push(now);
         });
         
-        if (dataPoints.length > 0 && startPrice === 0) {
-          startPrice = dataPoints[0];
-        }
+        if (dataPoints.length > 0 && startPrice === 0) startPrice = dataPoints[0];
         
-        // Recalcular indicadores
         ma20Data = calculateMA(dataPoints, 20);
         const bands = calculateBollingerBands(dataPoints);
         upperBand = bands.upper;
@@ -722,17 +638,13 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
         
         myChart.update('none');
         updateStats();
-        
       } catch (e) {
         console.error('updateData error:', e);
       }
     }
     
     window.updateData = updateData;
-    
-    if (dataPoints.length > 0) {
-      updateStats();
-    }
+    if (dataPoints.length > 0) updateStats();
   </script>
 </body>
 </html>
