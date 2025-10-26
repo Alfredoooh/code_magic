@@ -1,6 +1,8 @@
 // lib/all_transactions_screen.dart
 import 'package:flutter/material.dart';
-import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> transactions;
@@ -18,16 +20,37 @@ class AllTransactionsScreen extends StatefulWidget {
 
 class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   String _filter = 'all';
+  String _sortBy = 'date'; // date, amount
+  bool _sortAscending = false;
 
   List<Map<String, dynamic>> get _filteredTransactions {
-    if (_filter == 'all') return widget.transactions;
+    var filtered = widget.transactions;
 
-    return widget.transactions.where((tx) {
-      final amount = double.parse(tx['amount'].toString());
-      if (_filter == 'credit') return amount > 0;
-      if (_filter == 'debit') return amount < 0;
-      return true;
-    }).toList();
+    // Apply filter
+    if (_filter != 'all') {
+      filtered = filtered.where((tx) {
+        final amount = double.parse(tx['amount'].toString());
+        if (_filter == 'credit') return amount > 0;
+        if (_filter == 'debit') return amount < 0;
+        return true;
+      }).toList();
+    }
+
+    // Apply sorting
+    filtered = List.from(filtered);
+    filtered.sort((a, b) {
+      int comparison;
+      if (_sortBy == 'amount') {
+        final amountA = double.parse(a['amount'].toString()).abs();
+        final amountB = double.parse(b['amount'].toString()).abs();
+        comparison = amountA.compareTo(amountB);
+      } else {
+        comparison = a['transaction_time'].compareTo(b['transaction_time']);
+      }
+      return _sortAscending ? comparison : -comparison;
+    });
+
+    return filtered;
   }
 
   double _calculateTotal() {
@@ -48,145 +71,193 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     }).length;
   }
 
+  double get _creditTotal {
+    return widget.transactions.where((tx) {
+      return double.parse(tx['amount'].toString()) > 0;
+    }).fold(0.0, (sum, tx) => sum + double.parse(tx['amount'].toString()));
+  }
+
+  double get _debitTotal {
+    return widget.transactions.where((tx) {
+      return double.parse(tx['amount'].toString()) < 0;
+    }).fold(0.0, (sum, tx) => sum + double.parse(tx['amount'].toString()).abs());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.colors.surface,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text('Todas as Transações'),
-        centerTitle: true,
+      appBar: SecondaryAppBar(
+        title: 'Transações',
+        onBack: () {
+          AppHaptics.light();
+          Navigator.pop(context);
+        },
+        actions: [
+          IconButton(
+            icon: Icon(Icons.sort_rounded),
+            tooltip: 'Ordenar',
+            onPressed: _showSortOptions,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Filter Tabs
+          // Filter Chips
           FadeInWidget(
             child: Container(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildFilterChip('all', 'Todas', Icons.list_rounded),
-                  ),
-                  SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildFilterChip('credit', 'Entradas', Icons.arrow_downward_rounded),
-                  ),
-                  SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildFilterChip('debit', 'Saídas', Icons.arrow_upward_rounded),
-                  ),
-                ],
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
               ),
-            ),
-          ),
-
-          // Summary Cards
-          FadeInWidget(
-            delay: const Duration(milliseconds: 100),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildSummaryCard(
-                      'Total',
-                      _filteredTransactions.length.toString(),
-                      AppColors.primary,
-                      Icons.receipt_long_rounded,
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _buildSummaryCard(
-                      'Volume',
-                      '${_calculateTotal().toStringAsFixed(2)} ${widget.currency}',
-                      AppColors.success,
-                      Icons.account_balance_wallet_rounded,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SizedBox(height: AppSpacing.lg),
-
-          // Statistics Bar
-          if (_filter == 'all')
-            FadeInWidget(
-              delay: const Duration(milliseconds: 200),
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                padding: EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: context.colors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(AppShapes.large),
-                  border: Border.all(
-                    color: context.colors.outlineVariant,
-                    width: 1,
-                  ),
-                ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(
+                    _buildFilterChip(
+                      'all',
+                      'Todas',
+                      Icons.list_rounded,
+                      widget.transactions.length,
+                    ),
+                    SizedBox(width: AppSpacing.sm),
+                    _buildFilterChip(
+                      'credit',
                       'Entradas',
-                      _creditCount.toString(),
-                      AppColors.success,
+                      Icons.arrow_downward_rounded,
+                      _creditCount,
                     ),
-                    Container(
-                      width: 1,
-                      height: 30,
-                      color: context.colors.outlineVariant,
-                    ),
-                    _buildStatItem(
+                    SizedBox(width: AppSpacing.sm),
+                    _buildFilterChip(
+                      'debit',
                       'Saídas',
-                      _debitCount.toString(),
-                      AppColors.error,
+                      Icons.arrow_upward_rounded,
+                      _debitCount,
                     ),
                   ],
                 ),
               ),
             ),
+          ),
+
+          // Summary Section
+          FadeInWidget(
+            delay: Duration(milliseconds: 100),
+            child: Container(
+              margin: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    context.colors.primaryContainer,
+                    context.colors.primaryContainer.withOpacity(0.5),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryItem(
+                          'Total de Transações',
+                          _filteredTransactions.length.toString(),
+                          Icons.receipt_long_rounded,
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: context.colors.outline.withOpacity(0.3),
+                      ),
+                      Expanded(
+                        child: _buildSummaryItem(
+                          'Volume Total',
+                          '${_calculateTotal().toStringAsFixed(2)}',
+                          Icons.account_balance_wallet_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_filter == 'all') ...[
+                    SizedBox(height: AppSpacing.lg),
+                    Divider(color: context.colors.outline.withOpacity(0.3)),
+                    SizedBox(height: AppSpacing.lg),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildBalanceItem(
+                            'Entradas',
+                            _creditTotal,
+                            AppColors.success,
+                            Icons.trending_up_rounded,
+                          ),
+                        ),
+                        SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: _buildBalanceItem(
+                            'Saídas',
+                            _debitTotal,
+                            AppColors.error,
+                            Icons.trending_down_rounded,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
 
           SizedBox(height: AppSpacing.lg),
+
+          // Section Header
+          FadeInWidget(
+            delay: Duration(milliseconds: 200),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Text(
+                    '${_filteredTransactions.length} ${_filteredTransactions.length == 1 ? 'transação' : 'transações'}',
+                    style: context.textStyles.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Spacer(),
+                  AppBadge(
+                    text: _sortBy == 'date' ? 'Por Data' : 'Por Valor',
+                    color: context.colors.primary,
+                    outlined: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SizedBox(height: AppSpacing.md),
 
           // Transactions List
           Expanded(
             child: _filteredTransactions.isEmpty
                 ? FadeInWidget(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(AppSpacing.xl),
-                            decoration: BoxDecoration(
-                              color: context.colors.surfaceContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.filter_list_off_rounded,
-                              color: context.colors.onSurfaceVariant,
-                              size: 48,
-                            ),
-                          ),
-                          SizedBox(height: AppSpacing.xl),
-                          Text(
-                            'Nenhuma transação encontrada',
-                            style: context.textStyles.bodyLarge?.copyWith(
-                              color: context.colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: EmptyState(
+                      icon: Icons.filter_list_off_rounded,
+                      title: 'Nenhuma transação',
+                      subtitle: _filter == 'all'
+                          ? 'Você ainda não tem transações'
+                          : 'Nenhuma transação encontrada com este filtro',
+                      actionText: _filter != 'all' ? 'Limpar Filtro' : null,
+                      onAction: _filter != 'all'
+                          ? () {
+                              AppHaptics.light();
+                              setState(() => _filter = 'all');
+                            }
+                          : null,
                     ),
                   )
                 : ListView.builder(
@@ -197,10 +268,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                     itemCount: _filteredTransactions.length,
                     itemBuilder: (context, index) {
                       final tx = _filteredTransactions[index];
-
                       return StaggeredListItem(
                         index: index,
-                        child: _buildTransactionCard(tx),
+                        delay: Duration(milliseconds: 30),
+                        child: _buildTransactionCard(tx, index),
                       );
                     },
                   ),
@@ -210,188 +281,344 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String value, String label, IconData icon) {
+  Widget _buildFilterChip(
+    String value,
+    String label,
+    IconData icon,
+    int count,
+  ) {
     final isSelected = _filter == value;
 
-    return GestureDetector(
-      onTap: () {
-        AppHaptics.selection();
-        setState(() => _filter = value);
-      },
-      child: AnimatedContainer(
-        duration: AppMotion.medium,
-        padding: EdgeInsets.symmetric(
-          vertical: AppSpacing.md,
-          horizontal: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? context.colors.primary
-              : context.colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppShapes.medium),
-          border: Border.all(
-            color: isSelected
-                ? context.colors.primary
-                : context.colors.outlineVariant,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected
-                  ? context.colors.onPrimary
-                  : context.colors.onSurface,
-            ),
+    return FilterChip(
+      selected: isSelected,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          SizedBox(width: AppSpacing.xs),
+          Text(label),
+          if (count > 0) ...[
             SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              style: context.textStyles.labelMedium?.copyWith(
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? context.colors.onPrimary
-                    : context.colors.onSurface,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    ? context.colors.onPrimaryContainer.withOpacity(0.2)
+                    : context.colors.onSurface.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: Text(
+                count.toString(),
+                style: context.textStyles.labelSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(
-    String label,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.large),
-        border: Border.all(
-          color: context.colors.outlineVariant,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: AppSpacing.sm),
-          Text(
-            label,
-            style: context.textStyles.bodySmall?.copyWith(
-              color: context.colors.onSurfaceVariant,
-            ),
-          ),
-          SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: context.textStyles.titleLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
+      onSelected: (selected) {
+        if (selected) {
+          AppHaptics.selection();
+          setState(() => _filter = value);
+        }
+      },
+      selectedColor: context.colors.primaryContainer,
+      checkmarkColor: context.colors.onPrimaryContainer,
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color) {
+  Widget _buildSummaryItem(String label, String value, IconData icon) {
     return Column(
       children: [
+        Icon(
+          icon,
+          color: context.colors.onPrimaryContainer,
+          size: 24,
+        ),
+        SizedBox(height: AppSpacing.sm),
         Text(
           value,
-          style: context.textStyles.titleLarge?.copyWith(
-            color: color,
+          style: context.textStyles.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
+            color: context.colors.onPrimaryContainer,
           ),
         ),
         SizedBox(height: AppSpacing.xxs),
         Text(
           label,
           style: context.textStyles.bodySmall?.copyWith(
-            color: context.colors.onSurfaceVariant,
+            color: context.colors.onPrimaryContainer.withOpacity(0.8),
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
-  Widget _buildTransactionCard(Map<String, dynamic> tx) {
+  Widget _buildBalanceItem(
+    String label,
+    double value,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 16),
+              SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.xs),
+          Text(
+            '${value.toStringAsFixed(2)} ${widget.currency}',
+            style: context.textStyles.titleMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionCard(Map<String, dynamic> tx, int index) {
+    final amount = double.parse(tx['amount'].toString());
+    final isCredit = amount > 0;
+    final color = isCredit ? AppColors.success : AppColors.error;
+    final date = DateTime.fromMillisecondsSinceEpoch(
+      tx['transaction_time'] * 1000,
+    );
+
+    return AnimatedCard(
+      onTap: () => _showTransactionDetails(tx),
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            // Icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: Icon(
+                isCredit
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                color: color,
+                size: 24,
+              ),
+            ),
+
+            SizedBox(width: AppSpacing.md),
+
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx['action_type'] ?? 'Trade',
+                    style: context.textStyles.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    _formatDate(tx['transaction_time']),
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Amount
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
+                  style: context.textStyles.titleMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xxs),
+                Text(
+                  widget.currency,
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSortOptions() {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Ordenar Transações',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListTile(
+            title: 'Por Data',
+            subtitle: 'Mais recentes primeiro',
+            leading: Icon(Icons.calendar_today_rounded),
+            trailing: _sortBy == 'date'
+                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                : null,
+            onTap: () {
+              AppHaptics.selection();
+              setState(() {
+                _sortBy = 'date';
+                _sortAscending = false;
+              });
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Por Valor',
+            subtitle: 'Maior para menor',
+            leading: Icon(Icons.attach_money_rounded),
+            trailing: _sortBy == 'amount'
+                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                : null,
+            onTap: () {
+              AppHaptics.selection();
+              setState(() {
+                _sortBy = 'amount';
+                _sortAscending = false;
+              });
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTransactionDetails(Map<String, dynamic> tx) {
     final amount = double.parse(tx['amount'].toString());
     final isCredit = amount > 0;
     final color = isCredit ? AppColors.success : AppColors.error;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.large),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Detalhes da Transação',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Amount Display
+          Container(
+            padding: EdgeInsets.all(AppSpacing.xl),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(
+                color: color.withOpacity(0.3),
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  isCredit
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  color: color,
+                  size: 48,
+                ),
+                SizedBox(height: AppSpacing.md),
+                Text(
+                  '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)} ${widget.currency}',
+                  style: context.textStyles.displaySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xs),
+                AppBadge(
+                  text: isCredit ? 'Entrada' : 'Saída',
+                  color: color,
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: AppSpacing.xl),
+
+          // Transaction Info
+          _buildDetailRow('Tipo', tx['action_type'] ?? 'Trade'),
+          LabeledDivider(label: ''),
+          _buildDetailRow('Data', _formatDate(tx['transaction_time'])),
+          LabeledDivider(label: ''),
+          _buildDetailRow(
+            'ID',
+            tx['transaction_id']?.toString() ?? 'N/A',
+          ),
+
+          SizedBox(height: AppSpacing.xl),
+
+          PrimaryButton(
+            text: 'Fechar',
+            onPressed: () => Navigator.pop(context),
+            expanded: true,
+          ),
+        ],
       ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(AppShapes.medium),
-          ),
-          child: Icon(
-            isCredit
-                ? Icons.arrow_downward_rounded
-                : Icons.arrow_upward_rounded,
-            color: color,
-            size: 24,
-          ),
-        ),
-        title: Text(
-          tx['action_type'] ?? 'Trade',
-          style: context.textStyles.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: EdgeInsets.only(top: AppSpacing.xs),
-          child: Text(
-            _formatDate(tx['transaction_time']),
-            style: context.textStyles.bodySmall?.copyWith(
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: context.textStyles.bodyMedium?.copyWith(
               color: context.colors.onSurfaceVariant,
             ),
           ),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
-              style: context.textStyles.titleMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+          Text(
+            value,
+            style: context.textStyles.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-            Text(
-              widget.currency,
-              style: context.textStyles.bodySmall?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -402,11 +629,14 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     final diff = now.difference(date);
 
     if (diff.inDays == 0) {
-      return 'Hoje ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return 'Hoje às ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     } else if (diff.inDays == 1) {
-      return 'Ontem ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return 'Ontem às ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays < 7) {
+      final weekday = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][date.weekday % 7];
+      return '$weekday às ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     } else {
-      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     }
   }
 }
