@@ -1,7 +1,7 @@
-// 3. market_selector_screen.dart
-// ========================================
+// market_selector_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'styles.dart' hide EdgeInsets;
 
 class MarketSelectorScreen extends StatelessWidget {
   final String currentMarket;
@@ -18,34 +18,43 @@ class MarketSelectorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: Colors.black,
-      navigationBar: const CupertinoNavigationBar(
-        backgroundColor: Color(0xFF1A1A1A),
+      backgroundColor: context.colors.surface,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: context.colors.surfaceContainer,
         middle: Text(
           'Selecionar Mercado',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: context.textStyles.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       child: SafeArea(
         child: ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: allMarkets.length,
           itemBuilder: (context, index) {
             final entry = allMarkets.entries.elementAt(index);
             final isSelected = entry.key == currentMarket;
 
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: CupertinoButton(
                 padding: EdgeInsets.zero,
-                onPressed: () => onMarketSelected(entry.key),
+                onPressed: () {
+                  AppHaptics.light();
+                  onMarketSelected(entry.key);
+                },
                 child: Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF0066FF).withOpacity(0.2) : const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(24),
+                    color: isSelected 
+                        ? context.colors.primaryContainer 
+                        : context.colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(AppSpacing.xl),
                     border: Border.all(
-                      color: isSelected ? const Color(0xFF0066FF) : Colors.transparent,
+                      color: isSelected 
+                          ? context.colors.primary 
+                          : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -53,23 +62,28 @@ class MarketSelectorScreen extends StatelessWidget {
                     children: [
                       Icon(
                         CupertinoIcons.chart_bar_square,
-                        color: isSelected ? const Color(0xFF0066FF) : Colors.white70,
+                        color: isSelected 
+                            ? context.colors.primary 
+                            : context.colors.onSurfaceVariant,
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: AppSpacing.lg),
                       Expanded(
                         child: Text(
                           entry.value,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.white70,
-                            fontSize: 16,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          style: context.textStyles.bodyLarge?.copyWith(
+                            color: isSelected 
+                                ? context.colors.onPrimaryContainer 
+                                : context.colors.onSurfaceVariant,
+                            fontWeight: isSelected 
+                                ? FontWeight.bold 
+                                : FontWeight.normal,
                           ),
                         ),
                       ),
                       if (isSelected)
-                        const Icon(
+                        Icon(
                           CupertinoIcons.check_mark_circled_solid,
-                          color: Color(0xFF0066FF),
+                          color: context.colors.primary,
                         ),
                     ],
                   ),
