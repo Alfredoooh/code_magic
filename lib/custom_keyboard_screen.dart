@@ -1,493 +1,372 @@
-// lib/market_detail_screen.dart
-import 'dart:async';
-import 'dart:convert';
+// custom_keyboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'styles.dart' hide EdgeInsets;
-import 'markets_screen.dart';
-import 'trade_screen.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
+import 'theme/app_widgets.dart';
 
-class MarketDetailScreen extends StatefulWidget {
-  final String symbol;
-  final MarketInfo marketInfo;
-  final MarketData? marketData;
-  final String token;
-  final WebSocketChannel? channel;
+class CustomKeyboardScreen extends StatefulWidget {
+  final String title;
+  final double initialValue;
+  final String? prefix;
+  final bool isInteger;
+  final Function(double) onConfirm;
 
-  const MarketDetailScreen({
+  const CustomKeyboardScreen({
     Key? key,
-    required this.symbol,
-    required this.marketInfo,
-    this.marketData,
-    required this.token,
-    this.channel,
+    required this.title,
+    required this.initialValue,
+    this.prefix,
+    this.isInteger = false,
+    required this.onConfirm,
   }) : super(key: key);
 
   @override
-  State<MarketDetailScreen> createState() => _MarketDetailScreenState();
+  State<CustomKeyboardScreen> createState() => _CustomKeyboardScreenState();
 }
 
-class _MarketDetailScreenState extends State<MarketDetailScreen> {
-  MarketData? _currentData;
-  final List<double> _priceHistory = [];
-  StreamSubscription? _streamSubscription;
-  bool _isLoading = true;
+class _CustomKeyboardScreenState extends State<CustomKeyboardScreen>
+    with SingleTickerProviderStateMixin {
+  late String _display;
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _currentData = widget.marketData;
+    _display = widget.isInteger
+        ? widget.initialValue.toInt().toString()
+        : widget.initialValue.toStringAsFixed(2);
 
-    if (widget.marketData != null) {
-      _priceHistory.add(widget.marketData!.price);
-    }
-
-    _subscribeToMarket();
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && _isLoading) {
-        setState(() => _isLoading = false);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _streamSubscription?.cancel();
-    super.dispose();
-  }
-
-  void _subscribeToMarket() {
-    if (widget.channel == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    try {
-      widget.channel!.sink.add(json.encode({
-        'ticks': widget.symbol,
-        'subscribe': 1,
-      }));
-
-      _streamSubscription = widget.channel!.stream.listen(
-        (message) {
-          try {
-            final data = json.decode(message);
-
-            if (data['msg_type'] == 'tick' && data['tick']['symbol'] == widget.symbol) {
-              final tick = data['tick'];
-              final quote = double.parse(tick['quote'].toString());
-
-              if (mounted) {
-                setState(() {
-                  _isLoading = false;
-
-                  if (_currentData != null) {
-                    final oldPrice = _currentData!.price;
-                    _currentData = MarketData(
-                      price: quote,
-                      change: ((quote - oldPrice) / (oldPrice == 0 ? 1 : oldPrice)) * 100,
-                      timestamp: DateTime.now(),
-                    );
-                  } else {
-                    _currentData = MarketData(
-                      price: quote,
-                      change: 0.0,
-                      timestamp: DateTime.now(),
-                    );
-                  }
-
-                  _priceHistory.add(quote);
-                  if (_priceHistory.length > 100) {
-                    _priceHistory.removeAt(0);
-                  }
-                });
-              }
-            }
-          } catch (e) {
-            debugPrint('Error parsing market data: $e');
-          }
-        },
-        onError: (error) {
-          debugPrint('WebSocket error: $error');
-          if (mounted) {
-            setState(() => _isLoading = false);
-          }
-        },
-      );
-    } catch (e) {
-      debugPrint('Error subscribing to market: $e');
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _openTrade() {
-    AppHaptics.heavy();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => TradeScreen(
-          token: widget.token,
-          initialMarket: widget.symbol,
-        ),
-      ),
+    _animController = AnimationController(
+      vsync: this,
+      duration: AppMotion.short,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animController, curve: AppMotion.standardEasing),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isPositive = (_currentData?.change ?? 0) >= 0;
-    final changeColor = isPositive ? AppColors.success : AppColors.error;
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
+  void _onKeyPress(String key) {
+    AppHaptics.light();
+    _animController.forward().then((_) => _animController.reverse());
+
+    setState(() {
+      _errorMessage = null;
+      
+      if (key == 'C') {
+        _display = '0';
+      } else if (key == '⌫') {
+        if (_display.length > 1) {
+          _display = _display.substring(0, _display.length - 1);
+        } else {
+          _display = '0';
+        }
+      } else if (key == '.') {
+        if (!widget.isInteger && !_display.contains('.')) {
+          _display += '.';
+        }
+      } else {
+        if (_display == '0' && key != '.') {
+          _display = key;
+        } else {
+          // Limitar a 12 dígitos
+          if (_display.replaceAll('.', '').length < 12) {
+            _display += key;
+          }
+        }
+      }
+    });
+  }
+
+  void _confirm() {
+    final value = double.tryParse(_display);
+    if (value != null && value > 0) {
+      AppHaptics.success();
+      Navigator.pop(context);
+      widget.onConfirm(value);
+    } else {
+      AppHaptics.error();
+      setState(() {
+        _errorMessage = 'Valor inválido';
+      });
+      AppSnackbar.error(context, 'Insira um valor válido maior que zero');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.marketInfo.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () {
-              AppHaptics.light();
-              _subscribeToMarket();
-              AppSnackbar.info(context, 'Atualizando dados...');
-            },
-          ),
-        ],
+      backgroundColor: context.colors.surface,
+      appBar: SecondaryAppBar(
+        title: widget.title,
+        onBack: () {
+          AppHaptics.light();
+          Navigator.pop(context);
+        },
       ),
-      body: _isLoading && _currentData == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  SizedBox(height: AppSpacing.lg),
-                  const Text('Carregando dados do mercado...'),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    children: [
-                      // Market Icon & Price
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Display Area
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xxl,
+                  vertical: AppSpacing.xl,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Prefix
+                    if (widget.prefix != null)
                       FadeInWidget(
-                        child: Center(
-                          child: Column(
+                        child: Text(
+                          widget.prefix!,
+                          style: context.textStyles.headlineMedium?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                      ),
+                    
+                    SizedBox(height: AppSpacing.md),
+
+                    // Display Value
+                    FadeInWidget(
+                      delay: Duration(milliseconds: 100),
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.md,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.colors.surfaceContainerHighest.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+                          ),
+                          child: Text(
+                            _display,
+                            style: context.textStyles.displayLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2,
+                              fontSize: 64,
+                              color: _errorMessage != null 
+                                  ? AppColors.error 
+                                  : context.colors.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Error Message
+                    if (_errorMessage != null)
+                      FadeInWidget(
+                        child: Container(
+                          margin: EdgeInsets.only(top: AppSpacing.md),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                            border: Border.all(
+                              color: AppColors.error.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  color: context.colors.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(AppShapes.large),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppShapes.large),
-                                  child: Image.network(
-                                    widget.marketInfo.iconUrl,
-                                    width: 96,
-                                    height: 96,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: AppColors.primary.withOpacity(0.15),
-                                        child: const Icon(
-                                          Icons.show_chart_rounded,
-                                          color: AppColors.primary,
-                                          size: 48,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
+                              Icon(
+                                Icons.error_outline_rounded,
+                                color: AppColors.error,
+                                size: 16,
                               ),
-                              SizedBox(height: AppSpacing.xl),
+                              SizedBox(width: AppSpacing.xs),
                               Text(
-                                _currentData != null
-                                    ? '\$${_currentData!.price.toStringAsFixed(2)}'
-                                    : 'Carregando...',
-                                style: context.textStyles.displayLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
+                                _errorMessage!,
+                                style: context.textStyles.bodySmall?.copyWith(
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              SizedBox(height: AppSpacing.sm),
-                              if (_currentData != null)
-                                AppBadge(
-                                  text: '${isPositive ? '+' : ''}${_currentData!.change.toStringAsFixed(2)}%',
-                                  color: changeColor,
-                                ),
                             ],
                           ),
                         ),
                       ),
 
-                      SizedBox(height: AppSpacing.xxl),
-
-                      // Chart
-                      FadeInWidget(
-                        delay: const Duration(milliseconds: 100),
-                        child: AnimatedCard(
-                          padding: EdgeInsets.zero,
-                          child: Container(
-                            height: 240,
-                            padding: EdgeInsets.all(AppSpacing.md),
-                            child: _priceHistory.length > 2
-                                ? CustomPaint(
-                                    painter: SimpleChartPainter(_priceHistory, changeColor),
-                                  )
-                                : Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.show_chart_rounded,
-                                          size: 48,
-                                          color: context.colors.onSurfaceVariant.withOpacity(0.5),
-                                        ),
-                                        SizedBox(height: AppSpacing.md),
-                                        Text(
-                                          'Aguardando dados do gráfico...',
-                                          style: context.textStyles.bodyMedium?.copyWith(
-                                            color: context.colors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                    // Hint Text
+                    FadeInWidget(
+                      delay: Duration(milliseconds: 200),
+                      child: Container(
+                        margin: EdgeInsets.only(top: AppSpacing.lg),
+                        child: Text(
+                          widget.isInteger 
+                              ? 'Digite um valor inteiro' 
+                              : 'Digite um valor decimal',
+                          style: context.textStyles.bodyMedium?.copyWith(
+                            color: context.colors.onSurfaceVariant,
                           ),
                         ),
                       ),
-
-                      SizedBox(height: AppSpacing.xxl),
-
-                      // Market Info
-                      FadeInWidget(
-                        delay: const Duration(milliseconds: 200),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Informações do Mercado',
-                              style: context.textStyles.titleLarge,
-                            ),
-                            SizedBox(height: AppSpacing.md),
-                            _buildInfoCard(
-                              icon: Icons.tag_rounded,
-                              label: 'Símbolo',
-                              value: widget.symbol,
-                              color: AppColors.primary,
-                            ),
-                            SizedBox(height: AppSpacing.sm),
-                            _buildInfoCard(
-                              icon: Icons.category_rounded,
-                              label: 'Categoria',
-                              value: widget.marketInfo.category,
-                              color: AppColors.secondary,
-                            ),
-                            SizedBox(height: AppSpacing.sm),
-                            _buildInfoCard(
-                              icon: Icons.label_rounded,
-                              label: 'Nome Completo',
-                              value: widget.marketInfo.name,
-                              color: AppColors.tertiary,
-                            ),
-                            SizedBox(height: AppSpacing.sm),
-                            _buildInfoCard(
-                              icon: Icons.access_time_rounded,
-                              label: 'Última Atualização',
-                              value: _currentData != null ? _formatTime(_currentData!.timestamp) : 'N/A',
-                              color: AppColors.info,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      SizedBox(height: AppSpacing.massive),
-                    ],
-                  ),
-                ),
-
-                // Trade Button
-                Container(
-                  padding: EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: context.surface,
-                    border: Border(
-                      top: BorderSide(
-                        color: context.colors.outlineVariant,
-                        width: 1,
-                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 12,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: AnimatedPrimaryButton(
-                        text: 'Negociar ${widget.symbol}',
-                        icon: Icons.trending_up_rounded,
-                        onPressed: _openTrade,
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-    );
-  }
 
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppShapes.medium),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(AppSpacing.xs),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(AppShapes.small),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: context.textStyles.labelSmall,
+            // Keyboard Container
+            Container(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainer,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.radiusXxl),
                 ),
-                Text(
-                  value,
-                  style: context.textStyles.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(context.isDark ? 0.3 : 0.1),
+                    blurRadius: 20,
+                    offset: Offset(0, -5),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Row 1
+                  FadeInWidget(
+                    delay: Duration(milliseconds: 100),
+                    child: _buildKeyboardRow(['1', '2', '3']),
+                  ),
+                  SizedBox(height: AppSpacing.md),
+                  
+                  // Row 2
+                  FadeInWidget(
+                    delay: Duration(milliseconds: 150),
+                    child: _buildKeyboardRow(['4', '5', '6']),
+                  ),
+                  SizedBox(height: AppSpacing.md),
+                  
+                  // Row 3
+                  FadeInWidget(
+                    delay: Duration(milliseconds: 200),
+                    child: _buildKeyboardRow(['7', '8', '9']),
+                  ),
+                  SizedBox(height: AppSpacing.md),
+                  
+                  // Row 4
+                  FadeInWidget(
+                    delay: Duration(milliseconds: 250),
+                    child: _buildKeyboardRow([
+                      widget.isInteger ? 'C' : '.',
+                      '0',
+                      '⌫'
+                    ]),
+                  ),
+                  
+                  SizedBox(height: AppSpacing.xl),
+                  
+                  // Confirm Button
+                  FadeInWidget(
+                    delay: Duration(milliseconds: 300),
+                    child: _buildConfirmButton(),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s atrás';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m atrás';
-    if (diff.inHours < 24) return '${diff.inHours}h atrás';
-    return '${diff.inDays}d atrás';
-  }
-}
-
-class SimpleChartPainter extends CustomPainter {
-  final List<double> prices;
-  final Color color;
-
-  SimpleChartPainter(this.prices, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (prices.length < 2) return;
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final minPrice = prices.reduce((a, b) => a < b ? a : b);
-    final maxPrice = prices.reduce((a, b) => a > b ? a : b);
-    final priceRange = maxPrice - minPrice;
-
-    if (priceRange == 0) {
-      final y = size.height / 2;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-      return;
-    }
-
-    final path = Path();
-    final spacing = size.width / (prices.length - 1);
-
-    for (var i = 0; i < prices.length; i++) {
-      final x = i * spacing;
-      final normalizedY = (prices[i] - minPrice) / priceRange;
-      final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-
-    canvas.drawPath(path, paint);
-
-    final fillPath = Path.from(path);
-    fillPath.lineTo(size.width, size.height);
-    fillPath.lineTo(0, size.height);
-    fillPath.close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          color.withOpacity(0.3),
-          color.withOpacity(0.05),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    canvas.drawPath(fillPath, fillPaint);
-
-    final pointPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    for (var i = 0; i < prices.length; i++) {
-      if (i % 5 == 0 || i == prices.length - 1) {
-        final x = i * spacing;
-        final normalizedY = (prices[i] - minPrice) / priceRange;
-        final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
-
-        canvas.drawCircle(Offset(x, y), 4, pointPaint);
-        canvas.drawCircle(
-          Offset(x, y),
-          6,
-          Paint()
-            ..color = color.withOpacity(0.3)
-            ..style = PaintingStyle.fill,
+  Widget _buildKeyboardRow(List<String> keys) {
+    return Row(
+      children: keys.map((key) {
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: _buildKey(key),
+          ),
         );
-      }
-    }
+      }).toList(),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  Widget _buildKey(String key) {
+    final isSpecial = key == 'C' || key == '⌫' || key == '.';
+    final isDelete = key == '⌫';
+    final isClear = key == 'C';
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onKeyPress(key),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        child: Ink(
+          height: 64,
+          decoration: BoxDecoration(
+            color: isSpecial
+                ? context.colors.surfaceContainerHighest
+                : context.colors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(
+              color: isSpecial
+                  ? context.colors.outline.withOpacity(0.3)
+                  : context.colors.outlineVariant.withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: isSpecial
+                ? Icon(
+                    isClear 
+                        ? Icons.clear_rounded 
+                        : isDelete 
+                            ? Icons.backspace_outlined 
+                            : Icons.circle,
+                    color: isClear || isDelete 
+                        ? context.colors.error 
+                        : context.colors.primary,
+                    size: 24,
+                  )
+                : Text(
+                    key,
+                    style: context.textStyles.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.onSurface,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: PrimaryButton(
+        text: 'CONFIRMAR',
+        icon: Icons.check_rounded,
+        onPressed: _confirm,
+        expanded: true,
+      ),
+    );
+  }
 }
