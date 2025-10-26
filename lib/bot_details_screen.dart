@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
 import 'deriv_chart_widget.dart';
-import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
+import 'styles.dart' hide EdgeInsets;
 
 class BotDetailsScreen extends StatefulWidget {
   final TradingBot bot;
@@ -31,7 +31,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    // Atualização em tempo real a cada 500ms
     _updateTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (mounted) {
         setState(() {});
@@ -78,7 +77,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         decoration: BoxDecoration(
           color: context.colors.surface,
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppShapes.xLarge), // radiusXl -> AppShapes.xLarge
+            top: Radius.circular(AppShapes.extraLarge),
           ),
         ),
         padding: EdgeInsets.only(
@@ -181,7 +180,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                         if (newStake != null && newStake >= 0.35 &&
                             newMaxStake != null && newMaxStake >= newStake &&
                             newTargetProfit != null && newTargetProfit > 0) {
-                          AppHaptics.success();
+                          AppHaptics.heavy();
                           setState(() {
                             widget.bot.config.initialStake = newStake;
                             widget.bot.currentStake = newStake;
@@ -244,14 +243,12 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Gráfico Deriv
               FadeInWidget(
                 child: _buildDerivChart(),
               ),
 
               SizedBox(height: AppSpacing.lg),
 
-              // Card de Status Principal
               FadeInWidget(
                 delay: const Duration(milliseconds: 100),
                 child: _buildStatusCard(status),
@@ -259,7 +256,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
               SizedBox(height: AppSpacing.lg),
 
-              // Botões de Controle
               FadeInWidget(
                 delay: const Duration(milliseconds: 200),
                 child: _buildControlButtons(),
@@ -267,7 +263,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
               SizedBox(height: AppSpacing.xl),
 
-              // Grid de Estatísticas
               FadeInWidget(
                 delay: const Duration(milliseconds: 300),
                 child: Column(
@@ -287,7 +282,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
               SizedBox(height: AppSpacing.xl),
 
-              // Histórico de Trades
               FadeInWidget(
                 delay: const Duration(milliseconds: 400),
                 child: _buildTradeHistory(status),
@@ -309,14 +303,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       height: 280,
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.xLarge),
+        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppShapes.xLarge),
+        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
         child: DerivAreaChart(
           points: chartData,
           autoScale: true,
@@ -347,7 +341,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             context.colors.surfaceContainer,
           ],
         ),
-        borderRadius: BorderRadius.circular(AppShapes.xLarge),
+        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
         border: Border.all(
           color: isProfit 
               ? AppColors.success.withOpacity(0.3)
@@ -580,7 +574,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       padding: EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppShapes.xLarge),
+        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
         border: Border.all(
           color: context.colors.outlineVariant,
           width: 1,
@@ -629,7 +623,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             padding: EdgeInsets.all(AppSpacing.xxl),
             decoration: BoxDecoration(
               color: context.colors.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppShapes.xLarge),
+              borderRadius: BorderRadius.circular(AppShapes.extraLarge),
             ),
             child: Center(
               child: Column(
@@ -691,7 +685,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 margin: EdgeInsets.only(bottom: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: context.colors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(AppShapes.xLarge),
+                  borderRadius: BorderRadius.circular(AppShapes.extraLarge),
                   border: Border.all(
                     color: isWin
                         ? AppColors.success.withOpacity(0.3)
