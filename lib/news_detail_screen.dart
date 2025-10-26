@@ -1,7 +1,7 @@
 // lib/news_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Clipboard
 import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus.dart';
 import 'markets_screen.dart';
 import 'styles.dart' hide EdgeInsets; // evita conflito com EdgeInsets exportado por styles.dart
 
@@ -49,12 +49,16 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     }
   }
 
-  void _shareNews() {
+  /// Substituição do Share.share para evitar dependência direta ao pacote que
+  /// está falhando na sua build/CI. Aqui copiamos o conteúdo para a área de transferência
+  /// como fallback e avisamos o usuário.
+  Future<void> _shareNewsFallback() async {
     AppHaptics.light();
-    Share.share(
-      '${widget.news.title}\n\n${widget.news.summary}\n\nLeia mais em: ${widget.news.url}',
-      subject: widget.news.title,
-    );
+    final text = '${widget.news.title}\n\n${widget.news.summary}\n\n${widget.news.url}';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      AppSnackbar.info(context, 'Conteúdo copiado para a área de transferência. Cole onde quiser compartilhar.');
+    }
   }
 
   void _toggleBookmark() {
@@ -90,7 +94,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.share_rounded),
-                onPressed: _shareNews,
+                onPressed: _shareNewsFallback, // usa fallback
               ),
               IconButton(
                 icon: Icon(
@@ -280,9 +284,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
                   const SizedBox(height: 32),
 
-                  // --- Conteúdo do artigo (renderização externa / incorporada) ---
-                  // Mantive apenas o botão para abrir o artigo completo em vez de
-                  // preencher a tela com conteúdo fictício.
                   FadeInWidget(
                     delay: const Duration(milliseconds: 400),
                     child: SizedBox(
@@ -296,9 +297,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
-
-                  // Nota: tags / seções / notícias relacionadas removidas conforme pedido.
                   const SizedBox(height: 64),
                 ],
               ),
