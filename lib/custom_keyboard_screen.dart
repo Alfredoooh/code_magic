@@ -1,7 +1,6 @@
-// 2. custom_keyboard_screen.dart
-// ========================================
+// custom_keyboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'styles.dart';
 
 class CustomKeyboardScreen extends StatefulWidget {
   final String title;
@@ -23,8 +22,11 @@ class CustomKeyboardScreen extends StatefulWidget {
   State<CustomKeyboardScreen> createState() => _CustomKeyboardScreenState();
 }
 
-class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
+class _CustomKeyboardScreenState extends State<CustomKeyboardScreen>
+    with SingleTickerProviderStateMixin {
   late String _display;
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -32,9 +34,26 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
     _display = widget.isInteger
         ? widget.initialValue.toInt().toString()
         : widget.initialValue.toStringAsFixed(2);
+
+    _animController = AnimationController(
+      vsync: this,
+      duration: AppMotion.fast,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   void _onKeyPress(String key) {
+    AppHaptics.light();
+    _animController.forward().then((_) => _animController.reverse());
+
     setState(() {
       if (key == 'C') {
         _display = '0';
@@ -61,56 +80,110 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
   void _confirm() {
     final value = double.tryParse(_display);
     if (value != null && value > 0) {
+      AppHaptics.success();
       widget.onConfirm(value);
+    } else {
+      AppHaptics.error();
+      AppSnackbar.error(context, 'Valor inválido');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: Colors.black,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: const Color(0xFF1A1A1A),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
-          onPressed: () => Navigator.pop(context),
+    return Scaffold(
+      backgroundColor: context.colors.surface,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
         ),
-        middle: Text(widget.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        title: Text(widget.title),
+        centerTitle: true,
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Column(
           children: [
+            // Display
             Expanded(
               child: Center(
-                child: Text(
-                  '${widget.prefix ?? ''}$_display',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 64,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
+                child: FadeInWidget(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.prefix ?? '',
+                        style: context.textStyles.headlineMedium?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Text(
+                          _display,
+                          style: context.textStyles.displayLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2,
+                            fontSize: 72,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
+
+            // Teclado
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainer,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.radiusXxl),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
-                  _buildKeyboardRow(['1', '2', '3']),
-                  const SizedBox(height: 12),
-                  _buildKeyboardRow(['4', '5', '6']),
-                  const SizedBox(height: 12),
-                  _buildKeyboardRow(['7', '8', '9']),
-                  const SizedBox(height: 12),
-                  _buildKeyboardRow([widget.isInteger ? 'C' : '.', '0', '⌫']),
-                  const SizedBox(height: 16),
-                  _buildConfirmButton(),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 100),
+                    child: _buildKeyboardRow(['1', '2', '3']),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 150),
+                    child: _buildKeyboardRow(['4', '5', '6']),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 200),
+                    child: _buildKeyboardRow(['7', '8', '9']),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 250),
+                    child: _buildKeyboardRow([
+                      widget.isInteger ? 'C' : '.',
+                      '0',
+                      '⌫'
+                    ]),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 300),
+                    child: _buildConfirmButton(),
+                  ),
                 ],
               ),
             ),
@@ -125,56 +198,58 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
       children: keys.map((key) {
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _onKeyPress(key),
-              child: Container(
-                height: 68,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A2A),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: Text(
-                    key,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: _buildKey(key),
           ),
         );
       }).toList(),
     );
   }
 
-  Widget _buildConfirmButton() {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: _confirm,
-      child: Container(
-        width: double.infinity,
-        height: 64,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0066FF),
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: const Center(
-          child: Text(
-            'CONFIRMAR',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1,
+  Widget _buildKey(String key) {
+    final isSpecial = key == 'C' || key == '⌫' || key == '.';
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onKeyPress(key),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        child: Ink(
+          height: 68,
+          decoration: BoxDecoration(
+            color: isSpecial
+                ? context.colors.surfaceContainerHighest
+                : context.colors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(
+              color: context.colors.outlineVariant,
+              width: 0.5,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              key,
+              style: context.textStyles.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isSpecial
+                    ? context.colors.primary
+                    : context.colors.onSurface,
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 64,
+      child: AnimatedPrimaryButton(
+        text: 'CONFIRMAR',
+        icon: Icons.check_rounded,
+        onPressed: _confirm,
       ),
     );
   }
