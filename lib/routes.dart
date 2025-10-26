@@ -1,10 +1,12 @@
 // routes.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
 import 'trade_screen.dart';
 import 'bots_screen.dart';
 import 'portfolio_screen.dart';
+import 'styles.dart' hide EdgeInsets;
 
 class AppRoutes {
   static const String login = '/';
@@ -23,18 +25,18 @@ class AppRoutes {
     switch (settings.name) {
       case home:
         final token = settings.arguments as String;
-        return MaterialPageRoute(
+        return _buildIOSRoute(
           builder: (context) => HomeScreen(token: token),
         );
 
       case trade:
         final args = settings.arguments;
         if (args is String) {
-          return MaterialPageRoute(
+          return _buildIOSRoute(
             builder: (context) => TradeScreen(token: args),
           );
         } else if (args is Map<String, dynamic>) {
-          return MaterialPageRoute(
+          return _buildIOSRoute(
             builder: (context) => TradeScreen(
               token: args['token'] as String,
               initialMarket: args['market'] as String?,
@@ -45,13 +47,13 @@ class AppRoutes {
 
       case bots:
         final token = settings.arguments as String;
-        return MaterialPageRoute(
+        return _buildIOSRoute(
           builder: (context) => BotsScreen(token: token),
         );
 
       case portfolio:
         final token = settings.arguments as String;
-        return MaterialPageRoute(
+        return _buildIOSRoute(
           builder: (context) => PortfolioScreen(token: token),
         );
 
@@ -60,18 +62,53 @@ class AppRoutes {
     }
   }
 
+  // Cria uma rota com transição de slide horizontal estilo iOS
+  static Route<dynamic> _buildIOSRoute({
+    required WidgetBuilder builder,
+    bool fullscreenDialog = false,
+  }) {
+    return CupertinoPageRoute(
+      builder: builder,
+      fullscreenDialog: fullscreenDialog,
+    );
+  }
+
   static Route<dynamic> _errorRoute() {
-    return MaterialPageRoute(
-      builder: (context) => Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF1A1A1A),
-          title: const Text('Erro'),
+    return CupertinoPageRoute(
+      builder: (context) => CupertinoPageScaffold(
+        backgroundColor: context.colors.surface,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: context.colors.surfaceContainer,
+          middle: Text(
+            'Erro',
+            style: context.textStyles.titleLarge,
+          ),
         ),
-        body: const Center(
-          child: Text(
-            'Página não encontrada',
-            style: TextStyle(color: Colors.white),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.exclamationmark_triangle,
+                size: 64,
+                color: context.colors.error,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Página não encontrada',
+                style: context.textStyles.titleMedium?.copyWith(
+                  color: context.colors.onSurface,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'A página que você está procurando não existe',
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       ),
