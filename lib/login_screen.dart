@@ -5,7 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
-import 'styles.dart';
+import 'styles.dart' hide EdgeInsets;
 import 'home_screen.dart';
 
 class DerivLoginScreen extends StatefulWidget {
