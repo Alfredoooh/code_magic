@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'markets_screen.dart';
 import 'market_detail_screen.dart';
-import 'styles.dart' hide EdgeInsets; // evitamos conflito com EdgeInsets exportado por styles.dart
+import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_widgets.dart';
 
 class AllMarketsScreen extends StatefulWidget {
   final String token;
@@ -28,13 +30,14 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'Boom/Crash';
+  String _sortBy = 'name'; // name, price, change
 
-  final List<String> _categories = [
-    'Boom/Crash',
-    'Volatility',
-    'Jump',
-    'Step',
-    'Crypto',
+  final List<Map<String, dynamic>> _categories = [
+    {'name': 'Boom/Crash', 'icon': Icons.trending_up_rounded},
+    {'name': 'Volatility', 'icon': Icons.show_chart_rounded},
+    {'name': 'Jump', 'icon': Icons.electric_bolt_rounded},
+    {'name': 'Step', 'icon': Icons.stairs_rounded},
+    {'name': 'Crypto', 'icon': Icons.currency_bitcoin_rounded},
   ];
 
   final Map<String, MarketInfo> _cryptoMarkets = {
@@ -86,7 +89,22 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
       return matchesCategory && matchesSearch;
     }).toList();
 
-    markets.sort((a, b) => a.value.name.compareTo(b.value.name));
+    // Apply sorting
+    markets.sort((a, b) {
+      switch (_sortBy) {
+        case 'price':
+          final priceA = widget.marketData[a.key]?.price ?? 0;
+          final priceB = widget.marketData[b.key]?.price ?? 0;
+          return priceB.compareTo(priceA);
+        case 'change':
+          final changeA = widget.marketData[a.key]?.change ?? 0;
+          final changeB = widget.marketData[b.key]?.change ?? 0;
+          return changeB.abs().compareTo(changeA.abs());
+        default:
+          return a.value.name.compareTo(b.value.name);
+      }
+    });
+
     return markets;
   }
 
@@ -125,43 +143,37 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.colors.surface,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text('Todos os Mercados'),
-        centerTitle: true,
+      appBar: SecondaryAppBar(
+        title: 'Mercados',
+        onBack: () {
+          AppHaptics.light();
+          Navigator.pop(context);
+        },
+        actions: [
+          IconButton(
+            icon: Icon(Icons.sort_rounded),
+            tooltip: 'Ordenar',
+            onPressed: _showSortOptions,
+          ),
+        ],
       ),
       body: Column(
         children: [
           // Search Bar
           FadeInWidget(
-            child: Container(
+            child: Padding(
               padding: EdgeInsets.all(AppSpacing.lg),
-              child: TextField(
+              child: SearchField(
+                hint: 'Buscar mercados...',
                 controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Buscar mercados...',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded),
-                          onPressed: () {
-                            AppHaptics.light();
-                            setState(() {
-                              _searchController.clear();
-                              _searchQuery = '';
-                            });
-                          },
-                        )
-                      : null,
-                ),
                 onChanged: (value) {
                   setState(() => _searchQuery = value);
+                },
+                onClear: () {
+                  setState(() {
+                    _searchController.clear();
+                    _searchQuery = '';
+                  });
                 },
               ),
             ),
@@ -169,43 +181,69 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
 
           // Category Chips
           FadeInWidget(
-            delay: const Duration(milliseconds: 100),
+            delay: Duration(milliseconds: 100),
             child: SizedBox(
-              height: 50,
+              height: 56,
               child: ListView.builder(
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 scrollDirection: Axis.horizontal,
                 itemCount: _categories.length,
                 itemBuilder: (context, index) {
                   final category = _categories[index];
-                  final isSelected = _selectedCategory == category;
+                  final categoryName = category['name'] as String;
+                  final categoryIcon = category['icon'] as IconData;
+                  final isSelected = _selectedCategory == categoryName;
+                  final marketCount = _getFilteredMarkets(categoryName).length;
 
                   return Padding(
                     padding: EdgeInsets.only(right: AppSpacing.sm),
                     child: FilterChip(
                       selected: isSelected,
-                      label: Text(category),
+                      avatar: Icon(
+                        categoryIcon,
+                        size: 18,
+                        color: isSelected
+                            ? context.colors.onPrimaryContainer
+                            : context.colors.onSurface,
+                      ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(categoryName),
+                          if (marketCount > 0) ...[
+                            SizedBox(width: AppSpacing.xs),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xs,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? context.colors.onPrimaryContainer
+                                        .withOpacity(0.2)
+                                    : context.colors.onSurface.withOpacity(0.1),
+                                borderRadius:
+                                    BorderRadius.circular(AppSpacing.radiusSm),
+                              ),
+                              child: Text(
+                                marketCount.toString(),
+                                style: context.textStyles.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                       onSelected: (selected) {
                         if (selected) {
                           AppHaptics.selection();
-                          setState(() => _selectedCategory = category);
+                          setState(() => _selectedCategory = categoryName);
                         }
                       },
-                      backgroundColor: context.colors.surfaceContainer,
-                      selectedColor: context.colors.primary,
-                      labelStyle: TextStyle(
-                        color: isSelected
-                            ? context.colors.onPrimary
-                            : context.colors.onSurface,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w500,
-                      ),
-                      side: BorderSide(
-                        color: isSelected
-                            ? context.colors.primary
-                            : context.colors.outlineVariant,
-                        width: 1,
-                      ),
+                      selectedColor: context.colors.primaryContainer,
+                      checkmarkColor: context.colors.onPrimaryContainer,
                     ),
                   );
                 },
@@ -213,11 +251,11 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
             ),
           ),
 
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.lg),
 
-          // Markets Count
+          // Header with count and sort indicator
           FadeInWidget(
-            delay: const Duration(milliseconds: 200),
+            delay: Duration(milliseconds: 200),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
@@ -229,11 +267,19 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                   ),
                   SizedBox(width: AppSpacing.xs),
                   Text(
-                    '${_getFilteredMarkets(_selectedCategory).length} mercados',
-                    style: context.textStyles.bodySmall?.copyWith(
+                    '${_getFilteredMarkets(_selectedCategory).length} ${_getFilteredMarkets(_selectedCategory).length == 1 ? 'mercado' : 'mercados'}',
+                    style: context.textStyles.bodyMedium?.copyWith(
                       color: context.colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                  Spacer(),
+                  if (_sortBy != 'name')
+                    AppBadge(
+                      text: _sortBy == 'price' ? 'Por Preço' : 'Por Variação',
+                      color: context.colors.primary,
+                      outlined: true,
+                    ),
                 ],
               ),
             ),
@@ -241,7 +287,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
 
           SizedBox(height: AppSpacing.md),
 
-          // Markets List
+          // Markets Grid/List
           Expanded(
             child: Builder(
               builder: (context) {
@@ -249,46 +295,40 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
 
                 if (markets.isEmpty) {
                   return FadeInWidget(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(AppSpacing.xl),
-                            decoration: BoxDecoration(
-                              color: context.colors.surfaceContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.search_off_rounded,
-                              color: context.colors.onSurfaceVariant,
-                              size: 48,
-                            ),
-                          ),
-                          SizedBox(height: AppSpacing.xl),
-                          Text(
-                            'Nenhum mercado encontrado',
-                            style: context.textStyles.bodyLarge?.copyWith(
-                              color: context.colors.onSurfaceVariant,
-                            ),
-                          ),
-                          SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Tente buscar por outro termo',
-                            style: context.textStyles.bodySmall?.copyWith(
-                              color: context.colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: EmptyState(
+                      icon: _searchQuery.isNotEmpty
+                          ? Icons.search_off_rounded
+                          : Icons.store_rounded,
+                      title: _searchQuery.isNotEmpty
+                          ? 'Nenhum mercado encontrado'
+                          : 'Sem mercados disponíveis',
+                      subtitle: _searchQuery.isNotEmpty
+                          ? 'Tente buscar por outro termo'
+                          : 'Não há mercados nesta categoria',
+                      actionText: _searchQuery.isNotEmpty ? 'Limpar Busca' : null,
+                      onAction: _searchQuery.isNotEmpty
+                          ? () {
+                              AppHaptics.light();
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            }
+                          : null,
                     ),
                   );
                 }
 
-                return ListView.builder(
+                return GridView.builder(
                   padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.sm,
+                  ),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.85,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisSpacing: AppSpacing.md,
                   ),
                   itemCount: markets.length,
                   itemBuilder: (context, index) {
@@ -299,6 +339,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
 
                     return StaggeredListItem(
                       index: index,
+                      delay: Duration(milliseconds: 30),
                       child: _buildMarketCard(symbol, info, data),
                     );
                   },
@@ -315,91 +356,48 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
     final isPositive = (data?.change ?? 0) >= 0;
     final changeColor = isPositive ? AppColors.success : AppColors.error;
 
-    return GestureDetector(
+    return AnimatedCard(
       onTap: () => _openMarketDetail(symbol),
       child: Container(
-        margin: EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: context.colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppShapes.large), // radiusLg -> AppShapes.large
-          border: Border.all(
-            color: context.colors.outlineVariant,
-            width: 1,
-          ),
-        ),
-        child: Row(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: context.colors.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppShapes.medium), // radiusMd -> AppShapes.medium
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppShapes.medium),
-                child: Image.network(
-                  info.iconUrl,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(
-                      Icons.currency_bitcoin_rounded,
-                      color: context.colors.primary,
-                      size: 24,
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            SizedBox(width: AppSpacing.md),
-
-            // Name and Symbol
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    info.name,
-                    style: context.textStyles.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    symbol,
-                    style: context.textStyles.bodySmall?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Price and Change
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            // Icon and Symbol
+            Row(
               children: [
-                Text(
-                  data != null ? data.price.toStringAsFixed(2) : '...',
-                  style: context.textStyles.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    child: Image.network(
+                      info.iconUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.currency_bitcoin_rounded,
+                          color: context.colors.primary,
+                          size: 20,
+                        );
+                      },
+                    ),
                   ),
                 ),
-                SizedBox(height: AppSpacing.xxs),
+                Spacer(),
                 if (data != null)
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xxs,
+                      horizontal: AppSpacing.xs,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: changeColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppShapes.small), // radiusSm -> AppShapes.small
+                      color: changeColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -409,14 +407,15 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                               ? Icons.arrow_upward_rounded
                               : Icons.arrow_downward_rounded,
                           color: changeColor,
-                          size: 12,
+                          size: 10,
                         ),
-                        SizedBox(width: AppSpacing.xxs),
+                        SizedBox(width: 2),
                         Text(
-                          '${data.change.abs().toStringAsFixed(2)}%',
+                          '${data.change.abs().toStringAsFixed(1)}%',
                           style: context.textStyles.labelSmall?.copyWith(
                             color: changeColor,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -425,16 +424,113 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
               ],
             ),
 
-            SizedBox(width: AppSpacing.sm),
+            SizedBox(height: AppSpacing.md),
 
-            // Arrow
-            Icon(
-              Icons.chevron_right_rounded,
-              color: context.colors.onSurfaceVariant,
-              size: 20,
+            // Name
+            Text(
+              info.name,
+              style: context.textStyles.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            SizedBox(height: AppSpacing.xxs),
+
+            // Symbol
+            Text(
+              symbol,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+
+            Spacer(),
+
+            // Price
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Preço',
+                        style: context.textStyles.bodySmall?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                      ),
+                      SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        data != null ? data.price.toStringAsFixed(2) : '...',
+                        style: context.textStyles.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.onSurfaceVariant,
+                  size: 20,
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showSortOptions() {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Ordenar Mercados',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListTile(
+            title: 'Por Nome',
+            subtitle: 'Ordem alfabética',
+            leading: Icon(Icons.sort_by_alpha_rounded),
+            trailing: _sortBy == 'name'
+                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                : null,
+            onTap: () {
+              AppHaptics.selection();
+              setState(() => _sortBy = 'name');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Por Preço',
+            subtitle: 'Maior para menor',
+            leading: Icon(Icons.attach_money_rounded),
+            trailing: _sortBy == 'price'
+                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                : null,
+            onTap: () {
+              AppHaptics.selection();
+              setState(() => _sortBy = 'price');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Por Variação',
+            subtitle: 'Maior volatilidade',
+            leading: Icon(Icons.trending_up_rounded),
+            trailing: _sortBy == 'change'
+                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                : null,
+            onTap: () {
+              AppHaptics.selection();
+              setState(() => _sortBy = 'change');
+              Navigator.pop(context);
+            },
+          ),
+        ],
       ),
     );
   }
