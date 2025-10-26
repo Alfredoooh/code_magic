@@ -63,7 +63,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       text: widget.bot.config.initialStake.toStringAsFixed(2),
     );
     final maxStakeController = TextEditingController(
-      text: widget.bot.config.maxStake.toStringAsFixed(2),
+      text: widget.bot.config.maxStake?.toStringAsFixed(2) ?? '10.00',
     );
     final targetProfitController = TextEditingController(
       text: widget.bot.config.targetProfit.toStringAsFixed(2),
@@ -251,7 +251,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
               FadeInWidget(
                 delay: const Duration(milliseconds: 100),
-                child: _buildStatusCard(status),
+                child: _buildStatusCard(status, winRate),
               ),
 
               SizedBox(height: AppSpacing.lg),
@@ -325,7 +325,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     );
   }
 
-  Widget _buildStatusCard(BotStatus status) {
+  Widget _buildStatusCard(BotStatus status, double winRate) {
     final isProfit = status.sessionProfit >= 0;
 
     return Container(
