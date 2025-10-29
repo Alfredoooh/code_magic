@@ -1,25 +1,16 @@
 workflows:
-  android-release:
-    name: Android Release
+  android-workflow:
+    name: Android Build
     max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
-      flutter: stable
-      java: 17
       groups:
-        - google_play
+        - google_credentials
       vars:
-        JAVA_HOME: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
-    cache:
-      cache_paths:
-        - $HOME/.gradle/caches
-        - $FLUTTER_ROOT/.pub-cache
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: '*'
-          include: true
+        PACKAGE_NAME: "com.nexa.madeeasy"
+      java: 17
+      flutter: stable
+      xcode: latest
     scripts:
       - name: Set up local.properties
         script: |
@@ -27,26 +18,72 @@ workflows:
       
       - name: Get Flutter packages
         script: |
-          cd $CM_BUILD_DIR
-          flutter clean
-          rm -rf .dart_tool
-          rm -rf build
-          rm -f pubspec.lock
-          flutter pub get
+          flutter packages pub get
       
-      - name: Build APK
+      - name: Build Android APK
         script: |
-          cd $CM_BUILD_DIR
           flutter build apk --release --no-tree-shake-icons
     
     artifacts:
-      - build/**/outputs/**/*.apk
-      - build/**/outputs/**/mapping.txt
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/**/*.aab
+      - flutter_drive.log
     
     publishing:
       email:
         recipients:
-          - your-email@example.com
+          - seu-email@example.com
         notify:
           success: true
           failure: true
+
+  ios-workflow:
+    name: iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      groups:
+        - app_store_credentials
+      vars:
+        BUNDLE_ID: "com.nexa.madeeasy"
+        XCODE_WORKSPACE: "Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      
+      - name: Install pods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      
+      - name: Flutter build ipa
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    
+    publishing:
+      email:
+        recipients:
+          - seu-email@example.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
