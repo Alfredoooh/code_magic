@@ -17,25 +17,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notificationsEnabled = true;
-  bool _soundEnabled = true;
-  bool _vibrationEnabled = true;
-  String _selectedLanguage = 'Português';
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: SecondaryAppBar(
         title: 'Configurações',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline_rounded),
-            onPressed: () {
-              AppHaptics.light();
-              AppSnackbar.info(context, 'Ajuda em breve');
-            },
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -54,100 +40,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: AppSpacing.xxl),
 
-          // Seção de Notificações
-          FadeInWidget(
-            delay: const Duration(milliseconds: 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Notificações', style: context.textStyles.titleLarge),
-                const SizedBox(height: AppSpacing.md),
-                _buildSettingsCard(
-                  icon: Icons.notifications_rounded,
-                  title: 'Notificações Push',
-                  subtitle: 'Receba alertas sobre seus bots',
-                  trailing: Switch(
-                    value: _notificationsEnabled,
-                    onChanged: (value) {
-                      AppHaptics.light();
-                      setState(() => _notificationsEnabled = value);
-                      AppSnackbar.info(
-                        context,
-                        value ? 'Notificações ativadas' : 'Notificações desativadas',
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _buildSettingsCard(
-                  icon: Icons.volume_up_rounded,
-                  title: 'Sons',
-                  subtitle: 'Sons de notificações e alertas',
-                  trailing: Switch(
-                    value: _soundEnabled,
-                    onChanged: (value) {
-                      AppHaptics.light();
-                      setState(() => _soundEnabled = value);
-                    },
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _buildSettingsCard(
-                  icon: Icons.vibration_rounded,
-                  title: 'Vibração',
-                  subtitle: 'Feedback tátil nas interações',
-                  trailing: Switch(
-                    value: _vibrationEnabled,
-                    onChanged: (value) {
-                      AppHaptics.light();
-                      setState(() => _vibrationEnabled = value);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.xxl),
-
-          // Seção de Preferências
-          FadeInWidget(
-            delay: const Duration(milliseconds: 200),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Preferências', style: context.textStyles.titleLarge),
-                const SizedBox(height: AppSpacing.md),
-                _buildSettingsCard(
-                  icon: Icons.language_rounded,
-                  title: 'Idioma',
-                  subtitle: _selectedLanguage,
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    AppHaptics.selection();
-                    _showLanguageBottomSheet();
-                  },
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _buildSettingsCard(
-                  icon: Icons.currency_exchange_rounded,
-                  title: 'Moeda',
-                  subtitle: 'USD (\$)',
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    AppHaptics.selection();
-                    AppSnackbar.info(context, 'Seleção de moeda em breve');
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.xxl),
-
           // Seção de Segurança
           FadeInWidget(
-            delay: const Duration(milliseconds: 300),
+            delay: const Duration(milliseconds: 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -160,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     AppHaptics.selection();
-                    AppSnackbar.info(context, 'Configuração de biometria em breve');
+                    _showBiometricSettings();
                   },
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -171,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     AppHaptics.selection();
-                    AppSnackbar.info(context, 'Alteração de PIN em breve');
+                    _showPinSettings();
                   },
                 ),
               ],
@@ -182,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Seção Sobre
           FadeInWidget(
-            delay: const Duration(milliseconds: 400),
+            delay: const Duration(milliseconds: 200),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -190,53 +85,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: AppSpacing.md),
                 _buildSettingsCard(
                   icon: Icons.info_rounded,
-                  title: 'Versão do App',
-                  subtitle: '1.0.0 (Build 1)',
+                  title: 'Sobre o App',
+                  subtitle: 'Versão 1.0.0 (Build 1)',
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     AppHaptics.selection();
                     _showAboutDialog();
                   },
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                _buildSettingsCard(
-                  icon: Icons.description_rounded,
-                  title: 'Termos de Uso',
-                  subtitle: 'Leia nossos termos e condições',
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    AppHaptics.selection();
-                    AppSnackbar.info(context, 'Termos de uso em breve');
-                  },
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _buildSettingsCard(
-                  icon: Icons.privacy_tip_rounded,
-                  title: 'Política de Privacidade',
-                  subtitle: 'Como protegemos seus dados',
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    AppHaptics.selection();
-                    AppSnackbar.info(context, 'Política de privacidade em breve');
-                  },
-                ),
               ],
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.xxl),
-
-          // Botão de Logout
-          FadeInWidget(
-            delay: const Duration(milliseconds: 500),
-            child: SecondaryButton(
-              text: 'Sair da Conta',
-              icon: Icons.logout_rounded,
-              expanded: true,
-              onPressed: () {
-                AppHaptics.heavy();
-                _showLogoutDialog();
-              },
             ),
           ),
 
@@ -277,17 +134,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {});
                 AppSnackbar.success(context, 'Tema alterado para escuro');
               }
-            },
-          ),
-          Divider(height: 1, color: context.colors.outlineVariant),
-          _buildThemeOption(
-            title: 'Automático',
-            subtitle: 'Seguir configuração do sistema',
-            icon: Icons.brightness_auto_rounded,
-            isSelected: false, // Implement system theme detection if needed
-            onTap: () {
-              AppHaptics.medium();
-              AppSnackbar.info(context, 'Tema automático em breve');
             },
           ),
         ],
@@ -400,114 +246,192 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageBottomSheet() {
-    AppModalBottomSheet.show(
-      context: context,
-      title: 'Selecione o Idioma',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildLanguageOption('Português', 'pt'),
-          const SizedBox(height: AppSpacing.sm),
-          _buildLanguageOption('English', 'en'),
-          const SizedBox(height: AppSpacing.sm),
-          _buildLanguageOption('Español', 'es'),
-          const SizedBox(height: AppSpacing.sm),
-          _buildLanguageOption('Français', 'fr'),
-        ],
+  void _showBiometricSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Configuração de Biometria'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.fingerprint_rounded,
+                    size: 80,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    'Biometria',
+                    style: context.textStyles.headlineSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Configure a autenticação biométrica para proteger seu acesso ao app.',
+                    style: context.textStyles.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  PrimaryButton(
+                    text: 'Configurar Biometria',
+                    icon: Icons.fingerprint_rounded,
+                    onPressed: () {
+                      AppSnackbar.info(context, 'Funcionalidade em desenvolvimento');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildLanguageOption(String language, String code) {
-    final isSelected = _selectedLanguage == language;
-    return AppListTile(
-      title: language,
-      trailing: isSelected
-          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-          : null,
-      onTap: () {
-        AppHaptics.selection();
-        setState(() => _selectedLanguage = language);
-        Navigator.pop(context);
-        AppSnackbar.success(context, 'Idioma alterado para $language');
-      },
+  void _showPinSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Alterar PIN'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.lock_rounded,
+                    size: 80,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    'Alterar PIN',
+                    style: context.textStyles.headlineSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Defina um novo código PIN para proteger seu acesso.',
+                    style: context.textStyles.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  PrimaryButton(
+                    text: 'Definir Novo PIN',
+                    icon: Icons.lock_outline_rounded,
+                    onPressed: () {
+                      AppSnackbar.info(context, 'Funcionalidade em desenvolvimento');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   void _showAboutDialog() {
-    AppDialog.show(
-      context: context,
-      title: 'Sobre o App',
-      icon: Icons.info_rounded,
-      iconColor: AppColors.primary,
-      contentWidget: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ZoomTrade Trading Bot',
-            style: context.textStyles.titleMedium,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Versão 1.0.0 (Build 1)',
-            style: context.textStyles.bodyMedium?.copyWith(
-              color: context.colors.onSurfaceVariant,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Sobre o App'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            'Aplicativo de trading automatizado com bots inteligentes e análise de mercado em tempo real.',
-            style: context.textStyles.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          const LabeledDivider(label: 'Desenvolvido com'),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.favorite_rounded, color: AppColors.error, size: 16),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                'Flutter & Material Design 3',
-                style: context.textStyles.bodySmall,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(AppShapes.extraLarge),
+                    ),
+                    child: Icon(
+                      Icons.info_rounded,
+                      size: 64,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    'ZoomTrade Trading Bot',
+                    style: context.textStyles.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Versão 1.0.0 (Build 1)',
+                    style: context.textStyles.bodyLarge?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  AnimatedCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Aplicativo de trading automatizado com bots inteligentes e análise de mercado em tempo real.',
+                            style: context.textStyles.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          const LabeledDivider(label: 'Desenvolvido com'),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.favorite_rounded, color: AppColors.error, size: 20),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                'Flutter & Material Design 3',
+                                style: context.textStyles.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  PrimaryButton(
+                    text: 'Fechar',
+                    icon: Icons.check_rounded,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ],
+        ),
       ),
-      actions: [
-        PrimaryButton(
-          text: 'Fechar',
-          onPressed: () => Navigator.pop(context),
-        ),
-      ],
-    );
-  }
-
-  void _showLogoutDialog() {
-    AppDialog.show(
-      context: context,
-      title: 'Sair da Conta',
-      content: 'Tem certeza que deseja sair? Você precisará fazer login novamente.',
-      icon: Icons.logout_rounded,
-      iconColor: AppColors.error,
-      actions: [
-        TertiaryButton(
-          text: 'Cancelar',
-          onPressed: () => Navigator.pop(context),
-        ),
-        PrimaryButton(
-          text: 'Sair',
-          onPressed: () {
-            AppHaptics.heavy();
-            Navigator.pop(context);
-            Navigator.pop(context); // Go back to previous screen
-            AppSnackbar.success(context, 'Logout realizado com sucesso');
-          },
-        ),
-      ],
     );
   }
 }
