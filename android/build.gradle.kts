@@ -8,13 +8,6 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
 subprojects {
     project.evaluationDependsOn(":app")
 }
