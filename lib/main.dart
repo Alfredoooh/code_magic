@@ -1,7 +1,7 @@
 // main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'styles.dart';
+import 'theme/app_theme.dart';
 import 'routes.dart';
 
 void main() {
@@ -21,11 +21,12 @@ class DerivTradingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Deriv Trading',
-      theme: AppStyles.darkTheme,
+      theme: AppTheme.darkTheme,
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.login,
       routes: AppRoutes.getRoutes(),
       onGenerateRoute: AppRoutes.onGenerateRoute,
+      navigatorObservers: [AppRouteObserver()],
     );
   }
 }
