@@ -26,7 +26,7 @@ class AppRoutes {
   }
 
   // Generate routes dynamically
-  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case home:
         final token = settings.arguments as String;
@@ -73,12 +73,12 @@ class AppRoutes {
   }
 
   // Build route with Material Design 3 transitions
-  static Route<dynamic> _buildRoute({
+  static Route<T> _buildRoute<T>({
     required WidgetBuilder builder,
     required RouteSettings settings,
     bool fullscreenDialog = false,
   }) {
-    return PageRouteBuilder(
+    return PageRouteBuilder<T>(
       settings: settings,
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       fullscreenDialog: fullscreenDialog,
@@ -120,12 +120,12 @@ class AppRoutes {
   }
 
   // Fade transition for modals and overlays
-  static Route<dynamic> _buildFadeRoute({
+  static Route<T> _buildFadeRoute<T>({
     required WidgetBuilder builder,
     required RouteSettings settings,
     bool fullscreenDialog = true,
   }) {
-    return PageRouteBuilder(
+    return PageRouteBuilder<T>(
       settings: settings,
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       fullscreenDialog: fullscreenDialog,
@@ -146,12 +146,12 @@ class AppRoutes {
   }
 
   // Scale transition for dialogs
-  static Route<dynamic> _buildScaleRoute({
+  static Route<T> _buildScaleRoute<T>({
     required WidgetBuilder builder,
     required RouteSettings settings,
     bool fullscreenDialog = true,
   }) {
-    return PageRouteBuilder(
+    return PageRouteBuilder<T>(
       settings: settings,
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       fullscreenDialog: fullscreenDialog,
@@ -180,11 +180,11 @@ class AppRoutes {
   }
 
   // Bottom sheet transition
-  static Route<dynamic> _buildBottomSheetRoute({
+  static Route<T> _buildBottomSheetRoute<T>({
     required WidgetBuilder builder,
     required RouteSettings settings,
   }) {
-    return PageRouteBuilder(
+    return PageRouteBuilder<T>(
       settings: settings,
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       fullscreenDialog: true,
@@ -210,8 +210,8 @@ class AppRoutes {
   }
 
   // Error route with Material Design 3 styling
-  static Route<dynamic> _errorRoute(RouteSettings settings) {
-    return _buildFadeRoute(
+  static Route<T> _errorRoute<T>(RouteSettings settings) {
+    return _buildFadeRoute<T>(
       settings: settings,
       builder: (context) => Scaffold(
         backgroundColor: context.surface,
@@ -310,7 +310,7 @@ class AppRoutes {
     Widget child,
   ) {
     return Navigator.of(context).push<T>(
-      _buildBottomSheetRoute(
+      _buildBottomSheetRoute<T>(
         builder: (context) => child,
         settings: const RouteSettings(name: 'bottom_sheet'),
       ),
@@ -323,7 +323,7 @@ class AppRoutes {
     Widget child,
   ) {
     return Navigator.of(context).push<T>(
-      _buildScaleRoute(
+      _buildScaleRoute<T>(
         builder: (context) => Dialog(
           backgroundColor: Colors.transparent,
           child: child,
@@ -339,7 +339,7 @@ class AppRoutes {
     Widget child,
   ) {
     return Navigator.of(context).push<T>(
-      _buildRoute(
+      _buildRoute<T>(
         builder: (context) => child,
         settings: const RouteSettings(name: 'modal'),
         fullscreenDialog: true,
