@@ -7,6 +7,7 @@ import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_widgets.dart';
 import 'bot_engine.dart';
+import 'bot_configuration.dart';
 import 'bot_details_screen.dart';
 import 'bot_create_screen.dart';
 
@@ -81,6 +82,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     if (_channel == null) return;
 
     _bots = [
+      // ============================================
+      // 1. MARTINGALE PRO
+      // ============================================
       TradingBot(
         config: BotConfiguration(
           name: 'Martingale Pro',
@@ -94,53 +98,84 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
           maxConsecutiveLosses: 7,
           maxStake: 50.0,
           targetProfit: 10.0,
+          estimatedPayout: 0.95,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
+
+      // ============================================
+      // 2. PROGRESSIVE REINVESTMENT
+      // ============================================
       TradingBot(
         config: BotConfiguration(
-          name: 'Fibonacci Master',
-          description: 'Estratégia Fibonacci com análise RSI',
-          strategy: BotStrategy.fibonacci,
+          name: 'Progressive Reinvestment',
+          description: 'Reinveste lucros e recupera perdas automaticamente',
+          strategy: BotStrategy.progressiveReinvestment,
           initialStake: 0.50,
           market: 'R_50',
           contractType: 'PUT',
           recoveryMode: RecoveryMode.moderate,
-          entryConditions: [EntryCondition.rsiOversold],
-          useRSI: true,
+          entryConditions: [EntryCondition.immediate],
           maxStake: 40.0,
-          targetProfit: 15.0,
+          targetProfit: 20.0,
+          estimatedPayout: 0.95,
+          roundsPerCycle: 3,
+          totalCycles: 10,
+          extraProfitPercent: 10.0,
+          autoRecovery: true,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
+
+      // ============================================
+      // 3. TRENDY ADAPTIVE
+      // ============================================
       TradingBot(
         config: BotConfiguration(
-          name: 'D\'Alembert Safe',
-          description: 'Crescimento gradual com segurança',
-          strategy: BotStrategy.dalembert,
+          name: 'Trendy Adaptive',
+          description: 'Lucro por tendência com ajuste dinâmico de stake',
+          strategy: BotStrategy.trendyAdaptive,
           initialStake: 0.75,
           market: 'R_75',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.conservative,
-          maxStake: 30.0,
+          entryConditions: [EntryCondition.trendSequence],
+          useRSI: true,
+          maxStake: 35.0,
+          targetProfit: 15.0,
+          estimatedPayout: 0.95,
+          trendMultiplier: 1.5,
+          recoveryMultiplier: 1.2,
+          trendFilter: 2,
+          profitReinvestPercent: 50.0,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
       ),
+
+      // ============================================
+      // 4. ACS-R v3.0 (ADAPTIVE COMPOUND SMART RECOVERY)
+      // ============================================
       TradingBot(
         config: BotConfiguration(
-          name: 'Adaptive AI',
-          description: 'Adaptação inteligente ao mercado',
-          strategy: BotStrategy.adaptive,
+          name: 'ACS-R v3.0',
+          description: 'Adaptação inteligente com aprendizado de padrão',
+          strategy: BotStrategy.adaptiveCompoundRecovery,
           initialStake: 1.00,
           market: 'R_100',
           contractType: 'CALL',
           recoveryMode: RecoveryMode.intelligent,
+          entryConditions: [EntryCondition.patternDetection],
           useRSI: true,
+          usePatternRecognition: true,
           maxStake: 50.0,
-          targetProfit: 20.0,
+          targetProfit: 25.0,
+          estimatedPayout: 0.95,
+          consistencyMultiplier: 1.15,
+          confidenceFilter: 2,
+          patternConfidence: 0.6,
         ),
         channel: _channel!,
         onStatusUpdate: (status) => setState(() {}),
@@ -294,7 +329,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       }
     }
     setState(() {});
-    
+
     if (startedBots > 0) {
       AppSnackbar.success(context, '$startedBots bots iniciados');
     } else {
@@ -638,7 +673,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
-                        'Stake Inicial',
+                        'Stake Atual',
                         style: context.textStyles.bodySmall?.copyWith(
                           color: context.colors.onSurfaceVariant,
                         ),
@@ -699,12 +734,12 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
     switch (strategy) {
       case BotStrategy.martingale:
         return Icons.trending_up_rounded;
-      case BotStrategy.fibonacci:
-        return Icons.stairs_rounded;
-      case BotStrategy.dalembert:
-        return Icons.analytics_rounded;
-      case BotStrategy.adaptive:
-        return Icons.settings_suggest_rounded;
+      case BotStrategy.progressiveReinvestment:
+        return Icons.autorenew_rounded;
+      case BotStrategy.trendyAdaptive:
+        return Icons.insights_rounded;
+      case BotStrategy.adaptiveCompoundRecovery:
+        return Icons.psychology_rounded;
       default:
         return Icons.smart_toy_rounded;
     }
