@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_widgets.dart';
@@ -31,20 +33,16 @@ class MarketDetailScreen extends StatefulWidget {
 
 class _MarketDetailScreenState extends State<MarketDetailScreen> {
   MarketData? _currentData;
-  final List<double> _priceHistory = [];
+  final List<Map<String, dynamic>> _candlestickData = [];
   StreamSubscription? _streamSubscription;
   bool _isLoading = true;
+  late WebViewController _webViewController;
 
   @override
   void initState() {
     super.initState();
     _currentData = widget.marketData;
-
-    // Adicionar alguns dados iniciais se já tiver marketData
-    if (widget.marketData != null) {
-      _priceHistory.add(widget.marketData!.price);
-    }
-
+    _initializeWebView();
     _subscribeToMarket();
 
     // Timer de timeout para indicar carregamento
@@ -59,6 +57,90 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   void dispose() {
     _streamSubscription?.cancel();
     super.dispose();
+  }
+
+  void _initializeWebView() {
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
+      ..loadHtmlString(_buildCandlestickChartHtml());
+  }
+
+  String _buildCandlestickChartHtml() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? '#1C1B1F' : '#FFFFFF';
+    final textColor = isDark ? '#E6E1E5' : '#1C1B1F';
+
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background-color: $bgColor;
+          overflow: hidden;
+        }
+        #chart {
+          width: 100%;
+          height: 100vh;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="chart"></div>
+      <script>
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+          layout: {
+            background: { color: '$bgColor' },
+            textColor: '$textColor',
+          },
+          grid: {
+            vertLines: { color: '$textColor' + '20' },
+            horzLines: { color: '$textColor' + '20' },
+          },
+          crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+          },
+          timeScale: {
+            borderColor: '$textColor' + '40',
+            timeVisible: true,
+            secondsVisible: true,
+          },
+          rightPriceScale: {
+            borderColor: '$textColor' + '40',
+          },
+        });
+
+        const candlestickSeries = chart.addCandlestickSeries({
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderVisible: false,
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+        });
+
+        chart.timeScale().fitContent();
+
+        // Function to update chart data
+        function updateChart(data) {
+          try {
+            candlestickSeries.setData(data);
+            chart.timeScale().fitContent();
+          } catch (e) {
+            console.error('Error updating chart:', e);
+          }
+        }
+
+        // Initial empty state
+        updateChart([]);
+      </script>
+    </body>
+    </html>
+    ''';
   }
 
   void _subscribeToMarket() {
@@ -81,6 +163,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
             if (data['msg_type'] == 'tick' && data['tick']['symbol'] == widget.symbol) {
               final tick = data['tick'];
               final quote = double.parse(tick['quote'].toString());
+              final epoch = tick['epoch'] ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
 
               if (mounted) {
                 setState(() {
@@ -101,10 +184,8 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                     );
                   }
 
-                  _priceHistory.add(quote);
-                  if (_priceHistory.length > 100) {
-                    _priceHistory.removeAt(0);
-                  }
+                  // Update candlestick data
+                  _updateCandlestick(epoch, quote);
                 });
               }
             }
@@ -125,14 +206,61 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     }
   }
 
+  void _updateCandlestick(int epoch, double price) {
+    final time = epoch;
+    
+    // Group by 5-second intervals
+    final candleTime = (time ~/ 5) * 5;
+
+    if (_candlestickData.isEmpty || _candlestickData.last['time'] != candleTime) {
+      // New candle
+      _candlestickData.add({
+        'time': candleTime,
+        'open': price,
+        'high': price,
+        'low': price,
+        'close': price,
+      });
+    } else {
+      // Update current candle
+      final lastCandle = _candlestickData.last;
+      lastCandle['high'] = price > lastCandle['high'] ? price : lastCandle['high'];
+      lastCandle['low'] = price < lastCandle['low'] ? price : lastCandle['low'];
+      lastCandle['close'] = price;
+    }
+
+    // Keep only last 100 candles
+    if (_candlestickData.length > 100) {
+      _candlestickData.removeAt(0);
+    }
+
+    // Update chart
+    _updateChartData();
+  }
+
+  void _updateChartData() {
+    final jsonData = json.encode(_candlestickData);
+    _webViewController.runJavaScript('updateChart($jsonData)');
+  }
+
   void _openTrade() {
     AppHaptics.heavy();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => TradeScreen(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => TradeScreen(
           token: widget.token,
           initialMarket: widget.symbol,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
       ),
     );
   }
@@ -175,38 +303,30 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                         child: Center(
                           child: Column(
                             children: [
-                              Container(
+                              // Transparent container with icon only
+                              SizedBox(
                                 width: 96,
                                 height: 96,
-                                decoration: BoxDecoration(
-                                  color: context.colors.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
+                                child: CachedNetworkImage(
+                                  imageUrl: widget.marketInfo.iconUrl,
+                                  fit: BoxFit.contain,
+                                  placeholder: (context, url) => Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
                                     ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                                  child: Image.network(
-                                    widget.marketInfo.iconUrl,
-                                    width: 96,
-                                    height: 96,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: AppColors.primary.withOpacity(0.15),
-                                        child: const Icon(
-                                          Icons.show_chart_rounded,
-                                          color: AppColors.primary,
-                                          size: 48,
-                                        ),
-                                      );
-                                    },
                                   ),
+                                  errorWidget: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Text(
+                                        widget.symbol.substring(0, 2),
+                                        style: context.textStyles.displayMedium?.copyWith(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.xl),
@@ -231,36 +351,38 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
 
                       const SizedBox(height: AppSpacing.xxl),
 
-                      // Chart
+                      // Candlestick Chart
                       FadeInWidget(
                         delay: const Duration(milliseconds: 100),
                         child: AnimatedCard(
-                          child: Container(
-                            height: 240,
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: _priceHistory.length > 2
-                                ? CustomPaint(
-                                    painter: SimpleChartPainter(_priceHistory, changeColor),
-                                  )
-                                : Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.show_chart_rounded,
-                                          size: 48,
-                                          color: context.colors.onSurfaceVariant.withOpacity(0.5),
-                                        ),
-                                        const SizedBox(height: AppSpacing.md),
-                                        Text(
-                                          'Aguardando dados do gráfico...',
-                                          style: context.textStyles.bodyMedium?.copyWith(
-                                            color: context.colors.onSurfaceVariant,
+                          padding: EdgeInsets.zero,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            child: Container(
+                              height: 300,
+                              color: context.colors.surfaceVariant,
+                              child: _candlestickData.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.candlestick_chart_rounded,
+                                            size: 48,
+                                            color: context.colors.onSurfaceVariant.withOpacity(0.5),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                          const SizedBox(height: AppSpacing.md),
+                                          Text(
+                                            'Aguardando dados do gráfico...',
+                                            style: context.textStyles.bodyMedium?.copyWith(
+                                              color: context.colors.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : WebViewWidget(controller: _webViewController),
+                            ),
                           ),
                         ),
                       ),
@@ -410,97 +532,4 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     if (diff.inHours < 24) return '${diff.inHours}h atrás';
     return '${diff.inDays}d atrás';
   }
-}
-
-class SimpleChartPainter extends CustomPainter {
-  final List<double> prices;
-  final Color color;
-
-  SimpleChartPainter(this.prices, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (prices.length < 2) return;
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final minPrice = prices.reduce((a, b) => a < b ? a : b);
-    final maxPrice = prices.reduce((a, b) => a > b ? a : b);
-    final priceRange = maxPrice - minPrice;
-
-    if (priceRange == 0) {
-      // Linha reta no meio se não há variação
-      final y = size.height / 2;
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
-      return;
-    }
-
-    final path = Path();
-    final spacing = size.width / (prices.length - 1);
-
-    for (var i = 0; i < prices.length; i++) {
-      final x = i * spacing;
-      final normalizedY = (prices[i] - minPrice) / priceRange;
-      final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-
-    canvas.drawPath(path, paint);
-
-    // Fill area under the line
-    final fillPath = Path.from(path);
-    fillPath.lineTo(size.width, size.height);
-    fillPath.lineTo(0, size.height);
-    fillPath.close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          color.withOpacity(0.3),
-          color.withOpacity(0.05),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Draw points
-    final pointPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    for (var i = 0; i < prices.length; i++) {
-      if (i % 5 == 0 || i == prices.length - 1) {
-        final x = i * spacing;
-        final normalizedY = (prices[i] - minPrice) / priceRange;
-        final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
-
-        canvas.drawCircle(Offset(x, y), 4, pointPaint);
-        canvas.drawCircle(
-          Offset(x, y),
-          6,
-          Paint()
-            ..color = color.withOpacity(0.3)
-            ..style = PaintingStyle.fill,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
