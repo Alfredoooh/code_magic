@@ -2,18 +2,16 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
-    // não aplicamos com apply false aqui; plugin aplicado diretamente
-    id("com.google.gms.google-services")
+    // NOTA: não declarar aqui 'com.google.gms.google-services' sem versão;
+    // aplicamos via buildscript/classpath e apply(...) abaixo.
 }
 
 android {
     namespace = "com.nexa.madeeasy"
-    // As variáveis `flutter.*` são providas pelo plugin flutter gradle; mantive tal como tinhas
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        // atualizar para Java 17 — compatível com AGP 8.x + Kotlin 2.2
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -44,7 +42,6 @@ flutter {
 }
 
 repositories {
-    // redundante se já estiver setado no root, mas não faz mal — garante resolução de dependências
     google()
     mavenCentral()
 }
@@ -52,12 +49,8 @@ repositories {
 dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.21")
-    // adiciona outras libs que o teu app use aqui (Firebase libs, etc).
-    // Exemplo (se usares analytics ou firestore):
-    // implementation("com.google.firebase:firebase-analytics-ktx:22.0.0")
-    // implementation("com.google.firebase:firebase-firestore-ktx:24.5.0")
+    // outras dependências...
 }
 
-// Aplica o plugin google-services explicitamente (Kotlin DSL)
-// (se já tens id("com.google.gms.google-services") no plugins block, isto é redundante — mantive para robustez)
+// aplicamos o plugin google-services via classpath do root buildscript
 apply(plugin = "com.google.gms.google-services")
