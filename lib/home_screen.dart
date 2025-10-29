@@ -153,17 +153,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+            icon: Icon(Icons.radio_button_checked_outlined),
+            selectedIcon: Icon(radio_button_checked),
             label: 'Início',
           ),
           NavigationDestination(
-            icon: Icon(Icons.gamepad_outlined),
+            icon: Icon(Icons.stadia_controller_outlined),
             selectedIcon: Icon(Icons.stadia_controller),
             label: 'Negociar',
           ),
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
+            icon: Icon(Icons.linked_services_outlined),
             selectedIcon: Icon(Icons.linked_services),
             label: 'Extras',
           ),
