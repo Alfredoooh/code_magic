@@ -1,4 +1,4 @@
-// trade_chart_view.dart - ATUALIZADO COM M3 THEME SYSTEM
+// trade_chart_view.dart - CORRIGIDO SEM DUPLICAÇÃO
 import 'dart:ui';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -862,52 +862,6 @@ class _TradeChartViewState extends State<TradeChartView> {
           title: 'TP: ' + tpPrice.toFixed(2),
         });
       }
-      
-      const markers = candleSeries.markers() || [];
-      markers.push({
-        time: data[data.length - 1].time,
-        position: isBuy ? 'belowBar' : 'aboveBar',
-        color: entryColor,
-        shape: isBuy ? 'arrowUp' : 'arrowDown',
-        text: (isBuy ? 'BUY' : 'SELL') + ' @ ' + entryPrice.toFixed(2),
-        size: 2,
-      });
-      candleSeries.setMarkers(markers);
-      
-      console.log('Marcadores de trade atualizados com sucesso');
-    };
-    
-    window.clearTradeMarkers = function() {
-      console.log('Limpando marcadores de trade');
-      if (entryLine) {
-        candleSeries.removePriceLine(entryLine);
-        entryLine = null;
-      }
-      if (stopLossLine) {
-        candleSeries.removePriceLine(stopLossLine);
-        stopLossLine = null;
-      }
-      if (takeProfitLine) {
-        candleSeries.removePriceLine(takeProfitLine);
-        takeProfitLine = null;
-      }
-      candleSeries.setMarkers([]);
-    };
-    
-    window.addEventListener('resize', () => {
-      chart.applyOptions({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      redrawCanvas();
-    });
-    
-    console.log('Grafico totalmente inicializado');
-  </script>
-</body>
-</html>
       
       const markers = candleSeries.markers() || [];
       markers.push({
