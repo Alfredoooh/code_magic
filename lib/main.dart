@@ -1,8 +1,8 @@
 // main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'theme/app_theme.dart';
 import 'routes.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +21,7 @@ class DerivTradingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Deriv Trading',
-      theme: AppTheme.darkTheme,
+      theme: darkTheme,
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.login,
       routes: AppRoutes.getRoutes(),
