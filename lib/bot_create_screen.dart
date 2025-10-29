@@ -1,9 +1,9 @@
-// lib/bot_create_screen.dart
-// Sistema de construção de bots por blocos
+// bot_create_screen.dart - Sistema avançado de criação de bots
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'bot_engine.dart';
+import 'bot_configuration.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_widgets.dart';
@@ -22,50 +22,87 @@ class CreateBotScreen extends StatefulWidget {
   State<CreateBotScreen> createState() => _CreateBotScreenState();
 }
 
-class _CreateBotScreenState extends State<CreateBotScreen> {
+class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  
-  // Block 1: Contract Type
-  String _contractType = 'risefall';
-  String _direction = 'CALL';
-  int _digitPrediction = 5;
-  int _multiplier = 10;
-  
-  // Block 2: Market
-  String _selectedMarket = 'R_100';
-  
-  // Block 3: Stake Configuration
-  double _initialStake = 1.0;
-  bool _useProgression = true;
-  String _progressionType = 'martingale';
-  double _progressionMultiplier = 2.0;
-  
-  // Block 4: Duration
-  String _durationType = 't';
-  int _durationValue = 5;
-  
-  // Block 5: Risk Management
-  double _stopLoss = 100.0;
-  double _takeProfit = 50.0;
-  int _maxLossStreak = 5;
-  
-  // Block 6: Timing
-  int _tradeInterval = 10; // seconds
-  bool _useSmartTiming = false;
+  final _descriptionController = TextEditingController();
+  final _jsCodeController = TextEditingController();
 
-  final Map<String, String> _contractTypes = {
-    'risefall': 'Rise/Fall',
-    'higherlower': 'Higher/Lower',
-    'evenodd': 'Even/Odd',
-    'matchdiffer': 'Match/Differ',
-    'overunder': 'Over/Under',
-    'digits': 'Digits',
-    'multipliers': 'Multipliers',
-    'accumulators': 'Accumulators',
+  // Modo de criação
+  int _creationMode = 0; // 0 = Blocos, 1 = Código JS
+
+  // Estratégia selecionada
+  BotStrategy _selectedStrategy = BotStrategy.martingale;
+
+  // Block 1: Basic Info
+  String _contractType = 'CALL';
+  String _market = 'R_100';
+  int _duration = 5;
+  String _durationUnit = 't';
+
+  // Block 2: Stake Configuration
+  double _initialStake = 0.35;
+  double? _maxStake = 50.0;
+  double _targetProfit = 20.0;
+  double _maxLoss = 100.0;
+  int _maxConsecutiveLosses = 7;
+  int _maxTrades = 100;
+  double _estimatedPayout = 0.95;
+
+  // Block 3: Strategy Specific - Progressive Reinvestment
+  int _roundsPerCycle = 3;
+  int _totalCycles = 10;
+  double _extraProfitPercent = 10.0;
+  bool _autoRecovery = true;
+
+  // Block 4: Strategy Specific - Trendy Adaptive
+  double _trendMultiplier = 1.5;
+  double _recoveryMultiplier = 1.2;
+  int _trendFilter = 2;
+  double _profitReinvestPercent = 50.0;
+
+  // Block 5: Strategy Specific - ACS-R v3.0
+  double _consistencyMultiplier = 1.15;
+  int _confidenceFilter = 2;
+  double _patternConfidence = 0.6;
+
+  // Block 6: Recovery Mode
+  RecoveryMode _recoveryMode = RecoveryMode.moderate;
+
+  // Block 7: Entry Conditions
+  List<EntryCondition> _entryConditions = [EntryCondition.immediate];
+
+  // Block 8: Technical Analysis
+  bool _useRSI = true;
+  bool _useMACD = false;
+  bool _useBollinger = false;
+  bool _usePatternRecognition = false;
+
+  final Map<BotStrategy, Map<String, String>> _strategyInfo = {
+    BotStrategy.martingale: {
+      'name': 'Martingale Pro',
+      'description': 'Recuperação automática com cálculo realista de payout',
+      'icon': '📈',
+    },
+    BotStrategy.progressiveReinvestment: {
+      'name': 'Progressive Reinvestment',
+      'description': 'Reinveste lucros e recupera perdas com fórmula inteligente',
+      'icon': '🔄',
+    },
+    BotStrategy.trendyAdaptive: {
+      'name': 'Trendy Adaptive',
+      'description': 'Segue tendências com 3 fases: observação, execução e recuperação',
+      'icon': '📊',
+    },
+    BotStrategy.adaptiveCompoundRecovery: {
+      'name': 'ACS-R v3.0',
+      'description': 'Sistema adaptativo com 4 módulos e aprendizado de padrão',
+      'icon': '🧠',
+    },
   };
 
-  final Map<String, String> _allMarkets = {
+  final Map<String, String> _markets = {
     'R_10': 'Volatility 10',
     'R_25': 'Volatility 25',
     'R_50': 'Volatility 50',
@@ -74,7 +111,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
     '1HZ10V': 'Volatility 10 (1s)',
     '1HZ25V': 'Volatility 25 (1s)',
     '1HZ50V': 'Volatility 50 (1s)',
-    '1HZ75V': 'Volatility 75 (1s)',
     '1HZ100V': 'Volatility 100 (1s)',
     'BOOM300N': 'Boom 300',
     'BOOM500': 'Boom 500',
@@ -82,25 +118,23 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
     'CRASH300N': 'Crash 300',
     'CRASH500': 'Crash 500',
     'CRASH1000': 'Crash 1000',
-    'STPRNG': 'Step Index',
-    'JD10': 'Jump 10',
-    'JD25': 'Jump 25',
-    'JD50': 'Jump 50',
-    'JD75': 'Jump 75',
-    'JD100': 'Jump 100',
-  };
-
-  final Map<String, String> _progressionTypes = {
-    'martingale': 'Martingale (2x após perda)',
-    'fibonacci': 'Fibonacci (sequência)',
-    'dalembert': "D'Alembert (+1 após perda)",
-    'fixed': 'Fixo (sem progressão)',
-    'custom': 'Custom (definir multiplicador)',
   };
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() => _creationMode = _tabController.index);
+    });
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _nameController.dispose();
+    _descriptionController.dispose();
+    _jsCodeController.dispose();
     super.dispose();
   }
 
@@ -108,244 +142,224 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.surface,
-      appBar: SecondaryAppBar(
-        title: 'Construtor de Bot',
-        onBack: () {
-          AppHaptics.light();
-          Navigator.pop(context);
-        },
+      appBar: AppBar(
+        title: const Text('Criar Novo Bot'),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.pop(context);
+          },
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Modo Blocos', icon: Icon(Icons.extension_rounded)),
+            Tab(text: 'Código JS', icon: Icon(Icons.code_rounded)),
+          ],
+        ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+          _buildBlockMode(),
+          _buildJSMode(),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: context.surface,
+          border: Border(top: BorderSide(color: context.colors.outlineVariant)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: PrimaryButton(
+            text: _creationMode == 0 ? 'Criar Bot' : 'Analisar e Criar',
+            icon: _creationMode == 0 ? Icons.rocket_launch_rounded : Icons.auto_fix_high_rounded,
+            onPressed: _createBot,
+            expanded: true,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================
+  // MODO BLOCOS
+  // ============================================
+  Widget _buildBlockMode() {
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: [
+          // Header
+          _buildHeader(),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Block 1: Informações Básicas
+          _buildBlock(
+            number: '1',
+            title: 'Informações Básicas',
+            icon: Icons.info_rounded,
+            color: AppColors.primary,
+            delay: 50,
+            child: Column(
               children: [
-                // Header
-                FadeInWidget(
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary.withOpacity(0.1),
-                          AppColors.secondary.withOpacity(0.1),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.extension_rounded, size: 32, color: AppColors.primary),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sistema de Blocos',
-                                style: context.textStyles.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Configure cada aspecto do seu bot',
-                                style: context.textStyles.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                AppTextField(
+                  controller: _nameController,
+                  label: 'Nome do Bot',
+                  hint: 'Ex: Meu Bot Martingale',
+                  validator: (v) => v?.trim().isEmpty ?? true ? 'Nome obrigatório' : null,
                 ),
-
-                const SizedBox(height: AppSpacing.xxl),
-
-                // Block 1: Nome
-                _buildBlock(
-                  number: '1',
-                  title: 'Nome do Bot',
-                  icon: Icons.label_rounded,
-                  color: AppColors.primary,
-                  delay: 50,
-                  child: AppTextField(
-                    controller: _nameController,
-                    label: 'Nome',
-                    hint: 'Meu Bot Personalizado',
-                    validator: (v) => v?.trim().isEmpty ?? true ? 'Obrigatório' : null,
-                  ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _descriptionController,
+                  label: 'Descrição',
+                  hint: 'Descreva a estratégia do bot...',
+                  maxLines: 2,
                 ),
-
-                // Block 2: Contract Type
-                _buildBlock(
-                  number: '2',
-                  title: 'Tipo de Contrato',
-                  icon: Icons.swap_calls_rounded,
-                  color: AppColors.secondary,
-                  delay: 100,
-                  child: Column(
-                    children: [
-                      _buildContractTypeGrid(),
-                      if (_needsDirection) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        _buildDirectionSelector(),
-                      ],
-                      if (_needsDigitPrediction) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        _buildDigitPrediction(),
-                      ],
-                      if (_contractType == 'multipliers') ...[
-                        const SizedBox(height: AppSpacing.md),
-                        _buildMultiplierSelector(),
-                      ],
-                    ],
-                  ),
-                ),
-
-                // Block 3: Market
-                _buildBlock(
-                  number: '3',
-                  title: 'Mercado',
-                  icon: Icons.show_chart_rounded,
-                  color: AppColors.tertiary,
-                  delay: 150,
-                  child: _buildMarketSelector(),
-                ),
-
-                // Block 4: Duration
-                _buildBlock(
-                  number: '4',
-                  title: 'Duração',
-                  icon: Icons.schedule_rounded,
-                  color: AppColors.info,
-                  delay: 200,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildDurationTypeSelector(),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: _buildDurationValueInput(),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Block 5: Stake & Progression
-                _buildBlock(
-                  number: '5',
-                  title: 'Stake & Progressão',
-                  icon: Icons.trending_up_rounded,
-                  color: AppColors.success,
-                  delay: 250,
-                  child: Column(
-                    children: [
-                      _buildStakeInput(),
-                      const SizedBox(height: AppSpacing.md),
-                      SwitchListTile(
-                        title: const Text('Usar Progressão'),
-                        subtitle: const Text('Aumentar stake após perdas'),
-                        value: _useProgression,
-                        onChanged: (v) {
-                          AppHaptics.selection();
-                          setState(() => _useProgression = v);
-                        },
-                      ),
-                      if (_useProgression) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        _buildProgressionSelector(),
-                        if (_progressionType == 'custom') ...[
-                          const SizedBox(height: AppSpacing.md),
-                          _buildProgressionMultiplierInput(),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-
-                // Block 6: Risk Management
-                _buildBlock(
-                  number: '6',
-                  title: 'Gerenciamento de Risco',
-                  icon: Icons.shield_rounded,
-                  color: AppColors.warning,
-                  delay: 300,
-                  child: Column(
-                    children: [
-                      _buildRiskInput(
-                        label: 'Stop Loss',
-                        value: _stopLoss,
-                        onChanged: (v) => setState(() => _stopLoss = v),
-                        icon: Icons.trending_down_rounded,
-                        color: AppColors.error,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _buildRiskInput(
-                        label: 'Take Profit',
-                        value: _takeProfit,
-                        onChanged: (v) => setState(() => _takeProfit = v),
-                        icon: Icons.trending_up_rounded,
-                        color: AppColors.success,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _buildMaxStreakInput(),
-                    ],
-                  ),
-                ),
-
-                // Block 7: Timing
-                _buildBlock(
-                  number: '7',
-                  title: 'Timing',
-                  icon: Icons.timer_rounded,
-                  color: AppColors.error,
-                  delay: 350,
-                  child: Column(
-                    children: [
-                      _buildIntervalInput(),
-                      const SizedBox(height: AppSpacing.md),
-                      SwitchListTile(
-                        title: const Text('Smart Timing'),
-                        subtitle: const Text('Aguardar melhores condições'),
-                        value: _useSmartTiming,
-                        onChanged: (v) {
-                          AppHaptics.selection();
-                          setState(() => _useSmartTiming = v);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: AppSpacing.massive),
               ],
             ),
           ),
 
-          // Bottom Button
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: context.surface,
-              border: Border(
-                top: BorderSide(
-                  color: context.colors.outlineVariant,
+          // Block 2: Estratégia
+          _buildBlock(
+            number: '2',
+            title: 'Escolher Estratégia',
+            icon: Icons.psychology_rounded,
+            color: AppColors.secondary,
+            delay: 100,
+            child: _buildStrategySelector(),
+          ),
+
+          // Block 3: Contrato e Mercado
+          _buildBlock(
+            number: '3',
+            title: 'Contrato e Mercado',
+            icon: Icons.show_chart_rounded,
+            color: AppColors.tertiary,
+            delay: 150,
+            child: Column(
+              children: [
+                _buildContractTypeSelector(),
+                const SizedBox(height: AppSpacing.md),
+                _buildMarketSelector(),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(child: _buildDurationInput()),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: _buildDurationUnitSelector()),
+                  ],
                 ),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: PrimaryButton(
-                text: 'Criar Bot',
-                icon: Icons.rocket_launch_rounded,
-                onPressed: _createBot,
-                expanded: true,
-              ),
+              ],
             ),
           ),
+
+          // Block 4: Configuração de Stake
+          _buildBlock(
+            number: '4',
+            title: 'Configuração de Stake',
+            icon: Icons.attach_money_rounded,
+            color: AppColors.success,
+            delay: 200,
+            child: Column(
+              children: [
+                _buildStakeInput('Stake Inicial', _initialStake, (v) => setState(() => _initialStake = v), isRequired: true),
+                const SizedBox(height: AppSpacing.md),
+                _buildStakeInput('Stake Máximo', _maxStake ?? 50.0, (v) => setState(() => _maxStake = v)),
+                const SizedBox(height: AppSpacing.md),
+                _buildStakeInput('Payout Estimado (%)', _estimatedPayout * 100, (v) => setState(() => _estimatedPayout = v / 100)),
+              ],
+            ),
+          ),
+
+          // Block 5: Parâmetros da Estratégia
+          if (_selectedStrategy != BotStrategy.martingale)
+            _buildStrategyParameters(),
+
+          // Block 6: Gestão de Risco
+          _buildBlock(
+            number: _selectedStrategy == BotStrategy.martingale ? '5' : '6',
+            title: 'Gestão de Risco',
+            icon: Icons.shield_rounded,
+            color: AppColors.warning,
+            delay: 250,
+            child: Column(
+              children: [
+                _buildStakeInput('Meta de Lucro (\$)', _targetProfit, (v) => setState(() => _targetProfit = v)),
+                const SizedBox(height: AppSpacing.md),
+                _buildStakeInput('Perda Máxima (\$)', _maxLoss, (v) => setState(() => _maxLoss = v)),
+                const SizedBox(height: AppSpacing.md),
+                _buildIntInput('Perdas Consecutivas Máx.', _maxConsecutiveLosses, (v) => setState(() => _maxConsecutiveLosses = v)),
+                const SizedBox(height: AppSpacing.md),
+                _buildIntInput('Total de Trades Máx.', _maxTrades, (v) => setState(() => _maxTrades = v)),
+              ],
+            ),
+          ),
+
+          // Block 7: Modo de Recuperação
+          _buildBlock(
+            number: _selectedStrategy == BotStrategy.martingale ? '6' : '7',
+            title: 'Modo de Recuperação',
+            icon: Icons.restore_rounded,
+            color: AppColors.info,
+            delay: 300,
+            child: _buildRecoveryModeSelector(),
+          ),
+
+          // Block 8: Análise Técnica
+          _buildBlock(
+            number: _selectedStrategy == BotStrategy.martingale ? '7' : '8',
+            title: 'Análise Técnica (Opcional)',
+            icon: Icons.analytics_rounded,
+            color: AppColors.error,
+            delay: 350,
+            child: _buildTechnicalAnalysisToggles(),
+          ),
+
+          const SizedBox(height: AppSpacing.massive),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return FadeInWidget(
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary.withOpacity(0.1),
+              AppColors.secondary.withOpacity(0.1),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.extension_rounded, size: 32, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sistema de Blocos',
+                    style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Configure cada aspecto do seu bot',
+                    style: context.textStyles.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -370,10 +384,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                 Container(
                   width: 32,
                   height: 32,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                   child: Center(
                     child: Text(
                       number,
@@ -390,246 +401,159 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                 Expanded(
                   child: Text(
                     title,
-                    style: context.textStyles.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            AnimatedCard(child: child),
+            AnimatedCard(child: Padding(padding: const EdgeInsets.all(AppSpacing.md), child: child)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildContractTypeGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.sm,
-        mainAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 2.5,
-      ),
-      itemCount: _contractTypes.length,
-      itemBuilder: (context, index) {
-        final entry = _contractTypes.entries.elementAt(index);
-        final isSelected = _contractType == entry.key;
-        return AnimatedContainer(
-          duration: AppMotion.short,
-          child: FilterChip(
-            selected: isSelected,
-            label: Text(entry.value, style: context.textStyles.labelSmall),
-            onSelected: (_) {
-              AppHaptics.selection();
-              setState(() => _contractType = entry.key);
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDirectionSelector() {
-    return Row(
-      children: ['CALL', 'PUT'].map((dir) {
-        final isSelected = _direction == dir;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: FilterChip(
-              selected: isSelected,
-              label: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    dir == 'CALL' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                    size: 16,
+  Widget _buildStrategySelector() {
+    return Column(
+      children: [
+        ..._strategyInfo.entries.map((entry) {
+          final isSelected = _selectedStrategy == entry.key;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: InkWell(
+              onTap: () {
+                AppHaptics.selection();
+                setState(() => _selectedStrategy = entry.key);
+              },
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary.withOpacity(0.1) : context.colors.surfaceContainer,
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : context.colors.outlineVariant,
+                    width: isSelected ? 2 : 1,
                   ),
-                  const SizedBox(width: 4),
-                  Text(dir),
-                ],
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Row(
+                  children: [
+                    Text(entry.value['icon']!, style: const TextStyle(fontSize: 32)),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.value['name']!,
+                            style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            entry.value['description']!,
+                            style: context.textStyles.bodySmall?.copyWith(
+                              color: context.colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                  ],
+                ),
               ),
-              onSelected: (_) {
-                AppHaptics.selection();
-                setState(() => _direction = dir);
-              },
             ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDigitPrediction() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Predição de Dígito', style: context.textStyles.labelMedium),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: List.generate(10, (i) {
-            final isSelected = _digitPrediction == i;
-            return FilterChip(
-              selected: isSelected,
-              label: Text(i.toString()),
-              onSelected: (_) {
-                AppHaptics.selection();
-                setState(() => _digitPrediction = i);
-              },
-            );
-          }),
-        ),
+          );
+        }).toList(),
       ],
     );
   }
 
-  Widget _buildMultiplierSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Multiplicador', style: context.textStyles.labelMedium),
-        const SizedBox(height: AppSpacing.sm),
-        Slider(
-          value: _multiplier.toDouble(),
-          min: 1,
-          max: 1000,
-          divisions: 999,
-          label: '${_multiplier}x',
-          onChanged: (v) => setState(() => _multiplier = v.round()),
-        ),
-        Text('${_multiplier}x', style: context.textStyles.titleMedium),
+  Widget _buildContractTypeSelector() {
+    return DropdownButtonFormField<String>(
+      value: _contractType,
+      decoration: const InputDecoration(
+        labelText: 'Tipo de Contrato',
+        border: OutlineInputBorder(),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'CALL', child: Text('CALL (Rise)')),
+        DropdownMenuItem(value: 'PUT', child: Text('PUT (Fall)')),
       ],
+      onChanged: (v) {
+        if (v != null) setState(() => _contractType = v);
+      },
     );
   }
 
   Widget _buildMarketSelector() {
     return DropdownButtonFormField<String>(
-      value: _selectedMarket,
+      value: _market,
       decoration: const InputDecoration(
-        labelText: 'Selecionar Mercado',
+        labelText: 'Mercado',
         border: OutlineInputBorder(),
       ),
-      items: _allMarkets.entries.map((e) {
-        return DropdownMenuItem(
-          value: e.key,
-          child: Text('${e.key} - ${e.value}'),
-        );
+      items: _markets.entries.map((e) {
+        return DropdownMenuItem(value: e.key, child: Text('${e.key} - ${e.value}'));
       }).toList(),
       onChanged: (v) {
-        if (v != null) {
-          AppHaptics.selection();
-          setState(() => _selectedMarket = v);
-        }
+        if (v != null) setState(() => _market = v);
       },
     );
   }
 
-  Widget _buildDurationTypeSelector() {
-    final types = {'t': 'Ticks', 's': 'Segundos', 'm': 'Minutos', 'h': 'Horas', 'd': 'Dias'};
-    return DropdownButtonFormField<String>(
-      value: _durationType,
-      decoration: const InputDecoration(
-        labelText: 'Tipo',
-        border: OutlineInputBorder(),
-      ),
-      items: types.entries.map((e) {
-        return DropdownMenuItem(value: e.key, child: Text(e.value));
-      }).toList(),
-      onChanged: (v) {
-        if (v != null) setState(() => _durationType = v);
-      },
-    );
-  }
-
-  Widget _buildDurationValueInput() {
+  Widget _buildDurationInput() {
     return TextFormField(
-      initialValue: _durationValue.toString(),
+      initialValue: _duration.toString(),
       decoration: const InputDecoration(
-        labelText: 'Valor',
+        labelText: 'Duração',
         border: OutlineInputBorder(),
       ),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       onChanged: (v) {
         final val = int.tryParse(v);
-        if (val != null) setState(() => _durationValue = val);
+        if (val != null) setState(() => _duration = val);
       },
     );
   }
 
-  Widget _buildStakeInput() {
-    return TextFormField(
-      initialValue: _initialStake.toStringAsFixed(2),
-      decoration: const InputDecoration(
-        labelText: 'Stake Inicial',
-        prefixText: '\$ ',
-        border: OutlineInputBorder(),
-      ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-      onChanged: (v) {
-        final val = double.tryParse(v);
-        if (val != null) setState(() => _initialStake = val);
-      },
-    );
-  }
-
-  Widget _buildProgressionSelector() {
+  Widget _buildDurationUnitSelector() {
     return DropdownButtonFormField<String>(
-      value: _progressionType,
+      value: _durationUnit,
       decoration: const InputDecoration(
-        labelText: 'Tipo de Progressão',
+        labelText: 'Unidade',
         border: OutlineInputBorder(),
       ),
-      items: _progressionTypes.entries.map((e) {
-        return DropdownMenuItem(value: e.key, child: Text(e.value));
-      }).toList(),
+      items: const [
+        DropdownMenuItem(value: 't', child: Text('Ticks')),
+        DropdownMenuItem(value: 's', child: Text('Segundos')),
+        DropdownMenuItem(value: 'm', child: Text('Minutos')),
+        DropdownMenuItem(value: 'h', child: Text('Horas')),
+      ],
       onChanged: (v) {
-        if (v != null) setState(() => _progressionType = v);
+        if (v != null) setState(() => _durationUnit = v);
       },
     );
   }
 
-  Widget _buildProgressionMultiplierInput() {
-    return TextFormField(
-      initialValue: _progressionMultiplier.toStringAsFixed(2),
-      decoration: const InputDecoration(
-        labelText: 'Multiplicador Custom',
-        border: OutlineInputBorder(),
-      ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-      onChanged: (v) {
-        final val = double.tryParse(v);
-        if (val != null) setState(() => _progressionMultiplier = val);
-      },
-    );
-  }
-
-  Widget _buildRiskInput({
-    required String label,
-    required double value,
-    required Function(double) onChanged,
-    required IconData icon,
-    required Color color,
-  }) {
+  Widget _buildStakeInput(String label, double value, Function(double) onChanged, {bool isRequired = false}) {
     return TextFormField(
       initialValue: value.toStringAsFixed(2),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: color),
-        suffixText: 'USD',
+        prefixText: '\$ ',
         border: const OutlineInputBorder(),
       ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+      validator: isRequired ? (v) {
+        final val = double.tryParse(v ?? '');
+        if (val == null || val < 0.35) return 'Mínimo \$0.35';
+        return null;
+      } : null,
       onChanged: (v) {
         final val = double.tryParse(v);
         if (val != null) onChanged(val);
@@ -637,80 +561,572 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
     );
   }
 
-  Widget _buildMaxStreakInput() {
+  Widget _buildIntInput(String label, int value, Function(int) onChanged) {
     return TextFormField(
-      initialValue: _maxLossStreak.toString(),
-      decoration: const InputDecoration(
-        labelText: 'Máximo de Perdas Consecutivas',
-        border: OutlineInputBorder(),
+      initialValue: value.toString(),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
       ),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       onChanged: (v) {
         final val = int.tryParse(v);
-        if (val != null) setState(() => _maxLossStreak = val);
+        if (val != null) onChanged(val);
       },
     );
   }
 
-  Widget _buildIntervalInput() {
-    return TextFormField(
-      initialValue: _tradeInterval.toString(),
-      decoration: const InputDecoration(
-        labelText: 'Intervalo entre Trades (segundos)',
-        border: OutlineInputBorder(),
-      ),
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: (v) {
-        final val = int.tryParse(v);
-        if (val != null) setState(() => _tradeInterval = val);
-      },
+  Widget _buildStrategyParameters() {
+    switch (_selectedStrategy) {
+      case BotStrategy.progressiveReinvestment:
+        return _buildBlock(
+          number: '5',
+          title: 'Parâmetros - Progressive Reinvestment',
+          icon: Icons.autorenew_rounded,
+          color: AppColors.info,
+          delay: 225,
+          child: Column(
+            children: [
+              _buildIntInput('Rodadas por Ciclo (N)', _roundsPerCycle, (v) => setState(() => _roundsPerCycle = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildIntInput('Total de Ciclos (C)', _totalCycles, (v) => setState(() => _totalCycles = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildStakeInput('Lucro Extra na Recuperação (%)', _extraProfitPercent, (v) => setState(() => _extraProfitPercent = v)),
+              const SizedBox(height: AppSpacing.md),
+              SwitchListTile(
+                title: const Text('Recuperação Automática'),
+                subtitle: const Text('Recalcular stake após perda'),
+                value: _autoRecovery,
+                onChanged: (v) {
+                  AppHaptics.selection();
+                  setState(() => _autoRecovery = v);
+                },
+              ),
+            ],
+          ),
+        );
+
+      case BotStrategy.trendyAdaptive:
+        return _buildBlock(
+          number: '5',
+          title: 'Parâmetros - Trendy Adaptive',
+          icon: Icons.insights_rounded,
+          color: AppColors.info,
+          delay: 225,
+          child: Column(
+            children: [
+              _buildStakeInput('Multiplicador de Tendência (Mt)', _trendMultiplier, (v) => setState(() => _trendMultiplier = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildStakeInput('Multiplicador de Recuperação (Mr)', _recoveryMultiplier, (v) => setState(() => _recoveryMultiplier = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildIntInput('Filtro de Tendência (F)', _trendFilter, (v) => setState(() => _trendFilter = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildStakeInput('% Lucro a Reinvestir', _profitReinvestPercent, (v) => setState(() => _profitReinvestPercent = v)),
+            ],
+          ),
+        );
+
+      case BotStrategy.adaptiveCompoundRecovery:
+        return _buildBlock(
+          number: '5',
+          title: 'Parâmetros - ACS-R v3.0',
+          icon: Icons.psychology_rounded,
+          color: AppColors.info,
+          delay: 225,
+          child: Column(
+            children: [
+              _buildStakeInput('Multiplicador de Consistência (Mc)', _consistencyMultiplier, (v) => setState(() => _consistencyMultiplier = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildIntInput('Filtro de Confiança (F)', _confidenceFilter, (v) => setState(() => _confidenceFilter = v)),
+              const SizedBox(height: AppSpacing.md),
+              _buildStakeInput('Confiança Mínima no Padrão (%)', _patternConfidence * 100, (v) => setState(() => _patternConfidence = v / 100)),
+            ],
+          ),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildRecoveryModeSelector() {
+    return Column(
+      children: RecoveryMode.values.map((mode) {
+        final isSelected = _recoveryMode == mode;
+        return RadioListTile<RecoveryMode>(
+          title: Text(_getRecoveryModeName(mode)),
+          subtitle: Text(_getRecoveryModeDescription(mode)),
+          value: mode,
+          groupValue: _recoveryMode,
+          onChanged: (v) {
+            if (v != null) {
+              AppHaptics.selection();
+              setState(() => _recoveryMode = v);
+            }
+          },
+        );
+      }).toList(),
     );
   }
 
-  bool get _needsDirection => ['risefall', 'higherlower', 'multipliers'].contains(_contractType);
-  bool get _needsDigitPrediction => ['matchdiffer', 'overunder', 'digits'].contains(_contractType);
+  String _getRecoveryModeName(RecoveryMode mode) {
+    switch (mode) {
+      case RecoveryMode.none:
+        return 'Nenhum';
+      case RecoveryMode.conservative:
+        return 'Conservador';
+      case RecoveryMode.moderate:
+        return 'Moderado';
+      case RecoveryMode.aggressive:
+        return 'Agressivo';
+      case RecoveryMode.intelligent:
+        return 'Inteligente';
+    }
+  }
 
+  String _getRecoveryModeDescription(RecoveryMode mode) {
+    switch (mode) {
+      case RecoveryMode.none:
+        return 'Sem recuperação adicional';
+      case RecoveryMode.conservative:
+        return 'Aumento mínimo após 2 perdas';
+      case RecoveryMode.moderate:
+        return 'Aumento progressivo moderado';
+      case RecoveryMode.aggressive:
+        return 'Aumento imediato após perda';
+      case RecoveryMode.intelligent:
+        return 'Calcula recuperação baseada em perdas';
+    }
+  }
+
+  Widget _buildTechnicalAnalysisToggles() {
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('RSI (Relative Strength Index)'),
+          value: _useRSI,
+          onChanged: (v) {
+            AppHaptics.selection();
+            setState(() => _useRSI = v);
+          },
+        ),
+        SwitchListTile(
+          title: const Text('MACD'),
+          value: _useMACD,
+          onChanged: (v) {
+            AppHaptics.selection();
+            setState(() => _useMACD = v);
+          },
+        ),
+        SwitchListTile(
+          title: const Text('Bandas de Bollinger'),
+          value: _useBollinger,
+          onChanged: (v) {
+            AppHaptics.selection();
+            setState(() => _useBollinger = v);
+          },
+        ),
+        SwitchListTile(
+          title: const Text('Reconhecimento de Padrões'),
+          value: _usePatternRecognition,
+          onChanged: (v) {
+            AppHaptics.selection();
+            setState(() => _usePatternRecognition = v);
+          },
+        ),
+      ],
+    );
+  }
+
+  // ============================================
+  // MODO CÓDIGO JS
+  // ============================================
+  Widget _buildJSMode() {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        FadeInWidget(
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.info.withOpacity(0.1),
+                  AppColors.primary.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.code_rounded, size: 32, color: AppColors.info),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Modo Código JS',
+                        style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Cole seu código Deriv Bot e o sistema analisará automaticamente',
+                        style: context.textStyles.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        FadeInWidget(
+          delay: const Duration(milliseconds: 100),
+          child: AnimatedCard(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cole o código JavaScript do seu bot:',
+                    style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: _jsCodeController,
+                    maxLines: 20,
+                    decoration: InputDecoration(
+                      hintText: '// Cole aqui o código do Deriv Bot\n// Exemplo:\nBot.init(function() {\n  // sua estratégia aqui\n});',
+                      border: const OutlineInputBorder(),
+                      filled: true,
+                      fillColor: context.colors.surfaceContainer,
+                      contentPadding: const EdgeInsets.all(AppSpacing.md),
+                    ),
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 16, color: AppColors.info),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          'O sistema detectará automaticamente: estratégia, stake, mercado, duração e parâmetros',
+                          style: context.textStyles.bodySmall?.copyWith(color: AppColors.info),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        FadeInWidget(
+          delay: const Duration(milliseconds: 200),
+          child: AnimatedCard(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.auto_fix_high_rounded, color: AppColors.success),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'O que será detectado:',
+                        style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildDetectionItem('✓ Tipo de estratégia (Martingale, Progressive, etc)'),
+                  _buildDetectionItem('✓ Stake inicial e progressão'),
+                  _buildDetectionItem('✓ Mercado e tipo de contrato'),
+                  _buildDetectionItem('✓ Duração e unidade'),
+                  _buildDetectionItem('✓ Condições de entrada/saída'),
+                  _buildDetectionItem('✓ Limites de risco'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetectionItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Text(text, style: context.textStyles.bodySmall),
+    );
+  }
+
+  // ============================================
+  // CRIAÇÃO DO BOT
+  // ============================================
   void _createBot() {
-    if (!_formKey.currentState!.validate()) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Preencha todos os campos obrigatórios');
-      return;
-    }
+    if (_creationMode == 0) {
+      // Modo Blocos
+      if (!_formKey.currentState!.validate()) {
+        AppHaptics.error();
+        AppSnackbar.error(context, 'Preencha todos os campos obrigatórios');
+        return;
+      }
 
-    if (_nameController.text.trim().isEmpty) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Digite um nome para o bot');
-      return;
-    }
+      if (_nameController.text.trim().isEmpty) {
+        AppHaptics.error();
+        AppSnackbar.error(context, 'Digite um nome para o bot');
+        return;
+      }
 
+      _createBotFromBlocks();
+    } else {
+      // Modo Código JS
+      if (_jsCodeController.text.trim().isEmpty) {
+        AppHaptics.error();
+        AppSnackbar.error(context, 'Cole o código JavaScript do bot');
+        return;
+      }
+
+      _createBotFromJS();
+    }
+  }
+
+  void _createBotFromBlocks() {
     AppHaptics.success();
-    
-    final botConfig = {
-      'name': _nameController.text.trim(),
-      'contractType': _contractType,
-      'direction': _direction,
-      'digitPrediction': _digitPrediction,
-      'multiplier': _multiplier,
-      'market': _selectedMarket,
-      'durationType': _durationType,
-      'durationValue': _durationValue,
-      'initialStake': _initialStake,
-      'useProgression': _useProgression,
-      'progressionType': _progressionType,
-      'progressionMultiplier': _progressionMultiplier,
-      'stopLoss': _stopLoss,
-      'takeProfit': _takeProfit,
-      'maxLossStreak': _maxLossStreak,
-      'tradeInterval': _tradeInterval,
-      'useSmartTiming': _useSmartTiming,
-    };
 
-    // TODO: Implementar criação real do bot com a configuração
-    debugPrint('Bot criado: $botConfig');
+    // Configurar entry conditions baseado na estratégia
+    List<EntryCondition> entryConditions = [EntryCondition.immediate];
     
+    if (_selectedStrategy == BotStrategy.trendyAdaptive) {
+      entryConditions = [EntryCondition.trendSequence];
+    } else if (_selectedStrategy == BotStrategy.adaptiveCompoundRecovery) {
+      entryConditions = [EntryCondition.patternDetection];
+    }
+
+    if (_useRSI) {
+      entryConditions.add(EntryCondition.rsiOversold);
+    }
+
+    final config = BotConfiguration(
+      name: _nameController.text.trim(),
+      description: _descriptionController.text.trim().isEmpty 
+          ? _strategyInfo[_selectedStrategy]!['description']! 
+          : _descriptionController.text.trim(),
+      strategy: _selectedStrategy,
+      initialStake: _initialStake,
+      market: _market,
+      contractType: _contractType,
+      duration: _duration,
+      durationUnit: _durationUnit,
+      recoveryMode: _recoveryMode,
+      entryConditions: entryConditions,
+      maxStake: _maxStake,
+      maxLoss: _maxLoss,
+      targetProfit: _targetProfit,
+      maxConsecutiveLosses: _maxConsecutiveLosses,
+      maxTrades: _maxTrades,
+      estimatedPayout: _estimatedPayout,
+      useRSI: _useRSI,
+      useMACD: _useMACD,
+      useBollinger: _useBollinger,
+      usePatternRecognition: _usePatternRecognition,
+      // Progressive Reinvestment
+      roundsPerCycle: _roundsPerCycle,
+      totalCycles: _totalCycles,
+      extraProfitPercent: _extraProfitPercent,
+      autoRecovery: _autoRecovery,
+      // Trendy Adaptive
+      trendMultiplier: _trendMultiplier,
+      recoveryMultiplier: _recoveryMultiplier,
+      trendFilter: _trendFilter,
+      profitReinvestPercent: _profitReinvestPercent,
+      // ACS-R v3.0
+      consistencyMultiplier: _consistencyMultiplier,
+      confidenceFilter: _confidenceFilter,
+      patternConfidence: _patternConfidence,
+    );
+
+    final bot = TradingBot(
+      config: config,
+      channel: widget.channel,
+      onStatusUpdate: (_) {},
+    );
+
+    widget.onBotCreated(bot);
     Navigator.pop(context);
-    AppSnackbar.success(context, 'Bot "${_nameController.text.trim()}" criado com sucesso!');
+    AppSnackbar.success(context, 'Bot "${config.name}" criado com sucesso!');
+  }
+
+  void _createBotFromJS() {
+    AppHaptics.medium();
+    
+    final jsCode = _jsCodeController.text.trim();
+    
+    // Analisar código JS
+    final analysis = _analyzeJSCode(jsCode);
+    
+    if (analysis['error'] != null) {
+      AppHaptics.error();
+      AppSnackbar.error(context, 'Erro ao analisar código: ${analysis['error']}');
+      return;
+    }
+
+    // Criar bot com base na análise
+    final config = BotConfiguration(
+      name: analysis['name'] ?? 'Bot JS Importado',
+      description: analysis['description'] ?? 'Bot criado a partir de código JavaScript',
+      strategy: analysis['strategy'] ?? BotStrategy.martingale,
+      initialStake: analysis['initialStake'] ?? 0.35,
+      market: analysis['market'] ?? 'R_100',
+      contractType: analysis['contractType'] ?? 'CALL',
+      duration: analysis['duration'] ?? 5,
+      durationUnit: analysis['durationUnit'] ?? 't',
+      recoveryMode: analysis['recoveryMode'] ?? RecoveryMode.moderate,
+      entryConditions: analysis['entryConditions'] ?? [EntryCondition.immediate],
+      maxStake: analysis['maxStake'],
+      maxLoss: analysis['maxLoss'] ?? 100.0,
+      targetProfit: analysis['targetProfit'] ?? 20.0,
+      maxConsecutiveLosses: analysis['maxConsecutiveLosses'] ?? 7,
+      maxTrades: analysis['maxTrades'] ?? 100,
+      estimatedPayout: analysis['estimatedPayout'] ?? 0.95,
+      // Parâmetros específicos detectados
+      roundsPerCycle: analysis['roundsPerCycle'] ?? 3,
+      totalCycles: analysis['totalCycles'] ?? 10,
+      extraProfitPercent: analysis['extraProfitPercent'] ?? 10.0,
+      trendMultiplier: analysis['trendMultiplier'] ?? 1.5,
+      recoveryMultiplier: analysis['recoveryMultiplier'] ?? 1.2,
+      trendFilter: analysis['trendFilter'] ?? 2,
+      consistencyMultiplier: analysis['consistencyMultiplier'] ?? 1.15,
+      confidenceFilter: analysis['confidenceFilter'] ?? 2,
+      patternConfidence: analysis['patternConfidence'] ?? 0.6,
+    );
+
+    final bot = TradingBot(
+      config: config,
+      channel: widget.channel,
+      onStatusUpdate: (_) {},
+    );
+
+    widget.onBotCreated(bot);
+    Navigator.pop(context);
+    AppSnackbar.success(context, 'Bot "${config.name}" criado a partir do código JS!');
+  }
+
+  // ============================================
+  // ANALISADOR DE CÓDIGO JS
+  // ============================================
+  Map<String, dynamic> _analyzeJSCode(String code) {
+    final result = <String, dynamic>{};
+    
+    try {
+      // Detectar estratégia
+      if (code.toLowerCase().contains('martingale') || 
+          code.contains('stake * 2') || 
+          code.contains('stake *= 2')) {
+        result['strategy'] = BotStrategy.martingale;
+        result['name'] = 'Martingale Bot (JS)';
+      } else if (code.contains('reinvest') || 
+                 code.contains('compound') ||
+                 code.contains('cycle')) {
+        result['strategy'] = BotStrategy.progressiveReinvestment;
+        result['name'] = 'Progressive Bot (JS)';
+      } else if (code.contains('trend') || 
+                 code.contains('pattern') ||
+                 code.contains('adaptive')) {
+        result['strategy'] = BotStrategy.trendyAdaptive;
+        result['name'] = 'Trendy Bot (JS)';
+      } else {
+        result['strategy'] = BotStrategy.martingale;
+        result['name'] = 'Custom Bot (JS)';
+      }
+
+      // Detectar stake inicial
+      final stakeMatch = RegExp(r'stake.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      if (stakeMatch != null) {
+        result['initialStake'] = double.tryParse(stakeMatch.group(1)!) ?? 0.35;
+      }
+
+      // Detectar mercado
+      final marketMatch = RegExp(r'["\']?(R_\d+|BOOM\d+|CRASH\d+|1HZ\d+V)["\']?').firstMatch(code);
+      if (marketMatch != null) {
+        result['market'] = marketMatch.group(1);
+      }
+
+      // Detectar tipo de contrato
+      if (code.toUpperCase().contains('CALL') || code.contains('rise')) {
+        result['contractType'] = 'CALL';
+      } else if (code.toUpperCase().contains('PUT') || code.contains('fall')) {
+        result['contractType'] = 'PUT';
+      }
+
+      // Detectar duração
+      final durationMatch = RegExp(r'duration.*?[:=]\s*(\d+)', caseSensitive: false).firstMatch(code);
+      if (durationMatch != null) {
+        result['duration'] = int.tryParse(durationMatch.group(1)!) ?? 5;
+      }
+
+      // Detectar unidade de duração
+      if (code.contains('tick')) {
+        result['durationUnit'] = 't';
+      } else if (code.contains('second')) {
+        result['durationUnit'] = 's';
+      } else if (code.contains('minute')) {
+        result['durationUnit'] = 'm';
+      }
+
+      // Detectar take profit
+      final profitMatch = RegExp(r'profit.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      if (profitMatch != null) {
+        result['targetProfit'] = double.tryParse(profitMatch.group(1)!) ?? 20.0;
+      }
+
+      // Detectar stop loss
+      final lossMatch = RegExp(r'loss.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      if (lossMatch != null) {
+        result['maxLoss'] = double.tryParse(lossMatch.group(1)!) ?? 100.0;
+      }
+
+      // Detectar max stake
+      final maxStakeMatch = RegExp(r'max.*?stake.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      if (maxStakeMatch != null) {
+        result['maxStake'] = double.tryParse(maxStakeMatch.group(1)!);
+      }
+
+      // Detectar multiplicadores
+      final multiplierMatch = RegExp(r'multiplier.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      if (multiplierMatch != null) {
+        final mult = double.tryParse(multiplierMatch.group(1)!);
+        result['trendMultiplier'] = mult;
+        result['recoveryMultiplier'] = mult;
+      }
+
+      // Detectar ciclos
+      final cyclesMatch = RegExp(r'cycle.*?[:=]\s*(\d+)', caseSensitive: false).firstMatch(code);
+      if (cyclesMatch != null) {
+        result['totalCycles'] = int.tryParse(cyclesMatch.group(1)!) ?? 10;
+      }
+
+      // Detectar rounds
+      final roundsMatch = RegExp(r'round.*?[:=]\s*(\d+)', caseSensitive: false).firstMatch(code);
+      if (roundsMatch != null) {
+        result['roundsPerCycle'] = int.tryParse(roundsMatch.group(1)!) ?? 3;
+      }
+
+      result['description'] = 'Bot importado e analisado automaticamente do código JavaScript';
+      
+    } catch (e) {
+      result['error'] = 'Erro ao analisar código: $e';
+    }
+
+    return result;
   }
 }
