@@ -24,21 +24,26 @@ class TradeLogicController {
   double stake = 10.0;
   bool isTrading = false;
   bool soundEnabled = false;
-  
+
   String durationType = 't';
   int durationValue = 5;
-  
+
   bool hasActiveAccumulator = false;
   String? activeAccumulatorId;
-  
+
   int multiplier = 5;
   double multiplierStopLossPercent = 50.0;
   double multiplierTakeProfitPercent = 0.0;
-  
+
   int tickPrediction = 5;
-  
+
   double? entryPrice;
   String? entryDirection;
+
+  // NEW: Additional properties for trade settings
+  String tradeType = 'risefall';
+  double growthRate = 0.01; // 1% default
+  double strikePrice = 0.0;
 
   // Markets organized by categories
   final Map<String, Map<String, String>> marketCategories = {
@@ -174,6 +179,9 @@ class TradeLogicController {
 
     _mlPredictor.setMarket(selectedMarket);
     _tradingLogic.connect();
+    
+    // Initialize strike price with current price when available
+    strikePrice = currentPrice > 0 ? currentPrice : 100.0;
   }
 
   void dispose() {
@@ -193,7 +201,21 @@ class TradeLogicController {
   int get mlTotalPredictions => _mlPredictor.totalPredictions;
 
   String get selectedMarketName => allMarkets[selectedMarket] ?? selectedMarket;
-  
+
+  // NEW: Trade type label getter
+  String get tradeTypeLabel {
+    switch (tradeType) {
+      case 'risefall':
+        return 'Rise/Fall';
+      case 'accumulator':
+        return 'Accumulators';
+      case 'vanillaoptions':
+        return 'Vanilla Options';
+      default:
+        return tradeType;
+    }
+  }
+
   Map<String, dynamic>? get selectedTradeTypeData {
     try {
       return tradeTypes.firstWhere((t) => t['id'] == selectedTradeType);
@@ -271,6 +293,12 @@ class TradeLogicController {
     currentPrice = price;
     priceChange = change;
     _mlPredictor.addPriceData(price);
+    
+    // Update strike price if not manually set
+    if (strikePrice == 0.0) {
+      strikePrice = price;
+    }
+    
     onStateChanged();
   }
 
@@ -284,7 +312,7 @@ class TradeLogicController {
 
   void changeTradeType(String type) {
     selectedTradeType = type;
-    
+
     // Reset specific settings when changing trade type
     if (type != 'multipliers') {
       multiplier = 5;
@@ -294,8 +322,30 @@ class TradeLogicController {
     if (!needsBarrier) {
       tickPrediction = 5;
     }
-    
+
     onStateChanged();
+  }
+
+  // NEW: Set trade type method
+  void setTradeType(String type) {
+    tradeType = type;
+    onStateChanged();
+  }
+
+  // NEW: Set growth rate method
+  void setGrowthRate(double rate) {
+    if (rate > 0 && rate <= 1) {
+      growthRate = rate;
+      onStateChanged();
+    }
+  }
+
+  // NEW: Set strike price method
+  void setStrikePrice(double price) {
+    if (price > 0) {
+      strikePrice = price;
+      onStateChanged();
+    }
   }
 
   void setStake(double value) {
