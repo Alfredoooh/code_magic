@@ -1,4 +1,3 @@
-// lib/trade_screen.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,7 +43,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     );
     _controller.initialize();
 
-    // Animação do banner ML
     _mlBannerController = AnimationController(
       vsync: this,
       duration: AppMotion.medium,
@@ -63,10 +61,19 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
     super.dispose();
   }
 
+  String _abbreviateMarketName(String name) {
+    if (name.length <= 15) return name;
+    return '${name.substring(0, 12)}...';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: GestureDetector(
           onTap: () {
             AppHaptics.light();
@@ -75,13 +82,32 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_controller.selectedMarketName),
+              Text(
+                _abbreviateMarketName(_controller.selectedMarketName),
+                style: context.textStyles.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(width: AppSpacing.xs),
               const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
             ],
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.pending_actions_rounded),
+            onPressed: () {
+              AppHaptics.light();
+              AppSnackbar.info(context, 'Posições pendentes');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            onPressed: () {
+              AppHaptics.light();
+              _showTradeSettings();
+            },
+          ),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.md),
             child: Column(
@@ -119,32 +145,200 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // ML Prediction Banner (abaixo do AppBar)
-          if (_controller.mlPrediction != null && _showMLBanner)
-            _buildMLPredictionBanner(),
+      body: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(overscroll: false),
+        child: Column(
+          children: [
+            if (_controller.mlPrediction != null && _showMLBanner)
+              _buildMLPredictionBanner(),
 
-          Expanded(
-            flex: _chartExpanded ? 5 : 3,
-            child: TradeChartView(
-              controller: _controller,
-              isExpanded: _chartExpanded,
-              onExpandToggle: () {
-                AppHaptics.medium();
-                setState(() => _chartExpanded = !_chartExpanded);
-              },
+            Expanded(
+              flex: _chartExpanded ? 5 : 3,
+              child: TradeChartView(
+                controller: _controller,
+                isExpanded: _chartExpanded,
+                onExpandToggle: () {
+                  AppHaptics.medium();
+                  setState(() => _chartExpanded = !_chartExpanded);
+                },
+              ),
             ),
+
+            if (!_chartExpanded)
+              TradeControls(
+                controller: _controller,
+                onStakeTap: () => _showStakeKeyboard(),
+                onDurationTap: () => _showDurationSelector(),
+                onPlaceTrade: (direction) => _controller.placeTrade(direction),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTradeSettings() {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Trade Settings',
+      showHandle: true,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          child: Column(
+            children: [
+              AppListTile(
+                title: 'Trade Type',
+                subtitle: _controller.tradeTypeLabel,
+                leading: const Icon(Icons.category_rounded),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  AppHaptics.selection();
+                  Navigator.pop(context);
+                  _showTradeTypeSelector();
+                },
+              ),
+              if (_controller.tradeType == 'accumulator') ...[
+                const Divider(),
+                AppListTile(
+                  title: 'Growth Rate',
+                  subtitle: '${(_controller.growthRate * 100).toStringAsFixed(0)}%',
+                  leading: const Icon(Icons.trending_up_rounded),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    AppHaptics.selection();
+                    Navigator.pop(context);
+                    _showGrowthRateSelector();
+                  },
+                ),
+              ],
+              if (_controller.tradeType == 'vanillaoptions') ...[
+                const Divider(),
+                AppListTile(
+                  title: 'Strike Price',
+                  subtitle: '\$${_controller.strikePrice.toStringAsFixed(2)}',
+                  leading: const Icon(Icons.gps_fixed_rounded),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    AppHaptics.selection();
+                    Navigator.pop(context);
+                    _showStrikePriceKeyboard();
+                  },
+                ),
+              ],
+              const Divider(),
+              AppListTile(
+                title: 'Duration Type',
+                subtitle: _controller.durationLabel,
+                leading: const Icon(Icons.schedule_rounded),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  AppHaptics.selection();
+                  Navigator.pop(context);
+                  _showDurationSelector();
+                },
+              ),
+              const Divider(),
+              AppListTile(
+                title: 'Duration Value',
+                subtitle: '${_controller.durationValue} ${_controller.durationLabel}',
+                leading: const Icon(Icons.timer_rounded),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  AppHaptics.selection();
+                  Navigator.pop(context);
+                  _showDurationValuePicker();
+                },
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
 
-          if (!_chartExpanded)
-            TradeControls(
-              controller: _controller,
-              onStakeTap: () => _showStakeKeyboard(),
-              onDurationTap: () => _showDurationSelector(),
-              onPlaceTrade: (direction) => _controller.placeTrade(direction),
-            ),
+  void _showTradeTypeSelector() {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Select Trade Type',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListTile(
+            title: 'Rise/Fall',
+            subtitle: 'Predict market direction',
+            leading: const Icon(Icons.swap_vert_rounded),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              AppHaptics.selection();
+              _controller.setTradeType('risefall');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Accumulators',
+            subtitle: 'Accumulate growth over time',
+            leading: const Icon(Icons.addchart_rounded),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              AppHaptics.selection();
+              _controller.setTradeType('accumulator');
+              Navigator.pop(context);
+            },
+          ),
+          AppListTile(
+            title: 'Vanilla Options',
+            subtitle: 'Strike price options',
+            leading: const Icon(Icons.trending_up_rounded),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              AppHaptics.selection();
+              _controller.setTradeType('vanillaoptions');
+              Navigator.pop(context);
+            },
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showGrowthRateSelector() {
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Select Growth Rate',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [1, 2, 3, 4, 5].map((rate) {
+          return AppListTile(
+            title: '${rate}%',
+            trailing: _controller.growthRate == (rate / 100) 
+                ? const Icon(Icons.check_rounded, color: AppColors.success)
+                : null,
+            onTap: () {
+              AppHaptics.selection();
+              _controller.setGrowthRate(rate / 100);
+              Navigator.pop(context);
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  void _showStrikePriceKeyboard() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => CustomKeyboardScreen(
+          title: 'Set Strike Price',
+          initialValue: _controller.strikePrice,
+          minValue: 0.01,
+          prefix: '\$ ',
+          onConfirm: (value) {
+            _controller.setStrikePrice(value);
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -176,12 +370,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         child: Container(
           margin: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.info.withOpacity(0.15),
-                AppColors.primary.withOpacity(0.1),
-              ],
-            ),
+            color: AppColors.info.withOpacity(0.1),
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
               color: AppColors.info.withOpacity(0.3),
@@ -399,7 +588,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Container(
@@ -427,7 +615,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              // Padrões Detectados
               if (patterns.isNotEmpty) ...[
                 Text('Detected Patterns', style: context.textStyles.titleMedium),
                 const SizedBox(height: AppSpacing.sm),
@@ -442,7 +629,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 const SizedBox(height: AppSpacing.xl),
               ],
 
-              // Risk/Reward
               Text('Risk/Reward Analysis', style: context.textStyles.titleMedium),
               const SizedBox(height: AppSpacing.sm),
               _buildInfoCard(
@@ -467,7 +653,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              // Market Conditions
               Text('Market Conditions', style: context.textStyles.titleMedium),
               const SizedBox(height: AppSpacing.sm),
               _buildInfoCard(
@@ -492,7 +677,6 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              // ML Stats
               Text('ML Performance', style: context.textStyles.titleMedium),
               const SizedBox(height: AppSpacing.sm),
               _buildInfoCard(
@@ -555,9 +739,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
   void _showMarketSelector() {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (context) => MarketSelectorScreen(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => MarketSelectorScreen(
           currentMarket: _controller.selectedMarket,
           allMarkets: _controller.allMarkets,
           onMarketSelected: (market) {
@@ -565,15 +748,24 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             Navigator.pop(context);
           },
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 350),
+        fullscreenDialog: true,
       ),
     );
   }
 
   void _showStakeKeyboard() {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (context) => CustomKeyboardScreen(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CustomKeyboardScreen(
           title: 'Definir Stake',
           initialValue: _controller.stake,
           minValue: 0.35,
@@ -588,6 +780,16 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             }
           },
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 350),
+        fullscreenDialog: true,
       ),
     );
   }
@@ -624,9 +826,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
   void _showDurationValuePicker() {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (context) => CustomKeyboardScreen(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CustomKeyboardScreen(
           title: 'Value (${_controller.durationLabel})',
           initialValue: _controller.durationValue.toDouble(),
           minValue: 1,
@@ -641,6 +842,16 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
             }
           },
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 350),
+        fullscreenDialog: true,
       ),
     );
   }
