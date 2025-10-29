@@ -41,7 +41,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         _updateChart();
       }
     });
-    
+
     _scrollController.addListener(_handleScroll);
   }
 
@@ -50,7 +50,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     if (_scrollController.hasClients) {
       final offset = _scrollController.offset;
       final chartHeight = MediaQuery.of(context).size.width; // Chart quadrado
-      
+
       setState(() {
         _isChartVisible = offset < chartHeight;
       });
@@ -124,7 +124,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   void _showConfigDialog() {
     String selectedMarket = widget.bot.config.market;
-    
+
     final stakeController = TextEditingController(
       text: widget.bot.config.initialStake.toStringAsFixed(2),
     );
@@ -198,9 +198,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: AppSpacing.xl),
-                
+
                 Text(
                   'Valores de Trading',
                   style: context.textStyles.titleSmall?.copyWith(
@@ -208,7 +208,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   ),
                 ),
                 SizedBox(height: AppSpacing.sm),
-                
+
                 AppTextField(
                   controller: stakeController,
                   label: 'Stake Inicial (\$)',
@@ -244,38 +244,46 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               },
             ),
             PrimaryButton(
-              text: 'Salvar',
-              onPressed: () {
-                final newStake = double.tryParse(
-                  stakeController.text.replaceAll(',', '.'),
-                );
-                final newMaxStake = maxStakeController.text.isEmpty 
-                    ? null 
-                    : double.tryParse(maxStakeController.text.replaceAll(',', '.'));
-                final newTargetProfit = double.tryParse(
-                  targetProfitController.text.replaceAll(',', '.'),
-                );
+  text: 'Salvar',
+  onPressed: () {
+    final newStake = double.tryParse(
+      stakeController.text.replaceAll(',', '.'),
+    );
+    final newMaxStake = maxStakeController.text.isEmpty 
+        ? null 
+        : double.tryParse(maxStakeController.text.replaceAll(',', '.'));
+    final newTargetProfit = double.tryParse(
+      targetProfitController.text.replaceAll(',', '.'),
+    );
 
-                if (newStake != null && newStake >= 0.35 &&
-                    (newMaxStake == null || newMaxStake >= newStake) &&
-                    newTargetProfit != null && newTargetProfit > 0) {
-                  AppHaptics.success();
-                  setState(() {
-                    widget.bot.config.market = selectedMarket;
-                    widget.bot.config.initialStake = newStake;
-                    widget.bot.currentStake = newStake;
-                    widget.bot.config.maxStake = newMaxStake;
-                    widget.bot.config.targetProfit = newTargetProfit;
-                  });
-                  widget.onUpdate();
-                  Navigator.pop(context);
-                  AppSnackbar.success(context, 'Configurações salvas');
-                } else {
-                  AppHaptics.error();
-                  AppSnackbar.error(context, 'Valores inválidos');
-                }
-              },
-            ),
+    if (newStake != null && newStake >= 0.35 &&
+        (newMaxStake == null || newMaxStake >= newStake) &&
+        newTargetProfit != null && newTargetProfit > 0) {
+      AppHaptics.success();
+      setState(() {
+        widget.bot.config.market = selectedMarket;
+        widget.bot.config.initialStake = newStake;
+        widget.bot.currentStake = newStake;
+        widget.bot.config.maxStake = newMaxStake;
+        widget.bot.config.targetProfit = newTargetProfit;
+      });
+      widget.onUpdate();
+
+      // <-- CHAMA O CHART PARA MUDAR O MERCADO IMEDIATAMENTE
+      if (_chartController != null) {
+        final escaped = selectedMarket.replaceAll("'", "\\'").replaceAll('"', '\\"');
+        final script = "try{ setMarket('$escaped'); }catch(e){ console.log('setMarket err', e); };";
+        _chartController!.runJavaScript(script);
+      }
+
+      Navigator.pop(context);
+      AppSnackbar.success(context, 'Configurações salvas');
+    } else {
+      AppHaptics.error();
+      AppSnackbar.error(context, 'Valores inválidos');
+    }
+  },
+),
           ],
         ),
       ),
@@ -335,7 +343,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         'value': '1HZ100V',
         'icon': Icons.speed_rounded,
       },
-      
+
       // CRASH/BOOM INDICES
       {
         'name': 'Crash 300 Index',
@@ -367,7 +375,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         'value': 'BOOM1000',
         'icon': Icons.trending_up_rounded,
       },
-      
+
       // JUMP INDICES
       {
         'name': 'Jump 10 Index',
@@ -394,14 +402,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         'value': 'JD100',
         'icon': Icons.arrow_upward_rounded,
       },
-      
+
       // STEP INDICES
       {
         'name': 'Step Index',
         'value': 'stpRNG',
         'icon': Icons.stairs_rounded,
       },
-      
+
       // RANGE BREAK INDICES
       {
         'name': 'Range Break 100 Index',
@@ -470,7 +478,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               delegate: SliverChildListDelegate([
                 // CARD DE LUCRO DA SESSÃO - REDESENHADO
                 _buildProfitCard(status),
-                
+
                 SizedBox(height: AppSpacing.lg),
 
                 // BOTÕES DE CONTROLE
@@ -618,9 +626,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               ),
             ],
           ),
-          
+
           SizedBox(height: AppSpacing.xl),
-          
+
           // Stats rápidos
           Row(
             children: [
