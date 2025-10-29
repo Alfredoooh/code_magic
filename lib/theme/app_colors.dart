@@ -19,23 +19,23 @@ class AppColors {
   static const lightSurfaceContainer = Color(0xFFF8F8F8);
   static const lightSurfaceContainerHigh = Color(0xFFEEEEEE);
 
-  // PRIMARY COLORS (consistent across themes)
-  static const primary = Color(0xFF0066FF);
-  static const primaryContainer = Color(0xFF1A3D7A);
-  static const onPrimary = Color(0xFFFFFFFF);
-  static const onPrimaryContainer = Color(0xFFD4E3FF);
+  // PRIMARY COLORS (White for dark theme, Black for light theme)
+  static const primary = Color(0xFFFFFFFF);
+  static const primaryContainer = Color(0xFF2A2A2A);
+  static const onPrimary = Color(0xFF000000);
+  static const onPrimaryContainer = Color(0xFFE0E0E0);
 
-  // SECONDARY COLORS
-  static const secondary = Color(0xFF006494);
-  static const secondaryContainer = Color(0xFFCAE6FF);
+  // SECONDARY COLORS (Neutral grays)
+  static const secondary = Color(0xFF757575);
+  static const secondaryContainer = Color(0xFFE0E0E0);
   static const onSecondary = Color(0xFFFFFFFF);
-  static const onSecondaryContainer = Color(0xFF001D31);
+  static const onSecondaryContainer = Color(0xFF1C1B1F);
 
-  // TERTIARY COLORS
-  static const tertiary = Color(0xFF7D5260);
-  static const tertiaryContainer = Color(0xFFFFD8E4);
+  // TERTIARY COLORS (Neutral grays)
+  static const tertiary = Color(0xFF616161);
+  static const tertiaryContainer = Color(0xFFEEEEEE);
   static const onTertiary = Color(0xFFFFFFFF);
-  static const onTertiaryContainer = Color(0xFF31111D);
+  static const onTertiaryContainer = Color(0xFF1C1B1F);
 
   // STATUS COLORS
   static const success = Color(0xFF00C896);
@@ -44,8 +44,8 @@ class AppColors {
   static const errorContainer = Color(0xFF93000A);
   static const warning = Color(0xFFFF9500);
   static const warningContainer = Color(0xFF4E2F00);
-  static const info = Color(0xFF2196F3);
-  static const infoContainer = Color(0xFF003258);
+  static const info = Color(0xFF9E9E9E);
+  static const infoContainer = Color(0xFF424242);
 
   // TEXT COLORS - DARK
   static const darkTextPrimary = Color(0xFFFFFFFF);
