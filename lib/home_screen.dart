@@ -38,12 +38,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       TradingCenterScreen(token: widget.token),
       PostsScreen(token: widget.token),
     ];
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.06),
       end: Offset.zero,
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -162,177 +162,147 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildDrawer() {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withOpacity(0.7),
-                ],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
+                // App Header with Icon and Name
                 Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                    border: Border.all(color: Colors.white, width: 3),
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + AppSpacing.xl,
+                    bottom: AppSpacing.xl,
+                    left: AppSpacing.lg,
+                    right: AppSpacing.lg,
                   ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    size: 32,
-                    color: AppColors.primary,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.show_chart_rounded,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'ZoomTrade',
+                        style: context.textStyles.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: context.colors.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Usuário',
-                  style: context.textStyles.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                const Divider(),
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 50),
+                  child: ListTile(
+                    leading: const Icon(Icons.account_balance_wallet_outlined),
+                    title: const Text('Portfólio'),
+                    subtitle: const Text('Visualize seus investimentos'),
+                    onTap: () {
+                      AppHaptics.selection();
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => PortfolioScreen(token: widget.token),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(1.0, 0.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOut;
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                          transitionDuration: const Duration(milliseconds: 350),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  'usuario@email.com',
-                  style: context.textStyles.bodySmall?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 100),
+                  child: ListTile(
+                    leading: const Icon(Icons.smart_toy_outlined),
+                    title: const Text('Meus Bots'),
+                    subtitle: const Text('Gerencie bots de trading'),
+                    onTap: () {
+                      AppHaptics.selection();
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => BotsScreen(token: widget.token),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(1.0, 0.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOut;
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                          transitionDuration: const Duration(milliseconds: 350),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(),
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 150),
+                  child: ListTile(
+                    leading: const Icon(Icons.settings_outlined),
+                    title: const Text('Configurações'),
+                    subtitle: const Text('Preferências do app'),
+                    onTap: () {
+                      AppHaptics.selection();
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => SettingsScreen(onThemeChanged: () {}),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(1.0, 0.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOut;
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                          transitionDuration: const Duration(milliseconds: 350),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 200),
+                  child: ListTile(
+                    leading: const Icon(Icons.help_outline_rounded),
+                    title: const Text('Ajuda & Suporte'),
+                    subtitle: const Text('Central de ajuda'),
+                    onTap: () {
+                      AppHaptics.selection();
+                      Navigator.pop(context);
+                      AppSnackbar.info(context, 'Central de ajuda em breve');
+                    },
                   ),
                 ),
               ],
             ),
           ),
-          FadeInWidget(
-            delay: const Duration(milliseconds: 50),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary),
+          // Version at bottom
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              'v1',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
               ),
-              title: const Text('Portfólio'),
-              subtitle: const Text('Visualize seus investimentos'),
-              onTap: () {
-                AppHaptics.selection();
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => PortfolioScreen(token: widget.token),
-                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                      const begin = Offset(1.0, 0.0);
-                      const end = Offset.zero;
-                      const curve = Curves.easeInOut;
-                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                      var offsetAnimation = animation.drive(tween);
-                      return SlideTransition(position: offsetAnimation, child: child);
-                    },
-                    transitionDuration: const Duration(milliseconds: 350),
-                  ),
-                );
-              },
-            ),
-          ),
-          FadeInWidget(
-            delay: const Duration(milliseconds: 100),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: const Icon(Icons.smart_toy_rounded, color: AppColors.secondary),
-              ),
-              title: const Text('Meus Bots'),
-              subtitle: const Text('Gerencie bots de trading'),
-              onTap: () {
-                AppHaptics.selection();
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => BotsScreen(token: widget.token),
-                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                      const begin = Offset(1.0, 0.0);
-                      const end = Offset.zero;
-                      const curve = Curves.easeInOut;
-                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                      var offsetAnimation = animation.drive(tween);
-                      return SlideTransition(position: offsetAnimation, child: child);
-                    },
-                    transitionDuration: const Duration(milliseconds: 350),
-                  ),
-                );
-              },
-            ),
-          ),
-          const Divider(),
-          FadeInWidget(
-            delay: const Duration(milliseconds: 150),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.info.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: const Icon(Icons.settings_rounded, color: AppColors.info),
-              ),
-              title: const Text('Configurações'),
-              subtitle: const Text('Preferências do app'),
-              onTap: () {
-                AppHaptics.selection();
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => SettingsScreen(onThemeChanged: () {}),
-                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                      const begin = Offset(1.0, 0.0);
-                      const end = Offset.zero;
-                      const curve = Curves.easeInOut;
-                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                      var offsetAnimation = animation.drive(tween);
-                      return SlideTransition(position: offsetAnimation, child: child);
-                    },
-                    transitionDuration: const Duration(milliseconds: 350),
-                  ),
-                );
-              },
-            ),
-          ),
-          FadeInWidget(
-            delay: const Duration(milliseconds: 200),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: const Icon(Icons.help_rounded, color: AppColors.warning),
-              ),
-              title: const Text('Ajuda & Suporte'),
-              subtitle: const Text('Central de ajuda'),
-              onTap: () {
-                AppHaptics.selection();
-                Navigator.pop(context);
-                AppSnackbar.info(context, 'Central de ajuda em breve');
-              },
+              textAlign: TextAlign.center,
             ),
           ),
         ],
