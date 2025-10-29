@@ -1,6 +1,7 @@
 // app_widgets.dart - Reusable UI Components
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';  // ← ADICIONE ESTA LINHA
 import 'app_theme.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
