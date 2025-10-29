@@ -1,12 +1,9 @@
-import java.util.Properties
-import java.io.FileInputStream
-
 pluginManagement {
-    val flutterSdkPath: String by lazy {
-        val properties = Properties()
-        val localProperties = file("local.properties")
-        if (localProperties.exists()) {
-            FileInputStream(localProperties).use { properties.load(it) }
+    val flutterSdkPath = run {
+        val properties = java.util.Properties()
+        val localPropertiesFile = file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { properties.load(it) }
         }
         val path = properties.getProperty("flutter.sdk")
         requireNotNull(path) { "flutter.sdk not set in local.properties" }
