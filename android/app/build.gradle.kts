@@ -1,38 +1,47 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    // NOTA: não declarar aqui 'com.google.gms.google-services' sem versão;
-    // aplicamos via buildscript/classpath e apply(...) abaixo.
 }
 
 android {
     namespace = "com.nexa.madeeasy"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.nexa.madeeasy"
         minSdk = 21
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0.0"
+
+        // Necessário se você usar notificações exatas (SCHEDULE_EXACT_ALARM)
+        // Evita crashes em Android 12+
         multiDexEnabled = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("debug")
+            // Desativa shrink/obfuscation para evitar problemas com plugins Flutter
             isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    packagingOptions {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
@@ -41,16 +50,15 @@ flutter {
     source = "../.."
 }
 
-repositories {
-    google()
-    mavenCentral()
-}
-
 dependencies {
-    implementation("androidx.multidex:multidex:2.0.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.21")
-    // outras dependências...
-}
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
-// aplicamos o plugin google-services via classpath do root buildscript
-apply(plugin = "com.google.gms.google-services")
+    // Dependência essencial para compatibilidade com Android 13+ permissões
+    implementation("androidx.core:core-ktx:1.12.0")
+
+    // Kotlin
+  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+  
+    // Suporte multidex (caso use muitos plugins, evita erro de limite de métodos)
+    implementation("androidx.multidex:multidex:2.0.1")
+}
