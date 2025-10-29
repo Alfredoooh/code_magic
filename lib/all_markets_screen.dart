@@ -1,5 +1,7 @@
 // lib/all_markets_screen.dart
+
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'markets_screen.dart';
@@ -33,11 +35,11 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   String _sortBy = 'name'; // name, price, change
 
   final List<Map<String, dynamic>> _categories = [
-    {'name': 'Boom/Crash', 'icon': Icons.trending_up_rounded},
-    {'name': 'Volatility', 'icon': Icons.show_chart_rounded},
-    {'name': 'Jump', 'icon': Icons.electric_bolt_rounded},
-    {'name': 'Step', 'icon': Icons.stairs_rounded},
-    {'name': 'Crypto', 'icon': Icons.currency_bitcoin_rounded},
+    {'name': 'Boom/Crash', 'label': 'Boom/Crash'},
+    {'name': 'Volatility', 'label': 'Volatility'},
+    {'name': 'Jump', 'label': 'Jump'},
+    {'name': 'Step', 'label': 'Step'},
+    {'name': 'Crypto', 'label': 'Crypto'},
   ];
 
   final Map<String, MarketInfo> _cryptoMarkets = {
@@ -191,59 +193,77 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                 itemBuilder: (context, index) {
                   final category = _categories[index];
                   final categoryName = category['name'] as String;
-                  final categoryIcon = category['icon'] as IconData;
+                  final categoryLabel = category['label'] as String;
                   final isSelected = _selectedCategory == categoryName;
                   final marketCount = _getFilteredMarkets(categoryName).length;
 
                   return Padding(
                     padding: EdgeInsets.only(right: AppSpacing.sm),
-                    child: FilterChip(
-                      selected: isSelected,
-                      avatar: Icon(
-                        categoryIcon,
-                        size: 18,
-                        color: isSelected
-                            ? context.colors.onPrimaryContainer
-                            : context.colors.onSurface,
-                      ),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(categoryName),
-                          if (marketCount > 0) ...[
-                            SizedBox(width: AppSpacing.xs),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xs,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
+                    child: GestureDetector(
+                      onTap: () {
+                        AppHaptics.selection();
+                        setState(() => _selectedCategory = categoryName);
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? context.colors.primary
+                              : context.colors.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(100),
+                          border: isSelected
+                              ? Border.all(
+                                  color: context.colors.primary,
+                                  width: 2,
+                                )
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              categoryLabel,
+                              style: context.textStyles.labelLarge?.copyWith(
                                 color: isSelected
-                                    ? context.colors.onPrimaryContainer
-                                        .withOpacity(0.2)
-                                    : context.colors.onSurface.withOpacity(0.1),
-                                borderRadius:
-                                    BorderRadius.circular(AppSpacing.radiusSm),
-                              ),
-                              child: Text(
-                                marketCount.toString(),
-                                style: context.textStyles.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10,
-                                ),
+                                    ? context.colors.onPrimary
+                                    : context.colors.onSurface,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                            if (marketCount > 0) ...[
+                              SizedBox(width: AppSpacing.xs),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.xs,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? context.colors.onPrimary
+                                          .withOpacity(0.2)
+                                      : context.colors.onSurface
+                                          .withOpacity(0.1),
+                                  borderRadius:
+                                      BorderRadius.circular(100),
+                                ),
+                                child: Text(
+                                  marketCount.toString(),
+                                  style: context.textStyles.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                    color: isSelected
+                                        ? context.colors.onPrimary
+                                        : context.colors.onSurface,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                      onSelected: (selected) {
-                        if (selected) {
-                          AppHaptics.selection();
-                          setState(() => _selectedCategory = categoryName);
-                        }
-                      },
-                      selectedColor: context.colors.primaryContainer,
-                      checkmarkColor: context.colors.onPrimaryContainer,
                     ),
                   );
                 },
@@ -287,7 +307,7 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
 
           SizedBox(height: AppSpacing.md),
 
-          // Markets Grid/List
+          // Markets List
           Expanded(
             child: Builder(
               builder: (context) {
@@ -319,16 +339,10 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                   );
                 }
 
-                return GridView.builder(
+                return ListView.builder(
                   padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.sm,
-                  ),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.85,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
                   ),
                   itemCount: markets.length,
                   itemBuilder: (context, index) {
@@ -355,40 +369,101 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
   Widget _buildMarketCard(String symbol, MarketInfo info, MarketData? data) {
     final isPositive = (data?.change ?? 0) >= 0;
     final changeColor = isPositive ? AppColors.success : AppColors.error;
+    final isCrypto = info.category == 'Crypto';
 
     return AnimatedCard(
       onTap: () => _openMarketDetail(symbol),
-      child: Container(
+      margin: EdgeInsets.only(bottom: AppSpacing.md),
+      child: Padding(
         padding: EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            // Icon and Symbol
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: context.colors.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            // Icon - Only PNG images, no Material icons
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: Image.network(
+                  info.iconUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: context.colors.surfaceContainerHighest,
+                      child: Center(
+                        child: Text(
+                          info.name.substring(0, 1).toUpperCase(),
+                          style: context.textStyles.titleLarge?.copyWith(
+                            color: context.colors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            SizedBox(width: AppSpacing.md),
+
+            // Market Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    info.name,
+                    style: context.textStyles.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    child: Image.network(
-                      info.iconUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.currency_bitcoin_rounded,
-                          color: context.colors.primary,
-                          size: 20,
-                        );
-                      },
+                  SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    symbol,
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            SizedBox(width: AppSpacing.md),
+
+            // Price and Change
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  data != null ? data.price.toStringAsFixed(2) : '...',
+                  style: context.textStyles.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                Spacer(),
+                SizedBox(height: AppSpacing.xxs),
                 if (data != null)
                   Container(
                     padding: EdgeInsets.symmetric(
@@ -407,15 +482,14 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
                               ? Icons.arrow_upward_rounded
                               : Icons.arrow_downward_rounded,
                           color: changeColor,
-                          size: 10,
+                          size: 12,
                         ),
-                        SizedBox(width: 2),
+                        SizedBox(width: 4),
                         Text(
                           '${data.change.abs().toStringAsFixed(1)}%',
                           style: context.textStyles.labelSmall?.copyWith(
                             color: changeColor,
                             fontWeight: FontWeight.bold,
-                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -424,59 +498,12 @@ class _AllMarketsScreenState extends State<AllMarketsScreen> {
               ],
             ),
 
-            SizedBox(height: AppSpacing.md),
+            SizedBox(width: AppSpacing.xs),
 
-            // Name
-            Text(
-              info.name,
-              style: context.textStyles.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            SizedBox(height: AppSpacing.xxs),
-
-            // Symbol
-            Text(
-              symbol,
-              style: context.textStyles.bodySmall?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
-
-            Spacer(),
-
-            // Price
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Preço',
-                        style: context.textStyles.bodySmall?.copyWith(
-                          color: context.colors.onSurfaceVariant,
-                        ),
-                      ),
-                      SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        data != null ? data.price.toStringAsFixed(2) : '...',
-                        style: context.textStyles.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: context.colors.onSurfaceVariant,
-                  size: 20,
-                ),
-              ],
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.colors.onSurfaceVariant,
+              size: 20,
             ),
           ],
         ),
