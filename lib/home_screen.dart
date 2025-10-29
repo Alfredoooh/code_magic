@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
 
   late final List<Widget> _screens;
 
@@ -40,16 +41,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ];
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.03),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOutCubic,
+    ));
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
     ));
 
     _animationController.forward();
@@ -88,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       case 1:
         return 'Negociação';
       case 2:
-        return 'Publicações';
+        return 'Extras';
       default:
         return 'ZoomTrade';
     }
@@ -124,11 +133,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       drawer: _buildDrawer(),
-      body: SlideTransition(
-        position: _slideAnimation,
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _screens,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: IndexedStack(
+            index: _currentIndex,
+            children: _screens,
+          ),
         ),
       ),
       bottomNavigationBar: NavigationBar(
@@ -146,14 +158,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             label: 'Início',
           ),
           NavigationDestination(
-            icon: Icon(Icons.swap_horiz_rounded),
-            selectedIcon: Icon(Icons.swap_horiz_rounded),
+            icon: Icon(Icons.gamepad_outlined),
+            selectedIcon: Icon(Icons.gamepad),
             label: 'Negociar',
           ),
           NavigationDestination(
-            icon: Icon(Icons.article_outlined),
-            selectedIcon: Icon(Icons.article_rounded),
-            label: 'Publicações',
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Extras',
           ),
         ],
       ),
