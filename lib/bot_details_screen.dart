@@ -61,14 +61,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   }
 
   void _showStopConfirmation() {
-    AppHaptics.warning();
+    AppHaptics.heavy();
     showDialog(
       context: context,
       builder: (context) => AppDialog(
         title: 'Parar Bot?',
         icon: Icons.stop_circle_rounded,
         iconColor: AppColors.error,
-        contentWidget: const Column(
+        contentWidget: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -116,80 +116,82 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       text: widget.bot.config.targetProfit.toStringAsFixed(2),
     );
 
-    AppDialog.show(
+    showDialog(
       context: context,
-      title: 'Configurar Bot',
-      icon: Icons.settings_rounded,
-      iconColor: AppColors.primary,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppTextField(
-            controller: stakeController,
-            label: 'Stake Inicial (\$)',
-            hint: '0.35',
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            prefix: Icon(Icons.attach_money_rounded),
+      builder: (context) => AppDialog(
+        title: 'Configurar Bot',
+        icon: Icons.settings_rounded,
+        iconColor: AppColors.primary,
+        contentWidget: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppTextField(
+              controller: stakeController,
+              label: 'Stake Inicial (\$)',
+              hint: '0.35',
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              prefix: Icon(Icons.attach_money_rounded),
+            ),
+            SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: maxStakeController,
+              label: 'Stake Máximo (\$)',
+              hint: '10.00',
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              prefix: Icon(Icons.trending_up_rounded),
+            ),
+            SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: targetProfitController,
+              label: 'Target Profit (\$)',
+              hint: '5.00',
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              prefix: Icon(Icons.flag_rounded),
+            ),
+          ],
+        ),
+        actions: [
+          TertiaryButton(
+            text: 'Cancelar',
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context);
+            },
           ),
-          SizedBox(height: AppSpacing.lg),
-          AppTextField(
-            controller: maxStakeController,
-            label: 'Stake Máximo (\$)',
-            hint: '10.00',
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            prefix: Icon(Icons.trending_up_rounded),
-          ),
-          SizedBox(height: AppSpacing.lg),
-          AppTextField(
-            controller: targetProfitController,
-            label: 'Target Profit (\$)',
-            hint: '5.00',
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            prefix: Icon(Icons.flag_rounded),
+          PrimaryButton(
+            text: 'Salvar',
+            onPressed: () {
+              final newStake = double.tryParse(
+                stakeController.text.replaceAll(',', '.'),
+              );
+              final newMaxStake = double.tryParse(
+                maxStakeController.text.replaceAll(',', '.'),
+              );
+              final newTargetProfit = double.tryParse(
+                targetProfitController.text.replaceAll(',', '.'),
+              );
+
+              if (newStake != null && newStake >= 0.35 &&
+                  newMaxStake != null && newMaxStake >= newStake &&
+                  newTargetProfit != null && newTargetProfit > 0) {
+                AppHaptics.heavy();
+                setState(() {
+                  widget.bot.config.initialStake = newStake;
+                  widget.bot.currentStake = newStake;
+                  widget.bot.config.maxStake = newMaxStake;
+                  widget.bot.config.targetProfit = newTargetProfit;
+                });
+                widget.onUpdate();
+                Navigator.pop(context);
+                AppSnackbar.success(context, 'Configurações atualizadas');
+              } else {
+                AppHaptics.error();
+                AppSnackbar.error(context, 'Valores inválidos');
+              }
+            },
           ),
         ],
       ),
-      actions: [
-        TertiaryButton(
-          text: 'Cancelar',
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
-        PrimaryButton(
-          text: 'Salvar',
-          onPressed: () {
-            final newStake = double.tryParse(
-              stakeController.text.replaceAll(',', '.'),
-            );
-            final newMaxStake = double.tryParse(
-              maxStakeController.text.replaceAll(',', '.'),
-            );
-            final newTargetProfit = double.tryParse(
-              targetProfitController.text.replaceAll(',', '.'),
-            );
-
-            if (newStake != null && newStake >= 0.35 &&
-                newMaxStake != null && newMaxStake >= newStake &&
-                newTargetProfit != null && newTargetProfit > 0) {
-              AppHaptics.heavy();
-              setState(() {
-                widget.bot.config.initialStake = newStake;
-                widget.bot.currentStake = newStake;
-                widget.bot.config.maxStake = newMaxStake;
-                widget.bot.config.targetProfit = newTargetProfit;
-              });
-              widget.onUpdate();
-              Navigator.pop(context);
-              AppSnackbar.success(context, 'Configurações atualizadas');
-            } else {
-              AppHaptics.error();
-              AppSnackbar.error(context, 'Valores inválidos');
-            }
-          },
-        ),
-      ],
     );
   }
 
