@@ -1,6 +1,7 @@
 // lib/trade_screen.dart - MATERIAL DESIGN 3 EXPRESSIVE
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_widgets.dart';
@@ -575,10 +576,16 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         builder: (context) => CustomKeyboardScreen(
           title: 'Definir Stake',
           initialValue: _controller.stake,
+          minValue: 0.35,
           prefix: '\$ ',
           onConfirm: (value) {
-            _controller.setStake(value);
-            Navigator.pop(context);
+            final stakeValue = value;
+            if (stakeValue >= 0.35) {
+              _controller.setStake(stakeValue);
+              Navigator.pop(context);
+            } else {
+              AppSnackbar.error(context, 'Stake mínimo é \$0.35');
+            }
           },
         ),
       ),
@@ -622,10 +629,16 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         builder: (context) => CustomKeyboardScreen(
           title: 'Value (${_controller.durationLabel})',
           initialValue: _controller.durationValue.toDouble(),
+          minValue: 1,
           isInteger: true,
           onConfirm: (value) {
-            _controller.setDurationValue(value.toInt());
-            Navigator.pop(context);
+            final durationInt = value.toInt();
+            if (durationInt >= 1) {
+              _controller.setDurationValue(durationInt);
+              Navigator.pop(context);
+            } else {
+              AppSnackbar.error(context, 'Valor mínimo é 1');
+            }
           },
         ),
       ),
