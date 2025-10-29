@@ -1,619 +1,705 @@
-// lib/bot_create_screen.dart
+// lib/bots_screen.dart
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_widgets.dart';
 import 'bot_engine.dart';
+import 'bot_details_screen.dart';
+import 'bot_create_screen.dart';
 
-class CreateBotScreen extends StatefulWidget {
-  final WebSocketChannel channel;
-  final Function(TradingBot) onBotCreated;
+class BotsScreen extends StatefulWidget {
+  final String token;
 
-  const CreateBotScreen({
-    Key? key,
-    required this.channel,
-    required this.onBotCreated,
-  }) : super(key: key);
+  const BotsScreen({Key? key, required this.token}) : super(key: key);
 
   @override
-  State<CreateBotScreen> createState() => _CreateBotScreenState();
+  State<BotsScreen> createState() => _BotsScreenState();
 }
 
-class _CreateBotScreenState extends State<CreateBotScreen> {
-  final _formKey = GlobalKey<FormState>();
-  
-  // Controllers
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _stakeController = TextEditingController(text: '0.35');
-  final _maxStakeController = TextEditingController(text: '10.00');
-  final _targetProfitController = TextEditingController(text: '5.00');
-  final _maxLossesController = TextEditingController(text: '7');
+class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMixin {
+  WebSocketChannel? _channel;
+  bool _isConnected = false;
+  List<TradingBot> _bots = [];
+  double _balance = 0.0;
+  String _currency = 'USD';
+  Map<String, String> _proposalIds = {};
+  Map<String, List<double>> _marketPrices = {};
+  Timer? _priceUpdateTimer;
 
-  // Selected values
-  BotStrategy _selectedStrategy = BotStrategy.martingale;
-  String _selectedMarket = 'R_100';
-  String _selectedContractType = 'CALL';
-  RecoveryMode _selectedRecoveryMode = RecoveryMode.intelligent;
-  List<EntryCondition> _selectedConditions = [];
-  bool _useRSI = false;
+  @override
+  bool get wantKeepAlive => true;
 
-  final List<String> _markets = [
-    'R_10', 'R_25', 'R_50', 'R_75', 'R_100',
-    'BOOM500', 'BOOM1000', 'CRASH500', 'CRASH1000'
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _connectWebSocket();
+    _startPriceTracking();
+  }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _stakeController.dispose();
-    _maxStakeController.dispose();
-    _targetProfitController.dispose();
-    _maxLossesController.dispose();
+    for (var bot in _bots) {
+      bot.stop();
+    }
+    _priceUpdateTimer?.cancel();
+    _channel?.sink.close();
     super.dispose();
   }
 
-  void _createBot() {
-    if (!_formKey.currentState!.validate()) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Preencha todos os campos corretamente');
-      return;
+  void _connectWebSocket() {
+    try {
+      _channel = WebSocketChannel.connect(
+        Uri.parse('wss://ws.derivws.com/websockets/v3?app_id=71954'),
+      );
+
+      setState(() => _isConnected = true);
+
+      _channel!.stream.listen(
+        (message) {
+          final data = json.decode(message);
+          _handleWebSocketMessage(data);
+        },
+        onError: (error) => setState(() => _isConnected = false),
+        onDone: () {
+          setState(() => _isConnected = false);
+          Future.delayed(const Duration(seconds: 3), _connectWebSocket);
+        },
+      );
+
+      _channel!.sink.add(json.encode({'authorize': widget.token}));
+      _loadDefaultBots();
+      _subscribeToMarkets();
+    } catch (e) {
+      setState(() => _isConnected = false);
     }
+  }
 
-    final stake = double.tryParse(_stakeController.text.replaceAll(',', '.'));
-    final maxStake = double.tryParse(_maxStakeController.text.replaceAll(',', '.'));
-    final targetProfit = double.tryParse(_targetProfitController.text.replaceAll(',', '.'));
-    final maxLosses = int.tryParse(_maxLossesController.text);
+  void _loadDefaultBots() {
+    if (_channel == null) return;
 
-    if (stake == null || stake < 0.35) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Stake mínimo: \$0.35');
-      return;
+    _bots = [
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Martingale Pro',
+          description: 'Recuperação automática com Martingale inteligente',
+          strategy: BotStrategy.martingale,
+          initialStake: 0.35,
+          market: 'R_100',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.intelligent,
+          entryConditions: [EntryCondition.immediate],
+          maxConsecutiveLosses: 7,
+          maxStake: 50.0,
+          targetProfit: 10.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Fibonacci Master',
+          description: 'Estratégia Fibonacci com análise RSI',
+          strategy: BotStrategy.fibonacci,
+          initialStake: 0.50,
+          market: 'R_50',
+          contractType: 'PUT',
+          recoveryMode: RecoveryMode.moderate,
+          entryConditions: [EntryCondition.rsiOversold],
+          useRSI: true,
+          maxStake: 40.0,
+          targetProfit: 15.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'D\'Alembert Safe',
+          description: 'Crescimento gradual com segurança',
+          strategy: BotStrategy.dalembert,
+          initialStake: 0.75,
+          market: 'R_75',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.conservative,
+          maxStake: 30.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+      TradingBot(
+        config: BotConfiguration(
+          name: 'Adaptive AI',
+          description: 'Adaptação inteligente ao mercado',
+          strategy: BotStrategy.adaptive,
+          initialStake: 1.00,
+          market: 'R_100',
+          contractType: 'CALL',
+          recoveryMode: RecoveryMode.intelligent,
+          useRSI: true,
+          maxStake: 50.0,
+          targetProfit: 20.0,
+        ),
+        channel: _channel!,
+        onStatusUpdate: (status) => setState(() {}),
+      ),
+    ];
+  }
+
+  void _subscribeToMarkets() {
+    final markets = {'R_100', 'R_50', 'R_25', 'R_75', 'BOOM500', 'BOOM1000', 'CRASH500'};
+    for (var market in markets) {
+      _channel!.sink.add(json.encode({'ticks': market, 'subscribe': 1}));
     }
+  }
 
-    if (maxStake == null || maxStake < stake) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Max Stake deve ser maior que o Stake inicial');
-      return;
+  void _handleWebSocketMessage(Map<String, dynamic> data) {
+    switch (data['msg_type']) {
+      case 'authorize':
+        setState(() {
+          _balance = double.parse(data['authorize']['balance'].toString());
+          _currency = data['authorize']['currency'];
+        });
+        break;
+
+      case 'tick':
+        final symbol = data['tick']['symbol'];
+        final price = double.parse(data['tick']['quote'].toString());
+
+        if (!_marketPrices.containsKey(symbol)) {
+          _marketPrices[symbol] = [];
+        }
+        _marketPrices[symbol]!.add(price);
+
+        if (_marketPrices[symbol]!.length > 500) {
+          _marketPrices[symbol] = _marketPrices[symbol]!.sublist(_marketPrices[symbol]!.length - 500);
+        }
+
+        for (var bot in _bots) {
+          if (bot.config.market == symbol) {
+            bot.updatePrice(price);
+          }
+        }
+        break;
+
+      case 'proposal':
+        final id = data['proposal']['id'];
+        _proposalIds[id] = id;
+        for (var bot in _bots) {
+          if (bot.isRunning && bot.currentContractId == null) {
+            bot.handleProposalResponse(id);
+            break;
+          }
+        }
+        break;
+
+      case 'buy':
+        for (var bot in _bots) {
+          if (bot.isRunning && bot.currentContractId == null) {
+            bot.handleBuyResponse(data['buy']);
+            setState(() => _balance -= bot.currentStake);
+            break;
+          }
+        }
+        break;
+
+      case 'proposal_open_contract':
+        for (var bot in _bots) {
+          bot.handleContractUpdate(data['proposal_open_contract']);
+        }
+        break;
+
+      case 'balance':
+        setState(() => _balance = double.parse(data['balance']['balance'].toString()));
+        break;
     }
+  }
 
-    if (targetProfit == null || targetProfit <= 0) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Target Profit deve ser maior que 0');
-      return;
-    }
+  void _startPriceTracking() {
+    _priceUpdateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
 
-    if (maxLosses == null || maxLosses < 1) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Max Losses deve ser pelo menos 1');
-      return;
-    }
-
-    final config = BotConfiguration(
-      name: _nameController.text.trim(),
-      description: _descriptionController.text.trim(),
-      strategy: _selectedStrategy,
-      initialStake: stake,
-      maxStake: maxStake,
-      targetProfit: targetProfit,
-      market: _selectedMarket,
-      contractType: _selectedContractType,
-      recoveryMode: _selectedRecoveryMode,
-      entryConditions: _selectedConditions.isEmpty 
-          ? [EntryCondition.immediate] 
-          : _selectedConditions,
-      maxConsecutiveLosses: maxLosses,
-      useRSI: _useRSI,
+  void _showBotDetails(TradingBot bot) {
+    AppHaptics.selection();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BotDetailsScreen(
+          bot: bot,
+          onUpdate: () => setState(() {}),
+          marketPrices: _marketPrices,
+        ),
+      ),
     );
+  }
 
-    final bot = TradingBot(
-      config: config,
-      channel: widget.channel,
-      onStatusUpdate: (status) {},
+  void _showOptionsMenu() {
+    AppHaptics.light();
+    AppModalBottomSheet.show(
+      context: context,
+      title: 'Opções de Bots',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListTile(
+            leading: const Icon(Icons.add_circle_outline),
+            title: 'Criar Novo Bot',
+            subtitle: 'Configure um bot personalizado',
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateBotDialog();
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppListTile(
+            leading: const Icon(Icons.play_circle_outline),
+            title: 'Iniciar Múltiplos Bots',
+            subtitle: 'Ativar todos os bots disponíveis',
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.pop(context);
+              _startMultipleBots();
+            },
+          ),
+        ],
+      ),
     );
+  }
 
-    AppHaptics.heavy();
-    widget.onBotCreated(bot);
-    Navigator.pop(context);
-    AppSnackbar.success(context, 'Bot "${config.name}" criado com sucesso!');
+  void _showCreateBotDialog() {
+    if (_channel == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateBotScreen(
+          channel: _channel!,
+          onBotCreated: (bot) => setState(() => _bots.add(bot)),
+        ),
+      ),
+    );
+  }
+
+  void _startMultipleBots() {
+    AppHaptics.medium();
+    int startedBots = 0;
+    for (var bot in _bots) {
+      if (!bot.isRunning && _balance >= bot.currentStake) {
+        bot.start();
+        startedBots++;
+      }
+    }
+    setState(() {});
+    
+    if (startedBots > 0) {
+      AppSnackbar.success(context, '$startedBots bots iniciados');
+    } else {
+      AppSnackbar.warning(context, 'Nenhum bot disponível para iniciar');
+    }
+  }
+
+  void _showEditStakeDialog(TradingBot bot) {
+    AppHaptics.light();
+    final stakeController = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
+    final maxStakeController = TextEditingController(text: bot.config.maxStake.toStringAsFixed(2));
+
+    showDialog(
+      context: context,
+      builder: (context) => AppDialog(
+        title: 'Editar Configurações',
+        icon: Icons.edit_rounded,
+        iconColor: AppColors.primary,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppTextField(
+              controller: stakeController,
+              label: 'Stake Inicial (\$)',
+              hint: '0.35',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              prefix: const Icon(Icons.attach_money_rounded),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              controller: maxStakeController,
+              label: 'Stake Máximo (\$)',
+              hint: '50.00',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              prefix: const Icon(Icons.trending_up_rounded),
+            ),
+          ],
+        ),
+        actions: [
+          TertiaryButton(
+            text: 'Cancelar',
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context);
+            },
+          ),
+          PrimaryButton(
+            text: 'Salvar',
+            icon: Icons.check_rounded,
+            onPressed: () {
+              final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
+              final newMaxStake = double.tryParse(maxStakeController.text.replaceAll(',', '.'));
+
+              if (newStake != null && newStake >= 0.35 && newMaxStake != null && newMaxStake >= newStake) {
+                setState(() {
+                  bot.config.initialStake = newStake;
+                  bot.currentStake = newStake;
+                  bot.config.maxStake = newMaxStake;
+                });
+                AppHaptics.success();
+                Navigator.pop(context);
+                AppSnackbar.success(context, 'Configurações atualizadas');
+              } else {
+                AppHaptics.error();
+                AppSnackbar.error(
+                  context,
+                  'Stake mínimo é \$0.35 e Max Stake deve ser maior que Stake Inicial',
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final activeBots = _bots.where((b) => b.isRunning).length;
+    final totalProfit = _bots.fold(0.0, (sum, bot) => sum + bot.totalProfit);
+
     return Scaffold(
+      backgroundColor: context.surface,
       appBar: SecondaryAppBar(
-        title: 'Criar Novo Bot',
+        title: 'Trading Bots',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline_rounded),
+            onPressed: _showOptionsMenu,
+          ),
+        ],
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FadeInWidget(
-                child: _buildBasicInfoSection(),
+      body: Column(
+        children: [
+          _buildStatisticsHeader(activeBots, totalProfit),
+          Expanded(
+            child: _isConnected
+                ? _bots.isEmpty
+                    ? EmptyState(
+                        icon: Icons.smart_toy_outlined,
+                        title: 'Nenhum bot configurado',
+                        subtitle: 'Crie seu primeiro bot de trading',
+                        actionText: 'Criar Bot',
+                        onAction: _showCreateBotDialog,
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: _bots.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+                        itemBuilder: (context, index) => StaggeredListItem(
+                          index: index,
+                          delay: const Duration(milliseconds: 50),
+                          child: _buildBotCard(_bots[index]),
+                        ),
+                      )
+                : LoadingOverlay(
+                    isLoading: true,
+                    message: 'Conectando aos servidores...',
+                    child: const SizedBox(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatisticsHeader(int activeBots, double totalProfit) {
+    return FadeInWidget(
+      child: Container(
+        margin: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+          border: Border.all(
+            color: context.colors.outlineVariant,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                'Bots Ativos',
+                activeBots.toString(),
+                Icons.smart_toy_rounded,
+                AppColors.primary,
               ),
-              SizedBox(height: AppSpacing.xl),
-              FadeInWidget(
-                delay: Duration(milliseconds: 100),
-                child: _buildStrategySection(),
+            ),
+            Container(
+              width: 1,
+              height: 40,
+              color: context.colors.outlineVariant,
+            ),
+            Expanded(
+              child: _buildStatItem(
+                'Total Bots',
+                _bots.length.toString(),
+                Icons.grid_view_rounded,
+                context.colors.onSurfaceVariant,
               ),
-              SizedBox(height: AppSpacing.xl),
-              FadeInWidget(
-                delay: Duration(milliseconds: 200),
-                child: _buildMarketSection(),
+            ),
+            Container(
+              width: 1,
+              height: 40,
+              color: context.colors.outlineVariant,
+            ),
+            Expanded(
+              child: _buildStatItem(
+                'Lucro Total',
+                '${totalProfit >= 0 ? '+' : ''}\$${totalProfit.toStringAsFixed(2)}',
+                Icons.trending_up_rounded,
+                totalProfit >= 0 ? AppColors.success : AppColors.error,
               ),
-              SizedBox(height: AppSpacing.xl),
-              FadeInWidget(
-                delay: Duration(milliseconds: 300),
-                child: _buildStakeSection(),
-              ),
-              SizedBox(height: AppSpacing.xl),
-              FadeInWidget(
-                delay: Duration(milliseconds: 400),
-                child: _buildAdvancedSection(),
-              ),
-              SizedBox(height: AppSpacing.massive),
-              FadeInWidget(
-                delay: Duration(milliseconds: 500),
-                child: PrimaryButton(
-                  text: 'Criar Bot',
-                  icon: Icons.add_circle_rounded,
-                  onPressed: _createBot,
-                  expanded: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          value,
+          style: context.textStyles.titleMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          label,
+          style: context.textStyles.labelSmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBotCard(TradingBot bot) {
+    final status = bot.getStatus();
+    final winRate = status.winRate * 100;
+    final isProfit = status.sessionProfit >= 0;
+
+    return AnimatedCard(
+      onTap: () => _showBotDetails(bot),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+          border: Border.all(
+            color: bot.isRunning ? AppColors.primary : context.colors.outlineVariant,
+            width: bot.isRunning ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: bot.isRunning
+                        ? AppColors.primary
+                        : context.colors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  child: Icon(
+                    _getStrategyIcon(bot.config.strategy),
+                    color: bot.isRunning
+                        ? Colors.white
+                        : context.colors.onSurfaceVariant,
+                    size: 28,
+                  ),
                 ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              bot.config.name,
+                              style: context.textStyles.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (bot.isRunning)
+                            AppBadge(
+                              text: 'Ativo',
+                              color: AppColors.success,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        bot.config.description,
+                        style: context.textStyles.bodySmall?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainer,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               ),
-              SizedBox(height: AppSpacing.xl),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBasicInfoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Informações Básicas',
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            children: [
-              AppTextField(
-                controller: _nameController,
-                label: 'Nome do Bot',
-                hint: 'Ex: Martingale Master',
-                prefix: Icon(Icons.smart_toy_rounded),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) return 'Nome obrigatório';
-                  return null;
-                },
-              ),
-              SizedBox(height: AppSpacing.lg),
-              AppTextField(
-                controller: _descriptionController,
-                label: 'Descrição',
-                hint: 'Descreva a estratégia do bot',
-                prefix: Icon(Icons.description_rounded),
-                maxLines: 2,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) return 'Descrição obrigatória';
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStrategySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Estratégia',
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tipo de Estratégia',
-                style: context.textStyles.titleSmall,
-              ),
-              SizedBox(height: AppSpacing.sm),
-              _buildStrategyChips(),
-              SizedBox(height: AppSpacing.lg),
-              Text(
-                'Modo de Recuperação',
-                style: context.textStyles.titleSmall,
-              ),
-              SizedBox(height: AppSpacing.sm),
-              _buildRecoveryModeChips(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStrategyChips() {
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: BotStrategy.values.map((strategy) {
-        final isSelected = _selectedStrategy == strategy;
-        return FilterChip(
-          label: Text(_getStrategyName(strategy)),
-          selected: isSelected,
-          onSelected: (selected) {
-            AppHaptics.light();
-            setState(() => _selectedStrategy = strategy);
-          },
-          backgroundColor: context.colors.surfaceVariant,
-          selectedColor: AppColors.primary.withOpacity(0.2),
-          checkmarkColor: AppColors.primary,
-          labelStyle: context.textStyles.labelMedium?.copyWith(
-            color: isSelected ? AppColors.primary : context.colors.onSurface,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildRecoveryModeChips() {
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: RecoveryMode.values.map((mode) {
-        final isSelected = _selectedRecoveryMode == mode;
-        return FilterChip(
-          label: Text(_getRecoveryModeName(mode)),
-          selected: isSelected,
-          onSelected: (selected) {
-            AppHaptics.light();
-            setState(() => _selectedRecoveryMode = mode);
-          },
-          backgroundColor: context.colors.surfaceVariant,
-          selectedColor: AppColors.success.withOpacity(0.2),
-          checkmarkColor: AppColors.success,
-          labelStyle: context.textStyles.labelMedium?.copyWith(
-            color: isSelected ? AppColors.success : context.colors.onSurface,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildMarketSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Mercado',
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Símbolo',
-                style: context.textStyles.titleSmall,
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: _markets.map((market) {
-                  final isSelected = _selectedMarket == market;
-                  return FilterChip(
-                    label: Text(market),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      AppHaptics.light();
-                      setState(() => _selectedMarket = market);
-                    },
-                    backgroundColor: context.colors.surfaceVariant,
-                    selectedColor: AppColors.info.withOpacity(0.2),
-                    checkmarkColor: AppColors.info,
-                    labelStyle: context.textStyles.labelMedium?.copyWith(
-                      color: isSelected ? AppColors.info : context.colors.onSurface,
-                    ),
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: AppSpacing.lg),
-              Text(
-                'Tipo de Contrato',
-                style: context.textStyles.titleSmall,
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Row(
+              child: Row(
                 children: [
                   Expanded(
-                    child: ChoiceChip(
-                      label: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.arrow_upward_rounded,
-                              size: 16,
-                              color: _selectedContractType == 'CALL'
-                                  ? AppColors.success
-                                  : context.colors.onSurfaceVariant,
-                            ),
-                            SizedBox(width: AppSpacing.xs),
-                            Text('CALL'),
-                          ],
-                        ),
-                      ),
-                      selected: _selectedContractType == 'CALL',
-                      onSelected: (selected) {
-                        AppHaptics.light();
-                        setState(() => _selectedContractType = 'CALL');
-                      },
-                      backgroundColor: context.colors.surfaceVariant,
-                      selectedColor: AppColors.success.withOpacity(0.2),
+                    child: _buildMetric(
+                      'Trades',
+                      status.totalTrades.toString(),
+                      context.colors.onSurfaceVariant,
                     ),
                   ),
-                  SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: ChoiceChip(
-                      label: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.arrow_downward_rounded,
-                              size: 16,
-                              color: _selectedContractType == 'PUT'
-                                  ? AppColors.error
-                                  : context.colors.onSurfaceVariant,
-                            ),
-                            SizedBox(width: AppSpacing.xs),
-                            Text('PUT'),
-                          ],
-                        ),
-                      ),
-                      selected: _selectedContractType == 'PUT',
-                      onSelected: (selected) {
-                        AppHaptics.light();
-                        setState(() => _selectedContractType = 'PUT');
-                      },
-                      backgroundColor: context.colors.surfaceVariant,
-                      selectedColor: AppColors.error.withOpacity(0.2),
+                    child: _buildMetric(
+                      'Win Rate',
+                      '${winRate.toStringAsFixed(1)}%',
+                      winRate >= 50 ? AppColors.success : AppColors.error,
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildMetric(
+                      'Profit',
+                      '${isProfit ? '+' : ''}\$${status.sessionProfit.toStringAsFixed(2)}',
+                      isProfit ? AppColors.success : AppColors.error,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainer,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.attach_money_rounded,
+                        color: context.colors.onSurfaceVariant,
+                        size: 16,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        'Stake Inicial',
+                        style: context.textStyles.bodySmall?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        '\$${status.currentStake.toStringAsFixed(2)}',
+                        style: context.textStyles.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (!bot.isRunning) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        IconButtonWithBackground(
+                          icon: Icons.edit_rounded,
+                          onPressed: () => _showEditStakeDialog(bot),
+                          backgroundColor: AppColors.primary.withOpacity(0.15),
+                          iconColor: AppColors.primary,
+                          size: 32,
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildStakeSection() {
+  Widget _buildMetric(String label, String value, Color color) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Configurações Financeiras',
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
+          label,
+          style: context.textStyles.labelSmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
           ),
         ),
-        SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            children: [
-              AppTextField(
-                controller: _stakeController,
-                label: 'Stake Inicial (\$)',
-                hint: '0.35',
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                prefix: Icon(Icons.attach_money_rounded),
-                validator: (value) {
-                  final stake = double.tryParse(value?.replaceAll(',', '.') ?? '');
-                  if (stake == null || stake < 0.35) {
-                    return 'Mínimo: \$0.35';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: AppSpacing.lg),
-              AppTextField(
-                controller: _maxStakeController,
-                label: 'Stake Máximo (\$)',
-                hint: '10.00',
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                prefix: Icon(Icons.trending_up_rounded),
-                validator: (value) {
-                  final maxStake = double.tryParse(value?.replaceAll(',', '.') ?? '');
-                  final initialStake = double.tryParse(_stakeController.text.replaceAll(',', '.') ?? '');
-                  if (maxStake == null || maxStake <= 0) {
-                    return 'Valor inválido';
-                  }
-                  if (initialStake != null && maxStake < initialStake) {
-                    return 'Deve ser maior que o stake inicial';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: AppSpacing.lg),
-              AppTextField(
-                controller: _targetProfitController,
-                label: 'Target Profit (\$)',
-                hint: '5.00',
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                prefix: Icon(Icons.flag_rounded),
-                validator: (value) {
-                  final target = double.tryParse(value?.replaceAll(',', '.') ?? '');
-                  if (target == null || target <= 0) {
-                    return 'Deve ser maior que 0';
-                  }
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAdvancedSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        const SizedBox(height: AppSpacing.xxs),
         Text(
-          'Configurações Avançadas',
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            children: [
-              AppTextField(
-                controller: _maxLossesController,
-                label: 'Max Perdas Consecutivas',
-                hint: '7',
-                keyboardType: TextInputType.number,
-                prefix: Icon(Icons.warning_rounded),
-                validator: (value) {
-                  final maxLosses = int.tryParse(value ?? '');
-                  if (maxLosses == null || maxLosses < 1) {
-                    return 'Mínimo: 1';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: AppSpacing.lg),
-              SwitchListTile(
-                title: Text('Usar RSI', style: context.textStyles.titleSmall),
-                subtitle: Text(
-                  'Análise de Índice de Força Relativa',
-                  style: context.textStyles.bodySmall,
-                ),
-                value: _useRSI,
-                onChanged: (value) {
-                  AppHaptics.light();
-                  setState(() => _useRSI = value);
-                },
-                activeColor: AppColors.primary,
-              ),
-              if (_useRSI) ...[
-                SizedBox(height: AppSpacing.md),
-                Text(
-                  'Condições de Entrada',
-                  style: context.textStyles.titleSmall,
-                ),
-                SizedBox(height: AppSpacing.sm),
-                _buildEntryConditionChips(),
-              ],
-            ],
+          value,
+          style: context.textStyles.titleSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildEntryConditionChips() {
-    final conditions = [
-      EntryCondition.immediate,
-      EntryCondition.rsiOversold,
-      EntryCondition.rsiOverbought,
-    ];
-
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: conditions.map((condition) {
-        final isSelected = _selectedConditions.contains(condition);
-        return FilterChip(
-          label: Text(_getConditionName(condition)),
-          selected: isSelected,
-          onSelected: (selected) {
-            AppHaptics.light();
-            setState(() {
-              if (selected) {
-                _selectedConditions.add(condition);
-              } else {
-                _selectedConditions.remove(condition);
-              }
-            });
-          },
-          backgroundColor: context.colors.surfaceVariant,
-          selectedColor: AppColors.warning.withOpacity(0.2),
-          checkmarkColor: AppColors.warning,
-          labelStyle: context.textStyles.labelSmall?.copyWith(
-            color: isSelected ? AppColors.warning : context.colors.onSurface,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  String _getStrategyName(BotStrategy strategy) {
+  IconData _getStrategyIcon(BotStrategy strategy) {
     switch (strategy) {
       case BotStrategy.martingale:
-        return 'Martingale';
+        return Icons.trending_up_rounded;
       case BotStrategy.fibonacci:
-        return 'Fibonacci';
+        return Icons.stairs_rounded;
       case BotStrategy.dalembert:
-        return "D'Alembert";
+        return Icons.analytics_rounded;
       case BotStrategy.adaptive:
-        return 'Adaptive';
+        return Icons.settings_suggest_rounded;
       default:
-        return 'Desconhecida';
-    }
-  }
-
-  String _getRecoveryModeName(RecoveryMode mode) {
-    switch (mode) {
-      case RecoveryMode.conservative:
-        return 'Conservador';
-      case RecoveryMode.moderate:
-        return 'Moderado';
-      case RecoveryMode.intelligent:
-        return 'Inteligente';
-      default:
-        return 'Desconhecido';
-    }
-  }
-
-  String _getConditionName(EntryCondition condition) {
-    switch (condition) {
-      case EntryCondition.immediate:
-        return 'Imediato';
-      case EntryCondition.rsiOversold:
-        return 'RSI Sobrevendido';
-      case EntryCondition.rsiOverbought:
-        return 'RSI Sobrecomprado';
-      default:
-        return 'Desconhecida';
+        return Icons.smart_toy_rounded;
     }
   }
 }
