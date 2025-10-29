@@ -159,12 +159,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           NavigationDestination(
             icon: Icon(Icons.gamepad_outlined),
-            selectedIcon: Icon(Icons.gamepad),
+            selectedIcon: Icon(Icons.stadia_controller),
             label: 'Negociar',
           ),
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+            selectedIcon: Icon(Icons.linked_services),
             label: 'Extras',
           ),
         ],
