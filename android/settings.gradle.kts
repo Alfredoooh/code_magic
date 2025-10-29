@@ -31,5 +31,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "zoomtrade"
+rootProject.name = "madeeasy"
 include(":app")
