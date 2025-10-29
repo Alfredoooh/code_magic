@@ -256,7 +256,7 @@ class _MarketsScreenState extends State<MarketsScreen>
     }
   }
 
-void _openAllMarkets() {
+  void _openAllMarkets() {
     AppHaptics.selection();
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -266,7 +266,6 @@ void _openAllMarkets() {
           marketData: _marketData,
           channel: _channel,
         ),
-        settings: const RouteSettings(name: '/all_markets'),
       ),
     );
   }
@@ -276,7 +275,6 @@ void _openAllMarkets() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => NewsDetailScreen(news: news),
-        settings: const RouteSettings(name: '/news_detail'),
       ),
     );
   }
@@ -292,11 +290,10 @@ void _openAllMarkets() {
           token: widget.token,
           channel: _channel,
         ),
-        settings: const RouteSettings(name: '/market_detail'),
       ),
     );
   }
-  
+
   Future<void> _handleRefresh() async {
     AppHaptics.medium();
     await _fetchCryptoNews();
@@ -395,10 +392,28 @@ void _openAllMarkets() {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.trending_up_rounded,
-                  color: AppColors.primary,
-                  size: 24,
+                // Bitcoin PNG icon instead of Material icon
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+                  child: CachedNetworkImage(
+                    imageUrl: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.contain,
+                    errorWidget: (context, error, stackTrace) => Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.show_chart_rounded,
+                        color: AppColors.primary,
+                        size: 16,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
@@ -443,31 +458,42 @@ void _openAllMarkets() {
       onTap: () => _openMarketDetail(symbol),
       child: Row(
         children: [
-          // Icon
+          // Circular container with icon
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
               color: context.colors.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              shape: BoxShape.circle,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            padding: const EdgeInsets.all(8),
+            child: ClipOval(
               child: CachedNetworkImage(
                 imageUrl: info.iconUrl,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 placeholder: (context, url) => Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 errorWidget: (context, error, stackTrace) => Container(
-                  color: AppColors.primary.withOpacity(0.15),
-                  child: Icon(
-                    Icons.show_chart_rounded,
-                    color: AppColors.primary,
-                    size: 28,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      symbol.substring(0, 1),
+                      style: context.textStyles.titleMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
               ),
