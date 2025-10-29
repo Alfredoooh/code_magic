@@ -137,55 +137,218 @@ class _MarketsScreenState extends State<MarketsScreen>
     super.dispose();
   }
 
+  // List of API configurations with fallback support
+  final List<Map<String, String>> _newsApis = [
+    {
+      'name': 'NewsData1',
+      'url': 'https://newsdata.io/api/1/news',
+      'key': 'pub_7d7d1ac2f86b4bc6b4662fd5d6dad47c',
+      'param': 'apikey',
+    },
+    {
+      'name': 'NewsData2',
+      'url': 'https://newsdata.io/api/1/news',
+      'key': 'pub_8101437cf6db27e4bb3a5473976cdc86571fc',
+      'param': 'apikey',
+    },
+    {
+      'name': 'NewsData3',
+      'url': 'https://newsdata.io/api/1/news',
+      'key': 'pub_fccded6d857d4110a59fb1ef1f02418c',
+      'param': 'apikey',
+    },
+    {
+      'name': 'NewsAPI',
+      'url': 'https://newsapi.org/v2/top-headlines',
+      'key': 'b2e4d59068e545abbdffaf947c371bcd',
+      'param': 'apiKey',
+    },
+    {
+      'name': 'GNews1',
+      'url': 'https://gnews.io/api/v4/top-headlines',
+      'key': '5a3e9cdd12d67717cfb6643d25ebaeb5',
+      'param': 'apikey',
+    },
+    {
+      'name': 'GNews2',
+      'url': 'https://gnews.io/api/v4/top-headlines',
+      'key': '6faf083df1638391a56bb22c4f91e132',
+      'param': 'apikey',
+    },
+    {
+      'name': 'NewsMonitor',
+      'url': 'https://api.spixdiscovery.com:8083/news',
+      'key': '',
+      'param': '',
+    },
+  ];
+
+  int _currentApiIndex = 0;
+
   Future<void> _fetchCryptoNews() async {
     setState(() {
       _isLoadingNews = true;
       _newsError = null;
     });
 
+    // Try each API until one works
+    for (int i = _currentApiIndex; i < _newsApis.length; i++) {
+      try {
+        final api = _newsApis[i];
+        final uri = _buildApiUrl(api);
+
+        final response = await http.get(uri).timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final results = _parseNewsResponse(api['name']!, data);
+
+          if (results.isNotEmpty) {
+            setState(() {
+              _newsItems = results;
+              _isLoadingNews = false;
+              _currentApiIndex = i; // Remember working API
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('API ${_newsApis[i]['name']} failed: $e');
+        continue; // Try next API
+      }
+    }
+
+    // All APIs failed
+    setState(() {
+      _newsError = 'Unable to load news from any source';
+      _isLoadingNews = false;
+    });
+  }
+
+  Uri _buildApiUrl(Map<String, String> api) {
+    final baseUrl = api['url']!;
+    final key = api['key']!;
+    final param = api['param']!;
+
+    Map<String, String> queryParams = {};
+
+    switch (api['name']) {
+      case 'NewsData1':
+      case 'NewsData2':
+      case 'NewsData3':
+        queryParams = {
+          param: key,
+          'language': 'en',
+          'category': 'business,technology',
+        };
+        break;
+      case 'NewsAPI':
+        queryParams = {
+          param: key,
+          'country': 'us',
+          'category': 'business',
+        };
+        break;
+      case 'GNews1':
+      case 'GNews2':
+        queryParams = {
+          param: key,
+          'lang': 'en',
+          'topic': 'business',
+          'max': '10',
+        };
+        break;
+      case 'NewsMonitor':
+        // No API key needed
+        break;
+    }
+
+    return Uri.parse(baseUrl).replace(queryParameters: queryParams);
+  }
+
+  List<NewsItem> _parseNewsResponse(String apiName, Map<String, dynamic> data) {
     try {
-      final response = await http.get(
-        Uri.parse(
-          'https://cryptopanic.com/api/v1/posts/?auth_token=YOUR_API_TOKEN&public=true&kind=news',
-        ),
-      ).timeout(const Duration(seconds: 10));
+      List<dynamic> articles = [];
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List;
-
-        setState(() {
-          _newsItems = results.map((item) {
+      switch (apiName) {
+        case 'NewsData1':
+        case 'NewsData2':
+        case 'NewsData3':
+          articles = data['results'] ?? [];
+          return articles.map((item) {
             return NewsItem(
               title: item['title'] ?? '',
-              summary: item['title'] ?? '',
-              source: item['source']?['title'] ?? 'Unknown',
-              favicon:
-                  'https://www.google.com/s2/favicons?domain=${item['source']?['domain'] ?? 'example.com'}&sz=128',
-              time: _formatTime(item['published_at'] ?? ''),
-              url: item['url'] ?? '',
-              category: item['currencies']?.isNotEmpty == true
-                  ? (item['currencies'][0]['code'] ?? 'NEWS')
-                  : 'NEWS',
-              imageUrl: item['currencies']?.isNotEmpty == true
-                  ? 'https://cryptologos.cc/logos/${item['currencies'][0]['code'].toString().toLowerCase()}-${item['currencies'][0]['slug']}-logo.png'
-                  : null,
+              summary: item['description'] ?? item['title'] ?? '',
+              source: item['source_id'] ?? 'Unknown',
+              favicon: 'https://www.google.com/s2/favicons?domain=${item['source_url'] ?? 'example.com'}&sz=128',
+              time: _formatTime(item['pubDate'] ?? ''),
+              url: item['link'] ?? '',
+              category: (item['category']?.isNotEmpty == true) ? item['category'][0].toString().toUpperCase() : 'NEWS',
+              imageUrl: item['image_url'],
             );
           }).toList();
-          _isLoadingNews = false;
-        });
-      } else {
-        setState(() {
-          _newsError =
-              'Failed to load news. Status: ${response.statusCode}';
-          _isLoadingNews = false;
-        });
+
+        case 'NewsAPI':
+          articles = data['articles'] ?? [];
+          return articles.map((item) {
+            return NewsItem(
+              title: item['title'] ?? '',
+              summary: item['description'] ?? item['title'] ?? '',
+              source: item['source']?['name'] ?? 'Unknown',
+              favicon: 'https://www.google.com/s2/favicons?domain=${_extractDomain(item['url'] ?? '')}&sz=128',
+              time: _formatTime(item['publishedAt'] ?? ''),
+              url: item['url'] ?? '',
+              category: 'NEWS',
+              imageUrl: item['urlToImage'],
+            );
+          }).toList();
+
+        case 'GNews1':
+        case 'GNews2':
+          articles = data['articles'] ?? [];
+          return articles.map((item) {
+            return NewsItem(
+              title: item['title'] ?? '',
+              summary: item['description'] ?? item['title'] ?? '',
+              source: item['source']?['name'] ?? 'Unknown',
+              favicon: 'https://www.google.com/s2/favicons?domain=${_extractDomain(item['url'] ?? '')}&sz=128',
+              time: _formatTime(item['publishedAt'] ?? ''),
+              url: item['url'] ?? '',
+              category: 'NEWS',
+              imageUrl: item['image'],
+            );
+          }).toList();
+
+        case 'NewsMonitor':
+          articles = data['news'] ?? data['articles'] ?? [];
+          return articles.map((item) {
+            return NewsItem(
+              title: item['title'] ?? '',
+              summary: item['description'] ?? item['summary'] ?? item['title'] ?? '',
+              source: item['source'] ?? 'Unknown',
+              favicon: 'https://www.google.com/s2/favicons?domain=${_extractDomain(item['url'] ?? '')}&sz=128',
+              time: _formatTime(item['publishedAt'] ?? item['date'] ?? ''),
+              url: item['url'] ?? '',
+              category: item['category']?.toString().toUpperCase() ?? 'NEWS',
+              imageUrl: item['image'] ?? item['thumbnail'],
+            );
+          }).toList();
+
+        default:
+          return [];
       }
     } catch (e) {
-      setState(() {
-        _newsError = 'Connection error: ${e.toString()}';
-        _isLoadingNews = false;
-      });
+      debugPrint('Error parsing news response: $e');
+      return [];
+    }
+  }
+
+  String _extractDomain(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.host;
+    } catch (e) {
+      return 'example.com';
     }
   }
 
@@ -592,10 +755,21 @@ class _MarketsScreenState extends State<MarketsScreen>
       children: [
         Row(
           children: [
-            Icon(
-              Icons.newspaper_rounded,
-              color: AppColors.info,
-              size: 24,
+            // Ionicons newspaper icon from PNG
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              child: CachedNetworkImage(
+                imageUrl: 'https://cdn-icons-png.flaticon.com/512/2965/2965879.png',
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
+                color: AppColors.info,
+                errorWidget: (context, error, stackTrace) => Icon(
+                  Icons.newspaper_rounded,
+                  color: AppColors.info,
+                  size: 24,
+                ),
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Text(
