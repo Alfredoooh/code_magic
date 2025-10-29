@@ -1,7 +1,7 @@
 import java.util.Properties
 
 pluginManagement {
-    // Caminho do Flutter SDK a partir do local.properties
+    // ler local.properties para obter flutter.sdk
     val flutterSdkPath = run {
         val properties = Properties()
         file("local.properties").inputStream().use { properties.load(it) }
@@ -10,10 +10,10 @@ pluginManagement {
         flutterSdkPath
     }
 
-    // Permite incluir o build do Flutter tools para projetos Flutter
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
+        // necessário para plugins (AGP, Kotlin plugin, etc)
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -21,16 +21,16 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    // Evita repositórios por project se algo estranho for adicionado
     repositoriesMode.set(org.gradle.api.initialization.dsl.RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // necessário para dependências do Firebase/Google
         google()
         mavenCentral()
     }
 }
 
-// Opcional: nome do root project (ajusta se quiseres)
+// mantém o nome do root project (opcional)
 rootProject.name = "app"
 
-// Inclui o módulo app
+// inclui o módulo app
 include(":app")
