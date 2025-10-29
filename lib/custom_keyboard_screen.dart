@@ -6,24 +6,20 @@ import 'theme/app_widgets.dart';
 
 class CustomKeyboardScreen extends StatefulWidget {
   final String title;
-  final dynamic initialValue; // Aceita String ou double
-  final String? hint;
+  final double initialValue;
+  final double minValue;
   final String? prefix;
-  final Function(String) onConfirm;
   final bool isInteger;
-  final double? minValue;
-  final double? maxValue;
+  final Function(double) onConfirm;
 
   const CustomKeyboardScreen({
     Key? key,
     required this.title,
-    this.initialValue,
-    this.hint,
+    required this.initialValue,
+    this.minValue = 0.0,
     this.prefix,
-    required this.onConfirm,
     this.isInteger = false,
-    this.minValue,
-    this.maxValue,
+    required this.onConfirm,
   }) : super(key: key);
 
   @override
@@ -36,14 +32,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Converte initialValue para String
-    if (widget.initialValue != null) {
-      if (widget.initialValue is String) {
-        _displayValue = widget.initialValue as String;
-      } else if (widget.initialValue is num) {
-        _displayValue = widget.initialValue.toString();
-      }
-    }
+    _displayValue = widget.initialValue.toString();
   }
 
   void _onKeyPress(String key) {
@@ -74,41 +63,24 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
     AppHaptics.light();
   }
 
-  void _onSubmit() {
-    if (_displayValue.isEmpty) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Digite um valor');
-      return;
-    }
-
+  void _confirm() {
     final value = double.tryParse(_displayValue);
-
-    if (value == null) {
+    if (value != null && value >= widget.minValue) {
+      AppHaptics.success();
+      widget.onConfirm(value);
+    } else {
       AppHaptics.error();
-      AppSnackbar.error(context, 'Valor inválido');
-      return;
+      AppSnackbar.error(
+        context,
+        'Valor mínimo é ${widget.minValue.toStringAsFixed(2)}'
+      );
     }
-
-    if (widget.minValue != null && value < widget.minValue!) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Valor mínimo: ${widget.minValue}');
-      return;
-    }
-
-    if (widget.maxValue != null && value > widget.maxValue!) {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Valor máximo: ${widget.maxValue}');
-      return;
-    }
-
-    AppHaptics.success();
-    widget.onConfirm(_displayValue);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.surface,
+      backgroundColor: context.colors.surface,
       appBar: SecondaryAppBar(
         title: widget.title,
         onBack: () {
@@ -128,9 +100,11 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  _buildHeader(),
+                  const SizedBox(height: AppSpacing.md),
                   if (_displayValue.isEmpty)
                     Text(
-                      widget.hint ?? 'Digite um valor',
+                      'Digite um valor',
                       style: context.textStyles.headlineLarge?.copyWith(
                         color: context.colors.onSurfaceVariant,
                       ),
@@ -163,16 +137,6 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
                         ],
                       ),
                     ),
-
-                  if (widget.minValue != null || widget.maxValue != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Min: ${widget.minValue ?? 0} - Max: ${widget.maxValue ?? '∞'}',
-                      style: context.textStyles.bodySmall?.copyWith(
-                        color: context.colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -228,7 +192,7 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
                     child: PrimaryButton(
                       text: 'Confirmar',
                       icon: Icons.check_rounded,
-                      onPressed: _onSubmit,
+                      onPressed: _confirm,
                       expanded: true,
                     ),
                   ),
@@ -238,6 +202,22 @@ class _CustomKeyboardScreenState extends State<CustomKeyboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (widget.minValue > 0) ...[
+          Text(
+            'Mínimo: ${widget.prefix ?? ''}${widget.minValue.toStringAsFixed(widget.isInteger ? 0 : 2)}',
+            style: context.textStyles.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
