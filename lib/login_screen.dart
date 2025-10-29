@@ -146,7 +146,7 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
           title: 'Selecione sua conta',
           icon: Icons.account_balance_wallet_rounded,
           iconColor: AppColors.primary,
-          content: SizedBox(
+          contentWidget: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
               shrinkWrap: true,
@@ -400,7 +400,6 @@ class _DerivLoginScreenState extends State<DerivLoginScreen> {
                     text: 'Criar Conta Deriv',
                     icon: Icons.person_add_rounded,
                     onPressed: _openRegister,
-                    expanded: true,
                   ),
                 ),
 
@@ -577,7 +576,7 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(context.surface)
+      ..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {
@@ -631,13 +630,15 @@ class _DerivWebViewLoginState extends State<DerivWebViewLogin> {
       backgroundColor: context.surface,
       appBar: SecondaryAppBar(
         title: 'Login Deriv',
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: () {
-            AppHaptics.light();
-            Navigator.pop(context);
-          },
-        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context);
+            },
+          ),
+        ],
       ),
       body: WebViewWidget(controller: _controller),
     );
