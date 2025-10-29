@@ -1,7 +1,7 @@
-// lib/bots_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -305,7 +305,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
   void _showEditStakeDialog(TradingBot bot) {
     AppHaptics.light();
     final stakeController = TextEditingController(text: bot.config.initialStake.toStringAsFixed(2));
-    final maxStakeController = TextEditingController(text: bot.config.maxStake.toStringAsFixed(2));
+    final maxStakeController = TextEditingController(text: bot.config.maxStake?.toStringAsFixed(2) ?? '50.00');
 
     showDialog(
       context: context,
@@ -313,7 +313,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
         title: 'Editar Configurações',
         icon: Icons.edit_rounded,
         iconColor: AppColors.primary,
-        content: Column(
+        contentWidget: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             AppTextField(
@@ -322,6 +322,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               hint: '0.35',
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               prefix: const Icon(Icons.attach_money_rounded),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
@@ -330,6 +333,9 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
               hint: '50.00',
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               prefix: const Icon(Icons.trending_up_rounded),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
             ),
           ],
         ),
@@ -381,6 +387,7 @@ class _BotsScreenState extends State<BotsScreen> with AutomaticKeepAliveClientMi
       backgroundColor: context.surface,
       appBar: SecondaryAppBar(
         title: 'Trading Bots',
+        showBackButton: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline_rounded),
