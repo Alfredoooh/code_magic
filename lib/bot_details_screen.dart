@@ -60,6 +60,51 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     super.dispose();
   }
 
+  void _showStopConfirmation() {
+    AppHaptics.warning();
+    showDialog(
+      context: context,
+      builder: (context) => AppDialog(
+        title: 'Parar Bot?',
+        icon: Icons.stop_circle_rounded,
+        iconColor: AppColors.error,
+        contentWidget: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tem certeza que deseja parar este bot?'),
+            SizedBox(height: AppSpacing.sm),
+            Text(
+              'Todas as operações em andamento serão finalizadas.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TertiaryButton(
+            text: 'Cancelar',
+            onPressed: () {
+              AppHaptics.light();
+              Navigator.pop(context);
+            },
+          ),
+          PrimaryButton(
+            text: 'Parar',
+            icon: Icons.stop_rounded,
+            onPressed: () {
+              widget.bot.stop();
+              AppHaptics.success();
+              Navigator.pop(context);
+              widget.onUpdate();
+              setState(() {});
+              AppSnackbar.success(context, 'Bot parado com sucesso');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showConfigDialog() {
     final stakeController = TextEditingController(
       text: widget.bot.config.initialStake.toStringAsFixed(2),
@@ -414,11 +459,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             child: IconButtonWithBackground(
               icon: Icons.stop_rounded,
               onPressed: () {
-                AppHaptics.heavy();
-                widget.bot.stop();
-                widget.onUpdate();
-                setState(() {});
-                AppSnackbar.info(context, 'Bot parado');
+                _showStopConfirmation();
               },
               backgroundColor: AppColors.error,
               iconColor: Colors.white,
