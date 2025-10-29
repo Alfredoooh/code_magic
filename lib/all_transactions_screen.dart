@@ -95,7 +95,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         },
         actions: [
           IconButton(
-            icon: Icon(Icons.sort_rounded),
+            icon: const Icon(Icons.sort_rounded),
             tooltip: 'Ordenar',
             onPressed: _showSortOptions,
           ),
@@ -106,7 +106,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           // Filter Chips
           FadeInWidget(
             child: Container(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
                 vertical: AppSpacing.md,
               ),
@@ -120,14 +120,14 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                       Icons.list_rounded,
                       widget.transactions.length,
                     ),
-                    SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: AppSpacing.sm),
                     _buildFilterChip(
                       'credit',
                       'Entradas',
                       Icons.arrow_downward_rounded,
                       _creditCount,
                     ),
-                    SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: AppSpacing.sm),
                     _buildFilterChip(
                       'debit',
                       'Saídas',
@@ -142,10 +142,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
           // Summary Section
           FadeInWidget(
-            delay: Duration(milliseconds: 100),
+            delay: const Duration(milliseconds: 100),
             child: Container(
-              margin: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              padding: EdgeInsets.all(AppSpacing.lg),
+              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -176,16 +176,16 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                       Expanded(
                         child: _buildSummaryItem(
                           'Volume Total',
-                          '${_calculateTotal().toStringAsFixed(2)}',
+                          _calculateTotal().toStringAsFixed(2),
                           Icons.account_balance_wallet_rounded,
                         ),
                       ),
                     ],
                   ),
                   if (_filter == 'all') ...[
-                    SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.lg),
                     Divider(color: context.colors.outline.withOpacity(0.3)),
-                    SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.lg),
                     Row(
                       children: [
                         Expanded(
@@ -196,7 +196,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                             Icons.trending_up_rounded,
                           ),
                         ),
-                        SizedBox(width: AppSpacing.md),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: _buildBalanceItem(
                             'Saídas',
@@ -213,13 +213,13 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
             ),
           ),
 
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.lg),
 
           // Section Header
           FadeInWidget(
-            delay: Duration(milliseconds: 200),
+            delay: const Duration(milliseconds: 200),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Text(
@@ -228,7 +228,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   AppBadge(
                     text: _sortBy == 'date' ? 'Por Data' : 'Por Valor',
                     color: context.colors.primary,
@@ -239,9 +239,9 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
             ),
           ),
 
-          SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
 
-          // Transactions List
+          // Transactions List - Grouped in container
           Expanded(
             child: _filteredTransactions.isEmpty
                 ? FadeInWidget(
@@ -260,20 +260,51 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                           : null,
                     ),
                   )
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(
+                : Padding(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
                       vertical: AppSpacing.sm,
                     ),
-                    itemCount: _filteredTransactions.length,
-                    itemBuilder: (context, index) {
-                      final tx = _filteredTransactions[index];
-                      return StaggeredListItem(
-                        index: index,
-                        delay: Duration(milliseconds: 30),
-                        child: _buildTransactionCard(tx, index),
-                      );
-                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      ),
+                      child: ListView.separated(
+                        padding: EdgeInsets.zero,
+                        itemCount: _filteredTransactions.length,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          color: context.colors.outlineVariant.withOpacity(0.5),
+                          indent: AppSpacing.lg,
+                          endIndent: AppSpacing.lg,
+                        ),
+                        itemBuilder: (context, index) {
+                          final tx = _filteredTransactions[index];
+                          final isFirst = index == 0;
+                          final isLast = index == _filteredTransactions.length - 1;
+                          
+                          return StaggeredListItem(
+                            index: index,
+                            delay: const Duration(milliseconds: 30),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  AppHaptics.light();
+                                  _showTransactionDetails(tx);
+                                },
+                                borderRadius: BorderRadius.vertical(
+                                  top: isFirst ? const Radius.circular(AppSpacing.radiusMd) : Radius.zero,
+                                  bottom: isLast ? const Radius.circular(AppSpacing.radiusMd) : Radius.zero,
+                                ),
+                                child: _buildTransactionItem(tx),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
           ),
         ],
@@ -289,45 +320,48 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   ) {
     final isSelected = _filter == value;
 
-    return FilterChip(
-      selected: isSelected,
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          SizedBox(width: AppSpacing.xs),
-          Text(label),
-          if (count > 0) ...[
-            SizedBox(width: AppSpacing.xs),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? context.colors.onPrimaryContainer.withOpacity(0.2)
-                    : context.colors.onSurface.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-              ),
-              child: Text(
-                count.toString(),
-                style: context.textStyles.labelSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+    return AnimatedContainer(
+      duration: AppMotion.short,
+      child: FilterChip(
+        selected: isSelected,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: AppSpacing.xs),
+            Text(label),
+            if (count > 0) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? context.colors.onPrimaryContainer.withOpacity(0.2)
+                      : context.colors.onSurface.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: context.textStyles.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
+        onSelected: (selected) {
+          if (selected) {
+            AppHaptics.selection();
+            setState(() => _filter = value);
+          }
+        },
+        selectedColor: context.colors.primaryContainer,
+        checkmarkColor: context.colors.onPrimaryContainer,
       ),
-      onSelected: (selected) {
-        if (selected) {
-          AppHaptics.selection();
-          setState(() => _filter = value);
-        }
-      },
-      selectedColor: context.colors.primaryContainer,
-      checkmarkColor: context.colors.onPrimaryContainer,
     );
   }
 
@@ -339,15 +373,22 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           color: context.colors.onPrimaryContainer,
           size: 24,
         ),
-        SizedBox(height: AppSpacing.sm),
-        Text(
-          value,
-          style: context.textStyles.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: context.colors.onPrimaryContainer,
-          ),
+        const SizedBox(height: AppSpacing.sm),
+        TweenAnimationBuilder<int>(
+          tween: IntTween(begin: 0, end: int.tryParse(value.split('.')[0]) ?? 0),
+          duration: AppMotion.long,
+          curve: AppMotion.emphasizedDecelerate,
+          builder: (context, animatedValue, child) {
+            return Text(
+              value.contains('.') ? '$animatedValue.${value.split('.')[1]}' : animatedValue.toString(),
+              style: context.textStyles.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: context.colors.onPrimaryContainer,
+              ),
+            );
+          },
         ),
-        SizedBox(height: AppSpacing.xxs),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
           label,
           style: context.textStyles.bodySmall?.copyWith(
@@ -366,7 +407,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     IconData icon,
   ) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -381,7 +422,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: color, size: 16),
-              SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 label,
                 style: context.textStyles.bodySmall?.copyWith(
@@ -391,96 +432,100 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.xs),
-          Text(
-            '${value.toStringAsFixed(2)} ${widget.currency}',
-            style: context.textStyles.titleMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+          const SizedBox(height: AppSpacing.xs),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: value),
+            duration: AppMotion.long,
+            curve: AppMotion.emphasizedDecelerate,
+            builder: (context, animatedValue, child) {
+              return Text(
+                '${animatedValue.toStringAsFixed(2)} ${widget.currency}',
+                style: context.textStyles.titleMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTransactionCard(Map<String, dynamic> tx, int index) {
+  Widget _buildTransactionItem(Map<String, dynamic> tx) {
     final amount = double.parse(tx['amount'].toString());
     final isCredit = amount > 0;
     final color = isCredit ? AppColors.success : AppColors.error;
-    final date = DateTime.fromMillisecondsSinceEpoch(
-      tx['transaction_time'] * 1000,
-    );
 
-    return AnimatedCard(
-      onTap: () => _showTransactionDetails(tx),
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            // Icon
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              ),
-              child: Icon(
-                isCredit
-                    ? Icons.arrow_downward_rounded
-                    : Icons.arrow_upward_rounded,
-                color: color,
-                size: 24,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-
-            SizedBox(width: AppSpacing.md),
-
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx['action_type'] ?? 'Trade',
-                    style: context.textStyles.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    _formatDate(tx['transaction_time']),
-                    style: context.textStyles.bodySmall?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+            child: Icon(
+              isCredit
+                  ? Icons.arrow_downward_rounded
+                  : Icons.arrow_upward_rounded,
+              color: color,
+              size: 24,
             ),
+          ),
 
-            // Amount
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          const SizedBox(width: AppSpacing.md),
+
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
-                  style: context.textStyles.titleMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
+                  tx['action_type'] ?? 'Trade',
+                  style: context.textStyles.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  widget.currency,
+                  _formatDate(tx['transaction_time']),
                   style: context.textStyles.bodySmall?.copyWith(
                     color: context.colors.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // Amount
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)}',
+                style: context.textStyles.titleMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                widget.currency,
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -495,9 +540,9 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           AppListTile(
             title: 'Por Data',
             subtitle: 'Mais recentes primeiro',
-            leading: Icon(Icons.calendar_today_rounded),
+            leading: const Icon(Icons.calendar_today_rounded),
             trailing: _sortBy == 'date'
-                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                ? const Icon(Icons.check_circle_rounded, color: AppColors.success)
                 : null,
             onTap: () {
               AppHaptics.selection();
@@ -511,9 +556,9 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           AppListTile(
             title: 'Por Valor',
             subtitle: 'Maior para menor',
-            leading: Icon(Icons.attach_money_rounded),
+            leading: const Icon(Icons.attach_money_rounded),
             trailing: _sortBy == 'amount'
-                ? Icon(Icons.check_circle_rounded, color: AppColors.success)
+                ? const Icon(Icons.check_circle_rounded, color: AppColors.success)
                 : null,
             onTap: () {
               AppHaptics.selection();
@@ -542,7 +587,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         children: [
           // Amount Display
           Container(
-            padding: EdgeInsets.all(AppSpacing.xl),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -559,15 +604,22 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                   color: color,
                   size: 48,
                 ),
-                SizedBox(height: AppSpacing.md),
-                Text(
-                  '${isCredit ? '+' : ''}${amount.toStringAsFixed(2)} ${widget.currency}',
-                  style: context.textStyles.displaySmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const SizedBox(height: AppSpacing.md),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: amount.abs()),
+                  duration: AppMotion.long,
+                  curve: AppMotion.emphasizedDecelerate,
+                  builder: (context, value, child) {
+                    return Text(
+                      '${isCredit ? '+' : '-'}${value.toStringAsFixed(2)} ${widget.currency}',
+                      style: context.textStyles.displaySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
                 ),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xs),
                 AppBadge(
                   text: isCredit ? 'Entrada' : 'Saída',
                   color: color,
@@ -576,19 +628,19 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
             ),
           ),
 
-          SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.xl),
 
           // Transaction Info
           _buildDetailRow('Tipo', tx['action_type'] ?? 'Trade'),
-          LabeledDivider(label: ''),
+          const LabeledDivider(label: ''),
           _buildDetailRow('Data', _formatDate(tx['transaction_time'])),
-          LabeledDivider(label: ''),
+          const LabeledDivider(label: ''),
           _buildDetailRow(
             'ID',
             tx['transaction_id']?.toString() ?? 'N/A',
           ),
 
-          SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.xl),
 
           PrimaryButton(
             text: 'Fechar',
@@ -602,7 +654,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -612,10 +664,14 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
               color: context.colors.onSurfaceVariant,
             ),
           ),
-          Text(
-            value,
-            style: context.textStyles.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              value,
+              style: context.textStyles.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
