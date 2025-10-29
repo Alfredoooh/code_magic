@@ -51,7 +51,11 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
       parent: _mlBannerController,
       curve: AppMotion.emphasizedDecelerate,
     );
-    _mlBannerController.forward();
+    
+    // Inicia a animação
+    if (_controller.mlPrediction != null && _showMLBanner) {
+      _mlBannerController.forward();
+    }
   }
 
   @override
@@ -135,7 +139,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                   child: Text(
                     '${_controller.priceChange >= 0 ? '+' : ''}${_controller.priceChange.toStringAsFixed(2)}%',
                     style: context.textStyles.labelSmall?.copyWith(
-                      color: _controller.priceChange >= 0 ? AppColors.success : AppColors.error,
+                      color: _controller.priceChange >= 0
+                          ? AppColors.success
+                          : AppColors.error,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -151,7 +157,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           children: [
             if (_controller.mlPrediction != null && _showMLBanner)
               _buildMLPredictionBanner(),
-
+            
             Expanded(
               flex: _chartExpanded ? 5 : 3,
               child: TradeChartView(
@@ -163,7 +169,7 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                 },
               ),
             ),
-
+            
             if (!_chartExpanded)
               TradeControls(
                 controller: _controller,
@@ -310,8 +316,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
         mainAxisSize: MainAxisSize.min,
         children: [1, 2, 3, 4, 5].map((rate) {
           return AppListTile(
-            title: '${rate}%',
-            trailing: _controller.growthRate == (rate / 100) 
+            title: '$rate%',
+            trailing: _controller.growthRate == (rate / 100)
                 ? const Icon(Icons.check_rounded, color: AppColors.success)
                 : null,
             onTap: () {
@@ -344,7 +350,9 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   Widget _buildMLPredictionBanner() {
-    final prediction = _controller.mlPrediction!;
+    final prediction = _controller.mlPrediction;
+    if (prediction == null) return const SizedBox.shrink();
+
     final direction = prediction['direction'] as String? ?? 'N/A';
     final confidence = prediction['confidence'] as double? ?? 0.0;
     final probability = prediction['probability'] as double? ?? 0.0;
@@ -354,10 +362,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
 
     final isRise = direction.toLowerCase() == 'rise';
     final directionColor = isRise ? AppColors.success : AppColors.error;
-    final confidenceColor = confidence > 0.7 
-        ? AppColors.success 
-        : confidence > 0.5 
-            ? AppColors.warning 
+    final confidenceColor = confidence > 0.7
+        ? AppColors.success
+        : confidence > 0.5
+            ? AppColors.warning
             : AppColors.error;
 
     return SlideTransition(
@@ -459,7 +467,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
                           icon: const Icon(Icons.close_rounded, size: 18),
                           onPressed: () {
                             AppHaptics.light();
-                            setState(() => _showMLBanner = false);
+                            setState(() {
+                              _showMLBanner = false;
+                              _mlBannerController.reverse();
+                            });
                           },
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -573,8 +584,10 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
   }
 
   void _showMLDetailsBottomSheet() {
-    final prediction = _controller.mlPrediction!;
-    final patterns = (prediction['patterns'] as List<dynamic>?)?.cast<String>() ?? [];
+    final prediction = _controller.mlPrediction;
+    if (prediction == null) return;
+
+    final patterns = (prediction['patterns'] as List?)?.cast<String>() ?? [];
     final riskReward = prediction['risk_reward'] as Map<String, dynamic>? ?? {};
     final marketConditions = prediction['market_conditions'] as Map<String, dynamic>? ?? {};
 
@@ -771,9 +784,8 @@ class _TradeScreenState extends State<TradeScreen> with TickerProviderStateMixin
           minValue: 0.35,
           prefix: '\$ ',
           onConfirm: (value) {
-            final stakeValue = value;
-            if (stakeValue >= 0.35) {
-              _controller.setStake(stakeValue);
+            if (value >= 0.35) {
+              _controller.setStake(value);
               Navigator.pop(context);
             } else {
               AppSnackbar.error(context, 'Stake mínimo é \$0.35');
