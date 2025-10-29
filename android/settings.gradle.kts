@@ -1,3 +1,6 @@
+import org.gradle.api.file.Directory
+import org.gradle.api.tasks.Delete
+
 pluginManagement {
     val flutterSdkPath = run {
         val properties = java.util.Properties()
@@ -16,6 +19,28 @@ pluginManagement {
     }
 }
 
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(newBuildDir)
+
+subprojects {
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
+}
+
 buildscript {
     repositories {
         google()
@@ -29,7 +54,8 @@ buildscript {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.7.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+    // Atualizado para Kotlin 2.2.x para compatibilidade com dependências compiladas com Kotlin 2.2
+    id("org.jetbrains.kotlin.android") version "2.2.21" apply false
     id("com.google.gms.google-services") version "4.4.0" apply false
 }
 
