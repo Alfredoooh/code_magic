@@ -1,33 +1,28 @@
-// bot_strategies.dart
+// bot_strategies.dart - ESTRATÉGIAS COMPLETAS E FUNCIONAIS
 import 'dart:math';
 import 'bot_configuration.dart';
 
 class BotStrategies {
-  /// ============================================
-  /// MARTINGALE REALISTA
-  /// ============================================
+  // ============================================
+  // 1. MARTINGALE PRO (Original - Mantido)
+  // ============================================
   static double calculateMartingaleStake({
     required BotConfiguration config,
     required int consecutiveLosses,
     required double lossStreakAmount,
   }) {
+    if (consecutiveLosses == 0) return config.initialStake;
+
     final payout = config.estimatedPayout;
-    final minStake = max(config.initialStake, 0.35);
-
-    if (consecutiveLosses == 0) {
-      return minStake;
-    }
-
-    final desiredProfit = config.initialStake;
-    final required = (lossStreakAmount + desiredProfit) / max(0.0001, payout);
-
-    return max(minStake, required);
+    final recoveryStake = lossStreakAmount / payout;
+    final safetyMargin = 1.1;
+    
+    return recoveryStake * safetyMargin;
   }
 
-  /// ============================================
-  /// PROGRESSIVE REINVESTMENT
-  /// Implementação CORRETA conforme especificação
-  /// ============================================
+  // ============================================
+  // 2. PROGRESSIVE REINVESTMENT (Reinvestimento Progressivo)
+  // ============================================
   static Map<String, dynamic> calculateProgressiveReinvestmentStake({
     required BotConfiguration config,
     required int currentCycle,
@@ -38,73 +33,83 @@ class BotStrategies {
     required double lastStake,
     required double lastProfit,
   }) {
-    final payout = config.estimatedPayout;
-    final N = config.roundsPerCycle;  // Número de rodadas por ciclo
-    final L = config.extraProfitPercent / 100.0;  // Lucro extra (%)
-    final R = 1 + payout;  // Multiplicador de retorno (ex: 1.95 se payout = 95%)
+    final N = config.roundsPerCycle; // Rodadas por ciclo
+    final R = config.estimatedPayout; // Retorno por operação
+    final L = config.extraProfitPercent / 100; // Lucro extra
 
     double newStake;
-    bool shouldStartNewCycle = false;
-    int nextCycle = currentCycle;
-    int nextRound = currentRound;
-    double nextCycleStartStake = cycleStartStake;
+    int newCycle = currentCycle;
+    int newRound = currentRound;
+    bool startNewCycle = false;
 
-    // ===== CASO 1: VITÓRIA =====
-    if (lastTradeWon && currentRound > 0) {
-      // Reinvestir TUDO (stake + lucro) na próxima rodada
-      newStake = lastStake + lastProfit;
-      nextRound = currentRound + 1;
-
-      // Se completou todas as N rodadas do ciclo com sucesso
-      if (nextRound > N) {
-        shouldStartNewCycle = true;
-        nextCycle = currentCycle + 1;
-        nextRound = 1;
-        newStake = config.initialStake;  // Resetar para stake inicial
-        nextCycleStartStake = config.initialStake;
-      }
-    }
-    // ===== CASO 2: PERDA durante o ciclo =====
-    else if (!lastTradeWon && currentRound > 0) {
-      // Total perdido no ciclo (P)
-      final P = totalLossesInCycle;
+    // Se última operação foi vitória
+    if (lastTradeWon) {
+      newRound++;
       
-      // Calcular novo stake inicial usando a FÓRMULA EXATA:
-      // S₀' = (P × (1 + L%)) / ((R^N) - 1)
-      final numerator = P * (1 + L);
-      final denominator = pow(R, N) - 1;
-      newStake = numerator / max(0.01, denominator);
+      // Reinvestir: stake + lucro
+      newStake = lastStake + lastProfit;
 
-      // Iniciar novo ciclo com stake recalculado
-      shouldStartNewCycle = true;
-      nextCycle = currentCycle + 1;
-      nextRound = 1;
-      nextCycleStartStake = newStake;
-    }
-    // ===== CASO 3: Primeira rodada do ciclo =====
+      // Verificar se completou o ciclo
+      if (newRound >= N) {
+        // Ciclo completo com sucesso
+        newCycle++;
+        newRound = 0;
+        startNewCycle = true;
+        
+        // Verificar se atingiu total de ciclos
+        if (newCycle >= config.totalCycles) {
+          newStake = config.initialStake; // Reset
+          newCycle = 0;
+        } else {
+          newStake = config.initialStake; // Novo ciclo com stake base
+        }
+      }
+    } 
+    // Se última operação foi perda
     else {
-      newStake = cycleStartStake;
-      nextRound = 1;
+      // Ciclo interrompido - Recalcular stake para recuperação
+      final P = totalLossesInCycle + lastStake; // Total perdido
+      
+      if (config.autoRecovery && P > 0) {
+        // Fórmula: S₀' = P × (1 + L%) / ((R^N) - 1)
+        final denominator = pow(1 + R, N) - 1;
+        
+        if (denominator > 0) {
+          newStake = (P * (1 + L)) / denominator;
+        } else {
+          newStake = P * 1.5; // Fallback seguro
+        }
+        
+        // Aplicar limite de stake máximo
+        if (config.maxStake != null && newStake > config.maxStake!) {
+          newStake = config.maxStake!;
+        }
+      } else {
+        newStake = config.initialStake;
+      }
+
+      // Reiniciar ciclo
+      newRound = 0;
+      startNewCycle = true;
     }
 
-    // Limitar stake
-    final minStake = max(config.initialStake, 0.35);
-    final maxStake = config.maxStake ?? double.infinity;
-    newStake = newStake.clamp(minStake, maxStake);
+    // Garantir stake mínimo
+    if (newStake < config.initialStake) {
+      newStake = config.initialStake;
+    }
 
     return {
       'stake': newStake,
-      'cycle': nextCycle,
-      'round': nextRound,
-      'newCycle': shouldStartNewCycle,
-      'cycleStartStake': nextCycleStartStake,
+      'cycle': newCycle,
+      'round': newRound,
+      'newCycle': startNewCycle,
+      'cycleStartStake': startNewCycle ? newStake : cycleStartStake,
     };
   }
 
-  /// ============================================
-  /// TRENDY ADAPTIVE
-  /// Implementação CORRETA com 3 fases
-  /// ============================================
+  // ============================================
+  // 3. TRENDY ADAPTIVE (Lucro por Tendência)
+  // ============================================
   static Map<String, dynamic> calculateTrendyAdaptiveStake({
     required BotConfiguration config,
     required int consecutiveWins,
@@ -113,56 +118,71 @@ class BotStrategies {
     required double lastProfit,
     required bool trendDetected,
     required double profitBank,
-    required String phase,  // 'observation', 'execution', 'recovery'
+    required String phase,
   }) {
-    final Mt = config.trendMultiplier;  // Ex: 1.5
-    final Mr = config.recoveryMultiplier;  // Ex: 1.2
-    final F = config.trendFilter;  // Ex: 2 vitórias para confirmar tendência
+    final Mt = config.trendMultiplier; // Multiplicador de tendência
+    final Mr = config.recoveryMultiplier; // Multiplicador de recuperação
+    final F = config.trendFilter; // Filtro de confirmação
+    final reinvestPercent = config.profitReinvestPercent / 100;
 
     double newStake;
-    double newProfitBank = profitBank;
     bool newTrendDetected = trendDetected;
+    double newProfitBank = profitBank;
     String newPhase = phase;
 
-    // ===== FASE 1: OBSERVAÇÃO E DETECÇÃO DE TENDÊNCIA =====
+    // FASE 1: OBSERVAÇÃO
     if (phase == 'observation') {
       if (consecutiveWins >= F) {
+        // Tendência confirmada
         newTrendDetected = true;
         newPhase = 'execution';
-        // Aplicar multiplicador de tendência
-        final halfProfit = lastProfit * 0.5;
-        newStake = (currentStake + halfProfit) * Mt;
-        newProfitBank += (lastProfit - halfProfit);  // Guardar outra metade
+        newStake = config.initialStake * Mt;
       } else {
         newStake = config.initialStake;
       }
     }
-    // ===== FASE 2: EXECUÇÃO COM STAKE PROGRESSIVO =====
-    else if (phase == 'execution' && consecutiveWins > 0) {
-      // Fórmula: S_next = (S_current + (lucro × 0.5)) × Mt
-      final halfProfit = lastProfit * 0.5;
-      final otherHalf = lastProfit - halfProfit;
-      
-      newStake = (currentStake + halfProfit) * Mt;
-      newProfitBank += otherHalf;  // Guardar metade do lucro
+    
+    // FASE 2: EXECUÇÃO (Tendência Confirmada)
+    else if (phase == 'execution') {
+      if (consecutiveWins > 0) {
+        // Vitória: reinvestir parte do lucro
+        final reinvestAmount = lastProfit * reinvestPercent;
+        final savedProfit = lastProfit - reinvestAmount;
+        
+        newProfitBank += savedProfit;
+        newStake = (currentStake + reinvestAmount) * Mt;
+      } else {
+        // Perda: entrar em recuperação
+        newPhase = 'recovery';
+        newStake = currentStake * Mr;
+        newTrendDetected = false;
+      }
     }
-    // ===== FASE 3: REAJUSTE APÓS PERDA =====
-    else if (consecutiveLosses > 0) {
-      // Fórmula: S_next = S_current × Mr (apenas 1 vez)
-      newStake = currentStake * Mr;
-      newTrendDetected = false;
-      newPhase = 'observation';  // Voltar para observação
-    }
-    // ===== INÍCIO =====
-    else {
+    
+    // FASE 3: RECUPERAÇÃO
+    else if (phase == 'recovery') {
+      if (consecutiveWins >= 1) {
+        // Voltar para observação
+        newPhase = 'observation';
+        newStake = config.initialStake;
+        newTrendDetected = false;
+      } else {
+        // Continuar recuperação
+        newStake = currentStake * Mr;
+      }
+    } else {
+      // Fallback
       newStake = config.initialStake;
       newPhase = 'observation';
     }
 
-    // Limitar stake
-    final minStake = max(config.initialStake, 0.35);
-    final maxStake = config.maxStake ?? double.infinity;
-    newStake = newStake.clamp(minStake, maxStake);
+    // Aplicar limites
+    if (config.maxStake != null && newStake > config.maxStake!) {
+      newStake = config.maxStake!;
+    }
+    if (newStake < config.initialStake) {
+      newStake = config.initialStake;
+    }
 
     return {
       'stake': newStake,
@@ -172,10 +192,9 @@ class BotStrategies {
     };
   }
 
-  /// ============================================
-  /// ACS-R v3.0 - ADAPTIVE COMPOUND & SMART RECOVERY
-  /// Implementação CORRETA com 4 módulos
-  /// ============================================
+  // ============================================
+  // 4. ADAPTIVE COMPOUND & SMART RECOVERY (ACS-R v3.0)
+  // ============================================
   static Map<String, dynamic> calculateACSRStake({
     required BotConfiguration config,
     required int consecutiveWins,
@@ -184,66 +203,68 @@ class BotStrategies {
     required double lastProfit,
     required double lossAccumulated,
     required double profitBank,
-    required List<String> last5Results,  // ['Over', 'Over', 'Under', 'Over', 'Over']
+    required List<String> last5Results,
   }) {
-    final Mc = config.consistencyMultiplier;  // Ex: 1.15
-    final Mr = config.recoveryMultiplier;  // Ex: 1.25
-    final F = config.confidenceFilter;  // Ex: 2 vitórias
-    final minConfidence = config.patternConfidence;  // Ex: 0.6 (60%)
+    final Mr = config.recoveryMultiplier; // Multiplicador de recuperação
+    final Mc = config.consistencyMultiplier; // Multiplicador de consistência
+    final F = config.confidenceFilter; // Filtro de confiança
+    final minConfidence = config.patternConfidence;
 
     double newStake;
     double newProfitBank = profitBank;
     String activeDirection = 'neutral';
     bool shouldPause = false;
 
-    // ===== MÓDULO 1: LEITURA DE PADRÃO =====
-    if (last5Results.length >= 5) {
-      final patternCount = <String, int>{};
-      for (var result in last5Results) {
-        patternCount[result] = (patternCount[result] ?? 0) + 1;
-      }
+    // MÓDULO 1: LEITURA DE PADRÃO
+    if (last5Results.length >= 3) {
+      final pattern = _analyzePattern(last5Results);
       
-      final maxEntry = patternCount.entries.reduce(
-        (a, b) => a.value > b.value ? a : b,
-      );
-      
-      final confidence = maxEntry.value / 5.0;
-      if (confidence >= minConfidence) {
-        activeDirection = maxEntry.key;  // Ex: 'Over', 'Rise', 'Even'
+      if (pattern['confidence'] >= minConfidence) {
+        activeDirection = pattern['direction'];
       }
     }
 
-    // ===== MÓDULO 2: EXECUÇÃO E LUCRO COMPOSTO =====
+    // MÓDULO 2: EXECUÇÃO E LUCRO COMPOSTO
     if (consecutiveWins >= F && activeDirection != 'neutral') {
-      // Adicionar metade do lucro ao stake, outra metade ao banco
-      final halfProfit = lastProfit * 0.5;
-      final otherHalf = lastProfit - halfProfit;
-      
-      newStake = (currentStake + halfProfit) * Mc;
-      newProfitBank += otherHalf;
-    }
-    // ===== MÓDULO 3: RECUPERAÇÃO INTELIGENTE =====
-    else if (consecutiveLosses > 0) {
-      // Fórmula: S_next = (S_current × Mr) + (perda_acumulada × 0.3)
-      newStake = (currentStake * Mr) + (lossAccumulated * 0.3);
-      
-      // Se houver 2 perdas consecutivas, pausar por 1 rodada
-      if (consecutiveLosses >= 2) {
-        shouldPause = true;
+      // Direção confirmada - aumentar stake
+      if (consecutiveWins > 0) {
+        // Vitória: lucro composto parcial
+        final reinvestAmount = lastProfit * 0.5;
+        final savedProfit = lastProfit * 0.5;
+        
+        newProfitBank += savedProfit;
+        newStake = (currentStake + reinvestAmount) * Mc;
+      } else {
+        newStake = currentStake;
       }
     }
-    // ===== INÍCIO =====
+    
+    // MÓDULO 3: RECUPERAÇÃO INTELIGENTE
+    else if (consecutiveLosses > 0) {
+      if (consecutiveLosses >= 2) {
+        // Pausar e reanalizar após 2 perdas
+        shouldPause = true;
+        newStake = config.initialStake * Mr;
+      } else {
+        // Recuperação suave
+        final adjustedStake = (currentStake * Mr) + (lossAccumulated * 0.3);
+        newStake = adjustedStake;
+      }
+    }
+    
+    // Caso padrão
     else {
       newStake = config.initialStake;
     }
 
-    // ===== MÓDULO 4: GESTÃO DE CICLO =====
-    // (Implementado no bot_engine.dart através dos limites)
-
-    // Limitar stake
-    final minStake = max(config.initialStake, 0.35);
-    final maxStake = config.maxStake ?? double.infinity;
-    newStake = newStake.clamp(minStake, maxStake);
+    // MÓDULO 4: GESTÃO DE CICLO (aplicado externamente)
+    // Aplicar limites
+    if (config.maxStake != null && newStake > config.maxStake!) {
+      newStake = config.maxStake!;
+    }
+    if (newStake < config.initialStake) {
+      newStake = config.initialStake;
+    }
 
     return {
       'stake': newStake,
@@ -251,5 +272,72 @@ class BotStrategies {
       'activeDirection': activeDirection,
       'shouldPause': shouldPause,
     };
+  }
+
+  // ============================================
+  // FUNÇÃO AUXILIAR: ANÁLISE DE PADRÃO
+  // ============================================
+  static Map<String, dynamic> _analyzePattern(List<String> results) {
+    if (results.isEmpty) {
+      return {'confidence': 0.0, 'direction': 'neutral'};
+    }
+
+    // Contar ocorrências
+    final counts = <String, int>{};
+    for (var result in results) {
+      counts[result] = (counts[result] ?? 0) + 1;
+    }
+
+    // Encontrar padrão dominante
+    var maxCount = 0;
+    var dominantDirection = 'neutral';
+    
+    counts.forEach((direction, count) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantDirection = direction;
+      }
+    });
+
+    // Calcular confiança
+    final confidence = maxCount / results.length;
+
+    return {
+      'confidence': confidence,
+      'direction': dominantDirection,
+    };
+  }
+
+  // ============================================
+  // VALIDAÇÃO DE CONFIGURAÇÃO
+  // ============================================
+  static bool validateConfiguration(BotConfiguration config) {
+    if (config.initialStake < 0.35) return false;
+    if (config.maxStake != null && config.maxStake! < config.initialStake) return false;
+    if (config.targetProfit <= 0) return false;
+    if (config.maxLoss <= 0) return false;
+    
+    // Validações específicas por estratégia
+    switch (config.strategy) {
+      case BotStrategy.progressiveReinvestment:
+        if (config.roundsPerCycle < 1) return false;
+        if (config.totalCycles < 1) return false;
+        break;
+        
+      case BotStrategy.trendyAdaptive:
+        if (config.trendMultiplier < 1.0) return false;
+        if (config.trendFilter < 1) return false;
+        break;
+        
+      case BotStrategy.adaptiveCompoundRecovery:
+        if (config.consistencyMultiplier < 1.0) return false;
+        if (config.patternConfidence < 0 || config.patternConfidence > 1) return false;
+        break;
+        
+      default:
+        break;
+    }
+    
+    return true;
   }
 }
