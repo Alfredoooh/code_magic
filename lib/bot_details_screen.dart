@@ -1,10 +1,10 @@
-// lib/bot_details_screen.dart
-// Tela de detalhes e controle do bot - VERSÃO OTIMIZADA
+// bot_details_screen.dart - ATUALIZADO COM ESTRATÉGIAS
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'bot_engine.dart';
+import 'bot_configuration.dart';
 import 'deriv_chart_widget.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -41,19 +41,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         _updateChart();
       }
     });
-
     _scrollController.addListener(_handleScroll);
   }
 
   void _handleScroll() {
-    // Detecta se o chart está visível na tela
     if (_scrollController.hasClients) {
       final offset = _scrollController.offset;
-      final chartHeight = MediaQuery.of(context).size.width; // Chart quadrado
-
-      setState(() {
-        _isChartVisible = offset < chartHeight;
-      });
+      final chartHeight = MediaQuery.of(context).size.width;
+      setState(() => _isChartVisible = offset < chartHeight);
     }
   }
 
@@ -124,7 +119,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   void _showConfigDialog() {
     String selectedMarket = widget.bot.config.market;
-
     final stakeController = TextEditingController(
       text: widget.bot.config.initialStake.toStringAsFixed(2),
     );
@@ -148,12 +142,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // SELEÇÃO DE MERCADO
                 Text(
                   'Mercado',
-                  style: context.textStyles.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: AppSpacing.sm),
                 Container(
@@ -161,10 +152,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   decoration: BoxDecoration(
                     color: context.colors.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                    border: Border.all(
-                      color: context.colors.outlineVariant,
-                      width: 1,
-                    ),
+                    border: Border.all(color: context.colors.outlineVariant, width: 1),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
@@ -176,11 +164,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                           value: market['value'] as String,
                           child: Row(
                             children: [
-                              Icon(
-                                market['icon'] as IconData,
-                                size: 20,
-                                color: context.colors.primary,
-                              ),
+                              Icon(market['icon'] as IconData, size: 20, color: context.colors.primary),
                               SizedBox(width: AppSpacing.sm),
                               Text(market['name'] as String),
                             ],
@@ -189,26 +173,19 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                       }).toList(),
                       onChanged: (value) {
                         if (value != null) {
-                          setDialogState(() {
-                            selectedMarket = value;
-                          });
+                          setDialogState(() => selectedMarket = value);
                           AppHaptics.light();
                         }
                       },
                     ),
                   ),
                 ),
-
                 SizedBox(height: AppSpacing.xl),
-
                 Text(
                   'Valores de Trading',
-                  style: context.textStyles.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: AppSpacing.sm),
-
                 AppTextField(
                   controller: stakeController,
                   label: 'Stake Inicial (\$)',
@@ -244,46 +221,41 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               },
             ),
             PrimaryButton(
-  text: 'Salvar',
-  onPressed: () {
-    final newStake = double.tryParse(
-      stakeController.text.replaceAll(',', '.'),
-    );
-    final newMaxStake = maxStakeController.text.isEmpty 
-        ? null 
-        : double.tryParse(maxStakeController.text.replaceAll(',', '.'));
-    final newTargetProfit = double.tryParse(
-      targetProfitController.text.replaceAll(',', '.'),
-    );
+              text: 'Salvar',
+              onPressed: () {
+                final newStake = double.tryParse(stakeController.text.replaceAll(',', '.'));
+                final newMaxStake = maxStakeController.text.isEmpty 
+                    ? null 
+                    : double.tryParse(maxStakeController.text.replaceAll(',', '.'));
+                final newTargetProfit = double.tryParse(targetProfitController.text.replaceAll(',', '.'));
 
-    if (newStake != null && newStake >= 0.35 &&
-        (newMaxStake == null || newMaxStake >= newStake) &&
-        newTargetProfit != null && newTargetProfit > 0) {
-      AppHaptics.success();
-      setState(() {
-        widget.bot.config.market = selectedMarket;
-        widget.bot.config.initialStake = newStake;
-        widget.bot.currentStake = newStake;
-        widget.bot.config.maxStake = newMaxStake;
-        widget.bot.config.targetProfit = newTargetProfit;
-      });
-      widget.onUpdate();
+                if (newStake != null && newStake >= 0.35 &&
+                    (newMaxStake == null || newMaxStake >= newStake) &&
+                    newTargetProfit != null && newTargetProfit > 0) {
+                  AppHaptics.success();
+                  setState(() {
+                    widget.bot.config.market = selectedMarket;
+                    widget.bot.config.initialStake = newStake;
+                    widget.bot.currentStake = newStake;
+                    widget.bot.config.maxStake = newMaxStake;
+                    widget.bot.config.targetProfit = newTargetProfit;
+                  });
+                  widget.onUpdate();
 
-      // <-- CHAMA O CHART PARA MUDAR O MERCADO IMEDIATAMENTE
-      if (_chartController != null) {
-        final escaped = selectedMarket.replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final script = "try{ setMarket('$escaped'); }catch(e){ console.log('setMarket err', e); };";
-        _chartController!.runJavaScript(script);
-      }
+                  if (_chartController != null) {
+                    final escaped = selectedMarket.replaceAll("'", "\\'").replaceAll('"', '\\"');
+                    final script = "try{ setMarket('$escaped'); }catch(e){ console.log('setMarket err', e); };";
+                    _chartController!.runJavaScript(script);
+                  }
 
-      Navigator.pop(context);
-      AppSnackbar.success(context, 'Configurações salvas');
-    } else {
-      AppHaptics.error();
-      AppSnackbar.error(context, 'Valores inválidos');
-    }
-  },
-),
+                  Navigator.pop(context);
+                  AppSnackbar.success(context, 'Configurações salvas');
+                } else {
+                  AppHaptics.error();
+                  AppSnackbar.error(context, 'Valores inválidos');
+                }
+              },
+            ),
           ],
         ),
       ),
@@ -292,135 +264,30 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   List<Map<String, dynamic>> _getAvailableMarkets() {
     return [
-      // VOLATILITY INDICES
-      {
-        'name': 'Volatility 10 Index',
-        'value': 'R_10',
-        'icon': Icons.show_chart_rounded,
-      },
-      {
-        'name': 'Volatility 25 Index',
-        'value': 'R_25',
-        'icon': Icons.show_chart_rounded,
-      },
-      {
-        'name': 'Volatility 50 Index',
-        'value': 'R_50',
-        'icon': Icons.show_chart_rounded,
-      },
-      {
-        'name': 'Volatility 75 Index',
-        'value': 'R_75',
-        'icon': Icons.show_chart_rounded,
-      },
-      {
-        'name': 'Volatility 100 Index',
-        'value': 'R_100',
-        'icon': Icons.show_chart_rounded,
-      },
-      {
-        'name': 'Volatility 10 (1s) Index',
-        'value': '1HZ10V',
-        'icon': Icons.speed_rounded,
-      },
-      {
-        'name': 'Volatility 25 (1s) Index',
-        'value': '1HZ25V',
-        'icon': Icons.speed_rounded,
-      },
-      {
-        'name': 'Volatility 50 (1s) Index',
-        'value': '1HZ50V',
-        'icon': Icons.speed_rounded,
-      },
-      {
-        'name': 'Volatility 75 (1s) Index',
-        'value': '1HZ75V',
-        'icon': Icons.speed_rounded,
-      },
-      {
-        'name': 'Volatility 100 (1s) Index',
-        'value': '1HZ100V',
-        'icon': Icons.speed_rounded,
-      },
-
-      // CRASH/BOOM INDICES
-      {
-        'name': 'Crash 300 Index',
-        'value': 'CRASH300N',
-        'icon': Icons.trending_down_rounded,
-      },
-      {
-        'name': 'Crash 500 Index',
-        'value': 'CRASH500',
-        'icon': Icons.trending_down_rounded,
-      },
-      {
-        'name': 'Crash 1000 Index',
-        'value': 'CRASH1000',
-        'icon': Icons.trending_down_rounded,
-      },
-      {
-        'name': 'Boom 300 Index',
-        'value': 'BOOM300N',
-        'icon': Icons.trending_up_rounded,
-      },
-      {
-        'name': 'Boom 500 Index',
-        'value': 'BOOM500',
-        'icon': Icons.trending_up_rounded,
-      },
-      {
-        'name': 'Boom 1000 Index',
-        'value': 'BOOM1000',
-        'icon': Icons.trending_up_rounded,
-      },
-
-      // JUMP INDICES
-      {
-        'name': 'Jump 10 Index',
-        'value': 'JD10',
-        'icon': Icons.arrow_upward_rounded,
-      },
-      {
-        'name': 'Jump 25 Index',
-        'value': 'JD25',
-        'icon': Icons.arrow_upward_rounded,
-      },
-      {
-        'name': 'Jump 50 Index',
-        'value': 'JD50',
-        'icon': Icons.arrow_upward_rounded,
-      },
-      {
-        'name': 'Jump 75 Index',
-        'value': 'JD75',
-        'icon': Icons.arrow_upward_rounded,
-      },
-      {
-        'name': 'Jump 100 Index',
-        'value': 'JD100',
-        'icon': Icons.arrow_upward_rounded,
-      },
-
-      // STEP INDICES
-      {
-        'name': 'Step Index',
-        'value': 'stpRNG',
-        'icon': Icons.stairs_rounded,
-      },
-
-      // RANGE BREAK INDICES
-      {
-        'name': 'Range Break 100 Index',
-        'value': 'RDBULL',
-        'icon': Icons.analytics_rounded,
-      },
-      {
-        'name': 'Range Break 200 Index',
-        'value': 'RDBEAR',
-        'icon': Icons.analytics_rounded,
-      },
+      {'name': 'Volatility 10 Index', 'value': 'R_10', 'icon': Icons.show_chart_rounded},
+      {'name': 'Volatility 25 Index', 'value': 'R_25', 'icon': Icons.show_chart_rounded},
+      {'name': 'Volatility 50 Index', 'value': 'R_50', 'icon': Icons.show_chart_rounded},
+      {'name': 'Volatility 75 Index', 'value': 'R_75', 'icon': Icons.show_chart_rounded},
+      {'name': 'Volatility 100 Index', 'value': 'R_100', 'icon': Icons.show_chart_rounded},
+      {'name': 'Volatility 10 (1s) Index', 'value': '1HZ10V', 'icon': Icons.speed_rounded},
+      {'name': 'Volatility 25 (1s) Index', 'value': '1HZ25V', 'icon': Icons.speed_rounded},
+      {'name': 'Volatility 50 (1s) Index', 'value': '1HZ50V', 'icon': Icons.speed_rounded},
+      {'name': 'Volatility 75 (1s) Index', 'value': '1HZ75V', 'icon': Icons.speed_rounded},
+      {'name': 'Volatility 100 (1s) Index', 'value': '1HZ100V', 'icon': Icons.speed_rounded},
+      {'name': 'Crash 300 Index', 'value': 'CRASH300N', 'icon': Icons.trending_down_rounded},
+      {'name': 'Crash 500 Index', 'value': 'CRASH500', 'icon': Icons.trending_down_rounded},
+      {'name': 'Crash 1000 Index', 'value': 'CRASH1000', 'icon': Icons.trending_down_rounded},
+      {'name': 'Boom 300 Index', 'value': 'BOOM300N', 'icon': Icons.trending_up_rounded},
+      {'name': 'Boom 500 Index', 'value': 'BOOM500', 'icon': Icons.trending_up_rounded},
+      {'name': 'Boom 1000 Index', 'value': 'BOOM1000', 'icon': Icons.trending_up_rounded},
+      {'name': 'Jump 10 Index', 'value': 'JD10', 'icon': Icons.arrow_upward_rounded},
+      {'name': 'Jump 25 Index', 'value': 'JD25', 'icon': Icons.arrow_upward_rounded},
+      {'name': 'Jump 50 Index', 'value': 'JD50', 'icon': Icons.arrow_upward_rounded},
+      {'name': 'Jump 75 Index', 'value': 'JD75', 'icon': Icons.arrow_upward_rounded},
+      {'name': 'Jump 100 Index', 'value': 'JD100', 'icon': Icons.arrow_upward_rounded},
+      {'name': 'Step Index', 'value': 'stpRNG', 'icon': Icons.stairs_rounded},
+      {'name': 'Range Break 100 Index', 'value': 'RDBULL', 'icon': Icons.analytics_rounded},
+      {'name': 'Range Break 200 Index', 'value': 'RDBEAR', 'icon': Icons.analytics_rounded},
     ];
   }
 
@@ -451,9 +318,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         ),
         title: Text(
           widget.bot.config.name,
-          style: context.textStyles.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -466,41 +331,22 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // CHART QUADRADO - Não scrollable
-          SliverToBoxAdapter(
-            child: _buildSquareChart(screenWidth),
-          ),
-
-          // CONTEÚDO SCROLLABLE
+          SliverToBoxAdapter(child: _buildSquareChart(screenWidth)),
           SliverPadding(
             padding: EdgeInsets.all(AppSpacing.lg),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // CARD DE LUCRO DA SESSÃO - REDESENHADO
                 _buildProfitCard(status),
-
                 SizedBox(height: AppSpacing.lg),
-
-                // BOTÕES DE CONTROLE
                 _buildControlButtons(),
-
                 SizedBox(height: AppSpacing.xl),
-
-                // ESTATÍSTICAS
-                Text(
-                  'Estatísticas',
-                  style: context.textStyles.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                _buildStrategyCard(status),
+                SizedBox(height: AppSpacing.xl),
+                Text('Estatísticas', style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                 SizedBox(height: AppSpacing.md),
                 _buildStatisticsGrid(status, winRate),
-
                 SizedBox(height: AppSpacing.xl),
-
-                // HISTÓRICO DE TRADES
                 _buildTradeHistory(status),
-
                 SizedBox(height: AppSpacing.massive),
               ]),
             ),
@@ -508,6 +354,146 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildStrategyCard(BotStatus status) {
+    final strategy = widget.bot.config.strategy;
+    
+    String title;
+    IconData icon;
+    Color color;
+    List<Widget> metrics;
+
+    switch (strategy) {
+      case BotStrategy.martingale:
+        title = '🎯 Martingale Pro';
+        icon = Icons.trending_up_rounded;
+        color = AppColors.primary;
+        metrics = [
+          _buildStrategyMetric('Perdas Acumuladas', '\$${widget.bot.lossStreakAmount.toStringAsFixed(2)}', Icons.warning_rounded, AppColors.warning),
+          _buildStrategyMetric('Perdas Consecutivas', '${status.consecutiveLosses}', Icons.close_rounded, AppColors.error),
+          _buildStrategyMetric('Payout Estimado', '${(widget.bot.config.estimatedPayout * 100).toStringAsFixed(0)}%', Icons.percent_rounded, AppColors.info),
+        ];
+        break;
+
+      case BotStrategy.progressiveReinvestment:
+        title = '🔄 Progressive Reinvestment';
+        icon = Icons.autorenew_rounded;
+        color = AppColors.secondary;
+        metrics = [
+          _buildStrategyMetric('Ciclo Atual', '${status.currentCycle}/${widget.bot.config.totalCycles}', Icons.repeat_rounded, AppColors.primary),
+          _buildStrategyMetric('Rodada no Ciclo', '${status.currentRound}/${widget.bot.config.roundsPerCycle}', Icons.layers_rounded, AppColors.info),
+          _buildStrategyMetric('Lucro do Ciclo', '\$${status.cycleProfit.toStringAsFixed(2)}', Icons.monetization_on_rounded, status.cycleProfit >= 0 ? AppColors.success : AppColors.error),
+          _buildStrategyMetric('Perdas no Ciclo', '\$${widget.bot.cycleTotalLosses.toStringAsFixed(2)}', Icons.trending_down_rounded, AppColors.warning),
+        ];
+        break;
+
+      case BotStrategy.trendyAdaptive:
+        title = '📊 Trendy Adaptive';
+        icon = Icons.insights_rounded;
+        color = AppColors.tertiary;
+        metrics = [
+          _buildStrategyMetric('Fase', _getTrendPhase(widget.bot.trendPhase), Icons.timeline_rounded, AppColors.info),
+          _buildStrategyMetric('Tendência Detectada', status.trendDetected ? 'Sim' : 'Não', Icons.check_circle_rounded, status.trendDetected ? AppColors.success : AppColors.error),
+          _buildStrategyMetric('Banco de Lucro', '\$${widget.bot.profitBank.toStringAsFixed(2)}', Icons.savings_rounded, AppColors.success),
+          _buildStrategyMetric('Multiplicador Mt', '${widget.bot.config.trendMultiplier}x', Icons.close_fullscreen_rounded, AppColors.primary),
+        ];
+        break;
+
+      case BotStrategy.adaptiveCompoundRecovery:
+        title = '🧠 ACS-R v3.0';
+        icon = Icons.psychology_rounded;
+        color = AppColors.info;
+        metrics = [
+          _buildStrategyMetric('Direção Ativa', status.trendDirection, Icons.navigation_rounded, AppColors.primary),
+          _buildStrategyMetric('Banco de Lucro', '\$${widget.bot.acsrProfitBank.toStringAsFixed(2)}', Icons.account_balance_wallet_rounded, AppColors.success),
+          _buildStrategyMetric('Perdas Acumuladas', '\$${widget.bot.acsrLossAccumulated.toStringAsFixed(2)}', Icons.warning_amber_rounded, AppColors.warning),
+          _buildStrategyMetric('Padrões Detectados', '${widget.bot.last5Results.length}/5', Icons.pattern_rounded, AppColors.info),
+        ];
+        break;
+
+      default:
+        return SizedBox.shrink();
+    }
+
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Parâmetros da Estratégia',
+                      style: context.textStyles.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.lg),
+          ...metrics,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStrategyMetric(String label, String value, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              label,
+              style: context.textStyles.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
+            ),
+          ),
+          Text(
+            value,
+            style: context.textStyles.titleSmall?.copyWith(color: color, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getTrendPhase(String phase) {
+    switch (phase) {
+      case 'observation':
+        return 'Observação';
+      case 'execution':
+        return 'Execução';
+      case 'recovery':
+        return 'Recuperação';
+      default:
+        return 'Desconhecida';
+    }
   }
 
   Widget _buildSquareChart(double size) {
@@ -539,14 +525,10 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-        border: Border.all(
-          color: profitColor.withOpacity(0.3),
-          width: 2,
-        ),
+        border: Border.all(color: profitColor.withOpacity(0.3), width: 2),
       ),
       child: Column(
         children: [
-          // Lucro principal
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,9 +540,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                     Row(
                       children: [
                         Icon(
-                          isProfit 
-                              ? Icons.trending_up_rounded 
-                              : Icons.trending_down_rounded,
+                          isProfit ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                           color: profitColor,
                           size: 20,
                         ),
@@ -586,12 +566,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   ],
                 ),
               ),
-              // Status badge
               Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: status.isRunning
                       ? AppColors.success.withOpacity(0.15)
@@ -605,9 +581,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: status.isRunning
-                            ? AppColors.success
-                            : context.colors.onSurfaceVariant,
+                        color: status.isRunning ? AppColors.success : context.colors.onSurfaceVariant,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -615,9 +589,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                     Text(
                       status.isRunning ? 'Ativo' : 'Parado',
                       style: context.textStyles.labelMedium?.copyWith(
-                        color: status.isRunning
-                            ? AppColors.success
-                            : context.colors.onSurfaceVariant,
+                        color: status.isRunning ? AppColors.success : context.colors.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -626,43 +598,14 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               ),
             ],
           ),
-
           SizedBox(height: AppSpacing.xl),
-
-          // Stats rápidos
           Row(
             children: [
-              Expanded(
-                child: _buildMiniStat(
-                  'Win Rate',
-                  '${(status.winRate * 100).toStringAsFixed(1)}%',
-                  Icons.percent_rounded,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 40,
-                color: context.colors.outlineVariant,
-              ),
-              Expanded(
-                child: _buildMiniStat(
-                  'Trades',
-                  status.totalTrades.toString(),
-                  Icons.swap_horiz_rounded,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 40,
-                color: context.colors.outlineVariant,
-              ),
-              Expanded(
-                child: _buildMiniStat(
-                  'Streak',
-                  '${status.consecutiveWins - status.consecutiveLosses}',
-                  Icons.local_fire_department_rounded,
-                ),
-              ),
+              Expanded(child: _buildMiniStat('Win Rate', '${(status.winRate * 100).toStringAsFixed(1)}%', Icons.percent_rounded)),
+              Container(width: 1, height: 40, color: context.colors.outlineVariant),
+              Expanded(child: _buildMiniStat('Trades', status.totalTrades.toString(), Icons.swap_horiz_rounded)),
+              Container(width: 1, height: 40, color: context.colors.outlineVariant),
+              Expanded(child: _buildMiniStat('Streak', '${status.consecutiveWins - status.consecutiveLosses}', Icons.local_fire_department_rounded)),
             ],
           ),
         ],
@@ -673,24 +616,10 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   Widget _buildMiniStat(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(
-          icon,
-          color: context.colors.primary,
-          size: 18,
-        ),
+        Icon(icon, color: context.colors.primary, size: 18),
         SizedBox(height: AppSpacing.xs),
-        Text(
-          value,
-          style: context.textStyles.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: context.textStyles.bodySmall?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
-        ),
+        Text(value, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(label, style: context.textStyles.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
       ],
     );
   }
@@ -705,16 +634,13 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 ? (widget.bot.isPaused ? 'Continuar' : 'Pausar')
                 : 'Iniciar Trade',
             icon: widget.bot.isRunning
-                ? (widget.bot.isPaused
-                    ? Icons.play_arrow_rounded
-                    : Icons.pause_rounded)
+                ? (widget.bot.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded)
                 : Icons.rocket_launch_rounded,
             onPressed: () async {
               AppHaptics.medium();
               if (widget.bot.isRunning) {
                 widget.bot.isPaused ? widget.bot.resume() : widget.bot.pause();
               } else {
-                // Inicia IMEDIATAMENTE sem delay
                 widget.bot.start();
               }
               widget.onUpdate();
@@ -749,42 +675,12 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       crossAxisSpacing: AppSpacing.md,
       childAspectRatio: 1.4,
       children: [
-        _buildStatCard(
-          'Total Profit',
-          '\$${status.totalProfit.toStringAsFixed(2)}',
-          status.totalProfit >= 0 ? AppColors.success : AppColors.error,
-          Icons.account_balance_wallet_rounded,
-        ),
-        _buildStatCard(
-          'Win Rate',
-          '${winRate.toStringAsFixed(1)}%',
-          winRate >= 50 ? AppColors.success : AppColors.error,
-          Icons.trending_up_rounded,
-        ),
-        _buildStatCard(
-          'Avg Win',
-          '\$${status.avgWin.toStringAsFixed(2)}',
-          AppColors.success,
-          Icons.arrow_upward_rounded,
-        ),
-        _buildStatCard(
-          'Avg Loss',
-          '\$${status.avgLoss.toStringAsFixed(2)}',
-          AppColors.error,
-          Icons.arrow_downward_rounded,
-        ),
-        _buildStatCard(
-          'Current RSI',
-          status.currentRSI.toStringAsFixed(0),
-          AppColors.info,
-          Icons.speed_rounded,
-        ),
-        _buildStatCard(
-          'Stake Atual',
-          '\$${status.currentStake.toStringAsFixed(2)}',
-          context.colors.primary,
-          Icons.attach_money_rounded,
-        ),
+        _buildStatCard('Total Profit', '\$${status.totalProfit.toStringAsFixed(2)}', status.totalProfit >= 0 ? AppColors.success : AppColors.error, Icons.account_balance_wallet_rounded),
+        _buildStatCard('Win Rate', '${winRate.toStringAsFixed(1)}%', winRate >= 50 ? AppColors.success : AppColors.error, Icons.trending_up_rounded),
+        _buildStatCard('Avg Win', '\$${status.avgWin.toStringAsFixed(2)}', AppColors.success, Icons.arrow_upward_rounded),
+        _buildStatCard('Avg Loss', '\$${status.avgLoss.toStringAsFixed(2)}', AppColors.error, Icons.arrow_downward_rounded),
+        _buildStatCard('Current RSI', status.currentRSI.toStringAsFixed(0), AppColors.info, Icons.speed_rounded),
+        _buildStatCard('Stake Atual', '\$${status.currentStake.toStringAsFixed(2)}', context.colors.primary, Icons.attach_money_rounded),
       ],
     );
   }
@@ -795,10 +691,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       decoration: BoxDecoration(
         color: context.colors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-        border: Border.all(
-          color: context.colors.outlineVariant,
-          width: 1,
-        ),
+        border: Border.all(color: context.colors.outlineVariant, width: 1),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
