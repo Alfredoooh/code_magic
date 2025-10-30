@@ -144,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: context.colors.surfaceContainerLow,
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           AppHaptics.selection();
@@ -153,18 +154,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.radio_button_checked_outlined),
-            selectedIcon: Icon(radio_button_checked),
+            icon: Icon(Icons.circle_outlined),
+            selectedIcon: Icon(Icons.circle),
             label: 'Início',
           ),
           NavigationDestination(
-            icon: Icon(Icons.stadia_controller_outlined),
-            selectedIcon: Icon(Icons.stadia_controller),
+            icon: Icon(Icons.candlestick_chart_outlined),
+            selectedIcon: Icon(Icons.candlestick_chart),
             label: 'Negociar',
           ),
           NavigationDestination(
-            icon: Icon(Icons.linked_services_outlined),
-            selectedIcon: Icon(Icons.linked_services),
+            icon: Icon(Icons.more_horiz),
+            selectedIcon: Icon(Icons.apps_rounded),
             label: 'Extras',
           ),
         ],
