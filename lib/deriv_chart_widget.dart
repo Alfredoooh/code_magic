@@ -259,6 +259,17 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     final safeMarketName = market.replaceAll("'", "\\'").replaceAll('"', '\\"');
     final usedAppId = derivAppId ?? '1089'; // app_id público para testes (troca se tiveres outro)
 
+    // Construções JS que antes tinham ternárias mal formadas — agora montadas em Dart para interpolação segura:
+    final datasetsJs = isCandles
+        ? '[]'
+        : '[datasetLine,'
+            '{"label":"EMA(9)","data":ema9,"borderColor":colors.info,"borderWidth":1.5,"borderDash":[4,4],"fill":false,"pointRadius":0,"tension":0.36},'
+            '{"label":"BB Upper","data":bbands.map(b=>b.upper),"borderColor":colors.warning,"borderWidth":1,"borderDash":[2,2],"fill":false,"pointRadius":0},'
+            '{"label":"BB Lower","data":bbands.map(b=>b.lower),"borderColor":colors.warning,"borderWidth":1,"borderDash":[2,2],"fill":"-1","backgroundColor":"rgba(255,204,0,0.04)","pointRadius":0}'
+            ']';
+
+    final chartTypeJs = isCandles ? 'candlestick' : 'line';
+
     return '''
 <!doctype html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -362,15 +373,11 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
     tension:0.36, pointRadius:0, borderWidth:2
   };
 
-  const datasets = ${isCandles ? '[]' : '[datasetLine,' +
-    '{label:\"EMA(9)\",data:ema9,borderColor:colors.info,borderWidth:1.5,borderDash:[4,4],fill:false,pointRadius:0,tension:0.36},' +
-    '{label:\"BB Upper\",data:bbands.map(b=>b.upper),borderColor:colors.warning,borderWidth:1,borderDash:[2,2],fill:false,pointRadius:0},' +
-    '{label:\"BB Lower\",data:bbands.map(b=>b.lower),borderColor:colors.warning,borderWidth:1,borderDash:[2,2],fill:\"-1\",backgroundColor:\"rgba(255,204,0,0.04)\",pointRadius:0}' +
-    ']' : '[]'};
+  const datasets = ${datasetsJs};
 
   const config = {
-    type: ${isCandles ? "'candlestick'" : "'line'"},
-    data: { labels: timestamps, datasets: ${isCandles ? '[]' : ' [' + ']' } },
+    type: '${chartTypeJs}',
+    data: { labels: timestamps, datasets: datasets },
     options: {
       responsive:true, maintainAspectRatio:false, animation:{duration:150},
       interaction:{intersect:false,mode:'index'},
@@ -388,12 +395,6 @@ class _DerivAreaChartState extends State<DerivAreaChart> {
   let myChart;
   try {
     myChart = new Chart(ctx, config);
-    // set datasets for non-candles
-    if(${isCandles ? 'false' : 'true'}) {
-      myChart.data.datasets = ${isCandles ? '[]' : '[]'};
-      myChart.data.datasets.push(${isCandles ? '{}' : 'datasetLine'});
-      ${isCandles ? '' : ''}
-    }
   } catch(e) { console.error('chart init', e); }
 
   // UTILS: recalcula indicadores, atualiza UI e chart
