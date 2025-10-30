@@ -11,20 +11,20 @@ class AppSpacing {
   static const xxs = 2.0;
   static const xs = 4.0;
   static const sm = 8.0;
-  static const md = 12.0;
-  static const lg = 16.0;
-  static const xl = 20.0;
-  static const xxl = 24.0;
-  static const xxxl = 32.0;
-  static const huge = 40.0;
-  static const massive = 48.0;
+  static const md = 16.0;
+  static const lg = 24.0;
+  static const xl = 32.0;
+  static const xxl = 40.0;
+  static const xxxl = 48.0;
+  static const huge = 64.0;
+  static const massive = 80.0;
 
   // Border radius values
   static const radiusXs = 4.0;
   static const radiusSm = 8.0;
   static const radiusMd = 12.0;
   static const radiusLg = 16.0;
-  static const radiusXl = 28.0;
+  static const radiusXl = 24.0;
   static const radiusFull = 9999.0;
 }
 
@@ -90,10 +90,10 @@ class AppMotion {
   static const instant = Duration(milliseconds: 0);
   static const veryShort = Duration(milliseconds: 50);
   static const short = Duration(milliseconds: 100);
-  static const medium = Duration(milliseconds: 200);
-  static const long = Duration(milliseconds: 300);
-  static const veryLong = Duration(milliseconds: 400);
-  static const extraLong = Duration(milliseconds: 500);
+  static const medium = Duration(milliseconds: 250);
+  static const long = Duration(milliseconds: 350);
+  static const veryLong = Duration(milliseconds: 500);
+  static const extraLong = Duration(milliseconds: 700);
 
   // EASING CURVES - M3 emphasized curves
   static const standardEasing = Curves.easeInOutCubicEmphasized;
@@ -103,21 +103,21 @@ class AppMotion {
 
   // SPRING CONFIGURATIONS
   static const fastSpring = SpringDescription(
-    mass: 1.0,
-    stiffness: 200.0,
-    damping: 20.0,
+    mass: 0.8,
+    stiffness: 180.0,
+    damping: 18.0,
   );
 
   static const mediumSpring = SpringDescription(
     mass: 1.0,
-    stiffness: 100.0,
-    damping: 15.0,
+    stiffness: 120.0,
+    damping: 16.0,
   );
 
   static const slowSpring = SpringDescription(
-    mass: 1.0,
-    stiffness: 50.0,
-    damping: 10.0,
+    mass: 1.2,
+    stiffness: 80.0,
+    damping: 14.0,
   );
 }
 
@@ -167,6 +167,7 @@ class AppHaptics {
 ThemeData get darkTheme => ThemeData(
   useMaterial3: true,
   brightness: Brightness.dark,
+  splashFactory: InkRipple.splashFactory,
 
   colorScheme: ColorScheme(
     brightness: Brightness.dark,
@@ -243,10 +244,14 @@ ThemeData get darkTheme => ThemeData(
       elevation: AppElevation.level1,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -256,10 +261,14 @@ ThemeData get darkTheme => ThemeData(
       foregroundColor: AppColors.onPrimary,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -269,10 +278,14 @@ ThemeData get darkTheme => ThemeData(
       side: const BorderSide(color: AppColors.primary, width: 1),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -280,11 +293,15 @@ ThemeData get darkTheme => ThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.primary,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
+        horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -341,6 +358,7 @@ ThemeData get darkTheme => ThemeData(
 ThemeData get lightTheme => ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
+  splashFactory: InkRipple.splashFactory,
 
   colorScheme: ColorScheme(
     brightness: Brightness.light,
@@ -417,10 +435,14 @@ ThemeData get lightTheme => ThemeData(
       elevation: AppElevation.level1,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -430,10 +452,14 @@ ThemeData get lightTheme => ThemeData(
       foregroundColor: AppColors.onPrimary,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -443,10 +469,14 @@ ThemeData get lightTheme => ThemeData(
       side: const BorderSide(color: AppColors.primary, width: 1),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
@@ -454,11 +484,15 @@ ThemeData get lightTheme => ThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.primary,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
+        horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
-      shape: AppShapes.shapeLarge,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppShapes.large),
+      ),
       textStyle: AppTypography.labelLarge,
+    ).copyWith(
+      splashFactory: InkRipple.splashFactory,
     ),
   ),
 
