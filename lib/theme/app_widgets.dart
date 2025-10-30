@@ -1,7 +1,7 @@
-// app_widgets.dart - Reusable UI Components
+// app_widgets.dart - Reusable UI Components (Simplified Design)
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';  // ← ADICIONE ESTA LINHA
+import 'package:flutter/services.dart';
 import 'app_theme.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
@@ -42,8 +42,8 @@ class PrimaryAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => Size.fromHeight(
-    kToolbarHeight + (bottom?.preferredSize.height ?? 0),
-  );
+        kToolbarHeight + (bottom?.preferredSize.height ?? 0),
+      );
 }
 
 /// Secondary AppBar for detail/child screens
@@ -126,10 +126,10 @@ class TransparentAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 // ============================================
-// CARDS
+// CARDS - SIMPLIFIED DESIGN
 // ============================================
 
-/// Standard Material Card
+/// Standard Material Card - Simple and clean
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -154,10 +154,14 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final card = Card(
       margin: margin ?? const EdgeInsets.all(AppSpacing.sm),
-      elevation: elevation ?? AppElevation.level1,
-      color: color,
+      elevation: elevation ?? 0,
+      color: color ?? context.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: borderRadius ?? BorderRadius.circular(AppShapes.medium),
+        borderRadius: borderRadius ?? BorderRadius.circular(20),
+        side: BorderSide(
+          color: context.colors.outline.withOpacity(0.1),
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
@@ -171,7 +175,7 @@ class AppCard extends StatelessWidget {
           AppHaptics.light();
           onTap!();
         },
-        borderRadius: borderRadius ?? BorderRadius.circular(AppShapes.medium),
+        borderRadius: borderRadius ?? BorderRadius.circular(20),
         child: card,
       );
     }
@@ -237,7 +241,15 @@ class _AnimatedCardState extends State<AnimatedCard> with SingleTickerProviderSt
         scale: _scaleAnimation,
         child: Card(
           margin: widget.margin ?? const EdgeInsets.all(AppSpacing.sm),
-          color: widget.color,
+          elevation: 0,
+          color: widget.color ?? context.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: context.colors.outline.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
           child: Padding(
             padding: widget.padding ?? const EdgeInsets.all(AppSpacing.md),
             child: widget.child,
@@ -269,7 +281,7 @@ class ElevatedCard extends StatelessWidget {
       padding: padding,
       margin: margin,
       onTap: onTap,
-      elevation: AppElevation.level3,
+      elevation: AppElevation.level2,
       child: child,
     );
   }
@@ -300,18 +312,20 @@ class OutlinedCard extends StatelessWidget {
         color: context.surface,
         border: Border.all(
           color: borderColor ?? context.colors.outline,
-          width: 1,
+          width: 1.5,
         ),
-        borderRadius: BorderRadius.circular(AppShapes.medium),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap != null ? () {
-            AppHaptics.light();
-            onTap!();
-          } : null,
-          borderRadius: BorderRadius.circular(AppShapes.medium),
+          onTap: onTap != null
+              ? () {
+                  AppHaptics.light();
+                  onTap!();
+                }
+              : null,
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
             child: child,
@@ -322,7 +336,7 @@ class OutlinedCard extends StatelessWidget {
   }
 }
 
-/// Glass Card with glassmorphism effect
+/// Glass Card - Simplified without complex gradients
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -346,17 +360,18 @@ class GlassCard extends StatelessWidget {
     return Container(
       margin: margin ?? const EdgeInsets.all(AppSpacing.sm),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppShapes.medium),
+        borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Container(
             padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: context.surface.withOpacity(opacity),
-              borderRadius: BorderRadius.circular(AppShapes.medium),
-              border: borderColor != null
-                  ? Border.all(color: borderColor!, width: 2)
-                  : Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: borderColor ?? context.colors.outline.withOpacity(0.2),
+                width: 1,
+              ),
             ),
             child: child,
           ),
@@ -367,10 +382,10 @@ class GlassCard extends StatelessWidget {
 }
 
 // ============================================
-// MODALS & BOTTOM SHEETS
+// MODALS & BOTTOM SHEETS - PAPERSHEET STYLE
 // ============================================
 
-/// Standard Modal Bottom Sheet
+/// Standard Modal Bottom Sheet - Paper style
 class AppModalBottomSheet extends StatelessWidget {
   final Widget child;
   final String? title;
@@ -417,8 +432,15 @@ class AppModalBottomSheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.surface,
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppShapes.extraLarge),
+          top: Radius.circular(28),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -426,24 +448,31 @@ class AppModalBottomSheet extends StatelessWidget {
           if (showHandle)
             Container(
               margin: const EdgeInsets.only(top: AppSpacing.md),
-              width: 32,
+              width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: context.colors.onSurfaceVariant.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(AppShapes.full),
+                color: context.colors.onSurfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           if (title != null)
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl,
+                AppSpacing.lg,
+                AppSpacing.xl,
+                AppSpacing.sm,
+              ),
               child: Text(
                 title!,
-                style: context.textStyles.titleLarge,
+                style: context.textStyles.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           Flexible(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.xl),
               child: child,
             ),
           ),
@@ -496,7 +525,7 @@ class FullScreenModal extends StatelessWidget {
   }
 }
 
-/// Dialog with custom styling
+/// Dialog with custom styling - Paper style
 class AppDialog extends StatelessWidget {
   final String title;
   final String? content;
@@ -540,22 +569,31 @@ class AppDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      icon: icon != null ? Icon(icon, color: iconColor, size: 32) : null,
+      icon: icon != null
+          ? Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: (iconColor ?? context.primary).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: iconColor ?? context.primary, size: 28),
+            )
+          : null,
       title: Text(title),
       content: contentWidget ?? (content != null ? Text(content!) : null),
       actions: actions,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppShapes.extraLarge),
+        borderRadius: BorderRadius.circular(28),
       ),
     );
   }
 }
 
 // ============================================
-// BUTTONS
+// BUTTONS - ROUNDED DESIGN
 // ============================================
 
-/// Primary Button (Filled)
+/// Primary Button (Filled) - More rounded
 class PrimaryButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -576,6 +614,16 @@ class PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = FilledButton(
       onPressed: loading ? null : onPressed,
+      style: FilledButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.md + 4,
+        ),
+        elevation: 0,
+      ),
       child: loading
           ? const SizedBox(
               width: 20,
@@ -601,7 +649,7 @@ class PrimaryButton extends StatelessWidget {
   }
 }
 
-/// Secondary Button (Outlined)
+/// Secondary Button (Outlined) - More rounded
 class SecondaryButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -620,6 +668,19 @@ class SecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = OutlinedButton(
       onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.md + 4,
+        ),
+        side: BorderSide(
+          color: context.colors.outline,
+          width: 1.5,
+        ),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -636,7 +697,7 @@ class SecondaryButton extends StatelessWidget {
   }
 }
 
-/// Tertiary Button (Text)
+/// Tertiary Button (Text) - More rounded
 class TertiaryButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -653,6 +714,15 @@ class TertiaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: onPressed,
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -667,7 +737,7 @@ class TertiaryButton extends StatelessWidget {
   }
 }
 
-/// Icon Button with background
+/// Icon Button with background - More rounded
 class IconButtonWithBackground extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
@@ -691,25 +761,27 @@ class IconButtonWithBackground extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: backgroundColor ?? context.colors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppShapes.medium),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: IconButton(
         icon: Icon(icon),
         color: iconColor ?? context.colors.onPrimaryContainer,
-        onPressed: onPressed != null ? () {
-          AppHaptics.light();
-          onPressed!();
-        } : null,
+        onPressed: onPressed != null
+            ? () {
+                AppHaptics.light();
+                onPressed!();
+              }
+            : null,
       ),
     );
   }
 }
 
 // ============================================
-// SPECIALIZED CARDS
+// SPECIALIZED CARDS - SIMPLIFIED
 // ============================================
 
-/// Info Card with icon and content
+/// Info Card with icon and content - Clean design
 class InfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -735,10 +807,10 @@ class InfoCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: cardColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(AppShapes.medium),
+              color: cardColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: cardColor, size: 24),
           ),
@@ -747,16 +819,27 @@ class InfoCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: context.textStyles.titleMedium),
+                Text(
+                  title,
+                  style: context.textStyles.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(subtitle, style: context.textStyles.bodySmall),
+                Text(
+                  subtitle,
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
           if (onTap != null)
             Icon(
               Icons.chevron_right_rounded,
-              color: context.colors.onSurfaceVariant.withOpacity(0.5),
+              color: context.colors.onSurfaceVariant.withOpacity(0.4),
+              size: 24,
             ),
         ],
       ),
@@ -764,7 +847,7 @@ class InfoCard extends StatelessWidget {
   }
 }
 
-/// Stats Card for displaying metrics
+/// Stats Card for displaying metrics - Clean design
 class StatsCard extends StatelessWidget {
   final String label;
   final String value;
@@ -799,21 +882,26 @@ class StatsCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: cardColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.small),
+                  color: cardColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: cardColor, size: 20),
               ),
               if (onTap != null)
                 Icon(
                   Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: context.colors.onSurfaceVariant.withOpacity(0.5),
+                  size: 14,
+                  color: context.colors.onSurfaceVariant.withOpacity(0.4),
                 ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(label, style: context.textStyles.bodySmall),
+          Text(
+            label,
+            style: context.textStyles.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
             value,
@@ -837,7 +925,7 @@ class StatsCard extends StatelessWidget {
   }
 }
 
-/// Action Card with prominent CTA
+/// Action Card with prominent CTA - Clean design
 class ActionCard extends StatelessWidget {
   final String title;
   final String description;
@@ -866,12 +954,21 @@ class ActionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: cardColor, size: 28),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: cardColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: cardColor, size: 24),
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   title,
-                  style: context.textStyles.titleLarge,
+                  style: context.textStyles.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -879,7 +976,9 @@ class ActionCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             description,
-            style: context.textStyles.bodyMedium,
+            style: context.textStyles.bodyMedium?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(
@@ -923,11 +1022,16 @@ class AppListTile extends StatelessWidget {
       subtitle: subtitle != null ? Text(subtitle!) : null,
       leading: leading,
       trailing: trailing,
-      onTap: enabled ? () {
-        AppHaptics.light();
-        onTap?.call();
-      } : null,
+      onTap: enabled
+          ? () {
+              AppHaptics.light();
+              onTap?.call();
+            }
+          : null,
       enabled: enabled,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
     );
   }
 }
@@ -957,10 +1061,13 @@ class TransactionListItem extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap != null ? () {
-          AppHaptics.light();
-          onTap!();
-        } : null,
+        onTap: onTap != null
+            ? () {
+                AppHaptics.light();
+                onTap!();
+              }
+            : null,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -972,8 +1079,8 @@ class TransactionListItem extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.medium),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: color, size: 24),
               ),
@@ -982,11 +1089,18 @@ class TransactionListItem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: context.textStyles.titleSmall),
+                    Text(
+                      title,
+                      style: context.textStyles.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle,
-                      style: context.textStyles.bodySmall,
+                      style: context.textStyles.bodySmall?.copyWith(
+                        color: context.colors.onSurfaceVariant,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1038,21 +1152,32 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 80,
-              color: context.colors.onSurfaceVariant.withOpacity(0.3),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceVariant.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                icon,
+                size: 64,
+                color: context.colors.onSurfaceVariant.withOpacity(0.5),
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               title,
-              style: context.textStyles.titleLarge,
+              style: context.textStyles.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               subtitle,
-              style: context.textStyles.bodyMedium,
+              style: context.textStyles.bodyMedium?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             if (actionText != null && onAction != null) ...[
@@ -1091,19 +1216,21 @@ class LoadingOverlay extends StatelessWidget {
           Container(
             color: AppColors.scrim,
             child: Center(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.xl),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(),
-                      if (message != null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(message!, style: context.textStyles.bodyMedium),
-                      ],
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  color: context.surface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    if (message != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(message!, style: context.textStyles.bodyMedium),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -1113,7 +1240,7 @@ class LoadingOverlay extends StatelessWidget {
   }
 }
 
-/// Badge Component
+/// Badge Component - Clean design
 class AppBadge extends StatelessWidget {
   final String text;
   final Color? color;
@@ -1133,12 +1260,12 @@ class AppBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
+        vertical: AppSpacing.xxs + 2,
       ),
       decoration: BoxDecoration(
-        color: outlined ? Colors.transparent : badgeColor.withOpacity(0.15),
-        border: outlined ? Border.all(color: badgeColor, width: 1) : null,
-        borderRadius: BorderRadius.circular(AppShapes.full),
+        color: outlined ? Colors.transparent : badgeColor.withOpacity(0.1),
+        border: outlined ? Border.all(color: badgeColor, width: 1.5) : null,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
@@ -1164,7 +1291,12 @@ class LabeledDivider extends StatelessWidget {
         Expanded(child: Divider(color: context.colors.outline)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(label, style: context.textStyles.labelSmall),
+          child: Text(
+            label,
+            style: context.textStyles.labelSmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
         ),
         Expanded(child: Divider(color: context.colors.outline)),
       ],
@@ -1172,7 +1304,7 @@ class LabeledDivider extends StatelessWidget {
   }
 }
 
-/// Skeleton Loader for loading states
+/// Skeleton Loader for loading states - Simplified
 class SkeletonLoader extends StatefulWidget {
   final double width;
   final double height;
@@ -1189,7 +1321,7 @@ class SkeletonLoader extends StatefulWidget {
   State<SkeletonLoader> createState() => _SkeletonLoaderState();
 }
 
-class _SkeletonLoaderState extends State<SkeletonLoader> 
+class _SkeletonLoaderState extends State<SkeletonLoader>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
@@ -1215,12 +1347,8 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = context.isDark 
-        ? AppColors.darkSurfaceVariant 
-        : AppColors.lightSurfaceVariant;
-    final highlightColor = context.isDark 
-        ? AppColors.darkSurfaceContainerHigh 
-        : AppColors.lightSurfaceContainerHigh;
+    final baseColor = context.colors.surfaceVariant.withOpacity(0.3);
+    final highlightColor = context.colors.surfaceVariant.withOpacity(0.1);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -1229,18 +1357,8 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? 
-                BorderRadius.circular(AppShapes.small),
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [baseColor, highlightColor, baseColor],
-              stops: [
-                _animation.value - 0.3,
-                _animation.value,
-                _animation.value + 0.3,
-              ].map((e) => e.clamp(0.0, 1.0)).toList(),
-            ),
+            borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
+            color: baseColor,
           ),
         );
       },
@@ -1275,6 +1393,10 @@ class AppSnackbar {
         backgroundColor: backgroundColor,
         duration: duration,
         action: action,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
@@ -1338,7 +1460,7 @@ class FadeInWidget extends StatefulWidget {
   State<FadeInWidget> createState() => _FadeInWidgetState();
 }
 
-class _FadeInWidgetState extends State<FadeInWidget> 
+class _FadeInWidgetState extends State<FadeInWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;
@@ -1416,7 +1538,7 @@ class StaggeredListItem extends StatelessWidget {
 // INPUT FIELDS
 // ============================================
 
-/// Standard Text Field with theming
+/// Standard Text Field with theming - Rounded design
 class AppTextField extends StatelessWidget {
   final String? label;
   final String? hint;
@@ -1466,12 +1588,28 @@ class AppTextField extends StatelessWidget {
         hintText: hint,
         prefixIcon: prefix,
         suffixIcon: suffix,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: context.colors.outline.withOpacity(0.5),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: context.primary,
+            width: 2,
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Search Field with icon
+/// Search Field with icon - Rounded design
 class SearchField extends StatelessWidget {
   final String? hint;
   final TextEditingController? controller;
@@ -1503,13 +1641,29 @@ class SearchField extends StatelessWidget {
                 },
               )
             : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: context.colors.outline.withOpacity(0.5),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: context.primary,
+            width: 2,
+          ),
+        ),
       ),
     );
   }
 }
 
 // ============================================
-// SEGMENTED BUTTON
+// SEGMENTED BUTTON - Rounded design
 // ============================================
 
 class SegmentedButtonGroup<T> extends StatelessWidget {
@@ -1543,25 +1697,25 @@ class SegmentedButtonGroup<T> extends StatelessWidget {
                   AppHaptics.selection();
                   onChanged(value);
                 },
-                borderRadius: BorderRadius.circular(AppShapes.small),
+                borderRadius: BorderRadius.circular(14),
                 child: AnimatedContainer(
                   duration: AppMotion.short,
                   curve: AppMotion.standardEasing,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
+                    vertical: AppSpacing.sm + 2,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected 
-                        ? context.primary.withOpacity(0.15)
+                    color: isSelected
+                        ? context.primary.withOpacity(0.1)
                         : Colors.transparent,
                     border: Border.all(
-                      color: isSelected 
-                          ? context.primary 
-                          : context.colors.outline,
-                      width: 1,
+                      color: isSelected
+                          ? context.primary
+                          : context.colors.outline.withOpacity(0.5),
+                      width: isSelected ? 2 : 1,
                     ),
-                    borderRadius: BorderRadius.circular(AppShapes.small),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1570,8 +1724,8 @@ class SegmentedButtonGroup<T> extends StatelessWidget {
                         Icon(
                           iconBuilder!(value),
                           size: 18,
-                          color: isSelected 
-                              ? context.primary 
+                          color: isSelected
+                              ? context.primary
                               : context.colors.onSurfaceVariant,
                         ),
                         const SizedBox(width: AppSpacing.xs),
@@ -1579,9 +1733,10 @@ class SegmentedButtonGroup<T> extends StatelessWidget {
                       Text(
                         labelBuilder(value),
                         style: context.textStyles.labelMedium?.copyWith(
-                          color: isSelected 
-                              ? context.primary 
+                          color: isSelected
+                              ? context.primary
                               : context.colors.onSurfaceVariant,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                         ),
                       ),
                     ],
