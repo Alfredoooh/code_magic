@@ -1,4 +1,4 @@
-// bot_create_screen.dart - Sistema avançado de criação de bots
+// bot_create_screen.dart - Sistema avançado de criação de bots (CORRIGIDO)
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -29,19 +29,14 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   final _descriptionController = TextEditingController();
   final _jsCodeController = TextEditingController();
 
-  // Modo de criação
-  int _creationMode = 0; // 0 = Blocos, 1 = Código JS
-
-  // Estratégia selecionada
+  int _creationMode = 0;
   BotStrategy _selectedStrategy = BotStrategy.martingale;
 
-  // Block 1: Basic Info
   String _contractType = 'CALL';
   String _market = 'R_100';
   int _duration = 5;
   String _durationUnit = 't';
 
-  // Block 2: Stake Configuration
   double _initialStake = 0.35;
   double? _maxStake = 50.0;
   double _targetProfit = 20.0;
@@ -50,30 +45,23 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   int _maxTrades = 100;
   double _estimatedPayout = 0.95;
 
-  // Block 3: Strategy Specific - Progressive Reinvestment
   int _roundsPerCycle = 3;
   int _totalCycles = 10;
   double _extraProfitPercent = 10.0;
   bool _autoRecovery = true;
 
-  // Block 4: Strategy Specific - Trendy Adaptive
   double _trendMultiplier = 1.5;
   double _recoveryMultiplier = 1.2;
   int _trendFilter = 2;
   double _profitReinvestPercent = 50.0;
 
-  // Block 5: Strategy Specific - ACS-R v3.0
   double _consistencyMultiplier = 1.15;
   int _confidenceFilter = 2;
   double _patternConfidence = 0.6;
 
-  // Block 6: Recovery Mode
   RecoveryMode _recoveryMode = RecoveryMode.moderate;
-
-  // Block 7: Entry Conditions
   List<EntryCondition> _entryConditions = [EntryCondition.immediate];
 
-  // Block 8: Technical Analysis
   bool _useRSI = true;
   bool _useMACD = false;
   bool _useBollinger = false;
@@ -185,20 +173,14 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
     );
   }
 
-  // ============================================
-  // MODO BLOCOS
-  // ============================================
   Widget _buildBlockMode() {
     return Form(
       key: _formKey,
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          // Header
           _buildHeader(),
           const SizedBox(height: AppSpacing.xl),
-
-          // Block 1: Informações Básicas
           _buildBlock(
             number: '1',
             title: 'Informações Básicas',
@@ -223,8 +205,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
               ],
             ),
           ),
-
-          // Block 2: Estratégia
           _buildBlock(
             number: '2',
             title: 'Escolher Estratégia',
@@ -233,8 +213,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
             delay: 100,
             child: _buildStrategySelector(),
           ),
-
-          // Block 3: Contrato e Mercado
           _buildBlock(
             number: '3',
             title: 'Contrato e Mercado',
@@ -257,8 +235,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
               ],
             ),
           ),
-
-          // Block 4: Configuração de Stake
           _buildBlock(
             number: '4',
             title: 'Configuração de Stake',
@@ -275,12 +251,8 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
               ],
             ),
           ),
-
-          // Block 5: Parâmetros da Estratégia
           if (_selectedStrategy != BotStrategy.martingale)
             _buildStrategyParameters(),
-
-          // Block 6: Gestão de Risco
           _buildBlock(
             number: _selectedStrategy == BotStrategy.martingale ? '5' : '6',
             title: 'Gestão de Risco',
@@ -299,8 +271,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
               ],
             ),
           ),
-
-          // Block 7: Modo de Recuperação
           _buildBlock(
             number: _selectedStrategy == BotStrategy.martingale ? '6' : '7',
             title: 'Modo de Recuperação',
@@ -309,8 +279,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
             delay: 300,
             child: _buildRecoveryModeSelector(),
           ),
-
-          // Block 8: Análise Técnica
           _buildBlock(
             number: _selectedStrategy == BotStrategy.martingale ? '7' : '8',
             title: 'Análise Técnica (Opcional)',
@@ -319,7 +287,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
             delay: 350,
             child: _buildTechnicalAnalysisToggles(),
           ),
-
           const SizedBox(height: AppSpacing.massive),
         ],
       ),
@@ -347,14 +314,8 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Sistema de Blocos',
-                    style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Configure cada aspecto do seu bot',
-                    style: context.textStyles.bodySmall,
-                  ),
+                  Text('Sistema de Blocos', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  Text('Configure cada aspecto do seu bot', style: context.textStyles.bodySmall),
                 ],
               ),
             ),
@@ -386,24 +347,13 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
                   height: 32,
                   decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                   child: Center(
-                    child: Text(
-                      number,
-                      style: context.textStyles.titleSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                    child: Text(number, style: context.textStyles.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Icon(icon, color: color, size: 24),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
+                Expanded(child: Text(title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -416,68 +366,54 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
 
   Widget _buildStrategySelector() {
     return Column(
-      children: [
-        ..._strategyInfo.entries.map((entry) {
-          final isSelected = _selectedStrategy == entry.key;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: InkWell(
-              onTap: () {
-                AppHaptics.selection();
-                setState(() => _selectedStrategy = entry.key);
-              },
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary.withOpacity(0.1) : context.colors.surfaceContainer,
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : context.colors.outlineVariant,
-                    width: isSelected ? 2 : 1,
-                  ),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      children: _strategyInfo.entries.map((entry) {
+        final isSelected = _selectedStrategy == entry.key;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: InkWell(
+            onTap: () {
+              AppHaptics.selection();
+              setState(() => _selectedStrategy = entry.key);
+            },
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary.withOpacity(0.1) : context.colors.surfaceContainer,
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : context.colors.outlineVariant,
+                  width: isSelected ? 2 : 1,
                 ),
-                child: Row(
-                  children: [
-                    Text(entry.value['icon']!, style: const TextStyle(fontSize: 32)),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.value['name']!,
-                            style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            entry.value['description']!,
-                            style: context.textStyles.bodySmall?.copyWith(
-                              color: context.colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: Row(
+                children: [
+                  Text(entry.value['icon']!, style: const TextStyle(fontSize: 32)),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.value['name']!, style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(entry.value['description']!, style: context.textStyles.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+                      ],
                     ),
-                    if (isSelected)
-                      Icon(Icons.check_circle_rounded, color: AppColors.primary),
-                  ],
-                ),
+                  ),
+                  if (isSelected) Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                ],
               ),
             ),
-          );
-        }).toList(),
-      ],
+          ),
+        );
+      }).toList(),
     );
   }
 
   Widget _buildContractTypeSelector() {
     return DropdownButtonFormField<String>(
       value: _contractType,
-      decoration: const InputDecoration(
-        labelText: 'Tipo de Contrato',
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: 'Tipo de Contrato', border: OutlineInputBorder()),
       items: const [
         DropdownMenuItem(value: 'CALL', child: Text('CALL (Rise)')),
         DropdownMenuItem(value: 'PUT', child: Text('PUT (Fall)')),
@@ -491,13 +427,8 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   Widget _buildMarketSelector() {
     return DropdownButtonFormField<String>(
       value: _market,
-      decoration: const InputDecoration(
-        labelText: 'Mercado',
-        border: OutlineInputBorder(),
-      ),
-      items: _markets.entries.map((e) {
-        return DropdownMenuItem(value: e.key, child: Text('${e.key} - ${e.value}'));
-      }).toList(),
+      decoration: const InputDecoration(labelText: 'Mercado', border: OutlineInputBorder()),
+      items: _markets.entries.map((e) => DropdownMenuItem(value: e.key, child: Text('${e.key} - ${e.value}'))).toList(),
       onChanged: (v) {
         if (v != null) setState(() => _market = v);
       },
@@ -507,10 +438,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   Widget _buildDurationInput() {
     return TextFormField(
       initialValue: _duration.toString(),
-      decoration: const InputDecoration(
-        labelText: 'Duração',
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: 'Duração', border: OutlineInputBorder()),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       onChanged: (v) {
@@ -523,10 +451,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   Widget _buildDurationUnitSelector() {
     return DropdownButtonFormField<String>(
       value: _durationUnit,
-      decoration: const InputDecoration(
-        labelText: 'Unidade',
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: 'Unidade', border: OutlineInputBorder()),
       items: const [
         DropdownMenuItem(value: 't', child: Text('Ticks')),
         DropdownMenuItem(value: 's', child: Text('Segundos')),
@@ -542,11 +467,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   Widget _buildStakeInput(String label, double value, Function(double) onChanged, {bool isRequired = false}) {
     return TextFormField(
       initialValue: value.toStringAsFixed(2),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixText: '\$ ',
-        border: const OutlineInputBorder(),
-      ),
+      decoration: InputDecoration(labelText: label, prefixText: '\$ ', border: const OutlineInputBorder()),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
       validator: isRequired ? (v) {
@@ -564,10 +485,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   Widget _buildIntInput(String label, int value, Function(int) onChanged) {
     return TextFormField(
       initialValue: value.toString(),
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       onChanged: (v) {
@@ -606,7 +524,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
             ],
           ),
         );
-
       case BotStrategy.trendyAdaptive:
         return _buildBlock(
           number: '5',
@@ -626,7 +543,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
             ],
           ),
         );
-
       case BotStrategy.adaptiveCompoundRecovery:
         return _buildBlock(
           number: '5',
@@ -644,7 +560,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
             ],
           ),
         );
-
       default:
         return const SizedBox.shrink();
     }
@@ -653,7 +568,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   Widget _buildRecoveryModeSelector() {
     return Column(
       children: RecoveryMode.values.map((mode) {
-        final isSelected = _recoveryMode == mode;
         return RadioListTile<RecoveryMode>(
           title: Text(_getRecoveryModeName(mode)),
           subtitle: Text(_getRecoveryModeDescription(mode)),
@@ -672,76 +586,35 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
 
   String _getRecoveryModeName(RecoveryMode mode) {
     switch (mode) {
-      case RecoveryMode.none:
-        return 'Nenhum';
-      case RecoveryMode.conservative:
-        return 'Conservador';
-      case RecoveryMode.moderate:
-        return 'Moderado';
-      case RecoveryMode.aggressive:
-        return 'Agressivo';
-      case RecoveryMode.intelligent:
-        return 'Inteligente';
+      case RecoveryMode.none: return 'Nenhum';
+      case RecoveryMode.conservative: return 'Conservador';
+      case RecoveryMode.moderate: return 'Moderado';
+      case RecoveryMode.aggressive: return 'Agressivo';
+      case RecoveryMode.intelligent: return 'Inteligente';
     }
   }
 
   String _getRecoveryModeDescription(RecoveryMode mode) {
     switch (mode) {
-      case RecoveryMode.none:
-        return 'Sem recuperação adicional';
-      case RecoveryMode.conservative:
-        return 'Aumento mínimo após 2 perdas';
-      case RecoveryMode.moderate:
-        return 'Aumento progressivo moderado';
-      case RecoveryMode.aggressive:
-        return 'Aumento imediato após perda';
-      case RecoveryMode.intelligent:
-        return 'Calcula recuperação baseada em perdas';
+      case RecoveryMode.none: return 'Sem recuperação adicional';
+      case RecoveryMode.conservative: return 'Aumento mínimo após 2 perdas';
+      case RecoveryMode.moderate: return 'Aumento progressivo moderado';
+      case RecoveryMode.aggressive: return 'Aumento imediato após perda';
+      case RecoveryMode.intelligent: return 'Calcula recuperação baseada em perdas';
     }
   }
 
   Widget _buildTechnicalAnalysisToggles() {
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('RSI (Relative Strength Index)'),
-          value: _useRSI,
-          onChanged: (v) {
-            AppHaptics.selection();
-            setState(() => _useRSI = v);
-          },
-        ),
-        SwitchListTile(
-          title: const Text('MACD'),
-          value: _useMACD,
-          onChanged: (v) {
-            AppHaptics.selection();
-            setState(() => _useMACD = v);
-          },
-        ),
-        SwitchListTile(
-          title: const Text('Bandas de Bollinger'),
-          value: _useBollinger,
-          onChanged: (v) {
-            AppHaptics.selection();
-            setState(() => _useBollinger = v);
-          },
-        ),
-        SwitchListTile(
-          title: const Text('Reconhecimento de Padrões'),
-          value: _usePatternRecognition,
-          onChanged: (v) {
-            AppHaptics.selection();
-            setState(() => _usePatternRecognition = v);
-          },
-        ),
+        SwitchListTile(title: const Text('RSI (Relative Strength Index)'), value: _useRSI, onChanged: (v) { AppHaptics.selection(); setState(() => _useRSI = v); }),
+        SwitchListTile(title: const Text('MACD'), value: _useMACD, onChanged: (v) { AppHaptics.selection(); setState(() => _useMACD = v); }),
+        SwitchListTile(title: const Text('Bandas de Bollinger'), value: _useBollinger, onChanged: (v) { AppHaptics.selection(); setState(() => _useBollinger = v); }),
+        SwitchListTile(title: const Text('Reconhecimento de Padrões'), value: _usePatternRecognition, onChanged: (v) { AppHaptics.selection(); setState(() => _usePatternRecognition = v); }),
       ],
     );
   }
 
-  // ============================================
-  // MODO CÓDIGO JS
-  // ============================================
   Widget _buildJSMode() {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -750,12 +623,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.info.withOpacity(0.1),
-                  AppColors.primary.withOpacity(0.1),
-                ],
-              ),
+              gradient: LinearGradient(colors: [AppColors.info.withOpacity(0.1), AppColors.primary.withOpacity(0.1)]),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: Row(
@@ -766,14 +634,8 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Modo Código JS',
-                        style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Cole seu código Deriv Bot e o sistema analisará automaticamente',
-                        style: context.textStyles.bodySmall,
-                      ),
+                      Text('Modo Código JS', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      Text('Cole seu código Deriv Bot e o sistema analisará automaticamente', style: context.textStyles.bodySmall),
                     ],
                   ),
                 ),
@@ -782,7 +644,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-
         FadeInWidget(
           delay: const Duration(milliseconds: 100),
           child: AnimatedCard(
@@ -791,10 +652,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Cole o código JavaScript do seu bot:',
-                    style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+                  Text('Cole o código JavaScript do seu bot:', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: _jsCodeController,
@@ -814,10 +672,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
                       Icon(Icons.info_outline_rounded, size: 16, color: AppColors.info),
                       const SizedBox(width: AppSpacing.xs),
                       Expanded(
-                        child: Text(
-                          'O sistema detectará automaticamente: estratégia, stake, mercado, duração e parâmetros',
-                          style: context.textStyles.bodySmall?.copyWith(color: AppColors.info),
-                        ),
+                        child: Text('O sistema detectará automaticamente: estratégia, stake, mercado, duração e parâmetros', style: context.textStyles.bodySmall?.copyWith(color: AppColors.info)),
                       ),
                     ],
                   ),
@@ -827,7 +682,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-
         FadeInWidget(
           delay: const Duration(milliseconds: 200),
           child: AnimatedCard(
@@ -840,10 +694,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
                     children: [
                       Icon(Icons.auto_fix_high_rounded, color: AppColors.success),
                       const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'O que será detectado:',
-                        style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                      ),
+                      Text('O que será detectado:', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -869,58 +720,39 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
     );
   }
 
-  // ============================================
-  // CRIAÇÃO DO BOT
-  // ============================================
   void _createBot() {
     if (_creationMode == 0) {
-      // Modo Blocos
       if (!_formKey.currentState!.validate()) {
         AppHaptics.error();
         AppSnackbar.error(context, 'Preencha todos os campos obrigatórios');
         return;
       }
-
       if (_nameController.text.trim().isEmpty) {
         AppHaptics.error();
         AppSnackbar.error(context, 'Digite um nome para o bot');
         return;
       }
-
       _createBotFromBlocks();
     } else {
-      // Modo Código JS
       if (_jsCodeController.text.trim().isEmpty) {
         AppHaptics.error();
         AppSnackbar.error(context, 'Cole o código JavaScript do bot');
         return;
       }
-
       _createBotFromJS();
     }
   }
 
   void _createBotFromBlocks() {
     AppHaptics.success();
-
-    // Configurar entry conditions baseado na estratégia
     List<EntryCondition> entryConditions = [EntryCondition.immediate];
-
-    if (_selectedStrategy == BotStrategy.trendyAdaptive) {
-      entryConditions = [EntryCondition.trendSequence];
-    } else if (_selectedStrategy == BotStrategy.adaptiveCompoundRecovery) {
-      entryConditions = [EntryCondition.patternDetection];
-    }
-
-    if (_useRSI) {
-      entryConditions.add(EntryCondition.rsiOversold);
-    }
+    if (_selectedStrategy == BotStrategy.trendyAdaptive) entryConditions = [EntryCondition.trendSequence];
+    else if (_selectedStrategy == BotStrategy.adaptiveCompoundRecovery) entryConditions = [EntryCondition.patternDetection];
+    if (_useRSI) entryConditions.add(EntryCondition.rsiOversold);
 
     final config = BotConfiguration(
       name: _nameController.text.trim(),
-      description: _descriptionController.text.trim().isEmpty 
-          ? _strategyInfo[_selectedStrategy]!['description']! 
-          : _descriptionController.text.trim(),
+      description: _descriptionController.text.trim().isEmpty ? _strategyInfo[_selectedStrategy]!['description']! : _descriptionController.text.trim(),
       strategy: _selectedStrategy,
       initialStake: _initialStake,
       market: _market,
@@ -939,17 +771,14 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
       useMACD: _useMACD,
       useBollinger: _useBollinger,
       usePatternRecognition: _usePatternRecognition,
-      // Progressive Reinvestment
       roundsPerCycle: _roundsPerCycle,
       totalCycles: _totalCycles,
       extraProfitPercent: _extraProfitPercent,
       autoRecovery: _autoRecovery,
-      // Trendy Adaptive
       trendMultiplier: _trendMultiplier,
       recoveryMultiplier: _recoveryMultiplier,
       trendFilter: _trendFilter,
       profitReinvestPercent: _profitReinvestPercent,
-      // ACS-R v3.0
       consistencyMultiplier: _consistencyMultiplier,
       confidenceFilter: _confidenceFilter,
       patternConfidence: _patternConfidence,
@@ -968,10 +797,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
 
   void _createBotFromJS() {
     AppHaptics.medium();
-
     final jsCode = _jsCodeController.text.trim();
-
-    // Analisar código JS
     final analysis = _analyzeJSCode(jsCode);
 
     if (analysis['error'] != null) {
@@ -980,7 +806,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
       return;
     }
 
-    // Criar bot com base na análise
     final config = BotConfiguration(
       name: analysis['name'] ?? 'Bot JS Importado',
       description: analysis['description'] ?? 'Bot criado a partir de código JavaScript',
@@ -998,7 +823,6 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
       maxConsecutiveLosses: analysis['maxConsecutiveLosses'] ?? 7,
       maxTrades: analysis['maxTrades'] ?? 100,
       estimatedPayout: analysis['estimatedPayout'] ?? 0.95,
-      // Parâmetros específicos detectados
       roundsPerCycle: analysis['roundsPerCycle'] ?? 3,
       totalCycles: analysis['totalCycles'] ?? 10,
       extraProfitPercent: analysis['extraProfitPercent'] ?? 10.0,
@@ -1021,27 +845,17 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
     AppSnackbar.success(context, 'Bot "${config.name}" criado a partir do código JS!');
   }
 
-  // ============================================
-  // ANALISADOR DE CÓDIGO JS
-  // ============================================
   Map<String, dynamic> _analyzeJSCode(String code) {
     final result = <String, dynamic>{};
 
     try {
-      // Detectar estratégia
-      if (code.toLowerCase().contains('martingale') || 
-          code.contains('stake * 2') || 
-          code.contains('stake *= 2')) {
+      if (code.toLowerCase().contains('martingale') || code.contains('stake * 2') || code.contains('stake *= 2')) {
         result['strategy'] = BotStrategy.martingale;
         result['name'] = 'Martingale Bot (JS)';
-      } else if (code.contains('reinvest') || 
-                 code.contains('compound') ||
-                 code.contains('cycle')) {
+      } else if (code.contains('reinvest') || code.contains('compound') || code.contains('cycle')) {
         result['strategy'] = BotStrategy.progressiveReinvestment;
         result['name'] = 'Progressive Bot (JS)';
-      } else if (code.contains('trend') || 
-                 code.contains('pattern') ||
-                 code.contains('adaptive')) {
+      } else if (code.contains('trend') || code.contains('pattern') || code.contains('adaptive')) {
         result['strategy'] = BotStrategy.trendyAdaptive;
         result['name'] = 'Trendy Bot (JS)';
       } else {
@@ -1049,32 +863,30 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
         result['name'] = 'Custom Bot (JS)';
       }
 
-      // Detectar stake inicial
-      final stakeMatch = RegExp(r'stake.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      final stakePattern = RegExp(r'stake.*?[:=]\s*([0-9.]+)', caseSensitive: false);
+      final stakeMatch = stakePattern.firstMatch(code);
       if (stakeMatch != null) {
         result['initialStake'] = double.tryParse(stakeMatch.group(1)!) ?? 0.35;
       }
 
-      // Detectar mercado
-      final marketMatch = RegExp(r"['\"]?(R_\d+|BOOM\d+|CRASH\d+|1HZ\d+V)['\"]?").firstMatch(code);
+      final marketPattern = RegExp(r'[R_]\d+|BOOM\d+|CRASH\d+|1HZ\d+V');
+      final marketMatch = marketPattern.firstMatch(code);
       if (marketMatch != null) {
-        result['market'] = marketMatch.group(1);
+        result['market'] = marketMatch.group(0);
       }
 
-      // Detectar tipo de contrato
       if (code.toUpperCase().contains('CALL') || code.contains('rise')) {
         result['contractType'] = 'CALL';
       } else if (code.toUpperCase().contains('PUT') || code.contains('fall')) {
         result['contractType'] = 'PUT';
       }
 
-      // Detectar duração
-      final durationMatch = RegExp(r'duration.*?[:=]\s*(\d+)', caseSensitive: false).firstMatch(code);
+      final durationPattern = RegExp(r'duration.*?[:=]\s*(\d+)', caseSensitive: false);
+      final durationMatch = durationPattern.firstMatch(code);
       if (durationMatch != null) {
         result['duration'] = int.tryParse(durationMatch.group(1)!) ?? 5;
       }
 
-      // Detectar unidade de duração
       if (code.contains('tick')) {
         result['durationUnit'] = 't';
       } else if (code.contains('second')) {
@@ -1083,46 +895,45 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
         result['durationUnit'] = 'm';
       }
 
-      // Detectar take profit
-      final profitMatch = RegExp(r'profit.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      final profitPattern = RegExp(r'profit.*?[:=]\s*([0-9.]+)', caseSensitive: false);
+      final profitMatch = profitPattern.firstMatch(code);
       if (profitMatch != null) {
         result['targetProfit'] = double.tryParse(profitMatch.group(1)!) ?? 20.0;
       }
 
-      // Detectar stop loss
-      final lossMatch = RegExp(r'loss.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      final lossPattern = RegExp(r'loss.*?[:=]\s*([0-9.]+)', caseSensitive: false);
+      final lossMatch = lossPattern.firstMatch(code);
       if (lossMatch != null) {
         result['maxLoss'] = double.tryParse(lossMatch.group(1)!) ?? 100.0;
       }
 
-      // Detectar max stake
-      final maxStakeMatch = RegExp(r'max.*?stake.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      final maxStakePattern = RegExp(r'max.*?stake.*?[:=]\s*([0-9.]+)', caseSensitive: false);
+      final maxStakeMatch = maxStakePattern.firstMatch(code);
       if (maxStakeMatch != null) {
         result['maxStake'] = double.tryParse(maxStakeMatch.group(1)!);
       }
 
-      // Detectar multiplicadores
-      final multiplierMatch = RegExp(r'multiplier.*?[:=]\s*([0-9.]+)', caseSensitive: false).firstMatch(code);
+      final multiplierPattern = RegExp(r'multiplier.*?[:=]\s*([0-9.]+)', caseSensitive: false);
+      final multiplierMatch = multiplierPattern.firstMatch(code);
       if (multiplierMatch != null) {
         final mult = double.tryParse(multiplierMatch.group(1)!);
         result['trendMultiplier'] = mult;
         result['recoveryMultiplier'] = mult;
       }
 
-      // Detectar ciclos
-      final cyclesMatch = RegExp(r'cycle.*?[:=]\s*(\d+)', caseSensitive: false).firstMatch(code);
+      final cyclesPattern = RegExp(r'cycle.*?[:=]\s*(\d+)', caseSensitive: false);
+      final cyclesMatch = cyclesPattern.firstMatch(code);
       if (cyclesMatch != null) {
         result['totalCycles'] = int.tryParse(cyclesMatch.group(1)!) ?? 10;
       }
 
-      // Detectar rounds
-      final roundsMatch = RegExp(r'round.*?[:=]\s*(\d+)', caseSensitive: false).firstMatch(code);
+      final roundsPattern = RegExp(r'round.*?[:=]\s*(\d+)', caseSensitive: false);
+      final roundsMatch = roundsPattern.firstMatch(code);
       if (roundsMatch != null) {
         result['roundsPerCycle'] = int.tryParse(roundsMatch.group(1)!) ?? 3;
       }
 
       result['description'] = 'Bot importado e analisado automaticamente do código JavaScript';
-      
     } catch (e) {
       result['error'] = 'Erro ao analisar código: $e';
     }
