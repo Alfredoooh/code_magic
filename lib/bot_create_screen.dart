@@ -905,7 +905,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
 
     // Configurar entry conditions baseado na estratégia
     List<EntryCondition> entryConditions = [EntryCondition.immediate];
-    
+
     if (_selectedStrategy == BotStrategy.trendyAdaptive) {
       entryConditions = [EntryCondition.trendSequence];
     } else if (_selectedStrategy == BotStrategy.adaptiveCompoundRecovery) {
@@ -968,12 +968,12 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
 
   void _createBotFromJS() {
     AppHaptics.medium();
-    
+
     final jsCode = _jsCodeController.text.trim();
-    
+
     // Analisar código JS
     final analysis = _analyzeJSCode(jsCode);
-    
+
     if (analysis['error'] != null) {
       AppHaptics.error();
       AppSnackbar.error(context, 'Erro ao analisar código: ${analysis['error']}');
@@ -1026,7 +1026,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
   // ============================================
   Map<String, dynamic> _analyzeJSCode(String code) {
     final result = <String, dynamic>{};
-    
+
     try {
       // Detectar estratégia
       if (code.toLowerCase().contains('martingale') || 
@@ -1056,7 +1056,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> with SingleTickerProv
       }
 
       // Detectar mercado
-      final marketMatch = RegExp(r'["\']?(R_\d+|BOOM\d+|CRASH\d+|1HZ\d+V)["\']?').firstMatch(code);
+      final marketMatch = RegExp(r"['\"]?(R_\d+|BOOM\d+|CRASH\d+|1HZ\d+V)['\"]?").firstMatch(code);
       if (marketMatch != null) {
         result['market'] = marketMatch.group(1);
       }
