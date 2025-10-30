@@ -1,4 +1,4 @@
-// bot_engine.dart
+// bot_engine.dart - ATUALIZADO COM ESTRATÉGIAS COMPLETAS
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -51,18 +51,20 @@ class TradingBot {
   int currentRound = 0;
   double cycleStartStake = 0.0;
   double cycleTotalLosses = 0.0;
+  double cycleProfit = 0.0;
 
   // Trendy Adaptive
   bool trendDetected = false;
-  String trendPhase = 'observation';  // observation, execution, recovery
+  String trendPhase = 'observation';
   double profitBank = 0.0;
 
   // ACS-R v3.0
-  List<String> last5Results = [];  // Últimos 5 resultados ('Over', 'Rise', etc)
+  List<String> last5Results = [];
   String activeDirection = 'neutral';
   bool shouldPauseForAnalysis = false;
   double acsrProfitBank = 0.0;
   double acsrLossAccumulated = 0.0;
+  int pauseCounter = 0;
 
   TradingBot({
     required this.config,
@@ -122,24 +124,26 @@ class TradingBot {
 
   void _resetStrategy() {
     lossStreakAmount = 0.0;
-    
+
     // Progressive
     currentCycle = 0;
     currentRound = 0;
     cycleStartStake = config.initialStake;
     cycleTotalLosses = 0.0;
-    
+    cycleProfit = 0.0;
+
     // Trendy
     trendDetected = false;
     trendPhase = 'observation';
     profitBank = 0.0;
-    
+
     // ACS-R
     last5Results.clear();
     activeDirection = 'neutral';
     shouldPauseForAnalysis = false;
     acsrProfitBank = 0.0;
     acsrLossAccumulated = 0.0;
+    pauseCounter = 0;
   }
 
   void updatePrice(double price) {
@@ -172,15 +176,22 @@ class TradingBot {
 
     // ACS-R: Pausar após 2 perdas consecutivas
     if (config.strategy == BotStrategy.adaptiveCompoundRecovery && shouldPauseForAnalysis) {
-      await Future.delayed(Duration(seconds: 3));
-      shouldPauseForAnalysis = false;
+      if (pauseCounter < 3) {
+        pauseCounter++;
+        await Future.delayed(Duration(seconds: 1));
+        if (isRunning && !isPaused) _scheduleTrade();
+        return;
+      } else {
+        shouldPauseForAnalysis = false;
+        pauseCounter = 0;
+      }
     }
 
     // Verificar tempo mínimo entre trades
     if (lastTradeTime != null) {
       final timeSinceLast = DateTime.now().difference(lastTradeTime!);
       if (timeSinceLast < config.minTimeBetweenTrades) {
-        await Future.delayed(config.minTimeBetweenTimes - timeSinceLast);
+        await Future.delayed(config.minTimeBetweenTrades - timeSinceLast);
       }
     }
 
@@ -306,15 +317,16 @@ class TradingBot {
         currentStake = result['stake'];
         currentCycle = result['cycle'];
         currentRound = result['round'];
-        cycleStartStake = result['cycleStartStake'];
         
         if (result['newCycle']) {
+          cycleStartStake = result['cycleStartStake'];
           cycleTotalLosses = 0.0;
+          cycleProfit = 0.0;
         }
         break;
 
       case BotStrategy.trendyAdaptive:
-        final lastProfit = tradeHistory.isNotEmpty ? tradeHistory.last.profit.abs() : 0.0;
+        final lastProfit = tradeHistory.isNotEmpty ? tradeHistory.last.profit : 0.0;
 
         final result = BotStrategies.calculateTrendyAdaptiveStake(
           config: config,
@@ -334,27 +346,10 @@ class TradingBot {
         break;
 
       case BotStrategy.adaptiveCompoundRecovery:
-        final lastProfit = tradeHistory.isNotEmpty ? tradeHistory.last.profit.abs() : 0.0;
+        final lastProfit = tradeHistory.isNotEmpty ? tradeHistory.last.profit : 0.0;
 
-        // Atualizar last5Results com base no histórico de preços
-        if (priceHistory.length >= 2) {
-          final lastPrice = priceHistory.last;
-          final prevPrice = priceHistory[priceHistory.length - 2];
-          
-          // Simplificado: Rise/Fall baseado no preço
-          if (lastPrice > prevPrice) {
-            last5Results.add('Rise');
-          } else if (lastPrice < prevPrice) {
-            last5Results.add('Fall');
-          } else {
-            last5Results.add('Equal');
-          }
-          
-          // Manter apenas últimos 5
-          if (last5Results.length > 5) {
-            last5Results.removeAt(0);
-          }
-        }
+        // Atualizar last5Results com base no tipo de contrato
+        _updateLast5Results();
 
         final result = BotStrategies.calculateACSRStake(
           config: config,
@@ -379,6 +374,40 @@ class TradingBot {
     final maxStake = config.maxStake ?? double.infinity;
     if (currentStake.isNaN || currentStake.isInfinite) currentStake = minStake;
     currentStake = currentStake.clamp(minStake, maxStake);
+  }
+
+  void _updateLast5Results() {
+    if (priceHistory.length < 2) return;
+
+    final lastPrice = priceHistory.last;
+    final prevPrice = priceHistory[priceHistory.length - 2];
+
+    String resultType = '';
+
+    // Detectar tipo de resultado baseado no contrato
+    if (config.contractType.contains('CALL') || config.contractType.contains('PUT')) {
+      // Rise/Fall
+      resultType = lastPrice > prevPrice ? 'Rise' : 'Fall';
+    } 
+    else if (config.contractType.contains('DIGITOVER') || config.contractType.contains('DIGITUNDER')) {
+      // Over/Under
+      final lastDigit = (lastPrice * 10).toInt() % 10;
+      resultType = lastDigit > 5 ? 'Over' : 'Under';
+    }
+    else if (config.contractType.contains('DIGITEVEN') || config.contractType.contains('DIGITODD')) {
+      // Even/Odd
+      final lastDigit = (lastPrice * 10).toInt() % 10;
+      resultType = lastDigit % 2 == 0 ? 'Even' : 'Odd';
+    }
+    else {
+      // Fallback genérico
+      resultType = lastPrice > prevPrice ? 'Up' : 'Down';
+    }
+
+    last5Results.add(resultType);
+    if (last5Results.length > 5) {
+      last5Results.removeAt(0);
+    }
   }
 
   void _executeTrade() {
@@ -448,6 +477,7 @@ class TradingBot {
 
     totalProfit += profit;
     sessionProfit += profit;
+    cycleProfit += profit;
 
     if (won) {
       wins++;
@@ -457,6 +487,7 @@ class TradingBot {
 
       lossStreakAmount = 0.0;
       acsrLossAccumulated = 0.0;
+      pauseCounter = 0;
     } else {
       losses++;
       consecutiveWins = 0;
@@ -513,7 +544,7 @@ class TradingBot {
       tradeHistory: tradeHistory,
       currentCycle: currentCycle,
       currentRound: currentRound,
-      cycleProfit: sessionProfit,
+      cycleProfit: cycleProfit,
       trendDetected: trendDetected,
       trendDirection: activeDirection,
     );
