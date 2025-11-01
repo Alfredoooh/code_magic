@@ -1,156 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+  <meta charset="UTF-8">
+  <meta name="description" content="CashNet - Your Social Finance Network">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CashNet</title>
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Flutter Web base -->
   <base href="/">
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="CashNet - Your Social Finance Network">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="CashNet">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>CashNet</title>
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png">
 
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #1A1A1A;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    }
+  <!-- Firebase SDKs - compat version (opcional se inicializar em Dart) -->
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-database-compat.js"></script>
 
-    .loading-container {
-      text-align: center;
-    }
-
-    .logo {
-      width: 100px;
-      height: 100px;
-      background: linear-gradient(135deg, #FDB52A 0%, #FFD700 100%);
-      border-radius: 20px;
-      margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 50px;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    .loading-text {
-      color: #FDB52A;
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-
-    .loading-subtext {
-      color: #888;
-      font-size: 14px;
-      margin-bottom: 30px;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      margin: 0 auto;
-      border: 4px solid rgba(253, 181, 42, 0.1);
-      border-top: 4px solid #FDB52A;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-
-    /* Remove loading screen when Flutter loads */
-    .flutter-loaded .loading-container {
-      display: none;
-    }
-  </style>
-
-  <!-- Firebase SDKs - Compat version for FlutterFire -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
-
-  <script>
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyAyaGnNyc2tfV8hoQ6Pr4VM25iinM70AUM",
-      authDomain: "chat00-7f1b1.firebaseapp.com",
-      projectId: "chat00-7f1b1",
-      storageBucket: "chat00-7f1b1.firebasestorage.app",
-      messagingSenderId: "557234773917",
-      appId: "1:557234773917:web:23702e6673d73d58835974",
-      measurementId: "G-ZZKGKF1QN5"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    
-    // Initialize Analytics (optional)
-    if (typeof firebase.analytics === 'function') {
-      firebase.analytics();
-    }
-
-    console.log('Firebase initialized successfully!');
-  </script>
+  <!-- NÃO inicializar Firebase em JS se já inicializar em Dart -->
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div class="loading-container">
-    <div class="logo">💰</div>
-    <div class="loading-text">CashNet</div>
-    <div class="loading-subtext">Your Social Finance Network</div>
-    <div class="spinner"></div>
-  </div>
-
+  <!-- Flutter Web loader -->
   <script>
-    window.addEventListener('load', function(ev) {
-      // Download main.dart.js
+    window.addEventListener('load', function() {
       _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        },
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine().then(function(appRunner) {
             appRunner.runApp();
-            // Remove loading screen when Flutter is loaded
-            document.body.classList.add('flutter-loaded');
           });
         }
       });
