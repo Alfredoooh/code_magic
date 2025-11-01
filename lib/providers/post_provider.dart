@@ -4,8 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:ui' as ui;
-import 'package:flutter/rendering.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 
