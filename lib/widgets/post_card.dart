@@ -39,7 +39,7 @@ class _PostCardState extends State<PostCard> {
   Future<void> _incrementView() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final postProvider = Provider.of<PostProvider>(context, listen: false);
-    
+
     if (authProvider.currentUser != null) {
       await postProvider.incrementViews(
         widget.post.postId,
@@ -51,12 +51,12 @@ class _PostCardState extends State<PostCard> {
   Future<void> _toggleLike() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final postProvider = Provider.of<PostProvider>(context, listen: false);
-    
+
     if (authProvider.currentUser != null) {
       setState(() {
         _isLiked = !_isLiked;
       });
-      
+
       await postProvider.toggleLike(
         widget.post.postId,
         authProvider.currentUser!.userId,
@@ -78,6 +78,7 @@ class _PostCardState extends State<PostCard> {
       final postProvider = Provider.of<PostProvider>(context, listen: false);
       return postProvider.base64ToImage(base64String);
     } catch (e) {
+      debugPrint('Error decoding image: $e');
       return null;
     }
   }
@@ -105,21 +106,12 @@ class _PostCardState extends State<PostCard> {
                   radius: 20,
                   backgroundColor: const Color(0xFFFDB52A),
                   child: widget.post.userPhotoBase64.isNotEmpty
-                      ? ClipOval(
-                          child: Image.memory(
-                            _decodeImage(widget.post.userPhotoBase64)!,
-                            fit: BoxFit.cover,
-                            width: 40,
-                            height: 40,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.person, color: Colors.black),
-                          ),
-                        )
+                      ? _buildUserAvatar()
                       : const Icon(Icons.person, color: Colors.black),
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // User Info
                 Expanded(
                   child: Column(
@@ -143,7 +135,7 @@ class _PostCardState extends State<PostCard> {
                     ],
                   ),
                 ),
-                
+
                 // More Options
                 IconButton(
                   icon: Icon(
@@ -157,7 +149,7 @@ class _PostCardState extends State<PostCard> {
               ],
             ),
           ),
-          
+
           // Description
           if (widget.post.description.isNotEmpty)
             Padding(
@@ -170,9 +162,9 @@ class _PostCardState extends State<PostCard> {
                 ),
               ),
             ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Images
           if (widget.post.imagesBase64.isNotEmpty)
             SizedBox(
@@ -187,29 +179,10 @@ class _PostCardState extends State<PostCard> {
                       });
                     },
                     itemBuilder: (context, index) {
-                      final imageBytes = _decodeImage(widget.post.imagesBase64[index]);
-                      
-                      return imageBytes != null
-                          ? Image.memory(
-                              imageBytes,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child: Icon(Icons.broken_image, size: 50),
-                                ),
-                              ),
-                            )
-                          : Container(
-                              color: Colors.grey[300],
-                              child: const Center(
-                                child: Icon(Icons.broken_image, size: 50),
-                              ),
-                            );
+                      return _buildPostImage(widget.post.imagesBase64[index]);
                     },
                   ),
-                  
+
                   // Image Counter
                   if (widget.post.imagesBase64.length > 1)
                     Positioned(
@@ -237,7 +210,7 @@ class _PostCardState extends State<PostCard> {
                 ],
               ),
             ),
-          
+
           // Stats Row
           StreamBuilder<Map<String, dynamic>>(
             stream: Provider.of<PostProvider>(context, listen: false)
@@ -248,7 +221,7 @@ class _PostCardState extends State<PostCard> {
                 'likes': widget.post.likes,
                 'comments': widget.post.comments,
               };
-              
+
               return Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Row(
@@ -263,9 +236,9 @@ class _PostCardState extends State<PostCard> {
               );
             },
           ),
-          
+
           const Divider(height: 1),
-          
+
           // Action Buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -327,6 +300,50 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Widget _buildUserAvatar() {
+    final imageBytes = _decodeImage(widget.post.userPhotoBase64);
+    
+    if (imageBytes == null || imageBytes.isEmpty) {
+      return const Icon(Icons.person, color: Colors.black);
+    }
+
+    return ClipOval(
+      child: Image.memory(
+        imageBytes,
+        fit: BoxFit.cover,
+        width: 40,
+        height: 40,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.person, color: Colors.black),
+      ),
+    );
+  }
+
+  Widget _buildPostImage(String base64String) {
+    final imageBytes = _decodeImage(base64String);
+
+    if (imageBytes == null || imageBytes.isEmpty) {
+      return Container(
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(Icons.broken_image, size: 50),
+        ),
+      );
+    }
+
+    return Image.memory(
+      imageBytes,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(Icons.broken_image, size: 50),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStat(IconData icon, String value, bool isDark) {
     return Row(
       children: [
@@ -350,7 +367,7 @@ class _PostCardState extends State<PostCard> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inMinutes < 1) {
       return 'now';
     } else if (diff.inHours < 1) {
