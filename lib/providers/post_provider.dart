@@ -4,18 +4,40 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image/image.dart' as img;
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 
 class PostProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseDatabase _realtimeDb = FirebaseDatabase.instance;
-  
+
   List<PostModel> _posts = [];
   bool _isLoading = false;
-  
+
   List<PostModel> get posts => _posts;
   bool get isLoading => _isLoading;
+
+  // Comprimir imagem para reduzir tamanho
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
+    try {
+      // Decode imagem
+      img.Image? image = img.decodeImage(bytes);
+      if (image == null) return bytes;
+
+      // Redimensionar se for muito grande (max 1200px de largura)
+      if (image.width > 1200) {
+        image = img.copyResize(image, width: 1200);
+      }
+
+      // Comprimir para JPEG com qualidade 85%
+      List<int> compressed = img.encodeJpg(image, quality: 85);
+      return Uint8List.fromList(compressed);
+    } catch (e) {
+      debugPrint('Error compressing image: $e');
+      return bytes;
+    }
+  }
 
   // Convert image bytes to base64
   String _imageToBase64(Uint8List bytes) {
@@ -27,7 +49,12 @@ class PostProvider with ChangeNotifier {
     return base64Decode(base64String);
   }
 
-  // Create Post
+  // Verificar se string é base64 ou URL
+  bool isBase64(String str) {
+    return !str.startsWith('http://') && !str.startsWith('https://');
+  }
+
+  // Create Post com compressão otimizada
   Future<bool> createPost({
     required UserModel user,
     required String description,
@@ -37,29 +64,59 @@ class PostProvider with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      // Convert images to base64
+      // Processar e comprimir imagens
       List<String> imagesBase64 = [];
       for (var imageBytes in imagesBytesList) {
-        // Compress image if too large (optional)
-        if (imageBytes.length > 500000) { // 500KB
-          // You can add compression logic here
-          debugPrint('Warning: Image size is ${imageBytes.length} bytes');
+        // Comprimir imagem
+        Uint8List compressedBytes = await _compressImage(imageBytes);
+        
+        // Verificar tamanho após compressão
+        double sizeInKB = compressedBytes.length / 1024;
+        debugPrint('Image size after compression: ${sizeInKB.toStringAsFixed(2)} KB');
+        
+        // Se ainda for muito grande (>200KB), comprimir mais
+        if (compressedBytes.length > 200000) {
+          img.Image? image = img.decodeImage(compressedBytes);
+          if (image != null) {
+            // Reduzir ainda mais a resolução
+            if (image.width > 800) {
+              image = img.copyResize(image, width: 800);
+            }
+            // Qualidade menor
+            List<int> moreCompressed = img.encodeJpg(image, quality: 70);
+            compressedBytes = Uint8List.fromList(moreCompressed);
+            debugPrint('Re-compressed to: ${(compressedBytes.length / 1024).toStringAsFixed(2)} KB');
+          }
         }
-        imagesBase64.add(_imageToBase64(imageBytes));
+        
+        imagesBase64.add(_imageToBase64(compressedBytes));
       }
 
       String postId = const Uuid().v4();
-      
+
       PostModel newPost = PostModel(
         postId: postId,
         userId: user.userId,
         userName: user.name,
         userNickname: user.nickname,
-        userPhotoBase64: user.photoURL, // Assuming it's already base64
+        userPhotoBase64: user.photoURL,
         description: description,
         imagesBase64: imagesBase64,
         createdAt: DateTime.now(),
       );
+
+      // Verificar tamanho total do documento
+      String jsonStr = jsonEncode(newPost.toMap());
+      double docSizeKB = utf8.encode(jsonStr).length / 1024;
+      debugPrint('Total document size: ${docSizeKB.toStringAsFixed(2)} KB');
+
+      if (docSizeKB > 900) {
+        // Firestore tem limite de 1MB por documento
+        debugPrint('WARNING: Document size approaching Firestore limit!');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
       // Save to Firestore
       await _firestore
@@ -121,7 +178,7 @@ class PostProvider with ChangeNotifier {
   // Increment Views
   Future<void> incrementViews(String postId, String userId) async {
     try {
-      // Check if user already viewed (to avoid duplicate views)
+      // Check if user already viewed
       DocumentSnapshot viewDoc = await _firestore
           .collection('posts')
           .doc(postId)
