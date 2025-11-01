@@ -1,188 +1,86 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
-import 'providers/auth_provider.dart';
-import 'providers/app_provider.dart';
-import 'providers/post_provider.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/main/main_screen.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/post_model.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyAyaGnNyc2tfV8hoQ6Pr4VM25iinM70AUM",
-      authDomain: "chat00-7f1b1.firebaseapp.com",
-      projectId: "chat00-7f1b1",
-      storageBucket: "chat00-7f1b1.firebasestorage.app",
-      messagingSenderId: "557234773917",
-      appId: "1:557234773917:web:23702e6673d73d58835974",
-      measurementId: "G-ZZKGKF1QN5",
-    ),
-  );
-  
-  runApp(const MyApp());
-}
+class PostProvider with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  List<PostModel> _posts = [];
+  bool _isLoading = false;
 
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => AppProvider()),
-        ChangeNotifierProvider(create: (_) => PostProvider()),
-      ],
-      child: Consumer<AppProvider>(
-        builder: (context, appProvider, _) {
-          return MaterialApp(
-            title: 'CashNet',
-            debugShowCheckedModeBanner: false,
-            
-            // Theme Configuration
-            theme: ThemeData(
-              brightness: Brightness.light,
-              primaryColor: const Color(0xFFFDB52A),
-              scaffoldBackgroundColor: Colors.grey[100],
-              colorScheme: ColorScheme.light(
-                primary: const Color(0xFFFDB52A),
-                secondary: const Color(0xFFFDB52A),
-                surface: Colors.white,
-                background: Colors.grey[100]!,
-              ),
-              appBarTheme: const AppBarTheme(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                elevation: 0,
-              ),
-              fontFamily: 'SF Pro Display',
-            ),
-            
-            darkTheme: ThemeData(
-              brightness: Brightness.dark,
-              primaryColor: const Color(0xFFFDB52A),
-              scaffoldBackgroundColor: const Color(0xFF1A1A1A),
-              colorScheme: const ColorScheme.dark(
-                primary: Color(0xFFFDB52A),
-                secondary: Color(0xFFFDB52A),
-                surface: Color(0xFF242526),
-                background: Color(0xFF1A1A1A),
-              ),
-              appBarTheme: const AppBarTheme(
-                backgroundColor: Color(0xFF242526),
-                foregroundColor: Colors.white,
-                elevation: 0,
-              ),
-              fontFamily: 'SF Pro Display',
-            ),
-            
-            themeMode: appProvider.themeMode,
-            
-            // Initial Route
-            home: Consumer<AuthProvider>(
-              builder: (context, authProvider, _) {
-                // Show loading while checking auth state
-                if (authProvider.isLoading) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFFDB52A),
-                      ),
-                    ),
-                  );
-                }
-                
-                // Navigate based on auth state
-                return authProvider.isAuthenticated
-                    ? const MainScreen()
-                    : const LoginScreen();
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
+  List<PostModel> get posts => _posts;
+  bool get isLoading => _isLoading;
 
-// Splash Screen (Optional)
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _navigateToHome();
+  // Convert image bytes to base64
+  String _imageToBase64(Uint8List bytes) {
+    return base64Encode(bytes);
   }
 
-  Future<void> _navigateToHome() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => authProvider.isAuthenticated
-              ? const MainScreen()
-              : const LoginScreen(),
-        ),
-      );
+  // Convert base64 to image bytes
+  Uint8List base64ToImage(String base64String) {
+    try {
+      return base64Decode(base64String);
+    } catch (e) {
+      debugPrint('Error decoding base64: $e');
+      return Uint8List(0);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFDB52A), Color(0xFFFFD700)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.attach_money,
-                size: 100,
-                color: Colors.black,
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Fintech Social',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Your Social Finance Network',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black87,
-                ),
-              ),
-              SizedBox(height: 40),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  // Create Post - DESABILITADO TEMPORARIAMENTE
+  Future<bool> createPost({
+    required dynamic user,
+    required String description,
+    required List<Uint8List> imagesBytesList,
+  }) async {
+    debugPrint('Post creation temporarily disabled for testing');
+    return false;
+  }
+
+  // Load Posts (Feed) - RETORNA VAZIO
+  Stream<List<PostModel>> getPostsStream() {
+    return Stream.value([]);
+  }
+
+  // Load User Posts - RETORNA VAZIO
+  Stream<List<PostModel>> getUserPostsStream(String userId) {
+    return Stream.value([]);
+  }
+
+  // Increment Views
+  Future<void> incrementViews(String postId, String userId) async {
+    debugPrint('Increment views temporarily disabled');
+  }
+
+  // Like Post
+  Future<void> toggleLike(String postId, String userId) async {
+    debugPrint('Toggle like temporarily disabled');
+  }
+
+  // Add Comment
+  Future<bool> addComment({
+    required String postId,
+    required dynamic user,
+    required String commentText,
+  }) async {
+    debugPrint('Add comment temporarily disabled');
+    return false;
+  }
+
+  // Get Comments Stream - RETORNA VAZIO
+  Stream<List<CommentModel>> getCommentsStream(String postId) {
+    return Stream.value([]);
+  }
+
+  // Delete Post
+  Future<bool> deletePost(String postId, String userId) async {
+    debugPrint('Delete post temporarily disabled');
+    return false;
+  }
+
+  // Get Real-time stats
+  Stream<Map<String, dynamic>> getPostStatsStream(String postId) {
+    return Stream.value({'views': 0, 'likes': 0, 'comments': 0});
   }
 }
