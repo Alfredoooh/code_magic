@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker_web/image_picker_web.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/post_provider.dart';
 import '../../providers/app_provider.dart';
@@ -18,6 +18,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _descriptionController = TextEditingController();
   final List<Uint8List> _selectedImages = [];
   bool _isUploading = false;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -28,14 +29,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Future<void> _pickImages() async {
     try {
       // Pick multiple images
-      List<Uint8List>? images = await ImagePickerWeb.getMultiImagesAsBytes();
-      
-      if (images != null && images.isNotEmpty) {
+      final List<XFile> images = await _picker.pickMultiImage(
+        imageQuality: 70, // Compress to 70% quality
+      );
+
+      if (images.isNotEmpty) {
+        List<Uint8List> imageBytes = [];
+        
+        for (var image in images) {
+          final bytes = await image.readAsBytes();
+          
+          // Check size (max 300KB per image)
+          if (bytes.length > 300000) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Image ${image.name} is too large. Max 300KB per image.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            continue;
+          }
+          
+          imageBytes.add(bytes);
+        }
+
         setState(() {
-          _selectedImages.addAll(images);
-          // Limit to 5 images
-          if (_selectedImages.length > 5) {
-            _selectedImages.removeRange(5, _selectedImages.length);
+          _selectedImages.addAll(imageBytes);
+          // Limit to 3 images
+          if (_selectedImages.length > 3) {
+            _selectedImages.removeRange(3, _selectedImages.length);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Maximum 3 images allowed'),
+                backgroundColor: Colors.orange,
+              ),
+            );
           }
         });
       }
@@ -97,7 +127,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to create post'),
+          content: Text('Failed to create post. Images may be too large.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -109,7 +139,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final appProvider = Provider.of<AppProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     String t(String key) => AppLocalizations.translate(key, appProvider.currentLanguage);
 
     return Scaffold(
@@ -210,9 +240,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Description TextField
               TextField(
                 controller: _descriptionController,
@@ -229,9 +259,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   border: InputBorder.none,
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Selected Images Grid
               if (_selectedImages.isNotEmpty) ...[
                 GridView.builder(
@@ -280,15 +310,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-              
+
               // Add Images Button
               OutlinedButton.icon(
-                onPressed: _selectedImages.length < 5 ? _pickImages : null,
+                onPressed: _selectedImages.length < 3 ? _pickImages : null,
                 icon: const Icon(Icons.image, color: Color(0xFFFDB52A)),
                 label: Text(
                   _selectedImages.isEmpty
-                      ? 'Add Photos'
-                      : 'Add More (${_selectedImages.length}/5)',
+                      ? 'Add Photos (Max 300KB each)'
+                      : 'Add More (${_selectedImages.length}/3)',
                   style: const TextStyle(color: Color(0xFFFDB52A)),
                 ),
                 style: OutlinedButton.styleFrom(
@@ -298,6 +328,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Info text
+              Text(
+                'Tip: Use compressed images for better performance',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[600] : Colors.grey[500],
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
