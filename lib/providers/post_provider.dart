@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:uuid/uuid.dart';
-import 'package:image/image.dart' as img;
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 
@@ -18,27 +19,6 @@ class PostProvider with ChangeNotifier {
   List<PostModel> get posts => _posts;
   bool get isLoading => _isLoading;
 
-  // Comprimir imagem para reduzir tamanho
-  Future<Uint8List> _compressImage(Uint8List bytes) async {
-    try {
-      // Decode imagem
-      img.Image? image = img.decodeImage(bytes);
-      if (image == null) return bytes;
-
-      // Redimensionar se for muito grande (max 1200px de largura)
-      if (image.width > 1200) {
-        image = img.copyResize(image, width: 1200);
-      }
-
-      // Comprimir para JPEG com qualidade 85%
-      List<int> compressed = img.encodeJpg(image, quality: 85);
-      return Uint8List.fromList(compressed);
-    } catch (e) {
-      debugPrint('Error compressing image: $e');
-      return bytes;
-    }
-  }
-
   // Convert image bytes to base64
   String _imageToBase64(Uint8List bytes) {
     return base64Encode(bytes);
@@ -46,15 +26,28 @@ class PostProvider with ChangeNotifier {
 
   // Convert base64 to image bytes
   Uint8List base64ToImage(String base64String) {
-    return base64Decode(base64String);
+    try {
+      return base64Decode(base64String);
+    } catch (e) {
+      debugPrint('Error decoding base64: $e');
+      return Uint8List(0);
+    }
   }
 
-  // Verificar se string é base64 ou URL
-  bool isBase64(String str) {
-    return !str.startsWith('http://') && !str.startsWith('https://');
+  // Validar tamanho da imagem
+  bool _isImageSizeValid(Uint8List bytes) {
+    double sizeInKB = bytes.length / 1024;
+    debugPrint('Image size: ${sizeInKB.toStringAsFixed(2)} KB');
+    
+    // Limite de 300KB por imagem para segurança
+    if (sizeInKB > 300) {
+      debugPrint('WARNING: Image too large (${sizeInKB.toStringAsFixed(2)} KB)');
+      return false;
+    }
+    return true;
   }
 
-  // Create Post com compressão otimizada
+  // Create Post
   Future<bool> createPost({
     required UserModel user,
     required String description,
@@ -64,32 +57,31 @@ class PostProvider with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      // Processar e comprimir imagens
+      // Validar número de imagens
+      if (imagesBytesList.isEmpty) {
+        debugPrint('Error: No images provided');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      if (imagesBytesList.length > 3) {
+        debugPrint('Error: Maximum 3 images allowed');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // Validar tamanho de cada imagem
       List<String> imagesBase64 = [];
       for (var imageBytes in imagesBytesList) {
-        // Comprimir imagem
-        Uint8List compressedBytes = await _compressImage(imageBytes);
-        
-        // Verificar tamanho após compressão
-        double sizeInKB = compressedBytes.length / 1024;
-        debugPrint('Image size after compression: ${sizeInKB.toStringAsFixed(2)} KB');
-        
-        // Se ainda for muito grande (>200KB), comprimir mais
-        if (compressedBytes.length > 200000) {
-          img.Image? image = img.decodeImage(compressedBytes);
-          if (image != null) {
-            // Reduzir ainda mais a resolução
-            if (image.width > 800) {
-              image = img.copyResize(image, width: 800);
-            }
-            // Qualidade menor
-            List<int> moreCompressed = img.encodeJpg(image, quality: 70);
-            compressedBytes = Uint8List.fromList(moreCompressed);
-            debugPrint('Re-compressed to: ${(compressedBytes.length / 1024).toStringAsFixed(2)} KB');
-          }
+        if (!_isImageSizeValid(imageBytes)) {
+          debugPrint('Error: Image size exceeds limit. Please use smaller images.');
+          _isLoading = false;
+          notifyListeners();
+          return false;
         }
-        
-        imagesBase64.add(_imageToBase64(compressedBytes));
+        imagesBase64.add(_imageToBase64(imageBytes));
       }
 
       String postId = const Uuid().v4();
@@ -106,13 +98,14 @@ class PostProvider with ChangeNotifier {
       );
 
       // Verificar tamanho total do documento
-      String jsonStr = jsonEncode(newPost.toMap());
+      Map<String, dynamic> postMap = newPost.toMap();
+      String jsonStr = jsonEncode(postMap);
       double docSizeKB = utf8.encode(jsonStr).length / 1024;
       debugPrint('Total document size: ${docSizeKB.toStringAsFixed(2)} KB');
 
-      if (docSizeKB > 900) {
-        // Firestore tem limite de 1MB por documento
-        debugPrint('WARNING: Document size approaching Firestore limit!');
+      if (docSizeKB > 950) {
+        // Firestore tem limite de 1MB (1024KB) por documento
+        debugPrint('ERROR: Document size (${docSizeKB.toStringAsFixed(2)} KB) exceeds Firestore limit!');
         _isLoading = false;
         notifyListeners();
         return false;
@@ -124,10 +117,10 @@ class PostProvider with ChangeNotifier {
           .doc(user.userId)
           .collection('posts')
           .doc(postId)
-          .set(newPost.toMap());
+          .set(postMap);
 
       // Also save to global posts collection for feed
-      await _firestore.collection('posts').doc(postId).set(newPost.toMap());
+      await _firestore.collection('posts').doc(postId).set(postMap);
 
       // Save to Realtime Database for real-time updates
       await _realtimeDb.ref('posts/$postId').set({
@@ -158,7 +151,14 @@ class PostProvider with ChangeNotifier {
         .limit(50)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
+      return snapshot.docs.map((doc) {
+        try {
+          return PostModel.fromFirestore(doc);
+        } catch (e) {
+          debugPrint('Error parsing post: $e');
+          return null;
+        }
+      }).whereType<PostModel>().toList();
     });
   }
 
@@ -171,7 +171,14 @@ class PostProvider with ChangeNotifier {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
+      return snapshot.docs.map((doc) {
+        try {
+          return PostModel.fromFirestore(doc);
+        } catch (e) {
+          debugPrint('Error parsing user post: $e');
+          return null;
+        }
+      }).whereType<PostModel>().toList();
     });
   }
 
@@ -297,7 +304,14 @@ class PostProvider with ChangeNotifier {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => CommentModel.fromFirestore(doc)).toList();
+      return snapshot.docs.map((doc) {
+        try {
+          return CommentModel.fromFirestore(doc);
+        } catch (e) {
+          debugPrint('Error parsing comment: $e');
+          return null;
+        }
+      }).whereType<CommentModel>().toList();
     });
   }
 
