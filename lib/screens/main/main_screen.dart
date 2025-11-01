@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/post_provider.dart';
 import '../../localization/app_localizations.dart';
+import '../../models/post_model.dart';
+import '../../widgets/post_card.dart';
 import '../auth/login_screen.dart';
+import '../posts/create_post_screen.dart';
 import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -365,54 +369,122 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildBody(bool isDark, String Function(String) t) {
+    final postProvider = Provider.of<PostProvider>(context);
+    
     return CustomScrollView(
       slivers: [
+        // Create Post Button
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              t('home'),
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF242526) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-        ),
-        
-        // Posts will be loaded here in real-time
-        SliverToBoxAdapter(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider.value(
+                      value: postProvider,
+                      child: const CreatePostScreen(),
+                    ),
+                  ),
+                );
+              },
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.feed,
-                    size: 80,
-                    color: Colors.grey[600],
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: const Color(0xFFFDB52A),
+                    child: const Icon(Icons.person, color: Colors.black),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No posts yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "What's on your mind?",
+                      style: TextStyle(
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        fontSize: 15,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Coming soon: Create and share posts!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.grey[500] : Colors.grey[500],
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.image, color: Color(0xFFFDB52A)),
+                    onPressed: () {},
                   ),
                 ],
               ),
             ),
           ),
+        ),
+        
+        // Posts Feed
+        StreamBuilder<List<PostModel>>(
+          stream: postProvider.getPostsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFFDB52A),
+                    ),
+                  ),
+                ),
+              );
+            }
+            
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40.0),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.feed,
+                          size: 80,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No posts yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Be the first to share something!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.grey[500] : Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+            
+            return SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return PostCard(post: snapshot.data![index]);
+                  },
+                  childCount: snapshot.data!.length,
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
