@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.nexa.madeeasy"
+    namespace = "com.cashnet.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.nexa.madeeasy"
+        applicationId = "com.cashnet.app"
         minSdk = 21
         targetSdk = 36
         versionCode = 1
@@ -57,8 +57,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
 
     // Kotlin
-  implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
-  
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+
     // Suporte multidex (caso use muitos plugins, evita erro de limite de métodos)
     implementation("androidx.multidex:multidex:2.0.1")
 }
