@@ -22,7 +22,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool _hasConnection = true;
   String _errorMessage = '';
   bool _isInitialLoad = true;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
   @override
   void initState() {
@@ -34,7 +34,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
   void _listenToConnectivity() {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-      final hasConnection = !result.contains(ConnectivityResult.none);
+      final hasConnection = result != ConnectivityResult.none;
       setState(() {
         _hasConnection = hasConnection;
       });
@@ -43,7 +43,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
   Future<void> _checkConnectivity() async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    final hasConnection = !connectivityResult.contains(ConnectivityResult.none);
+    final hasConnection = connectivityResult != ConnectivityResult.none;
     setState(() {
       _hasConnection = hasConnection;
       if (!hasConnection && _isInitialLoad) {
