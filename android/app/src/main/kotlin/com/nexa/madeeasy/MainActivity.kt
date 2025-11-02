@@ -1,4 +1,4 @@
-package com.nexa.madeeasy
+package com.cashnet.app
 
 import io.flutter.embedding.android.FlutterActivity
 
