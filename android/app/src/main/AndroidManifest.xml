@@ -1,15 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissões essenciais para WebView -->
+    <!-- Permissões essenciais -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:label="cashnet"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="true"
-        android:usesCleartextTraffic="true">
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".MainActivity"
@@ -31,16 +35,54 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- 
+              Intent-filter para capturar redirect OAuth da Deriv
+              Redirect URI no Deriv Dashboard: com.nexa.madeeasy://oauth
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.nexa.madeeasy" android:host="oauth" />
+            </intent-filter>
+        </activity>
+
+        <!-- 
+          Callback Activity do flutter_web_auth_2
+          IMPORTANTE: Esta activity é necessária para receber o callback do GitHub Pages
+        -->
+        <activity 
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <!-- Custom URL Scheme que corresponde ao GitHub Pages redirect -->
+                <data android:scheme="com.nexa.madeeasy"/>
+            </intent-filter>
         </activity>
 
         <!-- Metadata do Flutter -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Habilita Deep Linking -->
+        <meta-data 
+            android:name="flutter_deeplinking_enabled" 
+            android:value="true"/>
     </application>
 
-    <!-- Query para navegador (necessário para WebView) -->
+    <!-- Query para processamento de texto e navegador -->
     <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+
+        <!-- Permite abrir navegador para OAuth -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="http"/>
