@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.cashnet.app"
+    namespace = "com.nexa.madeeasy"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.cashnet.app"
+        applicationId = "com.nexa.madeeasy"
         minSdk = 21
         targetSdk = 36
         versionCode = 1
