@@ -1,64 +1,44 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.nexa.madeeasy"
-    compileSdk = 36
-
-    defaultConfig {
-        applicationId = "com.nexa.madeeasy"
-        minSdk = 21
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
-
-        // Necessário se você usar notificações exatas (SCHEDULE_EXACT_ALARM)
-        // Evita crashes em Android 12+
-        multiDexEnabled = true
-    }
+    namespace = "com.cahsnet.app"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId = "com.cahsnet.app"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
-        getByName("release") {
-            // Desativa shrink/obfuscation para evitar problemas com plugins Flutter
-            isMinifyEnabled = false
-            isShrinkResources = false
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-        }
-    }
-
-    packagingOptions {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
 
 flutter {
     source = "../.."
-}
-
-dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
-    // Dependência essencial para compatibilidade com Android 13+ permissões
-    implementation("androidx.core:core-ktx:1.12.0")
-
-    // Kotlin
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
-
-    // Suporte multidex (caso use muitos plugins, evita erro de limite de métodos)
-    implementation("androidx.multidex:multidex:2.0.1")
 }
