@@ -9,11 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  webview_flutter: ^4.4.2
-  webview_flutter_android: ^3.12.1
-  webview_flutter_wkwebview: ^3.9.4
-  connectivity_plus: ^6.0.5
-  flutter_native_splash: ^2.3.5
+  #webview_flutter: ^4.4.2
+  #webview_flutter_android: ^3.12.1
+  #webview_flutter_wkwebview: ^3.9.4
+  #connectivity_plus: ^6.0.5
+  #flutter_native_splash: ^2.3.5
 
 dev_dependencies:
   flutter_test:
