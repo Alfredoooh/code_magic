@@ -120,7 +120,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     _controller = controller;
 
     if (_hasConnection) {
-      _controller.loadRequest(Uri.parse('https://cashnet11.onrender.com'));
+      _controller.loadRequest(Uri.parse('https://webtest-oesm.onrender.com'));
     } else {
       setState(() {
         _hasError = true;
@@ -163,7 +163,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     });
     _checkConnectivity().then((_) {
       if (_hasConnection) {
-        _controller.loadRequest(Uri.parse('https://cashnet11.onrender.com'));
+        _controller.loadRequest(Uri.parse('https://webtest-oesm.onrender.com'));
       }
     });
   }
