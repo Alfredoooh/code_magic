@@ -1,6 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'screen/splash_screen.dart';
+import 'screen/login_screen.dart';
+import 'screen/signup_screen.dart';
+import 'screen/home_screen.dart';
+import 'screen/settings_screen.dart';
+import 'screen/notifications_screen.dart';
+import 'screen/messages_screen.dart';
+import 'screen/search_screen.dart';
+import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -9,71 +26,59 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Web Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Web no Render'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'Você clicou no botão:',
-              style: TextStyle(fontSize: 20),
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: _incrementCounter,
-              icon: const Icon(Icons.add),
-              label: const Text('Incrementar'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'Cashnet',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              brightness: Brightness.light,
+              scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+              primaryColor: const Color(0xFFFDB52A),
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFFFDB52A),
+                secondary: Color(0xFFFFD700),
+              ),
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                elevation: 0,
               ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Incrementar',
-        child: const Icon(Icons.add),
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+              primaryColor: const Color(0xFFFDB52A),
+              colorScheme: const ColorScheme.dark(
+                primary: Color(0xFFFDB52A),
+                secondary: Color(0xFFFFD700),
+                surface: Color(0xFF242526),
+              ),
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Color(0xFF242526),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+            ),
+            themeMode: themeProvider.themeMode,
+            initialRoute: '/splash',
+            routes: {
+              '/splash': (context) => const SplashScreen(),
+              '/login': (context) => const LoginScreen(),
+              '/signup': (context) => const SignUpScreen(),
+              '/home': (context) => const HomeScreen(),
+              '/settings': (context) => const SettingsScreen(),
+              '/notifications': (context) => const NotificationsScreen(),
+              '/messages': (context) => const MessagesScreen(),
+              '/search': (context) => const SearchScreen(),
+            },
+          );
+        },
       ),
     );
   }
