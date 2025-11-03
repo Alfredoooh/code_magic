@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   User? _user;
   Map<String, dynamic>? _userData;
   bool _isLoading = false;
@@ -30,7 +30,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> _loadUserData() async {
     if (_user == null) return;
-    
+
     try {
       final doc = await _firestore.collection('users').doc(_user!.uid).get();
       if (doc.exists) {
@@ -76,7 +76,6 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
 
-      // Create user document
       await _firestore.collection('users').doc(credential.user!.uid).set({
         'uid': credential.user!.uid,
         'email': email,
@@ -88,7 +87,6 @@ class AuthProvider with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Update display name
       await credential.user!.updateDisplayName(name);
     } catch (e) {
       _isLoading = false;
@@ -126,70 +124,6 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error updating profile: $e');
       rethrow;
-    }
-  }
-}
-
-// lib/providers/theme_provider.dart
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
-  String _language = 'pt';
-
-  ThemeMode get themeMode => _themeMode;
-  String get language => _language;
-  bool get isDarkMode =>
-      _themeMode == ThemeMode.dark ||
-      (_themeMode == ThemeMode.system &&
-          WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-              Brightness.dark);
-
-  ThemeProvider() {
-    _loadPreferences();
-  }
-
-  Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeString = prefs.getString('theme') ?? 'system';
-    _language = prefs.getString('language') ?? 'pt';
-
-    _themeMode = switch (themeString) {
-      'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
-    };
-
-    notifyListeners();
-  }
-
-  Future<void> setThemeMode(ThemeMode mode) async {
-    _themeMode = mode;
-    notifyListeners();
-
-    final prefs = await SharedPreferences.getInstance();
-    final themeString = switch (mode) {
-      ThemeMode.light => 'light',
-      ThemeMode.dark => 'dark',
-      ThemeMode.system => 'system',
-    };
-    await prefs.setString('theme', themeString);
-  }
-
-  Future<void> setLanguage(String languageCode) async {
-    _language = languageCode;
-    notifyListeners();
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', languageCode);
-  }
-
-  Future<void> toggleTheme() async {
-    if (_themeMode == ThemeMode.light) {
-      await setThemeMode(ThemeMode.dark);
-    } else {
-      await setThemeMode(ThemeMode.light);
     }
   }
 }
