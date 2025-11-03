@@ -1,40 +1,76 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
-  <meta name="description" content="CashNet - Your Social Finance Network">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CashNet</title>
-
-  <!-- Flutter Web base -->
-  <base href="/">
-
-  <!-- PWA -->
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Flutter Web Application">
+  
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Flutter Web App">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  
+  <title>Flutter Web App</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="favicon.png">
-
-  <!-- Firebase SDKs - compat version (opcional se inicializar em Dart) -->
-  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.5.0/firebase-database-compat.js"></script>
-
-  <!-- NÃO inicializar Firebase em JS se já inicializar em Dart -->
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+    }
+    
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      margin-top: 20px;
+      font-family: Arial, sans-serif;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
-  <!-- Flutter Web loader -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Carregando Flutter App...</div>
+  </div>
+  
   <script>
-    window.addEventListener('load', function() {
-      _flutter.loader.loadEntrypoint({
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
-        }
-      });
+    // Remove o loading quando o app carregar
+    window.addEventListener('flutter-first-frame', function () {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.display = 'none';
+      }
     });
   </script>
+  
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
