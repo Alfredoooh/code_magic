@@ -30,7 +30,7 @@ class _NewPostModalState extends State<NewPostModal> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      
+
       await FirebaseFirestore.instance.collection('posts').add({
         'authorId': authProvider.userData?['uid'] ?? '',
         'authorName': authProvider.userData?['name'] ?? 'Usuário',
@@ -76,52 +76,43 @@ class _NewPostModalState extends State<NewPostModal> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Container(
-        margin: const EdgeInsets.all(8),
+        margin: const EdgeInsets.all(12),
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    'Criar publicação',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                      width: 0.3,
                     ),
                   ),
-                  Positioned(
-                    right: 0,
-                    child: GestureDetector(
+                ),
+                child: Row(
+                  children: [
+                    GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Container(
-                        width: 36,
-                        height: 36,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
                           shape: BoxShape.circle,
@@ -129,171 +120,185 @@ class _NewPostModalState extends State<NewPostModal> {
                         child: Icon(
                           Icons.close,
                           color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                          size: 20,
+                          size: 18,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: const Color(0xFF1877F2),
-                          child: Text(
-                            authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                authProvider.userData?['name'] ?? 'Usuário',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: textColor,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: _selectedCategory,
-                                    isDense: true,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                                    ),
-                                    dropdownColor: bgColor,
-                                    icon: Icon(
-                                      Icons.arrow_drop_down,
-                                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'geral',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.public, size: 14),
-                                            SizedBox(width: 4),
-                                            Text('Público'),
-                                          ],
-                                        ),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'marketplace',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.storefront, size: 14),
-                                            SizedBox(width: 4),
-                                            Text('Marketplace'),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        setState(() => _selectedCategory = value);
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _contentController,
-                      maxLines: null,
-                      minLines: 6,
-                      autofocus: true,
+                    const Spacer(),
+                    Text(
+                      'Criar publicação',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                         color: textColor,
                       ),
-                      decoration: InputDecoration(
-                        hintText: 'No que você está pensando?',
-                        hintStyle: TextStyle(
-                          fontSize: 24,
-                          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
-                        ),
-                        border: InputBorder.none,
-                      ),
                     ),
+                    const Spacer(),
+                    const SizedBox(width: 32),
                   ],
                 ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-                    width: 0.5,
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: const Color(0xFF1877F2),
+                            child: Text(
+                              authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  authProvider.userData?['name'] ?? 'Usuário',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _selectedCategory,
+                                      isDense: true,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                                      ),
+                                      dropdownColor: bgColor,
+                                      icon: Icon(
+                                        Icons.arrow_drop_down,
+                                        size: 16,
+                                        color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: 'geral',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.public, size: 12),
+                                              SizedBox(width: 4),
+                                              Text('Público'),
+                                            ],
+                                          ),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'marketplace',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.storefront, size: 12),
+                                              SizedBox(width: 4),
+                                              Text('Marketplace'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value != null) {
+                                          setState(() => _selectedCategory = value);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _contentController,
+                        maxLines: null,
+                        minLines: 6,
+                        autofocus: true,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'No que você está pensando?',
+                          hintStyle: TextStyle(
+                            fontSize: 16,
+                            color: isDark ? const Color(0xFF4E4F50) : const Color(0xFFBCC0C4),
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 36,
-                child: ElevatedButton(
-                  onPressed: _isPosting || _contentController.text.trim().isEmpty
-                      ? null
-                      : _createPost,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1877F2),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                    disabledForegroundColor: isDark ? const Color(0xFF4E4F50) : const Color(0xFFBCC0C4),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                      width: 0.3,
                     ),
                   ),
-                  child: _isPosting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: _isPosting || _contentController.text.trim().isEmpty
+                        ? null
+                        : _createPost,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1877F2),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                      disabledForegroundColor: isDark ? const Color(0xFF4E4F50) : const Color(0xFFBCC0C4),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isPosting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Publicar',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        )
-                      : const Text(
-                          'Publicar',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
