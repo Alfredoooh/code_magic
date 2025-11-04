@@ -1,145 +1,179 @@
-
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/custom_icons.dart';
+import '../widgets/custom_drawer.dart';
+import '../widgets/post_feed.dart';
+import '../widgets/new_post_modal.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
     final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final iconColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
 
     return Scaffold(
+      drawer: const CustomDrawer(),
       appBar: AppBar(
-        title: const Text(
-          'Cashnet',
+        backgroundColor: bgColor,
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: CustomPaint(
+              size: const Size(24, 24),
+              painter: IconPainter(CustomIcons.menu, iconColor),
+            ),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          'facebook',
           style: TextStyle(
-            fontFamily: 'Billabong',
             fontSize: 28,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1877F2),
+            letterSpacing: -0.5,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: CustomPaint(
+              size: const Size(24, 24),
+              painter: IconPainter(CustomIcons.plus, iconColor),
+            ),
+            onPressed: () => _showNewPostModal(context),
+          ),
+          IconButton(
+            icon: CustomPaint(
+              size: const Size(24, 24),
+              painter: IconPainter(CustomIcons.search, iconColor),
+            ),
             onPressed: () => Navigator.pushNamed(context, '/search'),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
+            icon: CustomPaint(
+              size: const Size(24, 24),
+              painter: IconPainter(CustomIcons.inbox, iconColor),
+            ),
             onPressed: () => Navigator.pushNamed(context, '/messages'),
           ),
         ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFDB52A), Color(0xFFFFD700)],
-                ),
-              ),
-              accountName: Text(
-                authProvider.userData?['name'] ?? 'User',
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              accountEmail: Text(
-                authProvider.userData?['email'] ?? '',
-                style: const TextStyle(color: Colors.black87),
-              ),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(
-                  authProvider.userData?['name']?.substring(0, 1) ?? 'U',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    color: Color(0xFFFDB52A),
-                  ),
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Início'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Configurações'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/settings');
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sair', style: TextStyle(color: Colors.red)),
-              onTap: () async {
-                await authProvider.signOut();
-                if (context.mounted) {
-                  Navigator.pushReplacementNamed(context, '/login');
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.account_balance_wallet,
-              size: 80,
-              color: Color(0xFFFDB52A),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Bem-vindo, ${authProvider.userData?['name'] ?? 'User'}!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Comece a dividir suas contas',
-              style: TextStyle(
-                fontSize: 16,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Add bill
-        },
-        backgroundColor: const Color(0xFFFDB52A),
-        icon: const Icon(Icons.add, color: Colors.black),
-        label: const Text(
-          'Nova Conta',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            height: 0.5,
           ),
         ),
       ),
+      body: const PostFeed(),
+      bottomNavigationBar: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(
+              context,
+              CustomIcons.home,
+              'Início',
+              () {},
+              true,
+            ),
+            _buildNavItem(
+              context,
+              CustomIcons.users,
+              'Usuários',
+              () => Navigator.pushNamed(context, '/users'),
+              false,
+            ),
+            _buildNavItem(
+              context,
+              CustomIcons.marketplace,
+              'Marketplace',
+              () => Navigator.pushNamed(context, '/marketplace'),
+              false,
+            ),
+            _buildNavItem(
+              context,
+              CustomIcons.bell,
+              'Notificações',
+              () => Navigator.pushNamed(context, '/notifications'),
+              false,
+            ),
+            _buildNavItem(
+              context,
+              CustomIcons.menu,
+              'Opções',
+              () => Scaffold.of(context).openDrawer(),
+              false,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context,
+    String iconPath,
+    String label,
+    VoidCallback onTap,
+    bool isActive,
+  ) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final color = isActive
+        ? const Color(0xFF1877F2)
+        : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B));
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 56,
+          decoration: isActive
+              ? BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: const Color(0xFF1877F2),
+                      width: 3,
+                    ),
+                  ),
+                )
+              : null,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CustomPaint(
+                size: const Size(26, 26),
+                painter: IconPainter(iconPath, color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showNewPostModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const NewPostModal(),
     );
   }
 }
