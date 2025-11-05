@@ -8,6 +8,9 @@ import '../widgets/custom_icons.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/post_feed.dart';
 import '../widgets/new_post_modal.dart';
+import 'search_screen.dart';
+import 'messages_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -46,13 +49,13 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
             onPressed: () => Navigator.of(context).push(
-              CupertinoPageRoute(builder: (_) => const SearchScreen()),
+              CupertinoPageRoute(builder: (_) => SearchScreen()),
             ),
           ),
           IconButton(
             icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
             onPressed: () => Navigator.of(context).push(
-              CupertinoPageRoute(builder: (_) => const MessagesScreen()),
+              CupertinoPageRoute(builder: (_) => MessagesScreen()),
             ),
           ),
         ],
@@ -109,7 +112,7 @@ class HomeScreen extends StatelessWidget {
               CustomIcons.bell,
               'Notificações',
               () => Navigator.of(context).push(
-                CupertinoPageRoute(builder: (_) => const NotificationsScreen()),
+                CupertinoPageRoute(builder: (_) => NotificationsScreen()),
               ),
               false,
             ),
@@ -175,15 +178,6 @@ class HomeScreen extends StatelessWidget {
 }
 
 // Placeholder screens
-class SearchScreen extends StatelessWidget {
-  const SearchScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Pesquisar')),
-    body: const Center(child: Text('Pesquisar')),
-  );
-}
-
 class UsersScreen extends StatelessWidget {
   const UsersScreen({super.key});
   @override
@@ -199,14 +193,5 @@ class MarketplaceScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Marketplace')),
     body: const Center(child: Text('Marketplace')),
-  );
-}
-
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Notificações')),
-    body: const Center(child: Text('Notificações')),
   );
 }
