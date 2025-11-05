@@ -9,6 +9,7 @@ import 'screens/settings_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/search_screen.dart';
+import 'screens/otp_verification_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'firebase_options.dart';
@@ -71,6 +72,7 @@ class MyApp extends StatelessWidget {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
+              '/otp-verification': (context) => const OTPVerificationScreen(),
               '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/notifications': (context) => const NotificationsScreen(),
