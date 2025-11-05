@@ -1,9 +1,12 @@
 // lib/widgets/new_post_modal.dart
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/post_service.dart';
 
 class NewPostModal extends StatefulWidget {
   const NewPostModal({super.key});
@@ -14,7 +17,11 @@ class NewPostModal extends StatefulWidget {
 
 class _NewPostModalState extends State<NewPostModal> {
   final _contentController = TextEditingController();
-  String _selectedCategory = 'geral';
+  final _postService = PostService();
+  final _imagePicker = ImagePicker();
+  
+  String? _imageBase64;
+  Uint8List? _imageBytes;
   bool _isPosting = false;
 
   @override
@@ -23,23 +30,70 @@ class _NewPostModalState extends State<NewPostModal> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        
+        // Verifica tamanho (max 5MB)
+        if (bytes.length > 5 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Imagem muito grande. Máximo 5MB.'),
+                backgroundColor: Color(0xFFFA383E),
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          _imageBytes = bytes;
+          _imageBase64 = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao selecionar imagem: $e'),
+            backgroundColor: const Color(0xFFFA383E),
+          ),
+        );
+      }
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _imageBytes = null;
+      _imageBase64 = null;
+    });
+  }
+
   Future<void> _createPost() async {
-    if (_contentController.text.trim().isEmpty) return;
+    if (_contentController.text.trim().isEmpty && _imageBase64 == null) return;
 
     setState(() => _isPosting = true);
 
     try {
       final authProvider = context.read<AuthProvider>();
 
-      await FirebaseFirestore.instance.collection('posts').add({
-        'authorId': authProvider.user?.uid ?? '',
-        'authorName': authProvider.userData?['name'] ?? 'Usuário',
-        'content': _contentController.text.trim(),
-        'category': _selectedCategory,
-        'timestamp': FieldValue.serverTimestamp(),
-        'likes': 0,
-        'comments': 0,
-      });
+      await _postService.createPost(
+        userId: authProvider.user?.uid ?? '',
+        userName: authProvider.userData?['name'] ?? 'Usuário',
+        userAvatar: authProvider.userData?['photoURL'],
+        content: _contentController.text.trim(),
+        imageBase64: _imageBase64,
+      );
 
       if (mounted) {
         Navigator.pop(context);
@@ -96,6 +150,7 @@ class _NewPostModalState extends State<NewPostModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Header
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 decoration: BoxDecoration(
@@ -138,12 +193,15 @@ class _NewPostModalState extends State<NewPostModal> {
                   ],
                 ),
               ),
+              
+              // Content
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // User info
                       Row(
                         children: [
                           CircleAvatar(
@@ -164,79 +222,23 @@ class _NewPostModalState extends State<NewPostModal> {
                                 : null,
                           ),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  authProvider.userData?['name'] ?? 'Usuário',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: textColor,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: _selectedCategory,
-                                      isDense: true,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                                      ),
-                                      dropdownColor: bgColor,
-                                      icon: Icon(
-                                        Icons.arrow_drop_down,
-                                        size: 16,
-                                        color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'geral',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.public, size: 12),
-                                              SizedBox(width: 4),
-                                              Text('Público'),
-                                            ],
-                                          ),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'marketplace',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.storefront, size: 12),
-                                              SizedBox(width: 4),
-                                              Text('Marketplace'),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value != null) {
-                                          setState(() => _selectedCategory = value);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            authProvider.userData?['name'] ?? 'Usuário',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Text field
                       TextField(
                         controller: _contentController,
                         maxLines: null,
-                        minLines: 6,
+                        minLines: _imageBytes != null ? 3 : 6,
                         autofocus: true,
                         style: TextStyle(
                           fontSize: 16,
@@ -252,12 +254,50 @@ class _NewPostModalState extends State<NewPostModal> {
                         ),
                         onChanged: (_) => setState(() {}),
                       ),
+                      
+                      // Image preview
+                      if (_imageBytes != null) ...[
+                        const SizedBox(height: 12),
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.memory(
+                                _imageBytes!,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: _removeImage,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
+              
+              // Add to post section
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
@@ -266,11 +306,45 @@ class _NewPostModalState extends State<NewPostModal> {
                     ),
                   ),
                 ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Adicionar à publicação',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.image,
+                          color: Color(0xFF45BD62),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Post button
+              Container(
+                padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: _isPosting || _contentController.text.trim().isEmpty
+                    onPressed: _isPosting || (_contentController.text.trim().isEmpty && _imageBase64 == null)
                         ? null
                         : _createPost,
                     style: ElevatedButton.styleFrom(
