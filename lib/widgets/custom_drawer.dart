@@ -1,6 +1,5 @@
 // lib/widgets/custom_drawer.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -143,7 +142,7 @@ class CustomDrawer extends StatelessWidget {
 
   Widget _buildDrawerItem(
     BuildContext context,
-    String iconPath,
+    String svgString,
     String title,
     VoidCallback onTap,
     bool isDark, {
@@ -167,11 +166,10 @@ class CustomDrawer extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Center(
-                child: SvgPicture.asset(
-                  iconPath,
-                  width: 20,
-                  height: 20,
-                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                child: SvgIcon(
+                  svgString: svgString,
+                  color: color,
+                  size: 20,
                 ),
               ),
             ),
