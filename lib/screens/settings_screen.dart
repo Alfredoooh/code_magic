@@ -1,5 +1,6 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -12,45 +13,60 @@ class SettingsScreen extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = themeProvider.isDarkMode;
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
 
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text('Configurações'),
+        backgroundColor: cardColor,
+        elevation: 0,
+        title: Text(
+          'Configurações',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            height: 0.5,
+          ),
+        ),
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // Profile Card
           Container(
-            margin: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF242526) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: isDark
-                  ? Border.all(color: Colors.grey.shade800)
-                  : null,
-              boxShadow: isDark
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                      ),
-                    ],
+              color: cardColor,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: const Color(0xFFFDB52A),
-                  child: Text(
-                    authProvider.userData?['name']?.substring(0, 1) ?? 'U',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  backgroundColor: const Color(0xFF1877F2),
+                  backgroundImage: authProvider.userData?['photoURL'] != null
+                      ? NetworkImage(authProvider.userData!['photoURL'])
+                      : null,
+                  child: authProvider.userData?['photoURL'] == null
+                      ? Text(
+                          authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -58,24 +74,26 @@ class SettingsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        authProvider.userData?['name'] ?? 'User',
+                        authProvider.userData?['name'] ?? 'Usuário',
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        authProvider.userData?['nickname'] ?? '@user',
+                        authProvider.userData?['nickname'] ?? '@usuario',
                         style: TextStyle(
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 14,
+                          color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                         ),
                       ),
                       Text(
                         authProvider.userData?['email'] ?? '',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                         ),
                       ),
                     ],
@@ -88,99 +106,101 @@ class SettingsScreen extends StatelessWidget {
           // Theme Section
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF242526) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: isDark
-                  ? Border.all(color: Colors.grey.shade800)
-                  : null,
-              boxShadow: isDark
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                      ),
-                    ],
+              color: cardColor,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Aparência',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Aparência',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ThemeButton(
-                        label: 'Claro',
-                        icon: Icons.light_mode,
-                        isSelected: themeProvider.themeMode == ThemeMode.light,
-                        onTap: () => themeProvider.setThemeMode(ThemeMode.light),
-                        isDark: isDark,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ThemeButton(
+                          label: 'Claro',
+                          icon: Icons.light_mode_outlined,
+                          isSelected: themeProvider.themeMode == ThemeMode.light,
+                          onTap: () => themeProvider.setThemeMode(ThemeMode.light),
+                          isDark: isDark,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ThemeButton(
-                        label: 'Escuro',
-                        icon: Icons.dark_mode,
-                        isSelected: themeProvider.themeMode == ThemeMode.dark,
-                        onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
-                        isDark: isDark,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ThemeButton(
+                          label: 'Escuro',
+                          icon: Icons.dark_mode_outlined,
+                          isSelected: themeProvider.themeMode == ThemeMode.dark,
+                          onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+                          isDark: isDark,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Logout
+          // Logout Button
           Container(
             margin: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Sair'),
-                    content: const Text('Tem certeza que deseja sair?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancelar'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Sair'),
-                      ),
-                    ],
-                  ),
-                );
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () async {
+                  final confirm = await showCupertinoDialog<bool>(
+                    context: context,
+                    builder: (context) => CupertinoAlertDialog(
+                      title: const Text('Sair'),
+                      content: const Text('Tem certeza que deseja sair?'),
+                      actions: [
+                        CupertinoDialogAction(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        CupertinoDialogAction(
+                          isDestructiveAction: true,
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Sair'),
+                        ),
+                      ],
+                    ),
+                  );
 
-                if (confirm == true && context.mounted) {
-                  await authProvider.signOut();
-                  if (context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
+                  if (confirm == true && context.mounted) {
+                    await authProvider.signOut();
+                    if (context.mounted) {
+                      Navigator.pushReplacementNamed(context, '/login');
+                    }
                   }
-                }
-              },
-              icon: const Icon(Icons.logout),
-              label: const Text('Sair'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFFA383E),
+                  side: const BorderSide(color: Color(0xFFFA383E), width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Sair',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -214,30 +234,43 @@ class _ThemeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFFFDB52A)
+              ? const Color(0xFF1877F2)
               : isDark
-                  ? const Color(0xFF2A2B2C)
-                  : Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
+                  ? const Color(0xFF3A3B3C)
+                  : const Color(0xFFF0F2F5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF1877F2)
+                : isDark
+                    ? const Color(0xFF3E4042)
+                    : const Color(0xFFDADADA),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 16,
-              color: isSelected ? Colors.black : Colors.grey,
+              size: 18,
+              color: isSelected
+                  ? Colors.white
+                  : isDark
+                      ? const Color(0xFFB0B3B8)
+                      : const Color(0xFF65676B),
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: isSelected
-                    ? Colors.black
+                    ? Colors.white
                     : isDark
-                        ? Colors.grey[300]
-                        : Colors.black,
+                        ? const Color(0xFFE4E6EB)
+                        : const Color(0xFF050505),
               ),
             ),
           ],
