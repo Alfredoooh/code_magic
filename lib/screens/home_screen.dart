@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
 import '../widgets/custom_drawer.dart';
@@ -20,26 +21,44 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _HomeScreenState extends State<HomeScreen> {
+  // índice atual da tab
+  int _currentIndex = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+  // pages lazy-initializadas — mantém estado porque guardamos as instâncias
+  final List<Widget?> _pages = [const PostFeed(), null, null, const NotificationsScreen()];
+
+  static const Color _activeBlue = Color(0xFF1877F2);
+
+  // função para construir a página lazily (evita carregar Users/Marketplace até necessário)
+  Widget _getPage(int index) {
+    if (_pages[index] != null) return _pages[index]!;
+    switch (index) {
+      case 1:
+        _pages[1] = const UsersScreen();
+        break;
+      case 2:
+        _pages[2] = const MarketplaceScreen();
+        break;
+      default:
+        _pages[index] = const SizedBox.shrink();
+    }
+    return _pages[index]!;
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  void _onTap(int index) {
+    if (_currentIndex == index) return; // caso já esteja ativo, nada
+    setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final themeProv = context.watch<ThemeProvider>();
+    final isDark = themeProv.isDarkMode;
     final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
     final iconColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final unselectedColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+    final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
     return Scaffold(
       drawer: const CustomDrawer(),
@@ -53,11 +72,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ),
         title: const Text(
-          'MySpace',
+          'mydoc', // trocado de MySpace para mydoc
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1877F2),
+            color: _activeBlue,
             letterSpacing: -0.5,
           ),
         ),
@@ -82,68 +101,88 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            color: topBorderColor,
             height: 0.5,
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          PostFeed(),
-          UsersScreen(),
-          MarketplaceScreen(),
-          NotificationsScreen(),
-        ],
+
+      // IndexedStack preserva o estado das páginas já instanciadas
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(4, (i) => _getPage(i)),
       ),
+
+      // Bottom navigation custom para permitir indicador acima do ícone com bordas curvas
       bottomNavigationBar: Container(
-        height: 56,
+        height: 70,
         decoration: BoxDecoration(
           color: bgColor,
           border: Border(
-            top: BorderSide(
-              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-              width: 0.5,
-            ),
+            top: BorderSide(color: topBorderColor, width: 0.5),
           ),
         ),
-        child: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF1877F2),
-          indicatorWeight: 3,
-          indicatorSize: TabBarIndicatorSize.tab,
-          dividerColor: Colors.transparent,
-          labelColor: const Color(0xFF1877F2),
-          unselectedLabelColor: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-          tabs: [
-            Tab(
-              height: 56,
-              child: SvgIcon(svgString: CustomIcons.home, size: 26),
-            ),
-            Tab(
-              height: 56,
-              child: SvgIcon(svgString: CustomIcons.users, size: 26),
-            ),
-            Tab(
-              height: 56,
-              child: SvgIcon(svgString: CustomIcons.marketplace, size: 26),
-            ),
-            Tab(
-              height: 56,
-              child: SvgIcon(svgString: CustomIcons.bell, size: 26),
-            ),
+        child: Row(
+          children: [
+            _buildTabItem(index: 0, svg: CustomIcons.home, isDark: isDark, unselectedColor: unselectedColor),
+            _buildTabItem(index: 1, svg: CustomIcons.users, isDark: isDark, unselectedColor: unselectedColor),
+            _buildTabItem(index: 2, svg: CustomIcons.marketplace, isDark: isDark, unselectedColor: unselectedColor),
+            _buildTabItem(index: 3, svg: CustomIcons.bell, isDark: isDark, unselectedColor: unselectedColor),
           ],
         ),
       ),
     );
   }
 
-  void _showNewPostModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const NewPostModal(),
+  Widget _buildTabItem({
+    required int index,
+    required String svg,
+    required bool isDark,
+    required Color unselectedColor,
+  }) {
+    final bool active = _currentIndex == index;
+    final Color iconColor = active ? _activeBlue : unselectedColor;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onTap(index),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // indicador ativo em cima do ícone;
+            // tem bordas inferiores curvas (bottom corners arredondadas)
+            const SizedBox(height: 8),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: active ? 6 : 6,
+              width: active ? 36 : 0,
+              // quando não ativo, largura vai a 0 (invisível)
+              decoration: BoxDecoration(
+                color: active ? _activeBlue : Colors.transparent,
+                borderRadius: active
+                    ? const BorderRadius.only(
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      )
+                    : BorderRadius.zero,
+              ),
+            ),
+            const SizedBox(height: 6),
+            // ícone
+            SvgIcon(svgString: svg, size: 26, color: iconColor),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
+}
+
+void _showNewPostModal(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => const NewPostModal(),
+  );
 }
