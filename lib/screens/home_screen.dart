@@ -22,15 +22,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // índice atual da tab
   int _currentIndex = 0;
 
-  // pages lazy-initializadas — mantém estado porque guardamos as instâncias
   final List<Widget?> _pages = [const PostFeed(), null, null, const NotificationsScreen()];
 
   static const Color _activeBlue = Color(0xFF1877F2);
 
-  // função para construir a página lazily (evita carregar Users/Marketplace até necessário)
   Widget _getPage(int index) {
     if (_pages[index] != null) return _pages[index]!;
     switch (index) {
@@ -47,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onTap(int index) {
-    if (_currentIndex == index) return; // caso já esteja ativo, nada
+    if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
   }
 
@@ -61,23 +58,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
     return Scaffold(
+      backgroundColor: bgColor,
       drawer: const CustomDrawer(),
       appBar: AppBar(
         backgroundColor: bgColor,
+        surfaceTintColor: bgColor,
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
             icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
             onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          'mydoc', // trocado de MySpace para mydoc
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: _activeBlue,
-            letterSpacing: -0.5,
           ),
         ),
         actions: [
@@ -107,28 +97,39 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // IndexedStack preserva o estado das páginas já instanciadas
       body: IndexedStack(
         index: _currentIndex,
         children: List.generate(4, (i) => _getPage(i)),
       ),
 
-      // Bottom navigation custom para permitir indicador acima do ícone com bordas curvas
-      bottomNavigationBar: Container(
-        height: 70,
-        decoration: BoxDecoration(
-          color: bgColor,
-          border: Border(
-            top: BorderSide(color: topBorderColor, width: 0.5),
+      // Floating TabBar com bordas totalmente curvas
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: topBorderColor, width: 0.5),
+            boxShadow: [
+              BoxShadow(
+                color: isDark 
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ),
-        child: Row(
-          children: [
-            _buildTabItem(index: 0, svg: CustomIcons.home, isDark: isDark, unselectedColor: unselectedColor),
-            _buildTabItem(index: 1, svg: CustomIcons.users, isDark: isDark, unselectedColor: unselectedColor),
-            _buildTabItem(index: 2, svg: CustomIcons.marketplace, isDark: isDark, unselectedColor: unselectedColor),
-            _buildTabItem(index: 3, svg: CustomIcons.bell, isDark: isDark, unselectedColor: unselectedColor),
-          ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+              _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+              _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
+              _buildTabItem(index: 3, svg: CustomIcons.bell, unselectedColor: unselectedColor),
+            ],
+          ),
         ),
       ),
     );
@@ -137,7 +138,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTabItem({
     required int index,
     required String svg,
-    required bool isDark,
     required Color unselectedColor,
   }) {
     final bool active = _currentIndex == index;
@@ -146,32 +146,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return Expanded(
       child: InkWell(
         onTap: () => _onTap(index),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // indicador ativo em cima do ícone;
-            // tem bordas inferiores curvas (bottom corners arredondadas)
-            const SizedBox(height: 8),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: active ? 6 : 6,
-              width: active ? 36 : 0,
-              // quando não ativo, largura vai a 0 (invisível)
-              decoration: BoxDecoration(
-                color: active ? _activeBlue : Colors.transparent,
-                borderRadius: active
-                    ? const BorderRadius.only(
-                        bottomLeft: Radius.circular(12),
-                        bottomRight: Radius.circular(12),
-                      )
-                    : BorderRadius.zero,
-              ),
-            ),
-            const SizedBox(height: 6),
-            // ícone
-            SvgIcon(svgString: svg, size: 26, color: iconColor),
-            const SizedBox(height: 8),
-          ],
+        borderRadius: BorderRadius.circular(100),
+        child: Center(
+          child: SvgIcon(
+            svgString: svg, 
+            size: 24, 
+            color: iconColor,
+          ),
         ),
       ),
     );
