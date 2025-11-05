@@ -40,7 +40,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        // Verifica se precisa de OTP
+        if (authProvider.userData?['otpEnabled'] == true && 
+            authProvider.userData?['emailVerified'] != true) {
+          Navigator.pushReplacementNamed(context, '/otp-verification');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -76,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo
                   const Text(
-                    'facebook',
+                    'Mayspace',
                     style: TextStyle(
                       fontSize: 56,
                       fontWeight: FontWeight.w700,
@@ -86,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Conecte-se com amigos e o mundo ao seu redor',
+                    'Conecte-se, aprenda e crie documentos profissionais',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -100,7 +106,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: cardColor,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
@@ -108,9 +121,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         CustomTextField(
                           controller: _emailController,
                           label: 'Email',
-                          hintText: 'Email ou telefone',
+                          hintText: 'Digite seu email',
                           keyboardType: TextInputType.emailAddress,
                           isDark: isDark,
+                          borderRadius: 12,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Digite seu email';
@@ -124,9 +138,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         CustomTextField(
                           controller: _passwordController,
                           label: 'Senha',
-                          hintText: 'Senha',
+                          hintText: 'Digite sua senha',
                           obscureText: !_showPassword,
                           isDark: isDark,
+                          borderRadius: 12,
                           suffixIcon: IconButton(
                             icon: Icon(
                               _showPassword ? Icons.visibility_off : Icons.visibility,
@@ -146,10 +161,37 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 20),
 
                         // Login Button
-                        CustomButton(
-                          text: 'Entrar',
-                          onPressed: _handleLogin,
-                          isLoading: _isLoading,
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1877F2),
+                              disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text(
+                                  'Entrar',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                          ),
                         ),
                         const SizedBox(height: 12),
 
@@ -172,13 +214,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   // Create Account Button
-                  CustomButton(
-                    text: 'Criar nova conta',
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/signup');
-                    },
-                    backgroundColor: const Color(0xFF42B72A),
-                    height: 44,
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushReplacementNamed(context, '/signup');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF42B72A),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Criar nova conta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
