@@ -84,6 +84,16 @@ class CustomDrawer extends StatelessWidget {
               children: [
                 _buildDrawerItem(
                   context,
+                  CustomIcons.inbox,
+                  'Caixa de entrada',
+                  () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/messages');
+                  },
+                  isDark,
+                ),
+                _buildDrawerItem(
+                  context,
                   CustomIcons.plus,
                   'Adicionar nova publicação',
                   () {
@@ -101,36 +111,6 @@ class CustomDrawer extends StatelessWidget {
                 const SizedBox(height: 8),
                 _buildDrawerItem(
                   context,
-                  CustomIcons.marketplace,
-                  'Marketplace',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/marketplace');
-                  },
-                  isDark,
-                ),
-                _buildDrawerItem(
-                  context,
-                  CustomIcons.inbox,
-                  'Caixa de entrada',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/messages');
-                  },
-                  isDark,
-                ),
-                _buildDrawerItem(
-                  context,
-                  CustomIcons.search,
-                  'Pesquisar',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/search');
-                  },
-                  isDark,
-                ),
-                _buildDrawerItem(
-                  context,
                   CustomIcons.settings,
                   'Configurações',
                   () {
@@ -139,13 +119,6 @@ class CustomDrawer extends StatelessWidget {
                   },
                   isDark,
                 ),
-                const SizedBox(height: 8),
-                Divider(
-                  height: 1,
-                  thickness: 8,
-                  color: isDark ? const Color(0xFF3E4042) : const Color(0xFFF0F2F5),
-                ),
-                const SizedBox(height: 8),
                 _buildDrawerItem(
                   context,
                   CustomIcons.logout,
