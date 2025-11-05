@@ -32,7 +32,7 @@ class _NewPostModalState extends State<NewPostModal> {
       final authProvider = context.read<AuthProvider>();
 
       await FirebaseFirestore.instance.collection('posts').add({
-        'authorId': authProvider.userData?['uid'] ?? '',
+        'authorId': authProvider.user?.uid ?? '',
         'authorName': authProvider.userData?['name'] ?? 'Usuário',
         'content': _contentController.text.trim(),
         'category': _selectedCategory,
@@ -149,14 +149,19 @@ class _NewPostModalState extends State<NewPostModal> {
                           CircleAvatar(
                             radius: 18,
                             backgroundColor: const Color(0xFF1877F2),
-                            child: Text(
-                              authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
+                            backgroundImage: authProvider.userData?['photoURL'] != null
+                                ? NetworkImage(authProvider.userData!['photoURL'])
+                                : null,
+                            child: authProvider.userData?['photoURL'] == null
+                                ? Text(
+                                    authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
