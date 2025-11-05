@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
 import '../widgets/custom_drawer.dart';
@@ -11,6 +10,8 @@ import '../widgets/new_post_modal.dart';
 import 'search_screen.dart';
 import 'messages_screen.dart';
 import 'notifications_screen.dart';
+import 'users_screen.dart';
+import 'marketplace_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -145,21 +146,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       builder: (context) => const NewPostModal(),
     );
   }
-}
-
-// Placeholder screens
-class UsersScreen extends StatelessWidget {
-  const UsersScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Scaffold(
-    body: Center(child: Text('Usuários')),
-  );
-}
-
-class MarketplaceScreen extends StatelessWidget {
-  const MarketplaceScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Scaffold(
-    body: Center(child: Text('Marketplace')),
-  );
 }
