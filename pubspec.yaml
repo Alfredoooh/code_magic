@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   
   # WebView (comentado mas mantido para outros projetos)
-  #webview_flutter: ^4.4.2
+  webview_flutter: ^4.4.2
   #webview_flutter_android: ^3.12.1
   #webview_flutter_wkwebview: ^3.9.4
   #connectivity_plus: ^6.0.5
