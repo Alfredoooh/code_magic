@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -24,43 +25,35 @@ class HomeScreen extends StatelessWidget {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: CustomPaint(
-              size: const Size(24, 24),
-              painter: IconPainter(CustomIcons.menu, iconColor),
-            ),
+            icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Text(
+        title: const Text(
           'facebook',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF1877F2),
+            color: Color(0xFF1877F2),
             letterSpacing: -0.5,
           ),
         ),
         actions: [
           IconButton(
-            icon: CustomPaint(
-              size: const Size(24, 24),
-              painter: IconPainter(CustomIcons.plus, iconColor),
-            ),
+            icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
             onPressed: () => _showNewPostModal(context),
           ),
           IconButton(
-            icon: CustomPaint(
-              size: const Size(24, 24),
-              painter: IconPainter(CustomIcons.search, iconColor),
+            icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+            onPressed: () => Navigator.of(context).push(
+              CupertinoPageRoute(builder: (_) => const SearchScreen()),
             ),
-            onPressed: () => Navigator.pushNamed(context, '/search'),
           ),
           IconButton(
-            icon: CustomPaint(
-              size: const Size(24, 24),
-              painter: IconPainter(CustomIcons.inbox, iconColor),
+            icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+            onPressed: () => Navigator.of(context).push(
+              CupertinoPageRoute(builder: (_) => const MessagesScreen()),
             ),
-            onPressed: () => Navigator.pushNamed(context, '/messages'),
           ),
         ],
         bottom: PreferredSize(
@@ -97,21 +90,27 @@ class HomeScreen extends StatelessWidget {
               context,
               CustomIcons.users,
               'Usuários',
-              () => Navigator.pushNamed(context, '/users'),
+              () => Navigator.of(context).push(
+                CupertinoPageRoute(builder: (_) => const UsersScreen()),
+              ),
               false,
             ),
             _buildNavItem(
               context,
               CustomIcons.marketplace,
               'Marketplace',
-              () => Navigator.pushNamed(context, '/marketplace'),
+              () => Navigator.of(context).push(
+                CupertinoPageRoute(builder: (_) => const MarketplaceScreen()),
+              ),
               false,
             ),
             _buildNavItem(
               context,
               CustomIcons.bell,
               'Notificações',
-              () => Navigator.pushNamed(context, '/notifications'),
+              () => Navigator.of(context).push(
+                CupertinoPageRoute(builder: (_) => const NotificationsScreen()),
+              ),
               false,
             ),
             _buildNavItem(
@@ -129,7 +128,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildNavItem(
     BuildContext context,
-    String iconPath,
+    String iconSvg,
     String label,
     VoidCallback onTap,
     bool isActive,
@@ -145,10 +144,10 @@ class HomeScreen extends StatelessWidget {
         child: Container(
           height: 56,
           decoration: isActive
-              ? BoxDecoration(
+              ? const BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: const Color(0xFF1877F2),
+                      color: Color(0xFF1877F2),
                       width: 3,
                     ),
                   ),
@@ -157,10 +156,7 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CustomPaint(
-                size: const Size(26, 26),
-                painter: IconPainter(iconPath, color),
-              ),
+              SvgIcon(svgString: iconSvg, color: color, size: 26),
             ],
           ),
         ),
@@ -176,4 +172,41 @@ class HomeScreen extends StatelessWidget {
       builder: (context) => const NewPostModal(),
     );
   }
+}
+
+// Placeholder screens
+class SearchScreen extends StatelessWidget {
+  const SearchScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Pesquisar')),
+    body: const Center(child: Text('Pesquisar')),
+  );
+}
+
+class UsersScreen extends StatelessWidget {
+  const UsersScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Usuários')),
+    body: const Center(child: Text('Usuários')),
+  );
+}
+
+class MarketplaceScreen extends StatelessWidget {
+  const MarketplaceScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Marketplace')),
+    body: const Center(child: Text('Marketplace')),
+  );
+}
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Notificações')),
+    body: const Center(child: Text('Notificações')),
+  );
 }
