@@ -1,3 +1,4 @@
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -44,7 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao fazer login: ${e.toString()}')),
+          SnackBar(
+            content: Text('Erro ao fazer login: ${e.toString()}'),
+            backgroundColor: const Color(0xFFFA383E),
+          ),
         );
       }
     } finally {
@@ -55,9 +59,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -68,179 +75,111 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFDB52A), Color(0xFFFFD700)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFDB52A).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'C',
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Title
-                  Text(
-                    'Bem-vindo de volta',
+                  const Text(
+                    'facebook',
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 56,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1877F2),
+                      letterSpacing: -1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   Text(
-                    'Entre para continuar',
+                    'Conecte-se com amigos e o mundo ao seu redor',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                     ),
                   ),
                   const SizedBox(height: 40),
 
-                  // Email Field
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'Email',
-                    hintText: 'seu@email.com',
-                    prefixIcon: Icons.mail_outline,
-                    keyboardType: TextInputType.emailAddress,
-                    isDark: isDark,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite seu email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Email inválido';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Password Field
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Senha',
-                    hintText: '••••••••',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: !_showPassword,
-                    isDark: isDark,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showPassword ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() => _showPassword = !_showPassword);
-                      },
+                  // Login Card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite sua senha';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Forgot Password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: Implementar forgot password
-                      },
-                      child: const Text(
-                        'Esqueceu a senha?',
-                        style: TextStyle(
-                          color: Color(0xFFFDB52A),
-                          fontWeight: FontWeight.w600,
+                    child: Column(
+                      children: [
+                        // Email Field
+                        CustomTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          hintText: 'Email ou telefone',
+                          keyboardType: TextInputType.emailAddress,
+                          isDark: isDark,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Digite seu email';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
+                        const SizedBox(height: 16),
+
+                        // Password Field
+                        CustomTextField(
+                          controller: _passwordController,
+                          label: 'Senha',
+                          hintText: 'Senha',
+                          obscureText: !_showPassword,
+                          isDark: isDark,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showPassword ? Icons.visibility_off : Icons.visibility,
+                              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            ),
+                            onPressed: () {
+                              setState(() => _showPassword = !_showPassword);
+                            },
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Digite sua senha';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Login Button
+                        CustomButton(
+                          text: 'Entrar',
+                          onPressed: _handleLogin,
+                          isLoading: _isLoading,
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Forgot Password
+                        TextButton(
+                          onPressed: () {
+                            // TODO: Implementar forgot password
+                          },
+                          child: const Text(
+                            'Esqueceu a senha?',
+                            style: TextStyle(
+                              color: Color(0xFF1877F2),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Login Button
+                  // Create Account Button
                   CustomButton(
-                    text: 'Entrar',
-                    onPressed: _handleLogin,
-                    isLoading: _isLoading,
+                    text: 'Criar nova conta',
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/signup');
+                    },
+                    backgroundColor: const Color(0xFF42B72A),
+                    height: 44,
                   ),
-                  const SizedBox(height: 24),
-
-                  // Divider
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: isDark ? Colors.grey[800] : Colors.grey[300],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'ou',
-                          style: TextStyle(
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          color: isDark ? Colors.grey[800] : Colors.grey[300],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Sign Up Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Não tem uma conta? ',
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacementNamed(context, '/signup');
-                        },
-                        child: const Text(
-                          'Cadastre-se',
-                          style: TextStyle(
-                            color: Color(0xFFFDB52A),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-
                 ],
               ),
             ),
