@@ -1,3 +1,4 @@
+// lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -19,7 +20,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _showPassword = false;
   bool _showConfirmPassword = false;
   bool _isLoading = false;
@@ -39,7 +40,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('As senhas não coincidem')),
+        const SnackBar(
+          content: Text('As senhas não coincidem'),
+          backgroundColor: Color(0xFFFA383E),
+        ),
       );
       return;
     }
@@ -61,7 +65,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao criar conta: ${e.toString()}')),
+          SnackBar(
+            content: Text('Erro ao criar conta: ${e.toString()}'),
+            backgroundColor: const Color(0xFFFA383E),
+          ),
         );
       }
     } finally {
@@ -72,9 +79,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: cardColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            height: 0.5,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -84,169 +112,147 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFDB52A), Color(0xFFFFD700)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFDB52A).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'C',
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
                   // Title
                   Text(
-                    'Vamos começar',
+                    'Cadastre-se',
                     style: TextStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Crie sua conta gratuitamente',
+                    'É rápido e fácil',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      fontSize: 15,
+                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                     ),
                   ),
                   const SizedBox(height: 32),
 
-                  // Name Field
-                  CustomTextField(
-                    controller: _nameController,
-                    label: 'Nome',
-                    hintText: 'Seu nome completo',
-                    prefixIcon: Icons.person_outline,
-                    isDark: isDark,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite seu nome';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Nickname Field
-                  CustomTextField(
-                    controller: _nicknameController,
-                    label: 'Nome de usuário',
-                    hintText: '@username',
-                    prefixIcon: Icons.alternate_email,
-                    isDark: isDark,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite seu nome de usuário';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Email Field
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'Email',
-                    hintText: 'seu@email.com',
-                    prefixIcon: Icons.mail_outline,
-                    keyboardType: TextInputType.emailAddress,
-                    isDark: isDark,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite seu email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Email inválido';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Password Field
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Senha',
-                    hintText: '••••••••',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: !_showPassword,
-                    isDark: isDark,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showPassword ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() => _showPassword = !_showPassword);
-                      },
+                  // Signup Card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Digite sua senha';
-                      }
-                      if (value.length < 6) {
-                        return 'Senha deve ter no mínimo 6 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                    child: Column(
+                      children: [
+                        // Name Field
+                        CustomTextField(
+                          controller: _nameController,
+                          label: 'Nome completo',
+                          hintText: 'Nome completo',
+                          isDark: isDark,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Digite seu nome';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
 
-                  // Confirm Password Field
-                  CustomTextField(
-                    controller: _confirmPasswordController,
-                    label: 'Confirmar senha',
-                    hintText: '••••••••',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: !_showConfirmPassword,
-                    isDark: isDark,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() => _showConfirmPassword = !_showConfirmPassword);
-                      },
+                        // Nickname Field
+                        CustomTextField(
+                          controller: _nicknameController,
+                          label: 'Nome de usuário',
+                          hintText: 'Nome de usuário',
+                          isDark: isDark,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Digite seu nome de usuário';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Email Field
+                        CustomTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          hintText: 'Email',
+                          keyboardType: TextInputType.emailAddress,
+                          isDark: isDark,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Digite seu email';
+                            }
+                            if (!value.contains('@')) {
+                              return 'Email inválido';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password Field
+                        CustomTextField(
+                          controller: _passwordController,
+                          label: 'Senha',
+                          hintText: 'Senha',
+                          obscureText: !_showPassword,
+                          isDark: isDark,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showPassword ? Icons.visibility_off : Icons.visibility,
+                              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            ),
+                            onPressed: () {
+                              setState(() => _showPassword = !_showPassword);
+                            },
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Digite sua senha';
+                            }
+                            if (value.length < 6) {
+                              return 'Senha deve ter no mínimo 6 caracteres';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Confirm Password Field
+                        CustomTextField(
+                          controller: _confirmPasswordController,
+                          label: 'Confirmar senha',
+                          hintText: 'Confirmar senha',
+                          obscureText: !_showConfirmPassword,
+                          isDark: isDark,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            ),
+                            onPressed: () {
+                              setState(() => _showConfirmPassword = !_showConfirmPassword);
+                            },
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Confirme sua senha';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Sign Up Button
+                        CustomButton(
+                          text: 'Cadastrar',
+                          onPressed: _handleSignUp,
+                          isLoading: _isLoading,
+                          backgroundColor: const Color(0xFF42B72A),
+                        ),
+                      ],
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Confirme sua senha';
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 32),
-
-                  // Sign Up Button
-                  CustomButton(
-                    text: 'Criar conta',
-                    onPressed: _handleSignUp,
-                    isLoading: _isLoading,
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Login Link
                   Row(
@@ -255,7 +261,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       Text(
                         'Já tem uma conta? ',
                         style: TextStyle(
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 15,
+                          color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                         ),
                       ),
                       GestureDetector(
@@ -265,26 +272,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         child: const Text(
                           'Entrar',
                           style: TextStyle(
-                            color: Color(0xFFFDB52A),
-                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Color(0xFF1877F2),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Phone Auth Link
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/phone-auth');
-                    },
-                    child: Text(
-                      'Cadastrar com número de telefone',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                      ),
-                    ),
                   ),
                 ],
               ),
