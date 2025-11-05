@@ -8,7 +8,6 @@ import '../services/post_service.dart';
 import '../services/image_service.dart';
 import '../models/post_model.dart';
 import '../widgets/custom_icons.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 class PostFeed extends StatefulWidget {
   const PostFeed({super.key});
@@ -19,12 +18,6 @@ class PostFeed extends StatefulWidget {
 
 class _PostFeedState extends State<PostFeed> {
   final PostService _postService = PostService();
-
-  @override
-  void initState() {
-    super.initState();
-    timeago.setLocaleMessages('pt_BR', timeago.PtBrMessages());
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,13 +82,30 @@ class PostCard extends StatelessWidget {
 
   const PostCard({super.key, required this.post});
 
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
+
+    if (diff.inSeconds < 60) {
+      return 'agora';
+    } else if (diff.inMinutes < 60) {
+      return '${diff.inMinutes}m';
+    } else if (diff.inHours < 24) {
+      return '${diff.inHours}h';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays}d';
+    } else {
+      return '${timestamp.day}/${timestamp.month}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final authProvider = context.watch<AuthProvider>();
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final isLiked = post.isLikedBy(authProvider.currentUser?.uid ?? '');
+    final isLiked = post.isLikedBy(authProvider.user?.uid ?? '');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -127,7 +137,7 @@ class PostCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        timeago.format(post.timestamp, locale: 'pt_BR'),
+                        _formatTimestamp(post.timestamp),
                         style: TextStyle(
                           fontSize: 12,
                           color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
@@ -136,7 +146,7 @@ class PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (post.userId == authProvider.currentUser?.uid)
+                if (post.userId == authProvider.user?.uid)
                   IconButton(
                     icon: Icon(
                       Icons.more_horiz,
@@ -310,7 +320,7 @@ class PostCard extends StatelessWidget {
     final postService = PostService();
     
     try {
-      await postService.toggleLike(post.id, authProvider.currentUser!.uid);
+      await postService.toggleLike(post.id, authProvider.user!.uid);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -321,7 +331,6 @@ class PostCard extends StatelessWidget {
   }
 
   void _showComments(BuildContext context, Post post) {
-    // TODO: Implementar tela de comentários
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Comentários em desenvolvimento')),
     );
