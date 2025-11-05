@@ -30,66 +30,76 @@ class CustomTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.grey[300] : Colors.grey[700],
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isDark
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+            color: isDark ? const Color(0xFF242526) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+              width: 1,
+            ),
           ),
           child: TextFormField(
             controller: controller,
             obscureText: obscureText,
             keyboardType: keyboardType,
             style: TextStyle(
-              color: isDark ? Colors.white : Colors.black,
-              fontSize: 16,
+              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+              fontSize: 15,
             ),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
-                color: isDark ? Colors.grey[600] : Colors.grey[400],
+                color: isDark ? const Color(0xFF4E4F50) : const Color(0xFFBCC0C4),
+                fontSize: 15,
               ),
               prefixIcon: prefixIcon != null
                   ? Icon(
                       prefixIcon,
-                      color: Colors.grey[500],
+                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                       size: 20,
                     )
                   : null,
               suffixIcon: suffixIcon,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: isDark
-                      ? const Color(0xFF323232)
-                      : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1877F2),
+                  width: 1.5,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFFA383E),
+                  width: 1,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFFA383E),
                   width: 1.5,
                 ),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 16,
+                vertical: 14,
               ),
             ),
             validator: validator,
