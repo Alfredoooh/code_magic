@@ -12,8 +12,27 @@ import 'search_screen.dart';
 import 'messages_screen.dart';
 import 'notifications_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +52,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         title: const Text(
-          'facebook',
+          'MySpace',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -67,7 +86,15 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: const PostFeed(),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          PostFeed(),
+          UsersScreen(),
+          MarketplaceScreen(),
+          NotificationsScreen(),
+        ],
+      ),
       bottomNavigationBar: Container(
         height: 56,
         decoration: BoxDecoration(
@@ -79,89 +106,32 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(
-              context,
-              CustomIcons.home,
-              'Início',
-              () {},
-              true,
+        child: TabBar(
+          controller: _tabController,
+          indicatorColor: const Color(0xFF1877F2),
+          indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Colors.transparent,
+          labelColor: const Color(0xFF1877F2),
+          unselectedLabelColor: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+          tabs: [
+            Tab(
+              height: 56,
+              child: SvgIcon(svgString: CustomIcons.home, size: 26),
             ),
-            _buildNavItem(
-              context,
-              CustomIcons.users,
-              'Usuários',
-              () => Navigator.of(context).push(
-                CupertinoPageRoute(builder: (_) => const UsersScreen()),
-              ),
-              false,
+            Tab(
+              height: 56,
+              child: SvgIcon(svgString: CustomIcons.users, size: 26),
             ),
-            _buildNavItem(
-              context,
-              CustomIcons.marketplace,
-              'Marketplace',
-              () => Navigator.of(context).push(
-                CupertinoPageRoute(builder: (_) => const MarketplaceScreen()),
-              ),
-              false,
+            Tab(
+              height: 56,
+              child: SvgIcon(svgString: CustomIcons.marketplace, size: 26),
             ),
-            _buildNavItem(
-              context,
-              CustomIcons.bell,
-              'Notificações',
-              () => Navigator.of(context).push(
-                CupertinoPageRoute(builder: (_) => NotificationsScreen()),
-              ),
-              false,
-            ),
-            _buildNavItem(
-              context,
-              CustomIcons.menu,
-              'Opções',
-              () => Scaffold.of(context).openDrawer(),
-              false,
+            Tab(
+              height: 56,
+              child: SvgIcon(svgString: CustomIcons.bell, size: 26),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(
-    BuildContext context,
-    String iconSvg,
-    String label,
-    VoidCallback onTap,
-    bool isActive,
-  ) {
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final color = isActive
-        ? const Color(0xFF1877F2)
-        : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B));
-
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          height: 56,
-          decoration: isActive
-              ? const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: Color(0xFF1877F2),
-                      width: 3,
-                    ),
-                  ),
-                )
-              : null,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgIcon(svgString: iconSvg, color: color, size: 26),
-            ],
-          ),
         ),
       ),
     );
@@ -181,17 +151,15 @@ class HomeScreen extends StatelessWidget {
 class UsersScreen extends StatelessWidget {
   const UsersScreen({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Usuários')),
-    body: const Center(child: Text('Usuários')),
+  Widget build(BuildContext context) => const Scaffold(
+    body: Center(child: Text('Usuários')),
   );
 }
 
 class MarketplaceScreen extends StatelessWidget {
   const MarketplaceScreen({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Marketplace')),
-    body: const Center(child: Text('Marketplace')),
+  Widget build(BuildContext context) => const Scaffold(
+    body: Center(child: Text('Marketplace')),
   );
 }
