@@ -1,5 +1,6 @@
 // lib/widgets/custom_drawer.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -88,7 +89,10 @@ class CustomDrawer extends StatelessWidget {
                   'Caixa de entrada',
                   () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/messages');
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (_) => const Placeholder()), // Substitua pelo MessagesScreen
+                    );
                   },
                   isDark,
                 ),
@@ -115,7 +119,10 @@ class CustomDrawer extends StatelessWidget {
                   'Configurações',
                   () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/settings');
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (_) => const Placeholder()), // Substitua pelo SettingsScreen
+                    );
                   },
                   isDark,
                 ),
@@ -123,11 +130,9 @@ class CustomDrawer extends StatelessWidget {
                   context,
                   CustomIcons.logout,
                   'Sair',
-                  () async {
-                    await authProvider.signOut();
-                    if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/login');
-                    }
+                  () {
+                    Navigator.pop(context);
+                    _showExitDialog(context, authProvider, isDark);
                   },
                   isDark,
                   isDestructive: true,
@@ -196,6 +201,67 @@ class CustomDrawer extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const NewPostModal(),
+    );
+  }
+
+  void _showExitDialog(BuildContext context, AuthProvider authProvider, bool isDark) {
+    final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final subtitleColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(
+          'Sair da conta',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            'Tem certeza que deseja sair da sua conta?',
+            style: TextStyle(
+              fontSize: 13,
+              color: subtitleColor,
+            ),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1877F2),
+              ),
+            ),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              Navigator.pop(context);
+              await authProvider.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+            child: const Text(
+              'Sair',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
