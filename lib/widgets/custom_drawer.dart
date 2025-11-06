@@ -89,9 +89,10 @@ class CustomDrawer extends StatelessWidget {
                   'Caixa de entrada',
                   () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (_) => const Placeholder()), // Substitua pelo MessagesScreen
+                    Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => const Placeholder(), // Substitua pela MessagesScreen
+                      ),
                     );
                   },
                   isDark,
@@ -119,9 +120,10 @@ class CustomDrawer extends StatelessWidget {
                   'Configurações',
                   () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (_) => const Placeholder()), // Substitua pelo SettingsScreen
+                    Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => const Placeholder(), // Substitua pela SettingsScreen
+                      ),
                     );
                   },
                   isDark,
@@ -132,7 +134,7 @@ class CustomDrawer extends StatelessWidget {
                   'Sair',
                   () {
                     Navigator.pop(context);
-                    _showExitDialog(context, authProvider, isDark);
+                    _showLogoutDialog(context, authProvider);
                   },
                   isDark,
                   isDestructive: true,
@@ -204,7 +206,8 @@ class CustomDrawer extends StatelessWidget {
     );
   }
 
-  void _showExitDialog(BuildContext context, AuthProvider authProvider, bool isDark) {
+  void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final subtitleColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
@@ -214,7 +217,7 @@ class CustomDrawer extends StatelessWidget {
       barrierDismissible: true,
       builder: (context) => CupertinoAlertDialog(
         title: Text(
-          'Sair da conta',
+          'Terminar sessão?',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
@@ -222,7 +225,7 @@ class CustomDrawer extends StatelessWidget {
           ),
         ),
         content: Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: 8.0),
           child: Text(
             'Tem certeza que deseja sair da sua conta?',
             style: TextStyle(
@@ -233,28 +236,32 @@ class CustomDrawer extends StatelessWidget {
         ),
         actions: [
           CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
               'Cancelar',
               style: TextStyle(
+                color: CupertinoColors.activeBlue,
                 fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1877F2),
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.of(context).pop();
               await authProvider.signOut();
               if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
               }
             },
-            child: const Text(
+            child: Text(
               'Sair',
               style: TextStyle(
+                color: CupertinoColors.destructiveRed,
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
