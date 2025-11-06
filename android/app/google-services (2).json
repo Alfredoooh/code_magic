@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "329928312757",
+    "firebase_url": "https://delta-182c8-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "delta-182c8",
+    "storage_bucket": "delta-182c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329928312757:android:4b16e327699c41b03abbfc",
+        "android_client_info": {
+          "package_name": "com.cashnet.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLUfbKGwKX0XP8RRTvesa8_9x8zHA9V4A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329928312757:android:c12748ade08bd5c33abbfc",
+        "android_client_info": {
+          "package_name": "com.cashnet.app.cashnet_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLUfbKGwKX0XP8RRTvesa8_9x8zHA9V4A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
