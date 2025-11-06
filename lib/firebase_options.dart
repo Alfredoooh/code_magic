@@ -60,7 +60,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '329928312757',
     projectId: 'delta-182c8',
     storageBucket: 'delta-182c8.firebasestorage.app',
-    iosBundleId: 'com.cahsnet.app',
+    iosBundleId: 'com.cashnet.app.cashnet_app',
     databaseURL: 'https://delta-182c8-default-rtdb.europe-west1.firebasedatabase.app',
   );
 }
