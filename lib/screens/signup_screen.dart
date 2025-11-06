@@ -1,10 +1,12 @@
 // lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/custom_icons.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -16,7 +18,7 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
-  
+
   // Controllers
   final _nameController = TextEditingController();
   final _nicknameController = TextEditingController();
@@ -169,6 +171,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<bool> _onWillPop() async {
+    if (_currentPage > 0) {
+      _previousPage();
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -176,158 +186,85 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: cardColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: textColor,
-          ),
-          onPressed: _currentPage == 0 
-            ? () => Navigator.pop(context)
-            : _previousPage,
-        ),
-        title: Text(
-          'Cadastre-se',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-            height: 0.5,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Progress indicator
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: List.generate(4, (index) {
-                  return Expanded(
-                    child: Container(
-                      margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: index <= _currentPage 
-                          ? const Color(0xFF1877F2)
-                          : isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  );
-                }),
-              ),
+    return PopScope(
+      canPop: _currentPage == 0,
+      onPopInvoked: (didPop) {
+        if (!didPop && _currentPage > 0) {
+          _previousPage();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: bgColor,
+        appBar: AppBar(
+          backgroundColor: cardColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: SvgIcon(
+              svgString: CustomIcons.arrowLeft,
+              color: textColor,
+              size: 24,
             ),
-            
-            // Content
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (page) => setState(() => _currentPage = page),
-                children: [
-                  _buildUserTypePage(isDark, textColor),
-                  _buildPersonalInfoPage(isDark, textColor),
-                  _buildCredentialsPage(isDark, textColor),
-                  _buildAdditionalInfoPage(isDark, textColor),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserTypePage(bool isDark, Color textColor) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Qual é o seu perfil?',
+            onPressed: _currentPage == 0 
+              ? () => Navigator.pop(context)
+              : _previousPage,
+          ),
+          title: Text(
+            'Cadastre-se',
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
               color: textColor,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Selecione a opção que melhor descreve você',
-            style: TextStyle(
-              fontSize: 15,
-              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(
+              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+              height: 0.5,
             ),
           ),
-          const SizedBox(height: 32),
-          
-          _buildUserTypeCard(
-            icon: Icons.school,
-            title: 'Estudante',
-            subtitle: 'Estou aqui para aprender e compartilhar conhecimento',
-            value: 'student',
-            isDark: isDark,
-          ),
-          _buildUserTypeCard(
-            icon: Icons.business_center,
-            title: 'Empreendedor',
-            subtitle: 'Busco oportunidades de negócio e networking',
-            value: 'entrepreneur',
-            isDark: isDark,
-          ),
-          _buildUserTypeCard(
-            icon: Icons.create,
-            title: 'Criador',
-            subtitle: 'Crio conteúdo e documentos personalizados',
-            value: 'creator',
-            isDark: isDark,
-          ),
-          _buildUserTypeCard(
-            icon: Icons.work,
-            title: 'Profissional',
-            subtitle: 'Ofereço serviços profissionais especializados',
-            value: 'professional',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 24),
-          
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: _validateCurrentPage() ? _nextPage : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1877F2),
-                disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Progress indicator
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: List.generate(4, (index) {
+                    return Expanded(
+                      child: Container(
+                        margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: index <= _currentPage 
+                            ? const Color(0xFF1877F2)
+                            : isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ),
-              child: const Text(
-                'Continuar',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+
+              // Content
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (page) => setState(() => _currentPage = page),
+                  children: [
+                    _buildUserTypePage(isDark, textColor),
+                    _buildPersonalInfoPage(isDark, textColor),
+                    _buildCredentialsPage(isDark, textColor),
+                    _buildAdditionalInfoPage(isDark, textColor),
+                  ],
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -340,7 +277,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     required bool isDark,
   }) {
     final isSelected = _selectedUserType == value;
-    
+
     return GestureDetector(
       onTap: () => setState(() => _selectedUserType = value),
       child: Container(
@@ -411,6 +348,89 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  // ... [Continue nos próximos artifacts devido ao limite de espaço]
+  Widget _buildUserTypePage(bool isDark, Color textColor) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Qual é o seu perfil?',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Selecione a opção que melhor descreve você',
+            style: TextStyle(
+              fontSize: 15,
+              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          _buildUserTypeCard(
+            icon: Icons.school,
+            title: 'Estudante',
+            subtitle: 'Estou aqui para aprender e compartilhar conhecimento',
+            value: 'student',
+            isDark: isDark,
+          ),
+          _buildUserTypeCard(
+            icon: Icons.business_center,
+            title: 'Empreendedor',
+            subtitle: 'Busco oportunidades de negócio e networking',
+            value: 'entrepreneur',
+            isDark: isDark,
+          ),
+          _buildUserTypeCard(
+            icon: Icons.create,
+            title: 'Criador',
+            subtitle: 'Crio conteúdo e documentos personalizados',
+            value: 'creator',
+            isDark: isDark,
+          ),
+          _buildUserTypeCard(
+            icon: Icons.work,
+            title: 'Profissional',
+            subtitle: 'Ofereço serviços profissionais especializados',
+            value: 'professional',
+            isDark: isDark,
+          ),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _validateCurrentPage() ? _nextPage : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1877F2),
+                disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Continuar',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPersonalInfoPage(bool isDark, Color textColor) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -434,7 +454,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
+
           CustomTextField(
             controller: _nameController,
             label: 'Nome completo',
@@ -442,7 +462,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 16),
-          
+
           CustomTextField(
             controller: _nicknameController,
             label: 'Nome de usuário',
@@ -450,7 +470,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 16),
-          
+
           GestureDetector(
             onTap: _selectDate,
             child: AbsorbPointer(
@@ -464,7 +484,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           if (_selectedUserType == 'student')
             CustomTextField(
               controller: _schoolController,
@@ -473,7 +493,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               isDark: isDark,
             ),
           const SizedBox(height: 32),
-          
+
           Row(
             children: [
               Expanded(
@@ -549,7 +569,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
+
           CustomTextField(
             controller: _emailController,
             label: 'Email',
@@ -558,7 +578,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 16),
-          
+
           CustomTextField(
             controller: _passwordController,
             label: 'Senha',
@@ -574,7 +594,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           CustomTextField(
             controller: _confirmPasswordController,
             label: 'Confirmar senha',
@@ -590,7 +610,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
+
           Row(
             children: [
               Expanded(
@@ -666,7 +686,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
+
           CustomTextField(
             controller: _phoneController,
             label: 'Telefone',
@@ -675,7 +695,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 16),
-          
+
           CustomTextField(
             controller: _addressController,
             label: 'Endereço',
@@ -683,7 +703,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 16),
-          
+
           Row(
             children: [
               Expanded(
@@ -706,7 +726,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           CustomTextField(
             controller: _countryController,
             label: 'País',
@@ -714,7 +734,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 16),
-          
+
           CustomTextField(
             controller: _bioController,
             label: 'Bio',
@@ -723,7 +743,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isDark: isDark,
           ),
           const SizedBox(height: 32),
-          
+
           Row(
             children: [
               Expanded(
