@@ -1,10 +1,12 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/custom_icons.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -68,6 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final iconColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -82,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo
                   const Text(
-                    'Mayspace',
+                    'PrinterLite',
                     style: TextStyle(
                       fontSize: 56,
                       fontWeight: FontWeight.w700,
@@ -125,6 +128,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           isDark: isDark,
                           borderRadius: 12,
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: SvgIcon(
+                              svgString: CustomIcons.envelope,
+                              color: iconColor,
+                              size: 20,
+                            ),
+                          ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Digite seu email';
@@ -142,10 +153,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           obscureText: !_showPassword,
                           isDark: isDark,
                           borderRadius: 12,
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: SvgIcon(
+                              svgString: CustomIcons.shield,
+                              color: iconColor,
+                              size: 20,
+                            ),
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _showPassword ? Icons.visibility_off : Icons.visibility,
-                              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                              color: iconColor,
                             ),
                             onPressed: () {
                               setState(() => _showPassword = !_showPassword);
@@ -219,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/signup');
+                        Navigator.pushNamed(context, '/signup');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF42B72A),
