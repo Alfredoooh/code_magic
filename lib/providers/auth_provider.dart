@@ -11,36 +11,67 @@ class AuthProvider with ChangeNotifier {
   User? _user;
   Map<String, dynamic>? _userData;
   bool _isLoading = false;
+  bool _isInitialized = false;
 
   User? get user => _user;
   Map<String, dynamic>? get userData => _userData;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
+  bool get isInitialized => _isInitialized;
 
   AuthProvider() {
-    _checkLastActivity();
-    _auth.authStateChanges().listen((User? user) {
-      _user = user;
-      if (user != null) {
-        _loadUserData();
-        _updateLastActivity();
-      } else {
-        _userData = null;
-      }
-      notifyListeners();
-    });
+    _initializeAuth();
   }
 
-  // Verifica última atividade e desloga após 2 dias
+  // Inicializa autenticação e verifica sessão salva
+  Future<void> _initializeAuth() async {
+    try {
+      await _checkLastActivity();
+      
+      // Listener para mudanças no estado de autenticação
+      _auth.authStateChanges().listen((User? user) async {
+        _user = user;
+        if (user != null) {
+          await _loadUserData();
+          await _updateLastActivity();
+          await _saveLoginState(true);
+        } else {
+          _userData = null;
+          await _saveLoginState(false);
+        }
+        notifyListeners();
+      });
+    } finally {
+      _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
+  // Salva estado de login
+  Future<void> _saveLoginState(bool isLoggedIn) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', isLoggedIn);
+    if (isLoggedIn && _user != null) {
+      await prefs.setString('user_uid', _user!.uid);
+      await prefs.setString('user_email', _user!.email ?? '');
+    } else {
+      await prefs.remove('user_uid');
+      await prefs.remove('user_email');
+    }
+  }
+
+  // Verifica última atividade e desloga após 2 dias de inatividade
   Future<void> _checkLastActivity() async {
     final prefs = await SharedPreferences.getInstance();
     final lastActivity = prefs.getInt('lastActivity');
-    
-    if (lastActivity != null) {
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (lastActivity != null && isLoggedIn) {
       final now = DateTime.now().millisecondsSinceEpoch;
       final twoDays = 2 * 24 * 60 * 60 * 1000; // 2 dias em milissegundos
-      
+
       if (now - lastActivity > twoDays) {
+        // Logout automático após 2 dias de inatividade
         await signOut();
       }
     }
@@ -76,6 +107,7 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
       await _updateLastActivity();
+      await _saveLoginState(true);
     } catch (e) {
       _isLoading = false;
       notifyListeners();
@@ -118,7 +150,7 @@ class AuthProvider with ChangeNotifier {
         'email': email,
         'name': name,
         'nickname': nickname,
-        'userType': userType, // estudante, empreendedor, criador, profissional
+        'userType': userType,
         'birthDate': birthDate,
         'school': school,
         'address': address,
@@ -136,22 +168,18 @@ class AuthProvider with ChangeNotifier {
         'emailVerified': false,
         'createdAt': FieldValue.serverTimestamp(),
         'lastActive': FieldValue.serverTimestamp(),
-        // Estatísticas
         'postsCount': 0,
         'followersCount': 0,
         'followingCount': 0,
-        // Configurações de privacidade
         'isProfilePublic': true,
         'allowMessages': true,
         'allowOrders': true,
       });
 
       await credential.user!.updateDisplayName(name);
-      
-      // Envia email de verificação com OTP
       await _sendOTPEmail(email, otpCode);
-      
       await _updateLastActivity();
+      await _saveLoginState(true);
     } catch (e) {
       _isLoading = false;
       notifyListeners();
@@ -162,18 +190,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Gera código OTP de 6 dígitos
   String _generateOTP() {
     return (100000 + DateTime.now().millisecondsSinceEpoch % 900000).toString();
   }
 
-  // Envia email com OTP (simulação - usar serviço de email real em produção)
   Future<void> _sendOTPEmail(String email, String otp) async {
-    // TODO: Implementar envio de email real
     debugPrint('OTP enviado para $email: $otp');
   }
 
-  // Verifica OTP
   Future<bool> verifyOTP(String otp) async {
     if (_user == null || _userData == null) return false;
 
@@ -195,7 +219,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Reenvia OTP
   Future<void> resendOTP() async {
     if (_user == null || _userData == null) return;
 
@@ -203,12 +226,11 @@ class AuthProvider with ChangeNotifier {
     await _firestore.collection('users').doc(_user!.uid).update({
       'otpCode': newOTP,
     });
-    
+
     await _sendOTPEmail(_userData!['email'], newOTP);
     await _loadUserData();
   }
 
-  // Atualiza tipo OTP (habilitar/desabilitar)
   Future<void> updateOTPStatus(bool enabled) async {
     if (_user == null) return;
 
@@ -224,9 +246,13 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // Logout e limpeza de dados salvos
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('lastActivity');
+    await prefs.remove('isLoggedIn');
+    await prefs.remove('user_uid');
+    await prefs.remove('user_email');
     await _auth.signOut();
     _userData = null;
     notifyListeners();
@@ -278,10 +304,9 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Atualiza última atividade no Firestore
   Future<void> updateLastActive() async {
     if (_user == null) return;
-    
+
     await _firestore.collection('users').doc(_user!.uid).update({
       'lastActive': FieldValue.serverTimestamp(),
     });
