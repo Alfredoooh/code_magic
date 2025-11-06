@@ -32,18 +32,18 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+      child: Consumer2<ThemeProvider, AuthProvider>(
+        builder: (context, themeProvider, authProvider, _) {
           return MaterialApp(
-            title: 'Cashnet',
+            title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               brightness: Brightness.light,
-              scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-              primaryColor: const Color(0xFFFDB52A),
+              scaffoldBackgroundColor: const Color(0xFFF0F2F5),
+              primaryColor: const Color(0xFF1877F2),
               colorScheme: const ColorScheme.light(
-                primary: Color(0xFFFDB52A),
-                secondary: Color(0xFFFFD700),
+                primary: Color(0xFF1877F2),
+                secondary: Color(0xFF42B72A),
               ),
               appBarTheme: const AppBarTheme(
                 backgroundColor: Colors.white,
@@ -53,11 +53,11 @@ class MyApp extends StatelessWidget {
             ),
             darkTheme: ThemeData(
               brightness: Brightness.dark,
-              scaffoldBackgroundColor: const Color(0xFF1A1A1A),
-              primaryColor: const Color(0xFFFDB52A),
+              scaffoldBackgroundColor: const Color(0xFF18191A),
+              primaryColor: const Color(0xFF1877F2),
               colorScheme: const ColorScheme.dark(
-                primary: Color(0xFFFDB52A),
-                secondary: Color(0xFFFFD700),
+                primary: Color(0xFF1877F2),
+                secondary: Color(0xFF42B72A),
                 surface: Color(0xFF242526),
               ),
               appBarTheme: const AppBarTheme(
@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
               ),
             ),
             themeMode: themeProvider.themeMode,
-            initialRoute: '/splash',
+            home: _getInitialScreen(authProvider),
             routes: {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
@@ -83,6 +83,21 @@ class MyApp extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Widget _getInitialScreen(AuthProvider authProvider) {
+    // Enquanto está verificando a autenticação, mostra splash
+    if (!authProvider.isInitialized) {
+      return const SplashScreen();
+    }
+
+    // Se está autenticado, vai direto para home
+    if (authProvider.isAuthenticated) {
+      return const HomeScreen();
+    }
+
+    // Caso contrário, mostra o login
+    return const LoginScreen();
   }
 }
 
