@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/custom_icons.dart';
+import 'marketplace/add_book_screen.dart';
+import 'marketplace/book_details_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -16,18 +17,20 @@ class MarketplaceScreen extends StatefulWidget {
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String selectedCategory = 'Todos';
 
-  // somente categorias para produtos eletrónicos/digitais
-  final List<String> categories = [
-    'Todos',
-    'Eletrônicos',
-    'Livros',
-    'Software',
-    'Música',
-    'Cursos',
-    'Templates',
+  final List<Map<String, dynamic>> categories = [
+    {'name': 'Todos', 'color': Color(0xFF1877F2)},
+    {'name': 'Ficção', 'color': Color(0xFFE91E63)},
+    {'name': 'Não-Ficção', 'color': Color(0xFF9C27B0)},
+    {'name': 'Acadêmico', 'color': Color(0xFF2196F3)},
+    {'name': 'Técnico', 'color': Color(0xFF00BCD4)},
+    {'name': 'Infantil', 'color': Color(0xFFFF9800)},
+    {'name': 'Romance', 'color': Color(0xFFF44336)},
+    {'name': 'Biografia', 'color': Color(0xFF4CAF50)},
+    {'name': 'História', 'color': Color(0xFF795548)},
+    {'name': 'Ciência', 'color': Color(0xFF3F51B5)},
+    {'name': 'Autoajuda', 'color': Color(0xFFFF5722)},
+    {'name': 'Poesia', 'color': Color(0xFF673AB7)},
   ];
-
-  static const Color _activeBlue = Color(0xFF1877F2);
 
   @override
   Widget build(BuildContext context) {
@@ -37,75 +40,80 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final iconColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final dividerColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
+    final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // AppBar no mesmo formato do users_screen.dart (fixo)
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: cardColor,
-            elevation: 0,
-            automaticallyImplyLeading: false,
-            title: Row(
-              children: [
-                SvgIcon(svgString: CustomIcons.marketplace, color: iconColor, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Marketplace',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
+          // Header com botão adicionar
+          SliverToBoxAdapter(
+            child: Container(
+              color: cardColor,
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Marketplace',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Container(
-                color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-                height: 0.5,
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AddBookScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 20),
+                    label: const Text('Adicionar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1877F2),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            actions: [
-              // botão adicionar textual aqui também (mantém consistência)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: FilledButton(
-                  onPressed: () => _showCreateProductModal(context),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _activeBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Adicionar', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
           ),
 
-          // Categorias como toggles (Filled / Filled.tonal)
+          SliverToBoxAdapter(
+            child: Container(
+              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+              height: 0.5,
+            ),
+          ),
+
+          // Categorias
           SliverToBoxAdapter(
             child: Container(
               color: bgColor,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: categories.map((category) {
-                    final bool isSelected = selectedCategory == category;
+                    final bool isSelected = selectedCategory == category['name'];
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: isSelected
-                          ? _buildActiveCategoryButton(category, isDark)
-                          : _buildTonalCategoryButton(category, isDark),
+                      child: _buildCategoryChip(
+                        category['name'],
+                        category['color'],
+                        isSelected,
+                        isDark,
+                        textColor,
+                      ),
                     );
                   }).toList(),
                 ),
@@ -113,15 +121,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ),
           ),
 
-          // Lista de produtos (grid)
+          // Lista de livros (grid)
           StreamBuilder<QuerySnapshot>(
             stream: selectedCategory == 'Todos'
                 ? FirebaseFirestore.instance
-                    .collection('marketplace_products')
+                    .collection('marketplace_books')
                     .orderBy('createdAt', descending: true)
                     .snapshots()
                 : FirebaseFirestore.instance
-                    .collection('marketplace_products')
+                    .collection('marketplace_books')
                     .where('category', isEqualTo: selectedCategory)
                     .orderBy('createdAt', descending: true)
                     .snapshots(),
@@ -132,18 +140,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // usa o ícone de erro do custom icons
-                        SvgIcon(
-                          svgString: CustomIcons.errorIcon,
-                          size: 72,
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Erro ao carregar produtos',
+                          'Erro ao carregar livros',
                           style: TextStyle(
                             fontSize: 16,
-                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            color: hintColor,
                           ),
                         ),
                       ],
@@ -156,28 +163,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 return const SliverFillRemaining(
                   child: Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(_activeBlue),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                     ),
                   ),
                 );
               }
 
-              final products = snapshot.data?.docs ?? [];
+              final books = snapshot.data?.docs ?? [];
 
-              if (products.isEmpty) {
+              if (books.isEmpty) {
                 return SliverFillRemaining(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SvgIcon(
-                          svgString: CustomIcons.document,
+                        Icon(
+                          Icons.menu_book_outlined,
                           size: 80,
                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Nenhum item encontrado',
+                          'Nenhum livro encontrado',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
@@ -186,10 +193,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Seja o primeiro a anunciar um conteúdo digital!',
+                          'Seja o primeiro a adicionar um livro!',
                           style: TextStyle(
                             fontSize: 14,
-                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            color: hintColor,
                           ),
                         ),
                       ],
@@ -199,56 +206,68 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               }
 
               return SliverPadding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.65,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final productDoc = products[index];
-                      final data = productDoc.data() as Map<String, dynamic>;
+                      final bookDoc = books[index];
+                      final data = bookDoc.data() as Map<String, dynamic>;
 
                       return GestureDetector(
-                        onTap: () => _showProductDetails(context, data),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BookDetailsScreen(
+                                bookId: bookDoc.id,
+                                bookData: data,
+                              ),
+                            ),
+                          );
+                        },
                         child: Container(
                           decoration: BoxDecoration(
                             color: cardColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: dividerColor,
-                              width: 1,
-                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Imagem/cover do item digital (ex: capa de livro)
+                              // Capa do livro
                               ClipRRect(
                                 borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(8),
+                                  top: Radius.circular(12),
                                 ),
                                 child: AspectRatio(
-                                  aspectRatio: 1,
-                                  child: data['imageURL'] != null
+                                  aspectRatio: 0.7,
+                                  child: data['coverImageURL'] != null
                                       ? Image.network(
-                                          data['imageURL'],
+                                          data['coverImageURL'],
                                           fit: BoxFit.cover,
                                         )
                                       : Container(
                                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
                                           child: Icon(
-                                            Icons.image,
+                                            Icons.menu_book,
                                             size: 48,
-                                            color: isDark ? const Color(0xFF65676B) : const Color(0xFFB0B3B8),
+                                            color: hintColor,
                                           ),
                                         ),
                                 ),
                               ),
-                              // Informações do produto
+                              // Informações do livro
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
@@ -258,7 +277,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                       Text(
                                         data['title'] ?? 'Sem título',
                                         style: TextStyle(
-                                          fontSize: 15,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                           color: textColor,
                                         ),
@@ -267,23 +286,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${data['price'] ?? '0'},00 Kz',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: _activeBlue,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        data['category'] ?? 'Categoria',
+                                        data['author'] ?? 'Autor desconhecido',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                                          color: hintColor,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      const Spacer(),
+                                      if (data['digitalPrice'] != null)
+                                        Text(
+                                          '${data['digitalPrice']} Kz',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1877F2),
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -293,7 +313,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                       );
                     },
-                    childCount: products.length,
+                    childCount: books.length,
                   ),
                 ),
               );
@@ -304,194 +324,42 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  // botão tonal (não activo)
-  Widget _buildTonalCategoryButton(String category, bool isDark) {
-    final bg = isDark ? const Color(0xFF2D3236) : const Color(0xFFF0F2F5);
-    final labelColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-
-    return FilledButton.tonal(
-      onPressed: () {
-        setState(() => selectedCategory = category);
+  Widget _buildCategoryChip(
+    String name,
+    Color color,
+    bool isSelected,
+    bool isDark,
+    Color textColor,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => selectedCategory = name);
       },
-      style: FilledButton.styleFrom(
-        // tonal: usamos uma cor neutra próxima ao card para "tonal" visual consistente
-        backgroundColor: bg,
-        foregroundColor: labelColor,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-      child: Text(
-        category,
-        style: TextStyle(fontWeight: FontWeight.w600, color: labelColor),
-      ),
-    );
-  }
-
-  // botão activo (filled) com check no final (CustomIcons.ok)
-  Widget _buildActiveCategoryButton(String category, bool isDark) {
-    return FilledButton(
-      onPressed: () {
-        // mantém selecionado ao clicar de novo
-      },
-      style: FilledButton.styleFrom(
-        backgroundColor: _activeBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(category, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(width: 8),
-          // usamos o ícone "ok" do custom_icons (orientação correta definida no SVG)
-          SvgIcon(svgString: CustomIcons.ok, size: 16, color: Colors.white),
-        ],
-      ),
-    );
-  }
-
-  void _showCreateProductModal(BuildContext context) {
-    // TODO: Implementar modal de criação de produto (criação de conteúdo digital)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funcionalidade em desenvolvimento'),
-        backgroundColor: _activeBlue,
-      ),
-    );
-  }
-
-  void _showProductDetails(BuildContext context, Map<String, dynamic> product) {
-    final isDark = context.read<ThemeProvider>().isDarkMode;
-    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(20),
-          ),
+          color: isSelected ? color : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Column(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-                    width: 1,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Detalhes do Item',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : textColor,
               ),
             ),
-            // Conteúdo
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (product['imageURL'] != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          product['imageURL'],
-                          width: double.infinity,
-                          height: 300,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(
-                      product['title'] ?? 'Sem título',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${product['price'] ?? '0'},00 Kz',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: _activeBlue,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Descrição',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      product['description'] ?? 'Sem descrição',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Implementar download/compra/contato para conteúdo digital
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _activeBlue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Contactar Vendedor',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.check,
+                size: 16,
+                color: Colors.white,
               ),
-            ),
+            ],
           ],
         ),
       ),
