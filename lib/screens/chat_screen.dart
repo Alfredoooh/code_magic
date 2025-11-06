@@ -28,31 +28,55 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String? _chatId;
+  bool _isInitializing = true;
 
   @override
   void initState() {
     super.initState();
-    _initializeChat();
     timeago.setLocaleMessages('pt_BR', timeago.PtBrMessages());
+    _initializeChat();
   }
 
   Future<void> _initializeChat() async {
-    final authProvider = context.read<AuthProvider>();
-    final currentUserId = authProvider.user?.uid;
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final currentUserId = authProvider.user?.uid;
 
-    if (currentUserId == null) return;
+      if (currentUserId == null) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
 
-    // Cria um ID único para o chat (sempre na mesma ordem)
-    final ids = [currentUserId, widget.recipientId]..sort();
-    _chatId = '${ids[0]}_${ids[1]}';
+      final ids = [currentUserId, widget.recipientId]..sort();
+      final chatId = '${ids[0]}_${ids[1]}';
 
-    // Cria o documento do chat se não existir
-    await FirebaseFirestore.instance.collection('chats').doc(_chatId).set({
-      'participants': ids,
-      'lastMessage': '',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'participants': ids,
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() {
+          _chatId = chatId;
+          _isInitializing = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao inicializar chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao inicializar chat: $e'),
+            backgroundColor: const Color(0xFFFA383E),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -60,42 +84,50 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final authProvider = context.read<AuthProvider>();
     final currentUserId = authProvider.user?.uid;
-    final currentUserName = authProvider.userData?['name'] ?? 'Você';
 
     if (currentUserId == null) return;
 
     final messageText = _messageController.text.trim();
     _messageController.clear();
 
-    // Adiciona a mensagem
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(_chatId)
-        .collection('messages')
-        .add({
-      'senderId': currentUserId,
-      'recipientId': widget.recipientId,
-      'text': messageText,
-      'createdAt': FieldValue.serverTimestamp(),
-      'isRead': false,
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(_chatId)
+          .collection('messages')
+          .add({
+        'senderId': currentUserId,
+        'recipientId': widget.recipientId,
+        'text': messageText,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
 
-    // Atualiza o último timestamp do chat
-    await FirebaseFirestore.instance.collection('chats').doc(_chatId).update({
-      'lastMessage': messageText,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-    });
+      await FirebaseFirestore.instance.collection('chats').doc(_chatId).update({
+        'lastMessage': messageText,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      });
 
-    // Scroll para o final
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Erro ao enviar mensagem: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar mensagem: $e'),
+            backgroundColor: const Color(0xFFFA383E),
+          ),
         );
       }
-    });
+    }
   }
 
   @override
@@ -193,8 +225,12 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _chatId == null
-                ? const Center(child: CircularProgressIndicator())
+            child: _isInitializing
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                    ),
+                  )
                 : StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('chats')
@@ -207,6 +243,15 @@ class _ChatScreenState extends State<ChatScreen> {
                         return const Center(
                           child: CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                          ),
+                        );
+                      }
+
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Erro ao carregar mensagens',
+                            style: TextStyle(color: textColor),
                           ),
                         );
                       }
