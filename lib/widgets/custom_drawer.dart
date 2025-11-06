@@ -1,14 +1,17 @@
 // lib/widgets/custom_drawer.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import 'custom_icons.dart';
 import 'new_post_modal.dart';
+import '../screens/messages_screen.dart';
+import '../screens/settings_screen.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
+
+  static const Color _activeBlue = Color(0xFF1877F2);
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +42,9 @@ class CustomDrawer extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: const Color(0xFF1877F2),
+                  backgroundColor: _activeBlue,
                   child: Text(
-                    authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
+                    (authProvider.userData?['name'] as String?)?.substring(0, 1).toUpperCase() ?? 'U',
                     style: const TextStyle(
                       fontSize: 28,
                       color: Colors.white,
@@ -88,10 +91,11 @@ class CustomDrawer extends StatelessWidget {
                   CustomIcons.inbox,
                   'Caixa de entrada',
                   () {
+                    // Fecha o drawer antes de navegar
                     Navigator.pop(context);
                     Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (context) => const Placeholder(), // Substitua pela MessagesScreen
+                      MaterialPageRoute(
+                        builder: (context) => const MessagesScreen(),
                       ),
                     );
                   },
@@ -121,8 +125,8 @@ class CustomDrawer extends StatelessWidget {
                   () {
                     Navigator.pop(context);
                     Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (context) => const Placeholder(), // Substitua pela SettingsScreen
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsScreen(),
                       ),
                     );
                   },
@@ -212,63 +216,55 @@ class CustomDrawer extends StatelessWidget {
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final subtitleColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
-    showCupertinoDialog(
+    showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(
-          'Terminar sessão?',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: textColor,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: bgColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text(
+            'Terminar sessão?',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
           ),
-        ),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Text(
+          content: Text(
             'Tem certeza que deseja sair da sua conta?',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               color: subtitleColor,
             ),
           ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancelar',
-              style: TextStyle(
-                color: CupertinoColors.activeBlue,
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: _activeBlue,
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
+              child: const Text('Cancelar'),
             ),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await authProvider.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login',
-                  (route) => false,
-                );
-              }
-            },
-            child: Text(
-              'Sair',
-              style: TextStyle(
-                color: CupertinoColors.destructiveRed,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await authProvider.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFA383E),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
+              child: const Text('Sair'),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }
