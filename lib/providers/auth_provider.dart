@@ -23,19 +23,19 @@ class AuthProvider with ChangeNotifier {
     _initializeAuth();
   }
 
-  // Inicializa autenticação e verifica sessão salva
   Future<void> _initializeAuth() async {
     try {
       await _checkLastActivity();
-      
-      // Listener para mudanças no estado de autenticação
+
       _auth.authStateChanges().listen((User? user) async {
         _user = user;
         if (user != null) {
           await _loadUserData();
+          await _setOnlineStatus(true);
           await _updateLastActivity();
           await _saveLoginState(true);
         } else {
+          await _setOnlineStatus(false);
           _userData = null;
           await _saveLoginState(false);
         }
@@ -47,7 +47,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Salva estado de login
   Future<void> _saveLoginState(bool isLoggedIn) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', isLoggedIn);
@@ -60,7 +59,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Verifica última atividade e desloga após 2 dias de inatividade
   Future<void> _checkLastActivity() async {
     final prefs = await SharedPreferences.getInstance();
     final lastActivity = prefs.getInt('lastActivity');
@@ -68,19 +66,40 @@ class AuthProvider with ChangeNotifier {
 
     if (lastActivity != null && isLoggedIn) {
       final now = DateTime.now().millisecondsSinceEpoch;
-      final twoDays = 2 * 24 * 60 * 60 * 1000; // 2 dias em milissegundos
+      final twoDays = 2 * 24 * 60 * 60 * 1000;
 
       if (now - lastActivity > twoDays) {
-        // Logout automático após 2 dias de inatividade
         await signOut();
       }
     }
   }
 
-  // Atualiza última atividade
   Future<void> _updateLastActivity() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('lastActivity', DateTime.now().millisecondsSinceEpoch);
+    
+    if (_user != null) {
+      try {
+        await _firestore.collection('users').doc(_user!.uid).update({
+          'lastActive': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Erro ao atualizar lastActive: $e');
+      }
+    }
+  }
+
+  Future<void> _setOnlineStatus(bool isOnline) async {
+    if (_user == null) return;
+
+    try {
+      await _firestore.collection('users').doc(_user!.uid).update({
+        'isOnline': isOnline,
+        'lastActive': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Erro ao atualizar status online: $e');
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -142,7 +161,6 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
 
-      // Gera código OTP inicial
       final otpCode = _generateOTP();
 
       await _firestore.collection('users').doc(credential.user!.uid).set({
@@ -166,6 +184,7 @@ class AuthProvider with ChangeNotifier {
         'otpEnabled': true,
         'otpCode': otpCode,
         'emailVerified': false,
+        'isOnline': true,
         'createdAt': FieldValue.serverTimestamp(),
         'lastActive': FieldValue.serverTimestamp(),
         'postsCount': 0,
@@ -246,13 +265,15 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Logout e limpeza de dados salvos
   Future<void> signOut() async {
+    await _setOnlineStatus(false);
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('lastActivity');
     await prefs.remove('isLoggedIn');
     await prefs.remove('user_uid');
     await prefs.remove('user_email');
+    
     await _auth.signOut();
     _userData = null;
     notifyListeners();
@@ -309,6 +330,7 @@ class AuthProvider with ChangeNotifier {
 
     await _firestore.collection('users').doc(_user!.uid).update({
       'lastActive': FieldValue.serverTimestamp(),
+      'isOnline': true,
     });
     await _updateLastActivity();
   }
