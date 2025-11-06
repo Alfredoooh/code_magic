@@ -1,4 +1,3 @@
-// lib/providers/auth_provider.dart
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,7 +24,19 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> _initializeAuth() async {
     try {
+      _user = _auth.currentUser;
+      
       await _checkLastActivity();
+
+      if (_user != null) {
+        await _loadUserData();
+        await _setOnlineStatus(true);
+        await _updateLastActivity();
+        await _saveLoginState(true);
+      }
+
+      _isInitialized = true;
+      notifyListeners();
 
       _auth.authStateChanges().listen((User? user) async {
         _user = user;
@@ -41,51 +52,60 @@ class AuthProvider with ChangeNotifier {
         }
         notifyListeners();
       });
-    } finally {
+    } catch (e) {
+      debugPrint('Erro na inicialização: $e');
       _isInitialized = true;
       notifyListeners();
     }
   }
 
   Future<void> _saveLoginState(bool isLoggedIn) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', isLoggedIn);
-    if (isLoggedIn && _user != null) {
-      await prefs.setString('user_uid', _user!.uid);
-      await prefs.setString('user_email', _user!.email ?? '');
-    } else {
-      await prefs.remove('user_uid');
-      await prefs.remove('user_email');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', isLoggedIn);
+      if (isLoggedIn && _user != null) {
+        await prefs.setString('user_uid', _user!.uid);
+        await prefs.setString('user_email', _user!.email ?? '');
+      } else {
+        await prefs.remove('user_uid');
+        await prefs.remove('user_email');
+      }
+    } catch (e) {
+      debugPrint('Erro ao salvar estado de login: $e');
     }
   }
 
   Future<void> _checkLastActivity() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastActivity = prefs.getInt('lastActivity');
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastActivity = prefs.getInt('lastActivity');
+      final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
-    if (lastActivity != null && isLoggedIn) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final twoDays = 2 * 24 * 60 * 60 * 1000;
+      if (lastActivity != null && isLoggedIn) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final twoDays = 2 * 24 * 60 * 60 * 1000;
 
-      if (now - lastActivity > twoDays) {
-        await signOut();
+        if (now - lastActivity > twoDays) {
+          await signOut();
+        }
       }
+    } catch (e) {
+      debugPrint('Erro ao verificar última atividade: $e');
     }
   }
 
   Future<void> _updateLastActivity() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('lastActivity', DateTime.now().millisecondsSinceEpoch);
-    
-    if (_user != null) {
-      try {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('lastActivity', DateTime.now().millisecondsSinceEpoch);
+
+      if (_user != null) {
         await _firestore.collection('users').doc(_user!.uid).update({
           'lastActive': FieldValue.serverTimestamp(),
         });
-      } catch (e) {
-        debugPrint('Erro ao atualizar lastActive: $e');
       }
+    } catch (e) {
+      debugPrint('Erro ao atualizar lastActive: $e');
     }
   }
 
@@ -267,13 +287,13 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> signOut() async {
     await _setOnlineStatus(false);
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('lastActivity');
     await prefs.remove('isLoggedIn');
     await prefs.remove('user_uid');
     await prefs.remove('user_email');
-    
+
     await _auth.signOut();
     _userData = null;
     notifyListeners();
