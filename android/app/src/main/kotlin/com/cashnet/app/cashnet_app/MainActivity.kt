@@ -1,4 +1,4 @@
-package com.cahsnet.app
+package com.cashnet.app.cashnet_app
 
 import io.flutter.embedding.android.FlutterActivity
 
