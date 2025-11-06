@@ -7,6 +7,7 @@ class CustomTextField extends StatelessWidget {
   final String hintText;
   final bool obscureText;
   final TextInputType? keyboardType;
+  final Widget? prefixIcon; // ADICIONADO
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
   final bool isDark;
@@ -20,6 +21,7 @@ class CustomTextField extends StatelessWidget {
     required this.hintText,
     this.obscureText = false,
     this.keyboardType,
+    this.prefixIcon, // ADICIONADO
     this.suffixIcon,
     this.validator,
     required this.isDark,
@@ -37,6 +39,16 @@ class CustomTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Mostra o label acima do campo (mantém coerência com a propriedade required)
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           obscureText: obscureText,
@@ -55,6 +67,7 @@ class CustomTextField extends StatelessWidget {
             ),
             filled: true,
             fillColor: bgColor,
+            prefixIcon: prefixIcon, // usa o prefixIcon recebido
             suffixIcon: suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(borderRadius),
