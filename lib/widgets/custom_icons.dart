@@ -137,6 +137,13 @@ class CustomIcons {
 </svg>
 ''';
 
+  // Reintroduzido: ícone "ok" (check) — pequeno, limpo; controlas a cor via SvgIcon.color
+  static const String ok = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path fill-rule="evenodd" d="M9.72 15.78a.75.75 0 01-1.06-1.06l2.56-2.56a.75.75 0 011.06 0l4.06 4.06a.75.75 0 11-1.06 1.06l-3.53-3.53-2.09 2.09z" clip-rule="evenodd"/>
+</svg>
+''';
+
   // Novo ícone de erro — adicionado sem alterar nenhum ícone existente
   static const String errorIcon = '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -163,9 +170,7 @@ class SvgIcon extends StatelessWidget {
       svgString,
       width: size ?? 24,
       height: size ?? 24,
-      colorFilter: color != null
-          ? ColorFilter.mode(color!, BlendMode.srcIn)
-          : null,
+      colorFilter: color != null ? ColorFilter.mode(color!, BlendMode.srcIn) : null,
     );
   }
 }
