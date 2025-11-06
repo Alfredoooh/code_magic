@@ -24,8 +24,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
-  // Animation controller para o efeito de deslize do drawer
+
+  // Animation controller para o efeito de deslize do drawer (estilo iOS)
   late AnimationController _drawerSlideController;
   late Animation<Offset> _drawerSlideAnimation;
 
@@ -38,13 +38,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.initState();
     _drawerSlideController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 300),
     );
-    
-    // Animação de deslize para a direita (efeito iOS)
+
+    // Animação de deslize para a direita (efeito iOS - empurra a tela)
     _drawerSlideAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(0.6, 0), // Desliza 60% para a direita
+      end: const Offset(0.75, 0), // Empurra 75% para a direita
     ).animate(CurvedAnimation(
       parent: _drawerSlideController,
       curve: Curves.easeOut,
@@ -109,88 +109,109 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       },
       body: Stack(
         children: [
-          // Conteúdo principal com animação de deslize
-          SlideTransition(
-            position: _drawerSlideAnimation,
-            child: Column(
-              children: [
-                // AppBar customizado
-                Container(
-                  color: bgColor,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 56,
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
-                                onPressed: _toggleDrawer,
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                onPressed: () => _showNewPostModal(context),
-                              ),
-                              IconButton(
-                                icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                onPressed: () => Navigator.of(context).push(
-                                  CupertinoPageRoute(builder: (_) => SearchScreen()),
+          // Conteúdo principal com animação de deslize horizontal (estilo iOS)
+          AnimatedBuilder(
+            animation: _drawerSlideController,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
+                  0,
+                ),
+                child: Transform.scale(
+                  scale: 1.0 - (0.05 * _drawerSlideController.value), // Reduz levemente
+                  child: child,
+                ),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20 * _drawerSlideController.value),
+              child: Column(
+                children: [
+                  // AppBar customizado
+                  Container(
+                    color: bgColor,
+                    child: SafeArea(
+                      bottom: false,
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 56,
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
+                                  onPressed: _toggleDrawer,
                                 ),
-                              ),
-                              IconButton(
-                                icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                onPressed: () => Navigator.of(context).push(
-                                  CupertinoPageRoute(builder: (_) => MessagesScreen()),
+                                const Spacer(),
+                                IconButton(
+                                  icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
+                                  onPressed: () => _showNewPostModal(context),
                                 ),
-                              ),
-                            ],
+                                IconButton(
+                                  icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                  onPressed: () => Navigator.of(context).push(
+                                    CupertinoPageRoute(builder: (_) => const SearchScreen()),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                  onPressed: () => Navigator.of(context).push(
+                                    CupertinoPageRoute(builder: (_) => const MessagesScreen()),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        Container(
-                          color: topBorderColor,
-                          height: 0.5,
-                        ),
-                      ],
+                          Container(
+                            color: topBorderColor,
+                            height: 0.5,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                // Body
-                Expanded(
-                  child: IndexedStack(
-                    index: _currentIndex,
-                    children: List.generate(4, (i) => _getPage(i)),
+                  // Body
+                  Expanded(
+                    child: IndexedStack(
+                      index: _currentIndex,
+                      children: List.generate(4, (i) => _getPage(i)),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
           // Overlay escuro quando o drawer está aberto
-          if (_drawerSlideController.value > 0)
-            GestureDetector(
-              onTap: _toggleDrawer,
-              child: AnimatedBuilder(
-                animation: _drawerSlideController,
-                builder: (context, child) {
-                  return IgnorePointer(
-                    ignoring: _drawerSlideController.value == 0,
-                    child: Container(
-                      color: Colors.black.withOpacity(0.4 * _drawerSlideController.value),
-                    ),
-                  );
-                },
-              ),
-            ),
+          AnimatedBuilder(
+            animation: _drawerSlideController,
+            builder: (context, child) {
+              if (_drawerSlideController.value == 0) return const SizedBox.shrink();
+              return GestureDetector(
+                onTap: _toggleDrawer,
+                child: Container(
+                  color: Colors.black.withOpacity(0.4 * _drawerSlideController.value),
+                ),
+              );
+            },
+          ),
         ],
       ),
 
-      // Floating TabBar com bordas totalmente curvas
-      bottomNavigationBar: SlideTransition(
-        position: _drawerSlideAnimation,
+      // Floating TabBar com bordas totalmente curvas (também desliza)
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _drawerSlideController,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(
+              MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
+              0,
+            ),
+            child: child,
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Container(
