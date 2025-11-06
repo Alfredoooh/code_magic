@@ -18,7 +18,7 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isEditing = false;
   bool _isChangingPassword = false;
-  
+
   final _nameController = TextEditingController();
   final _nicknameController = TextEditingController();
   final _bioController = TextEditingController();
@@ -30,7 +30,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final _phoneController = TextEditingController();
   final _photoUrlController = TextEditingController();
   final _coverPhotoUrlController = TextEditingController();
-  
+
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -83,13 +83,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (image != null) {
         final bytes = await image.readAsBytes();
         final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        
+
         if (isCoverPhoto) {
           _coverPhotoUrlController.text = base64Image;
         } else {
           _photoUrlController.text = base64Image;
         }
-        
+
         setState(() {});
       }
     } catch (e) {
@@ -103,7 +103,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _saveProfile() async {
     final authProvider = context.read<AuthProvider>();
-    
+
     try {
       await authProvider.updateProfile(
         displayName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
@@ -122,7 +122,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         setState(() {
           _isEditing = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Perfil atualizado com sucesso'),
@@ -157,7 +157,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     try {
       final authProvider = context.read<AuthProvider>();
       // TODO: Implementar mudança de senha com reautenticação
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Funcionalidade de mudança de senha em desenvolvimento'),
@@ -182,7 +182,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     final userData = authProvider.userData;
-    
+
     if (!_isEditing && userData != null) {
       _loadUserData(userData);
     }
@@ -446,27 +446,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     const SizedBox(height: 16),
                     _buildInfoRow('Data de nascimento', userData?['birthDate'] ?? '-', textColor, hintColor),
                   ],
-                  if (userData?['bio'] != null && userData?['bio'].toString().isNotEmpty) ...[
+                  if (userData?['bio'] != null && (userData?['bio'].toString().isNotEmpty == true)) ...[
                     const SizedBox(height: 16),
                     _buildInfoRow('Bio', userData?['bio'] ?? '-', textColor, hintColor),
                   ],
-                  if (userData?['school'] != null && userData?['school'].toString().isNotEmpty) ...[
+                  if (userData?['school'] != null && (userData?['school'].toString().isNotEmpty == true)) ...[
                     const SizedBox(height: 16),
                     _buildInfoRow('Escola/Instituição', userData?['school'] ?? '-', textColor, hintColor),
                   ],
-                  if (userData?['address'] != null && userData?['address'].toString().isNotEmpty) ...[
+                  if (userData?['address'] != null && (userData?['address'].toString().isNotEmpty == true)) ...[
                     const SizedBox(height: 16),
                     _buildInfoRow('Endereço', userData?['address'] ?? '-', textColor, hintColor),
                   ],
-                  if (userData?['city'] != null && userData?['city'].toString().isNotEmpty) ...[
+                  if (userData?['city'] != null && (userData?['city'].toString().isNotEmpty == true)) ...[
                     const SizedBox(height: 16),
                     _buildInfoRow('Cidade', userData?['city'] ?? '-', textColor, hintColor),
                   ],
-                  if (userData?['state'] != null && userData?['state'].toString().isNotEmpty) ...[
+                  if (userData?['state'] != null && (userData?['state'].toString().isNotEmpty == true)) ...[
                     const SizedBox(height: 16),
                     _buildInfoRow('Estado', userData?['state'] ?? '-', textColor, hintColor),
                   ],
-                  if (userData?['country'] != null && userData?['country'].toString().isNotEmpty) ...[
+                  if (userData?['country'] != null && (userData?['country'].toString().isNotEmpty == true)) ...[
                     const SizedBox(height: 16),
                     _buildInfoRow('País', userData?['country'] ?? '-', textColor, hintColor),
                   ],
