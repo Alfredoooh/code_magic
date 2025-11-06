@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/custom_icons.dart';
 import 'marketplace/add_book_screen.dart';
 import 'marketplace/book_details_screen.dart';
 
@@ -18,18 +19,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String selectedCategory = 'Todos';
 
   final List<Map<String, dynamic>> categories = [
-    {'name': 'Todos', 'color': Color(0xFF1877F2)},
-    {'name': 'Ficção', 'color': Color(0xFFE91E63)},
-    {'name': 'Não-Ficção', 'color': Color(0xFF9C27B0)},
-    {'name': 'Acadêmico', 'color': Color(0xFF2196F3)},
-    {'name': 'Técnico', 'color': Color(0xFF00BCD4)},
-    {'name': 'Infantil', 'color': Color(0xFFFF9800)},
-    {'name': 'Romance', 'color': Color(0xFFF44336)},
-    {'name': 'Biografia', 'color': Color(0xFF4CAF50)},
-    {'name': 'História', 'color': Color(0xFF795548)},
-    {'name': 'Ciência', 'color': Color(0xFF3F51B5)},
-    {'name': 'Autoajuda', 'color': Color(0xFFFF5722)},
-    {'name': 'Poesia', 'color': Color(0xFF673AB7)},
+    {'name': 'Todos', 'icon': CustomIcons.globe},
+    {'name': 'Ficção', 'icon': CustomIcons.bookOpen},
+    {'name': 'Não-Ficção', 'icon': CustomIcons.document},
+    {'name': 'Acadêmico', 'icon': CustomIcons.academicCap},
+    {'name': 'Técnico', 'icon': CustomIcons.cog},
+    {'name': 'Infantil', 'icon': CustomIcons.star},
+    {'name': 'Romance', 'icon': CustomIcons.heart},
+    {'name': 'Biografia', 'icon': CustomIcons.userCircle},
+    {'name': 'História', 'icon': CustomIcons.clock},
+    {'name': 'Ciência', 'icon': CustomIcons.beaker},
+    {'name': 'Autoajuda', 'icon': CustomIcons.lightBulb},
+    {'name': 'Poesia', 'icon': CustomIcons.sparkles},
   ];
 
   @override
@@ -41,6 +42,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+
+    final bool canAddBook = authProvider.userData?['isPro'] == true || 
+                            authProvider.userData?['isPremium'] == true;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -63,13 +67,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                   ),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AddBookScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: canAddBook
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AddBookScreen(),
+                              ),
+                            );
+                          }
+                        : () {
+                            _showProRequiredDialog(context, isDark, textColor, hintColor);
+                          },
                     icon: const Icon(Icons.add, size: 20),
                     label: const Text('Adicionar'),
                     style: ElevatedButton.styleFrom(
@@ -109,7 +117,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: _buildCategoryChip(
                         category['name'],
-                        category['color'],
+                        category['icon'],
                         isSelected,
                         isDark,
                         textColor,
@@ -326,11 +334,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildCategoryChip(
     String name,
-    Color color,
+    String iconSvg,
     bool isSelected,
     bool isDark,
     Color textColor,
   ) {
+    const blueColor = Color(0xFF1877F2);
+    
     return GestureDetector(
       onTap: () {
         setState(() => selectedCategory = name);
@@ -338,12 +348,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? color : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+          color: isSelected ? blueColor : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SvgIcon(
+              svgString: iconSvg,
+              color: isSelected ? Colors.white : blueColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
             Text(
               name,
               style: TextStyle(
@@ -352,16 +368,77 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 color: isSelected ? Colors.white : textColor,
               ),
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.check,
-                size: 16,
-                color: Colors.white,
-              ),
-            ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showProRequiredDialog(BuildContext context, bool isDark, Color textColor, Color hintColor) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1877F2).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.workspace_premium,
+                color: Color(0xFF1877F2),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Recurso Pro',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apenas usuários Pro ou Premium podem adicionar livros ao Marketplace. Atualize sua conta para desbloquear este recurso!',
+          style: TextStyle(
+            color: hintColor,
+            fontSize: 15,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Entendi',
+              style: TextStyle(
+                color: hintColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Navegar para tela de upgrade (implementar depois)
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1877F2),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Ver Planos'),
+          ),
+        ],
       ),
     );
   }
