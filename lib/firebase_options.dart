@@ -3,6 +3,16 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
+/// Default [FirebaseOptions] for use with your Firebase apps.
+///
+/// Example:
+/// ```dart
+/// import 'firebase_options.dart';
+/// // ...
+/// await Firebase.initializeApp(
+///   options: DefaultFirebaseOptions.currentPlatform,
+/// );
+/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -36,32 +46,29 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAyaGnNyc2tfV8hoQ6Pr4VM25iinM70AUM',
-    appId: '1:557234773917:web:23702e6673d73d58835974',
-    messagingSenderId: '557234773917',
-    projectId: 'chat00-7f1b1',
-    authDomain: 'chat00-7f1b1.firebaseapp.com',
-    storageBucket: 'chat00-7f1b1.appspot.com',
-    measurementId: 'G-ZZKGKF1QN5',
-    databaseURL: 'https://chat00-7f1b1-default-rtdb.firebaseio.com',
+    apiKey: 'AIzaSyC5U9dqsap6vJY0MF1RWuYMt83b2ezb6t0',
+    appId: '1:329928312757:web:dc728da51e4c4cea3abbfc',
+    messagingSenderId: '329928312757',
+    projectId: 'delta-182c8',
+    authDomain: 'delta-182c8.firebaseapp.com',
+    storageBucket: 'delta-182c8.firebasestorage.app',
+    measurementId: 'G-PCLWXJHCBT',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAyaGnNyc2tfV8hoQ6Pr4VM25iinM70AUM',
-    appId: '1:557234773917:android:XXXXXXXXXXXXXXXX',
-    messagingSenderId: '557234773917',
-    projectId: 'chat00-7f1b1',
-    storageBucket: 'chat00-7f1b1.appspot.com',
-    databaseURL: 'https://chat00-7f1b1-default-rtdb.firebaseio.com',
+    apiKey: 'AIzaSyC5U9dqsap6vJY0MF1RWuYMt83b2ezb6t0',
+    appId: '1:329928312757:android:XXXXXXXXXXXXXXXX', // Substitua pelo App ID Android correto
+    messagingSenderId: '329928312757',
+    projectId: 'delta-182c8',
+    storageBucket: 'delta-182c8.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAyaGnNyc2tfV8hoQ6Pr4VM25iinM70AUM',
-    appId: '1:557234773917:ios:XXXXXXXXXXXXXXXX',
-    messagingSenderId: '557234773917',
-    projectId: 'chat00-7f1b1',
-    storageBucket: 'chat00-7f1b1.appspot.com',
-    databaseURL: 'https://chat00-7f1b1-default-rtdb.firebaseio.com',
-    iosBundleId: 'com.example.cashnet',
+    apiKey: 'AIzaSyC5U9dqsap6vJY0MF1RWuYMt83b2ezb6t0',
+    appId: '1:329928312757:ios:XXXXXXXXXXXXXXXX', // Substitua pelo App ID iOS correto
+    messagingSenderId: '329928312757',
+    projectId: 'delta-182c8',
+    storageBucket: 'delta-182c8.firebasestorage.app',
+    iosBundleId: 'com.example.printerlite', // Substitua pelo seu Bundle ID correto
   );
 }
