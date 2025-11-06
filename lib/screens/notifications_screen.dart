@@ -49,26 +49,58 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // Header fixo com segmento + botão Adicionar
-          SliverPersistentHeader(
+          // AppBar material consistente com users_screen
+          SliverAppBar(
             pinned: true,
-            delegate: _NotificationsHeaderDelegate(
-              height: 92,
-              backgroundColor: cardColor,
-              dividerColor: dividerColor,
-              iconColor: iconColor,
-              textColor: textColor,
-              selectedSegment: _selectedSegment,
-              onSegmentChanged: (i) => setState(() => _selectedSegment = i),
-              onAddPressed: () {
-                // Reutiliza o comportamento do marketplace adicionar
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Funcionalidade em desenvolvimento'),
-                    backgroundColor: _activeBlue,
+            backgroundColor: cardColor,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            title: Row(
+              children: [
+                SvgIcon(svgString: CustomIcons.bell, color: iconColor, size: 28),
+                const SizedBox(width: 12),
+                // Título + pequenos segmentos alinhados à direita do título
+                Flexible(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Notificações',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Segment control compacto (sem botão adicionar)
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: dividerColor, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _segmentButton(label: 'Misto', index: 0, active: _selectedSegment == 0, textColor: textColor),
+                            const SizedBox(width: 6),
+                            _segmentButton(label: 'Lidos', index: 1, active: _selectedSegment == 1, textColor: textColor),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
+                ),
+              ],
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(
+                color: dividerColor,
+                height: 0.5,
+              ),
             ),
           ),
 
@@ -83,7 +115,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // usa o ícone de erro do custom icons
-                        SvgIcon(svgString: CustomIcons.errorIcon, size: 72, color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA)),
+                        SvgIcon(
+                          svgString: CustomIcons.errorIcon,
+                          size: 72,
+                          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Erro ao carregar notificações',
@@ -163,7 +199,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     final createdAt = data['createdAt'] as Timestamp?;
 
                     String notificationText = '';
-                    String notificationSemantic = '';
                     IconData fallbackIcon = Icons.notifications;
                     Color notificationColor = _activeBlue;
 
@@ -271,34 +306,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                               const SizedBox(width: 8),
 
-                              // Actions:
+                              // Status column: sem "aprovar" — apenas indicador de não-lido
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  // Se for pedido de follow, mostrar "Aprovar" que nunca muda de cor
-                                  if (type == 'follow_request') ...[
-                                    SizedBox(
-                                      height: 36,
-                                      child: ElevatedButton(
-                                        onPressed: () async {
-                                          // exemplo de ação: aceitar follow (implementar lógica real)
-                                          // mantém sempre mesma cor independente do tema
-                                          await FirebaseFirestore.instance.collection('notifications').doc(notificationDoc.id).update({'isRead': true});
-                                          // TODO: adicionar follow logic
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: _activeBlue, // nunca muda
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                          elevation: 0,
+                                  // Mostra apenas um rótulo para pedidos (sem ação)
+                                  if (type == 'follow_request')
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF2F3336) : const Color(0xFFF5F7FB),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Pedido',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: textColor,
                                         ),
-                                        child: const Text('Aprovar', style: TextStyle(fontWeight: FontWeight.w700)),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                  ],
-
+                                  if (type != 'follow_request') const SizedBox(height: 0),
+                                  const SizedBox(height: 8),
                                   // Indicador de não lido — pequeno ponto (se não lido)
                                   if (!isRead)
                                     Container(
@@ -323,135 +353,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-}
 
-// Delegate para header fixo com segmentos e botão adicionar
-class _NotificationsHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double height;
-  final Color backgroundColor;
-  final Color dividerColor;
-  final Color iconColor;
-  final Color textColor;
-  final int selectedSegment;
-  final ValueChanged<int> onSegmentChanged;
-  final VoidCallback onAddPressed;
-
-  const _NotificationsHeaderDelegate({
-    required this.height,
-    required this.backgroundColor,
-    required this.dividerColor,
-    required this.iconColor,
-    required this.textColor,
-    required this.selectedSegment,
-    required this.onSegmentChanged,
-    required this.onAddPressed,
-  });
-
-  static const Color _activeBlue = Color(0xFF1877F2);
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    // Segment buttons style (iOS-like)
-    Widget _segmentButton(String label, int index) {
-      final bool active = selectedSegment == index;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => onSegmentChanged(index),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: active ? _activeBlue : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? Colors.white : textColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+  // compact segment button usado no AppBar
+  Widget _segmentButton({
+    required String label,
+    required int index,
+    required bool active,
+    required Color textColor,
+  }) {
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSegment = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? _activeBlue : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
         ),
-      );
-    }
-
-    return Container(
-      color: backgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // linha 1: ícone + título
-            Row(
-              children: [
-                SvgIcon(svgString: CustomIcons.bell, color: iconColor, size: 28),
-                const SizedBox(width: 12),
-                Text('Notificações', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: textColor)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // linha 2: segmentos + botão adicionar
-            Row(
-              children: [
-                // container background to emulate segmented control border
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: backgroundColor,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: dividerColor, width: 1),
-                    ),
-                    child: Row(
-                      children: [
-                        _segmentButton('Misto', 0),
-                        const SizedBox(width: 6),
-                        _segmentButton('Lidos', 1),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // botão adicionar (igual ao marketplace)
-                SizedBox(
-                  height: 40,
-                  child: FilledButton(
-                    onPressed: onAddPressed,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _activeBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Adicionar', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-            // divider visual (fina)
-            const SizedBox(height: 8),
-            Container(height: 0.5, color: dividerColor),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white : textColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
-  }
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  double get minExtent => height;
-
-  @override
-  bool shouldRebuild(covariant _NotificationsHeaderDelegate oldDelegate) {
-    return oldDelegate.selectedSegment != selectedSegment ||
-        oldDelegate.backgroundColor != backgroundColor ||
-        oldDelegate.dividerColor != dividerColor;
   }
 }
