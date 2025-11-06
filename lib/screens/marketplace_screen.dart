@@ -44,24 +44,57 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // Header fixo (não altera cor ao deslizar)
-          SliverPersistentHeader(
+          // AppBar no mesmo formato do users_screen.dart (fixo)
+          SliverAppBar(
             pinned: true,
-            delegate: _MarketplaceHeaderDelegate(
-              height: 72,
-              backgroundColor: cardColor,
-              dividerColor: dividerColor,
-              iconColor: iconColor,
-              textColor: textColor,
-              onAddPressed: () => _showCreateProductModal(context),
+            backgroundColor: cardColor,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            title: Row(
+              children: [
+                SvgIcon(svgString: CustomIcons.marketplace, color: iconColor, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Marketplace',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+              ],
             ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(
+                color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                height: 0.5,
+              ),
+            ),
+            actions: [
+              // botão adicionar textual aqui também (mantém consistência)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: FilledButton(
+                  onPressed: () => _showCreateProductModal(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _activeBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Adicionar', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
           ),
 
           // Categorias como toggles (Filled / Filled.tonal)
           SliverToBoxAdapter(
             child: Container(
               color: bgColor,
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -70,7 +103,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     final bool isSelected = selectedCategory == category;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: isSelected ? _buildActiveCategoryButton(category) : _buildTonalCategoryButton(category),
+                      child: isSelected
+                          ? _buildActiveCategoryButton(category, isDark)
+                          : _buildTonalCategoryButton(category, isDark),
                     );
                   }).toList(),
                 ),
@@ -97,9 +132,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
+                        // usa o ícone de erro do custom icons
+                        SvgIcon(
+                          svgString: CustomIcons.errorIcon,
+                          size: 72,
                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
                         ),
                         const SizedBox(height: 16),
@@ -134,8 +170,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.insert_drive_file_outlined,
+                        SvgIcon(
+                          svgString: CustomIcons.document,
                           size: 80,
                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
                         ),
@@ -269,29 +305,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   // botão tonal (não activo)
-  Widget _buildTonalCategoryButton(String category) {
+  Widget _buildTonalCategoryButton(String category, bool isDark) {
+    final bg = isDark ? const Color(0xFF2D3236) : const Color(0xFFF0F2F5);
+    final labelColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+
     return FilledButton.tonal(
       onPressed: () {
         setState(() => selectedCategory = category);
       },
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.transparent, // tonal will use theme; keep neutral
+        // tonal: usamos uma cor neutra próxima ao card para "tonal" visual consistente
+        backgroundColor: bg,
+        foregroundColor: labelColor,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       child: Text(
         category,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+        style: TextStyle(fontWeight: FontWeight.w600, color: labelColor),
       ),
     );
   }
 
-  // botão activo (filled)
-  Widget _buildActiveCategoryButton(String category) {
+  // botão activo (filled) com check no final (CustomIcons.ok)
+  Widget _buildActiveCategoryButton(String category, bool isDark) {
     return FilledButton(
       onPressed: () {
-        // se clicar novamente mantém
+        // mantém selecionado ao clicar de novo
       },
       style: FilledButton.styleFrom(
         backgroundColor: _activeBlue,
@@ -305,7 +346,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         children: [
           Text(category, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(width: 8),
-          // usamos o ícone "ok" do custom_icons
+          // usamos o ícone "ok" do custom_icons (orientação correta definida no SVG)
           SvgIcon(svgString: CustomIcons.ok, size: 16, color: Colors.white),
         ],
       ),
@@ -455,82 +496,5 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
       ),
     );
-  }
-}
-
-// Delegate para header fixo (não muda de cor ao deslizar)
-class _MarketplaceHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double height;
-  final Color backgroundColor;
-  final Color dividerColor;
-  final Color iconColor;
-  final Color textColor;
-  final VoidCallback onAddPressed;
-
-  const _MarketplaceHeaderDelegate({
-    required this.height,
-    required this.backgroundColor,
-    required this.dividerColor,
-    required this.iconColor,
-    required this.textColor,
-    required this.onAddPressed,
-  });
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: backgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.center,
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          children: [
-            SvgIcon(svgString: CustomIcons.marketplace, color: iconColor, size: 28),
-            const SizedBox(width: 12),
-            Text(
-              'Marketplace',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-              ),
-            ),
-            const Spacer(),
-            // Botão de adicionar textual — preenchido azul
-            FilledButton(
-              onPressed: onAddPressed,
-              style: FilledButton.styleFrom(
-                backgroundColor: _MarketplaceHeaderDelegate._activeBlueStatic,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                elevation: 0,
-              ),
-              child: const Text('Adicionar', style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
-      ),
-      // borda inferior
-      // (a cor do divider é aplicada por fora do SafeArea)
-    );
-  }
-
-  // cor estática acessível para o botão (mantida aqui para encapsular)
-  static const Color _activeBlueStatic = Color(0xFF1877F2);
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  double get minExtent => height;
-
-  @override
-  bool shouldRebuild(covariant _MarketplaceHeaderDelegate oldDelegate) {
-    return oldDelegate.backgroundColor != backgroundColor ||
-        oldDelegate.dividerColor != dividerColor ||
-        oldDelegate.iconColor != iconColor ||
-        oldDelegate.textColor != textColor;
   }
 }
