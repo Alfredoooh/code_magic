@@ -136,6 +136,13 @@ class CustomIcons {
   <path d="M6.75 12c0-.619.107-1.213.304-1.764l-3.1-3.1a11.25 11.25 0 00-2.63 4.31c-.12.362-.12.752 0 1.114 1.489 4.467 5.704 7.69 10.675 7.69 1.5 0 2.933-.294 4.242-.827l-2.477-2.477A5.25 5.25 0 016.75 12z" />
 </svg>
 ''';
+
+  // Novo ícone de erro — adicionado sem alterar nenhum ícone existente
+  static const String errorIcon = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path fill-rule="evenodd" d="M12 2a10 10 0 100 20 10 10 0 000-20zM11.25 7.5a.75.75 0 011.5 0v6a.75.75 0 01-1.5 0v-6zM12 16.5a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"/>
+</svg>
+''';
 }
 
 class SvgIcon extends StatelessWidget {
