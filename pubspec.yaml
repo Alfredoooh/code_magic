@@ -12,47 +12,47 @@ dependencies:
     sdk: flutter
 
   # WebView
-  webview_flutter: ^4.10.0
-  webview_flutter_web: ^0.2.4+1
-  webview_flutter_android: ^3.16.10
-  webview_flutter_wkwebview: ^3.16.1
+  webview_flutter: any
+  webview_flutter_web: any
+  webview_flutter_android: any
+  webview_flutter_wkwebview: any
 
   # Firebase
-  firebase_core: ^3.8.1
-  firebase_auth: ^5.3.4
-  cloud_firestore: ^5.5.4
-  firebase_database: ^11.3.5
+  firebase_core: any
+  firebase_auth: any
+  cloud_firestore: any
+  firebase_database: any
 
   # State Management
-  provider: ^6.1.2
+  provider: any
 
   # Image Handling
-  image_picker: ^1.1.2
-  cached_network_image: ^3.4.1
-  image: ^4.2.0
-  flutter_cache_manager: ^3.4.1
-  http: ^1.2.2
+  image_picker: any
+  cached_network_image: any
+  image: any
+  flutter_cache_manager: any
+  http: any
 
   # Video players
-  youtube_player_flutter: ^9.0.4
-  youtube_player_iframe: ^5.2.2
+  youtube_player_flutter: any
+  youtube_player_iframe: any
 
   # UI
-  cupertino_icons: ^1.0.8
-  google_fonts: ^6.2.1
-  flutter_svg: ^2.0.10+1
+  cupertino_icons: any
+  google_fonts: any
+  flutter_svg: any
 
   # Utils
-  intl: ^0.19.0
-  shared_preferences: ^2.3.3
-  timeago: ^3.7.0
-  url_launcher: ^6.3.1
-  flutter_linkify: ^6.0.0
+  intl: any
+  shared_preferences: any
+  timeago: any
+  url_launcher: any
+  flutter_linkify: any
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: any
 
 flutter:
   uses-material-design: true
