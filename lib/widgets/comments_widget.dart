@@ -2,15 +2,17 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/post_model.dart';
+import 'custom_icons.dart';
 
 class CommentsWidget extends StatefulWidget {
   final String postId;
   final bool isNews;
-  
+
   const CommentsWidget({
     super.key,
     required this.postId,
@@ -29,7 +31,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
     final auth = context.watch<AuthProvider>();
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final uid = auth.user?.uid;
-    
+
     final bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666);
@@ -53,7 +55,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                 ),
               );
             }
-            
+
             if (!snapshot.hasData) {
               return const Center(
                 child: Padding(
@@ -62,19 +64,23 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                 ),
               );
             }
-            
+
             final docs = snapshot.data!.docs;
-            
+
             if (docs.isEmpty) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.comment_outlined,
-                        size: 48,
-                        color: secondaryColor.withOpacity(0.5),
+                      SvgPicture.string(
+                        CustomIcons.commentOutlined,
+                        width: 48,
+                        height: 48,
+                        colorFilter: ColorFilter.mode(
+                          secondaryColor.withOpacity(0.5),
+                          BlendMode.srcIn,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -98,7 +104,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                 ),
               );
             }
-            
+
             return ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -110,7 +116,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
               itemBuilder: (context, index) {
                 final d = docs[index];
                 final comment = Comment.fromFirestore(d);
-                
+
                 return Container(
                   color: bgColor,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -183,9 +189,9 @@ class _CommentsWidgetState extends State<CommentsWidget> {
             );
           },
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         // Input de comentário
         Container(
           padding: const EdgeInsets.all(12),
@@ -255,12 +261,14 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: Icon(
-                      Icons.arrow_upward,
-                      color: uid == null 
-                          ? secondaryColor 
-                          : Colors.white,
-                      size: 20,
+                    icon: SvgPicture.string(
+                      CustomIcons.arrowUp,
+                      width: 20,
+                      height: 20,
+                      colorFilter: ColorFilter.mode(
+                        uid == null ? secondaryColor : Colors.white,
+                        BlendMode.srcIn,
+                      ),
                     ),
                     onPressed: uid == null ? null : _sendComment,
                   ),
@@ -293,15 +301,15 @@ class _CommentsWidgetState extends State<CommentsWidget> {
   Future<void> _sendComment() async {
     final auth = context.read<AuthProvider>();
     final uid = auth.user?.uid;
-    
+
     if (uid == null) return;
-    
+
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
 
     try {
       final now = FieldValue.serverTimestamp();
-      
+
       if (widget.isNews) {
         // Comentário em notícia - salva em coleção separada
         await FirebaseFirestore.instance.collection('news_comments').add({
@@ -330,14 +338,14 @@ class _CommentsWidgetState extends State<CommentsWidget> {
           'likes': 0,
           'likedBy': [],
         });
-        
+
         // Incrementa contador
         await FirebaseFirestore.instance
             .collection('posts')
             .doc(widget.postId)
             .update({'comments': FieldValue.increment(1)});
       }
-      
+
       _ctrl.clear();
       FocusScope.of(context).unfocus();
     } catch (e) {
