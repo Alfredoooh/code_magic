@@ -1,4 +1,5 @@
 // lib/widgets/comments_widget.dart
+import 'dart:convert'; // ADICIONADO
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -52,23 +53,25 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         Expanded(child: TextField(controller: _ctrl, decoration: const InputDecoration(hintText: 'Escreve um comentário...'))),
         IconButton(
           icon: const Icon(Icons.send),
-          onPressed: uid == null ? null : () async {
-            final text = _ctrl.text.trim();
-            if (text.isEmpty) return;
-            final now = FieldValue.serverTimestamp();
-            await FirebaseFirestore.instance.collection('posts').doc(widget.postId).collection('comments').add({
-              'postId': widget.postId,
-              'userId': uid,
-              'userName': auth.userData?['name'] ?? 'Usuário',
-              'userAvatar': auth.userData?['photoBase64'] ?? null,
-              'content': text,
-              'timestamp': now,
-              'likes': 0,
-              'likedBy': [],
-            });
-            await FirebaseFirestore.instance.collection('posts').doc(widget.postId).update({'comments': FieldValue.increment(1)});
-            _ctrl.clear();
-          },
+          onPressed: uid == null
+              ? null
+              : () async {
+                  final text = _ctrl.text.trim();
+                  if (text.isEmpty) return;
+                  final now = FieldValue.serverTimestamp();
+                  await FirebaseFirestore.instance.collection('posts').doc(widget.postId).collection('comments').add({
+                    'postId': widget.postId,
+                    'userId': uid,
+                    'userName': auth.userData?['name'] ?? 'Usuário',
+                    'userAvatar': auth.userData?['photoBase64'],
+                    'content': text,
+                    'timestamp': now,
+                    'likes': 0,
+                    'likedBy': [],
+                  });
+                  await FirebaseFirestore.instance.collection('posts').doc(widget.postId).update({'comments': FieldValue.increment(1)});
+                  _ctrl.clear();
+                },
         ),
       ])
     ]);
