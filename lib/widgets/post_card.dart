@@ -1,6 +1,7 @@
 // lib/widgets/post_card.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../models/post_model.dart';
 import '../providers/auth_provider.dart';
@@ -11,6 +12,7 @@ import '../widgets/video_widget.dart';
 import '../services/image_service.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/user_detail_screen.dart';
+import 'custom_icons.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -116,9 +118,14 @@ class PostCard extends StatelessWidget {
                   ),
                   if (auth.user?.uid == post.userId)
                     IconButton(
-                      icon: Icon(
-                        Icons.more_horiz,
-                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                      icon: SvgPicture.string(
+                        CustomIcons.moreHoriz,
+                        width: 24,
+                        height: 24,
+                        colorFilter: ColorFilter.mode(
+                          isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                          BlendMode.srcIn,
+                        ),
                       ),
                       onPressed: () => _showOptions(context),
                     ),
@@ -272,10 +279,14 @@ class PostCard extends StatelessWidget {
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                Icon(
-                                  Icons.access_time,
-                                  size: 14,
-                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999),
+                                SvgPicture.string(
+                                  CustomIcons.accessTime,
+                                  width: 14,
+                                  height: 14,
+                                  colorFilter: ColorFilter.mode(
+                                    isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999),
+                                    BlendMode.srcIn,
+                                  ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
@@ -295,10 +306,14 @@ class PostCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 12,
-                                  color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                                SvgPicture.string(
+                                  CustomIcons.arrowForward,
+                                  width: 12,
+                                  height: 12,
+                                  colorFilter: ColorFilter.mode(
+                                    isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                                    BlendMode.srcIn,
+                                  ),
                                 ),
                               ],
                             ),
@@ -326,7 +341,15 @@ class PostCard extends StatelessWidget {
                             color: Color(0xFF007AFF),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.thumb_up, size: 11, color: Colors.white),
+                          child: SvgPicture.string(
+                            CustomIcons.thumbUp,
+                            width: 11,
+                            height: 11,
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -386,12 +409,16 @@ class PostCard extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                              size: 20,
-                              color: isLiked
-                                  ? const Color(0xFF007AFF)
-                                  : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666)),
+                            SvgPicture.string(
+                              isLiked ? CustomIcons.thumbUp : CustomIcons.thumbUpOutlined,
+                              width: 20,
+                              height: 20,
+                              colorFilter: ColorFilter.mode(
+                                isLiked
+                                    ? const Color(0xFF007AFF)
+                                    : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666)),
+                                BlendMode.srcIn,
+                              ),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -433,10 +460,14 @@ class PostCard extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.comment_outlined,
-                              size: 20,
-                              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
+                            SvgPicture.string(
+                              CustomIcons.commentOutlined,
+                              width: 20,
+                              height: 20,
+                              colorFilter: ColorFilter.mode(
+                                isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
+                                BlendMode.srcIn,
+                              ),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -461,10 +492,14 @@ class PostCard extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.share_outlined,
-                              size: 20,
-                              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
+                            SvgPicture.string(
+                              CustomIcons.shareOutlined,
+                              width: 20,
+                              height: 20,
+                              colorFilter: ColorFilter.mode(
+                                isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
+                                BlendMode.srcIn,
+                              ),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -489,27 +524,51 @@ class PostCard extends StatelessWidget {
   }
 
   void _showOptions(BuildContext context) {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
       builder: (_) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Excluir'),
+                leading: SvgPicture.string(
+                  CustomIcons.delete,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.red,
+                    BlendMode.srcIn,
+                  ),
+                ),
+                title: const Text('Excluir', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.of(context).pop();
                   PostService().deletePost(post.id);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Editar'),
+                leading: SvgPicture.string(
+                  CustomIcons.edit,
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(
+                    isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                    BlendMode.srcIn,
+                  ),
+                ),
+                title: Text(
+                  'Editar',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                  ),
+                ),
                 onTap: () {
                   Navigator.of(context).pop();
                 },
