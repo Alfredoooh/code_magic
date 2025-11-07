@@ -5,9 +5,18 @@ class Post {
   final String id;
   final String userId;
   final String userName;
-  final String? userAvatar; // Base64
+  final String? userAvatar; // Base64 (mantido)
   final String content;
-  final String? imageBase64; // Imagem em Base64
+  final String? imageBase64; // Imagem em Base64 (mantido)
+
+  // NOVOS CAMPOS OPCIONAIS (backward-compatible)
+  final List<String>? imageUrls; // imagens por URL (opcional)
+  final String? videoUrl; // link para vídeo (YouTube / web)
+  final bool isNews; // se é conteúdo vindo de API de notícias
+  final String? newsUrl;
+  final String? title; // título da notícia (se for)
+  final String? summary; // resumo da notícia (se for)
+
   final DateTime timestamp;
   final int likes;
   final int comments;
@@ -21,6 +30,12 @@ class Post {
     this.userAvatar,
     required this.content,
     this.imageBase64,
+    this.imageUrls,
+    this.videoUrl,
+    this.isNews = false,
+    this.newsUrl,
+    this.title,
+    this.summary,
     required this.timestamp,
     this.likes = 0,
     this.comments = 0,
@@ -28,7 +43,7 @@ class Post {
     this.likedBy = const [],
   });
 
-  /// Converte para Map para Firestore
+  /// Converte para Map para Firestore (mantém compatibilidade)
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -36,6 +51,12 @@ class Post {
       'userAvatar': userAvatar,
       'content': content,
       'imageBase64': imageBase64,
+      'imageUrls': imageUrls,
+      'videoUrl': videoUrl,
+      'isNews': isNews,
+      'newsUrl': newsUrl,
+      'title': title,
+      'summary': summary,
       'timestamp': Timestamp.fromDate(timestamp),
       'likes': likes,
       'comments': comments,
@@ -44,20 +65,33 @@ class Post {
     };
   }
 
-  /// Cria Post a partir de Firestore
-  factory Post.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  /// Cria Post a partir de Firestore (compatível com versões antigas)
+  factory Post.fromFirestore(DocumentSnapshot doc, {String? currentUid}) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    DateTime ts;
+    try {
+      ts = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+    } catch (_) {
+      ts = DateTime.now();
+    }
+
     return Post(
       id: doc.id,
       userId: data['userId'] ?? '',
       userName: data['userName'] ?? 'Usuário',
-      userAvatar: data['userAvatar'],
+      userAvatar: data['userAvatar'] as String?,
       content: data['content'] ?? '',
-      imageBase64: data['imageBase64'],
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
-      likes: data['likes'] ?? 0,
-      comments: data['comments'] ?? 0,
-      shares: data['shares'] ?? 0,
+      imageBase64: data['imageBase64'] as String?,
+      imageUrls: (data['imageUrls'] as List?)?.map((e) => e.toString()).toList(),
+      videoUrl: data['videoUrl'] as String?,
+      isNews: data['isNews'] == true,
+      newsUrl: data['newsUrl'] as String?,
+      title: data['title'] as String?,
+      summary: data['summary'] as String?,
+      timestamp: ts,
+      likes: (data['likes'] as int?) ?? 0,
+      comments: (data['comments'] as int?) ?? 0,
+      shares: (data['shares'] as int?) ?? 0,
       likedBy: List<String>.from(data['likedBy'] ?? []),
     );
   }
@@ -70,6 +104,12 @@ class Post {
     String? userAvatar,
     String? content,
     String? imageBase64,
+    List<String>? imageUrls,
+    String? videoUrl,
+    bool? isNews,
+    String? newsUrl,
+    String? title,
+    String? summary,
     DateTime? timestamp,
     int? likes,
     int? comments,
@@ -83,6 +123,12 @@ class Post {
       userAvatar: userAvatar ?? this.userAvatar,
       content: content ?? this.content,
       imageBase64: imageBase64 ?? this.imageBase64,
+      imageUrls: imageUrls ?? this.imageUrls,
+      videoUrl: videoUrl ?? this.videoUrl,
+      isNews: isNews ?? this.isNews,
+      newsUrl: newsUrl ?? this.newsUrl,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
       timestamp: timestamp ?? this.timestamp,
       likes: likes ?? this.likes,
       comments: comments ?? this.comments,
@@ -134,16 +180,23 @@ class Comment {
   }
 
   factory Comment.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    DateTime ts;
+    try {
+      ts = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+    } catch (_) {
+      ts = DateTime.now();
+    }
+
     return Comment(
       id: doc.id,
       postId: data['postId'] ?? '',
       userId: data['userId'] ?? '',
       userName: data['userName'] ?? 'Usuário',
-      userAvatar: data['userAvatar'],
+      userAvatar: data['userAvatar'] as String?,
       content: data['content'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
-      likes: data['likes'] ?? 0,
+      timestamp: ts,
+      likes: (data['likes'] as int?) ?? 0,
       likedBy: List<String>.from(data['likedBy'] ?? []),
     );
   }
