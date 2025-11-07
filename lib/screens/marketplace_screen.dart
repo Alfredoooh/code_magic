@@ -40,6 +40,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
+    // --- CORREÇÃO: usar a coleção "marketplace_products" (conforme suas regras)
+    final CollectionReference productsColl = FirebaseFirestore.instance.collection('marketplace_products');
+
+    final Stream<QuerySnapshot> booksStream = selectedCategory == 'Todos'
+        ? productsColl.orderBy('createdAt', descending: true).snapshots()
+        : productsColl
+            .where('category', isEqualTo: selectedCategory)
+            .orderBy('createdAt', descending: true)
+            .snapshots();
+
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
@@ -73,37 +83,43 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
           // Lista de livros (grid)
           StreamBuilder<QuerySnapshot>(
-            stream: selectedCategory == 'Todos'
-                ? FirebaseFirestore.instance
-                    .collection('marketplace_books')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots()
-                : FirebaseFirestore.instance
-                    .collection('marketplace_books')
-                    .where('category', isEqualTo: selectedCategory)
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
+            stream: booksStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
+                // exibe a mensagem de erro do snapshot para debug
                 return SliverFillRemaining(
                   child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Erro ao carregar livros',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: hintColor,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Text(
+                            'Erro ao carregar livros',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: hintColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                            child: Text(
+                              snapshot.error.toString(),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: hintColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -206,6 +222,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                       ? Image.network(
                                           data['coverImageURL'],
                                           fit: BoxFit.cover,
+                                          errorBuilder: (ctx, err, st) => Container(
+                                            color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                                            child: Icon(Icons.broken_image, color: hintColor),
+                                          ),
                                         )
                                       : Container(
                                           color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
