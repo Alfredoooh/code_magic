@@ -1,6 +1,7 @@
 // lib/widgets/video_widget_web.dart
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
-import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -37,9 +38,9 @@ class _VideoWidgetWebState extends State<VideoWidget> {
       _isYoutube = false;
       _viewId = 'embed-${widget.url.hashCode}';
       
-      // CORRIGIDO: Usar ui.platformViewRegistry corretamente
+      // CORRIGIDO: Usar ui_web.platformViewRegistry
       if (!_iframeRegistered) {
-        ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+        ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
           final iframe = html.IFrameElement()
             ..src = widget.url
             ..style.border = 'none'
