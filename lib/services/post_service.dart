@@ -3,7 +3,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 import '../models/post_model.dart';
+import '../screens/image_viewer_screen.dart';
 
 class PostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -61,7 +63,7 @@ class PostService {
                 userAvatar: null,
                 content: (it['description'] ?? '').toString(),
                 imageBase64: null,
-                imageUrls: [(it['image_url'] ?? it['image'])?.toString()].whereType<String>().where((e) => e != 'null').toList(), // CORRIGIDO
+                imageUrls: [(it['image_url'] ?? it['image'])?.toString()].whereType<String>().where((e) => e != 'null').toList(),
                 videoUrl: null,
                 isNews: true,
                 newsUrl: it['link'] ?? it['url'],
@@ -92,7 +94,7 @@ class PostService {
                 userAvatar: null,
                 content: it['description'] ?? '',
                 imageBase64: null,
-                imageUrls: [it['urlToImage']?.toString()].whereType<String>().where((e) => e != 'null').toList(), // CORRIGIDO
+                imageUrls: [it['urlToImage']?.toString()].whereType<String>().where((e) => e != 'null').toList(),
                 videoUrl: null,
                 isNews: true,
                 newsUrl: it['url'],
@@ -121,7 +123,7 @@ class PostService {
                   userAvatar: null,
                   content: it['description'] ?? '',
                   imageBase64: null,
-                  imageUrls: [it['image']?.toString()].whereType<String>().where((e) => e != 'null').toList(), // CORRIGIDO
+                  imageUrls: [it['image']?.toString()].whereType<String>().where((e) => e != 'null').toList(),
                   videoUrl: null,
                   isNews: true,
                   newsUrl: it['url'],
@@ -150,7 +152,20 @@ class PostService {
     _controller.add(combined);
   }
 
-  // MÉTODO ADICIONADO
+  // MÉTODO ADICIONADO: openImageViewer
+  void openImageViewer(BuildContext context, List<String> imageUrls, String initialUrl) {
+    if (imageUrls.isEmpty) return;
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ImageViewerScreen(
+          imageUrls: imageUrls,
+          initialUrl: initialUrl,
+        ),
+      ),
+    );
+  }
+
   Future<void> createPost({
     required String userId,
     required String userName,
