@@ -1,5 +1,6 @@
 // lib/widgets/custom_drawer.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -12,6 +13,30 @@ class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
 
   static const Color _activeBlue = Color(0xFF1877F2);
+
+  // Método para navegação horizontal
+  void _navigateHorizontally(BuildContext context, Widget screen) {
+    // Fecha o drawer primeiro
+    Navigator.pop(context);
+    
+    // Depois navega com animação horizontal
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,15 +115,7 @@ class CustomDrawer extends StatelessWidget {
                   context,
                   CustomIcons.inbox,
                   'Caixa de entrada',
-                  () {
-                    // Fecha o drawer antes de navegar
-                    Navigator.pop(context);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const MessagesScreen(),
-                      ),
-                    );
-                  },
+                  () => _navigateHorizontally(context, const MessagesScreen()),
                   isDark,
                 ),
                 _buildDrawerItem(
@@ -122,24 +139,14 @@ class CustomDrawer extends StatelessWidget {
                   context,
                   CustomIcons.settings,
                   'Configurações',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const SettingsScreen(),
-                      ),
-                    );
-                  },
+                  () => _navigateHorizontally(context, const SettingsScreen()),
                   isDark,
                 ),
                 _buildDrawerItem(
                   context,
                   CustomIcons.logout,
                   'Sair',
-                  () {
-                    Navigator.pop(context);
-                    _showLogoutDialog(context, authProvider);
-                  },
+                  () => _showLogoutDialog(context),
                   isDark,
                   isDestructive: true,
                 ),
@@ -173,14 +180,17 @@ class CustomDrawer extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                color: isDestructive
+                    ? const Color(0xFFFA383E).withOpacity(0.1)
+                    : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Center(
-                child: SvgIcon(
-                  svgString: svgString,
-                  color: color,
-                  size: 20,
+                child: SvgPicture.string(
+                  svgString,
+                  width: 20,
+                  height: 20,
+                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
                 ),
               ),
             ),
@@ -210,7 +220,10 @@ class CustomDrawer extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+  void _showLogoutDialog(BuildContext context) {
+    // Fecha o drawer antes de mostrar o dialog
+    Navigator.pop(context);
+    
     final isDark = context.read<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
@@ -222,45 +235,94 @@ class CustomDrawer extends StatelessWidget {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text(
-            'Terminar sessão?',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFA383E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SvgPicture.string(
+                  CustomIcons.logout,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFFA383E),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Terminar sessão?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ],
           ),
           content: Text(
             'Tem certeza que deseja sair da sua conta?',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               color: subtitleColor,
             ),
           ),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          actionsPadding: const EdgeInsets.all(16),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               style: TextButton.styleFrom(
-                foregroundColor: _activeBlue,
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                foregroundColor: subtitleColor,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
-              child: const Text('Cancelar'),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () async {
+                // Fecha o dialog
                 Navigator.of(dialogContext).pop();
+                
+                // Pega o authProvider do contexto original (não do dialog)
+                final authProvider = context.read<AuthProvider>();
+                
+                // Faz o logout
                 await authProvider.signOut();
+                
+                // Navega para a tela de login removendo todas as rotas anteriores
                 if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
                 }
               },
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFFA383E),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFA383E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Sair'),
+              child: const Text(
+                'Sair',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         );
