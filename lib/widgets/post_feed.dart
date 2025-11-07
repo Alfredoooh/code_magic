@@ -1,5 +1,4 @@
 // lib/widgets/post_feed.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -16,36 +15,17 @@ class PostFeed extends StatefulWidget {
 
 class _PostFeedState extends State<PostFeed> {
   final PostService _postService = PostService();
-  late StreamSubscription<List<Post>> _sub;
-  List<Post> _items = [];
-  bool _loading = true;
-  String _error = '';
+  late final Stream<List<Post>> _stream;
 
   @override
   void initState() {
     super.initState();
-    _sub = _postService.stream.listen((list) {
-      if (mounted) {
-        setState(() {
-          _items = list;
-          _loading = false;
-          _error = '';
-        });
-      }
-    }, onError: (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = e.toString();
-        });
-      }
-    });
-    _postService.ensureStarted(); // começa listeners / timers
+    _postService.ensureStarted();
+    _stream = _postService.stream;
   }
 
   @override
   void dispose() {
-    _sub.cancel();
     _postService.dispose();
     super.dispose();
   }
@@ -55,53 +35,48 @@ class _PostFeedState extends State<PostFeed> {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
 
-    if (_loading) {
-      return Container(color: bgColor, child: const Center(child: CircularProgressIndicator()));
-    }
-
-    if (_error.isNotEmpty) {
-      return Container(
-        color: bgColor,
-        child: Center(child: Text('Erro ao carregar feed: $_error')),
-      );
-    }
-
-    if (_items.isEmpty) {
-      return Container(
-        color: bgColor,
-        child: Center(
-          child: Text('Nenhuma publicação ainda', style: TextStyle(color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B))),
-        ),
-      );
-    }
-
-    // Responsive: se largura grande, mostrar grid de 2 colunas
     return Container(
       color: bgColor,
-      child: LayoutBuilder(builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 800;
-        if (isWide) {
-          return GridView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.8,
-            ),
-            itemCount: _items.length,
-            itemBuilder: (context, index) {
-              return PostCard(post: _items[index]);
-            },
-          );
-        } else {
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: _items.length,
-            itemBuilder: (context, index) => PostCard(post: _items[index]),
-          );
-        }
-      }),
+      child: StreamBuilder<List<Post>>(
+        stream: _stream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Erro ao carregar posts: ${snapshot.error}'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final posts = snapshot.data ?? [];
+          if (posts.isEmpty) {
+            return Center(child: Text('Nenhuma publicação ainda', style: TextStyle(color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B))));
+          }
+
+          return LayoutBuilder(builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+            if (isWide) {
+              return GridView.builder(
+                padding: const EdgeInsets.all(12),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.8,
+                ),
+                itemCount: posts.length,
+                itemBuilder: (context, index) => PostCard(post: posts[index]),
+              );
+            } else {
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: posts.length,
+                itemBuilder: (context, index) => PostCard(post: posts[index]),
+              );
+            }
+          });
+        },
+      ),
     );
   }
 }
