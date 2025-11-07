@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/custom_icons.dart';
-import 'marketplace/add_book_screen.dart';
 import 'marketplace/book_details_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
@@ -20,93 +18,37 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   final List<Map<String, dynamic>> categories = [
     {'name': 'Todos', 'icon': CustomIcons.globe},
-    {'name': 'Ficção', 'icon': CustomIcons.bookOpen},
-    {'name': 'Não-Ficção', 'icon': CustomIcons.document},
-    {'name': 'Acadêmico', 'icon': CustomIcons.academicCap},
-    {'name': 'Técnico', 'icon': CustomIcons.cog},
-    {'name': 'Infantil', 'icon': CustomIcons.star},
-    {'name': 'Romance', 'icon': CustomIcons.heart},
-    {'name': 'Biografia', 'icon': CustomIcons.userCircle},
-    {'name': 'História', 'icon': CustomIcons.clock},
-    {'name': 'Ciência', 'icon': CustomIcons.beaker},
-    {'name': 'Autoajuda', 'icon': CustomIcons.lightBulb},
-    {'name': 'Poesia', 'icon': CustomIcons.sparkles},
+    {'name': 'Investimentos', 'icon': CustomIcons.trendingUp},
+    {'name': 'Trading', 'icon': CustomIcons.chartBar},
+    {'name': 'Finanças Pessoais', 'icon': CustomIcons.wallet},
+    {'name': 'Economia', 'icon': CustomIcons.currencyDollar},
+    {'name': 'Criptomoedas', 'icon': CustomIcons.bitcoin},
+    {'name': 'Análise Técnica', 'icon': CustomIcons.chartLine},
+    {'name': 'Mercado de Ações', 'icon': CustomIcons.buildingLibrary},
+    {'name': 'Empreendedorismo', 'icon': CustomIcons.lightBulb},
+    {'name': 'Biografias', 'icon': CustomIcons.userCircle},
+    {'name': 'Estratégias', 'icon': CustomIcons.puzzle},
+    {'name': 'Educação Financeira', 'icon': CustomIcons.academicCap},
   ];
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final authProvider = context.watch<AuthProvider>();
 
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
-    final bool canAddBook = authProvider.userData?['isPro'] == true || 
-                            authProvider.userData?['isPremium'] == true;
-
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // Header com botão adicionar
-          SliverToBoxAdapter(
-            child: Container(
-              color: cardColor,
-              padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Marketplace',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: canAddBook
-                        ? () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AddBookScreen(),
-                              ),
-                            );
-                          }
-                        : () {
-                            _showProRequiredDialog(context, isDark, textColor, hintColor);
-                          },
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text('Adicionar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1877F2),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverToBoxAdapter(
-            child: Container(
-              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-              height: 0.5,
-            ),
-          ),
-
-          // Categorias
+          // Categorias (sem AppBar)
           SliverToBoxAdapter(
             child: Container(
               color: bgColor,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.only(top: 12, bottom: 12),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -340,7 +282,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     Color textColor,
   ) {
     const blueColor = Color(0xFF1877F2);
-    
+
     return GestureDetector(
       onTap: () {
         setState(() => selectedCategory = name);
@@ -370,75 +312,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showProRequiredDialog(BuildContext context, bool isDark, Color textColor, Color hintColor) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1877F2).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.workspace_premium,
-                color: Color(0xFF1877F2),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Recurso Pro',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Apenas usuários Pro ou Premium podem adicionar livros ao Marketplace. Atualize sua conta para desbloquear este recurso!',
-          style: TextStyle(
-            color: hintColor,
-            fontSize: 15,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Entendi',
-              style: TextStyle(
-                color: hintColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // Navegar para tela de upgrade (implementar depois)
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Ver Planos'),
-          ),
-        ],
       ),
     );
   }
