@@ -1,6 +1,6 @@
 // lib/widgets/video_widget_web.dart
 import 'dart:html' as html;
-import 'dart:ui' as ui; // ADICIONADO
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -25,7 +25,6 @@ class _VideoWidgetWebState extends State<VideoWidget> {
     final id = _extractYoutubeId(widget.url);
     if (id != null) {
       _isYoutube = true;
-      // CORRIGIDO: Nova API do youtube_player_iframe
       _ytController = YoutubePlayerController.fromVideoId(
         videoId: id,
         params: const YoutubePlayerParams(
@@ -37,17 +36,21 @@ class _VideoWidgetWebState extends State<VideoWidget> {
     } else {
       _isYoutube = false;
       _viewId = 'embed-${widget.url.hashCode}';
-      ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-        final iframe = html.IFrameElement()
-          ..src = widget.url
-          ..style.border = 'none'
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture'
-          ..allowFullscreen = true;
-        return iframe;
-      });
-      _iframeRegistered = true;
+      
+      // CORRIGIDO: Usar ui.platformViewRegistry corretamente
+      if (!_iframeRegistered) {
+        ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+          final iframe = html.IFrameElement()
+            ..src = widget.url
+            ..style.border = 'none'
+            ..style.width = '100%'
+            ..style.height = '100%'
+            ..allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture'
+            ..allowFullscreen = true;
+          return iframe;
+        });
+        _iframeRegistered = true;
+      }
     }
   }
 
@@ -78,16 +81,21 @@ class _VideoWidgetWebState extends State<VideoWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isYoutube && _ytController != null) {
-      // CORRIGIDO: YoutubePlayerIFrame → YoutubePlayer
       return YoutubePlayer(controller: _ytController!);
     }
 
     return Container(
       height: 320,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Theme.of(context).cardColor),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).cardColor,
+      ),
       child: Stack(
         children: [
-          if (_iframeRegistered) Positioned.fill(child: HtmlElementView(viewType: _viewId)),
+          if (_iframeRegistered) 
+            Positioned.fill(
+              child: HtmlElementView(viewType: _viewId),
+            ),
           Positioned(
             right: 8,
             top: 8,
