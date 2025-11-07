@@ -80,7 +80,7 @@ class PostCard extends StatelessWidget {
         // imageBase64 (prioriza)
         if (post.imageBase64 != null)
           GestureDetector(
-            onTap: () => postService.openImageViewer(context, [], ''), // se quiser fullscreen, adapta
+            onTap: () => postService.openImageViewer(context, [post.imageBase64!], post.imageBase64!),
             child: Image.memory(
               base64Decode(post.imageBase64!),
               width: double.infinity,
