@@ -1,7 +1,6 @@
 // lib/widgets/video_widget_web.dart
-// Só será importado em builds para web (conditional export).
 import 'dart:html' as html;
-import 'dart:ui' as ui; // ignore: unnecessary_import
+import 'dart:ui' as ui; // ADICIONADO
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,8 +25,9 @@ class _VideoWidgetWebState extends State<VideoWidget> {
     final id = _extractYoutubeId(widget.url);
     if (id != null) {
       _isYoutube = true;
-      _ytController = YoutubePlayerController(
-        initialVideoId: id,
+      // CORRIGIDO: Nova API do youtube_player_iframe
+      _ytController = YoutubePlayerController.fromVideoId(
+        videoId: id,
         params: const YoutubePlayerParams(
           showControls: true,
           showFullscreenButton: true,
@@ -37,8 +37,6 @@ class _VideoWidgetWebState extends State<VideoWidget> {
     } else {
       _isYoutube = false;
       _viewId = 'embed-${widget.url.hashCode}';
-      // Register iframe factory (only works on web)
-      // ignore: undefined_prefixed_name
       ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
         final iframe = html.IFrameElement()
           ..src = widget.url
@@ -80,11 +78,10 @@ class _VideoWidgetWebState extends State<VideoWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isYoutube && _ytController != null) {
-      return YoutubePlayerIFrame(controller: _ytController!);
+      // CORRIGIDO: YoutubePlayerIFrame → YoutubePlayer
+      return YoutubePlayer(controller: _ytController!);
     }
 
-    // iframe embed. Note: some sites set X-Frame-Options and won't allow embedding.
-    // Provide a button to open in a new tab as fallback.
     return Container(
       height: 320,
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Theme.of(context).cardColor),
