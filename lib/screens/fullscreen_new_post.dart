@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart'; // ADICIONADO
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
 import '../services/image_service.dart';
 
-/// Fullscreen editor — abre como fullscreen dialog. Retorna um Map com os dados se o utilizador fizer "Salvar e Fechar"/
 class FullscreenNewPost extends StatefulWidget {
   final String? initialContent;
   final String? initialImageBase64;
@@ -108,7 +108,6 @@ class _FullscreenNewPostState extends State<FullscreenNewPost> {
   }
 
   void _saveAndReturn() {
-    // retorna dados para modal anterior sem publicar
     Navigator.pop(context, {
       'content': _contentCtrl.text,
       'imageBase64': _imageBase64,
@@ -140,7 +139,7 @@ class _FullscreenNewPostState extends State<FullscreenNewPost> {
                     controller: _contentCtrl,
                     minLines: 6,
                     maxLines: null,
-                    decoration: InputDecoration(hintText: 'Escreve o teu post...', border: InputBorder.none),
+                    decoration: const InputDecoration(hintText: 'Escreve o teu post...', border: InputBorder.none),
                     style: TextStyle(fontSize: 16, color: textColor, height: 1.4),
                   ),
                   const SizedBox(height: 12),
