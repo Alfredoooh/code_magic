@@ -24,8 +24,9 @@ class _ExpandableLinkTextState extends State<ExpandableLinkText> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontSize: 15, height: 1.4, color: Theme.of(context).textTheme.bodyText1?.color);
-    final linkStyle = const TextStyle(color: Colors.red);
+    // CORRIGIDO: bodyText1 → bodyLarge
+    final textStyle = TextStyle(fontSize: 15, height: 1.4, color: Theme.of(context).textTheme.bodyLarge?.color);
+    const linkStyle = TextStyle(color: Colors.red);
 
     if (_expanded) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
