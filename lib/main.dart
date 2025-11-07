@@ -6,7 +6,8 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/notifications_screen.dart';
+import 'screens/invest_screen.dart';
+import 'screens/bets_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/otp_verification_screen.dart';
@@ -75,7 +76,8 @@ class MyApp extends StatelessWidget {
               '/otp-verification': (context) => const OTPVerificationScreen(),
               '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
-              '/notifications': (context) => const NotificationsScreen(),
+              '/invest': (context) => const InvestScreen(),
+              '/bets': (context) => const BetsScreen(),
               '/messages': (context) => const MessagesScreen(),
               '/search': (context) => const SearchScreen(),
             },
@@ -86,17 +88,14 @@ class MyApp extends StatelessWidget {
   }
 
   Widget _getInitialScreen(AuthProvider authProvider) {
-    // Enquanto está verificando a autenticação, mostra splash
     if (!authProvider.isInitialized) {
       return const SplashScreen();
     }
 
-    // Se está autenticado, vai direto para home
     if (authProvider.isAuthenticated) {
       return const HomeScreen();
     }
 
-    // Caso contrário, mostra o login
     return const LoginScreen();
   }
 }
