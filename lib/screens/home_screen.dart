@@ -10,9 +10,10 @@ import '../widgets/post_feed.dart';
 import '../widgets/new_post_modal.dart';
 import 'search_screen.dart';
 import 'messages_screen.dart';
-import 'notifications_screen.dart';
+import 'invest_screen.dart';
 import 'users_screen.dart';
 import 'marketplace_screen.dart';
+import 'bets_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,13 +26,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Animation controller para o efeito de deslize do drawer (estilo iOS)
   late AnimationController _drawerSlideController;
   late Animation<Offset> _drawerSlideAnimation;
 
-  final List<Widget?> _pages = [const PostFeed(), null, null, const NotificationsScreen()];
+  final List<Widget?> _pages = [const PostFeed(), null, null, null, null];
 
   static const Color _activeBlue = Color(0xFF1877F2);
+
+  final List<String> _tabTitles = [
+    'Início',
+    'Usuários',
+    'Marketplace',
+    'Bets',
+    'Investir',
+  ];
 
   @override
   void initState() {
@@ -41,10 +49,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       duration: const Duration(milliseconds: 300),
     );
 
-    // Animação de deslize para a direita (efeito iOS - empurra a tela)
     _drawerSlideAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(0.75, 0), // Empurra 75% para a direita
+      end: const Offset(0.75, 0),
     ).animate(CurvedAnimation(
       parent: _drawerSlideController,
       curve: Curves.easeOut,
@@ -65,6 +72,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         break;
       case 2:
         _pages[2] = const MarketplaceScreen();
+        break;
+      case 3:
+        _pages[3] = const BetsScreen();
+        break;
+      case 4:
+        _pages[4] = const InvestScreen();
         break;
       default:
         _pages[index] = const SizedBox.shrink();
@@ -96,6 +109,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final unselectedColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
     final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: bgColor,
@@ -109,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       },
       body: Stack(
         children: [
-          // Conteúdo principal com animação de deslize horizontal (estilo iOS)
           AnimatedBuilder(
             animation: _drawerSlideController,
             builder: (context, child) {
@@ -119,64 +133,121 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   0,
                 ),
                 child: Transform.scale(
-                  scale: 1.0 - (0.05 * _drawerSlideController.value), // Reduz levemente
+                  scale: 1.0 - (0.05 * _drawerSlideController.value),
                   child: child,
                 ),
               );
             },
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20 * _drawerSlideController.value),
-              child: Column(
+              child: Row(
                 children: [
-                  // AppBar customizado
-                  Container(
-                    color: bgColor,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            height: 56,
-                            child: Row(
+                  if (isWideScreen)
+                    Container(
+                      width: 80,
+                      color: Colors.transparent,
+                      child: SafeArea(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: bgColor,
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(color: topBorderColor, width: 0.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: isDark
+                                          ? Colors.black.withOpacity(0.3)
+                                          : Colors.black.withOpacity(0.08),
+                                      blurRadius: 12,
+                                      offset: const Offset(4, 0),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildVerticalTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+                                    _buildVerticalTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+                                    _buildVerticalTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
+                                    _buildVerticalTabItem(index: 3, svg: CustomIcons.roulette, unselectedColor: unselectedColor),
+                                    _buildVerticalTabItem(index: 4, svg: CustomIcons.trendingUp, unselectedColor: unselectedColor),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          color: bgColor,
+                          child: SafeArea(
+                            bottom: false,
+                            child: Column(
                               children: [
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
-                                  onPressed: _toggleDrawer,
-                                ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                  onPressed: () => _showNewPostModal(context),
-                                ),
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                  onPressed: () => Navigator.of(context).push(
-                                    CupertinoPageRoute(builder: (_) => const SearchScreen()),
+                                SizedBox(
+                                  height: 56,
+                                  child: Row(
+                                    children: [
+                                      if (!isWideScreen)
+                                        IconButton(
+                                          icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
+                                          onPressed: _toggleDrawer,
+                                        ),
+                                      if (isWideScreen) const SizedBox(width: 16),
+                                      Text(
+                                        _tabTitles[_currentIndex],
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w700,
+                                          color: iconColor,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
+                                        onPressed: () => _showNewPostModal(context),
+                                      ),
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                        onPressed: () => Navigator.of(context).push(
+                                          CupertinoPageRoute(builder: (_) => const SearchScreen()),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                        onPressed: () => Navigator.of(context).push(
+                                          CupertinoPageRoute(builder: (_) => const MessagesScreen()),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                  onPressed: () => Navigator.of(context).push(
-                                    CupertinoPageRoute(builder: (_) => const MessagesScreen()),
-                                  ),
+                                Container(
+                                  color: topBorderColor,
+                                  height: 0.5,
                                 ),
                               ],
                             ),
                           ),
-                          Container(
-                            color: topBorderColor,
-                            height: 0.5,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
 
-                  // Body
-                  Expanded(
-                    child: IndexedStack(
-                      index: _currentIndex,
-                      children: List.generate(4, (i) => _getPage(i)),
+                        Expanded(
+                          child: IndexedStack(
+                            index: _currentIndex,
+                            children: List.generate(5, (i) => _getPage(i)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -184,7 +255,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
 
-          // Overlay escuro quando o drawer está aberto
           AnimatedBuilder(
             animation: _drawerSlideController,
             builder: (context, child) {
@@ -200,52 +270,78 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ],
       ),
 
-      // Floating TabBar com bordas totalmente curvas (também desliza)
-      bottomNavigationBar: AnimatedBuilder(
-        animation: _drawerSlideController,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(
-              MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
-              0,
-            ),
-            child: child,
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Container(
-            height: 60,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: topBorderColor, width: 0.5),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark 
-                      ? Colors.black.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+      bottomNavigationBar: !isWideScreen
+          ? AnimatedBuilder(
+              animation: _drawerSlideController,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(
+                    MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
+                    0,
+                  ),
+                  child: child,
+                );
+              },
+              child: Container(
+                color: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Container(
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: topBorderColor, width: 0.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark 
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 3, svg: CustomIcons.roulette, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 4, svg: CustomIcons.trendingUp, unselectedColor: unselectedColor),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                _buildTabItem(index: 3, svg: CustomIcons.bell, unselectedColor: unselectedColor),
-              ],
-            ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildTabItem({
+    required int index,
+    required String svg,
+    required Color unselectedColor,
+  }) {
+    final bool active = _currentIndex == index;
+    final Color iconColor = active ? _activeBlue : unselectedColor;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onTap(index),
+        borderRadius: BorderRadius.circular(100),
+        child: Center(
+          child: SvgIcon(
+            svgString: svg, 
+            size: 24, 
+            color: iconColor,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTabItem({
+  Widget _buildVerticalTabItem({
     required int index,
     required String svg,
     required Color unselectedColor,
