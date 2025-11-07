@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/custom_icons.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/post_feed.dart';
@@ -13,6 +14,7 @@ import 'messages_screen.dart';
 import 'invest_screen.dart';
 import 'users_screen.dart';
 import 'marketplace_screen.dart';
+import 'marketplace/add_book_screen.dart';
 import 'bets_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -100,6 +102,100 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  void _handlePlusButton(BuildContext context) {
+    if (_currentIndex == 0) {
+      // Aba Início: abre modal de publicação
+      _showNewPostModal(context);
+    } else if (_currentIndex == 2) {
+      // Aba Marketplace: abre tela de adicionar livro
+      final authProvider = context.read<AuthProvider>();
+      final bool canAddBook = authProvider.userData?['isPro'] == true || 
+                              authProvider.userData?['isPremium'] == true;
+      
+      if (canAddBook) {
+        Navigator.of(context).push(
+          CupertinoPageRoute(builder: (_) => const AddBookScreen()),
+        );
+      } else {
+        _showProRequiredDialog(context);
+      }
+    }
+  }
+
+  void _showProRequiredDialog(BuildContext context) {
+    final themeProv = context.read<ThemeProvider>();
+    final isDark = themeProv.isDarkMode;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1877F2).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.workspace_premium,
+                color: Color(0xFF1877F2),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Recurso Pro',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apenas usuários Pro ou Premium podem adicionar livros ao Marketplace. Atualize sua conta para desbloquear este recurso!',
+          style: TextStyle(
+            color: hintColor,
+            fontSize: 15,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Entendi',
+              style: TextStyle(
+                color: hintColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Navegar para tela de upgrade (implementar depois)
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1877F2),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Ver Planos'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProv = context.watch<ThemeProvider>();
@@ -110,6 +206,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
     final isWideScreen = MediaQuery.of(context).size.width > 600;
+
+    // Controle de visibilidade do botão de busca
+    final bool showSearchButton = _currentIndex != 1; // Oculta na aba Usuários
 
     return Scaffold(
       key: _scaffoldKey,
@@ -215,14 +314,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                       const Spacer(),
                                       IconButton(
                                         icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                        onPressed: () => _showNewPostModal(context),
+                                        onPressed: () => _handlePlusButton(context),
                                       ),
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                        onPressed: () => Navigator.of(context).push(
-                                          CupertinoPageRoute(builder: (_) => const SearchScreen()),
+                                      if (showSearchButton)
+                                        IconButton(
+                                          icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                          onPressed: () => Navigator.of(context).push(
+                                            CupertinoPageRoute(builder: (_) => const SearchScreen()),
+                                          ),
                                         ),
-                                      ),
                                       IconButton(
                                         icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
                                         onPressed: () => Navigator.of(context).push(
