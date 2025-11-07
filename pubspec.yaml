@@ -32,7 +32,7 @@ dependencies:
 
   # Video players (mobile + web)
   youtube_player_flutter: ^8.1.0
-  youtube_player_iframe: any
+  youtube_player_iframe: ^5.2.2
 
   # UI
   cupertino_icons: ^1.0.6
