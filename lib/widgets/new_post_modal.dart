@@ -2,13 +2,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart'; // ADICIONADO
+import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
 import '../services/image_service.dart';
 import '../screens/fullscreen_new_post.dart';
+import 'custom_icons.dart';
 
 class NewPostModal extends StatefulWidget {
   const NewPostModal({super.key});
@@ -176,7 +178,17 @@ class _NewPostModalState extends State<NewPostModal> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle),
-                        child: Icon(Icons.close, color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B), size: 20),
+                        child: Center(
+                          child: SvgPicture.string(
+                            CustomIcons.close,
+                            width: 20,
+                            height: 20,
+                            colorFilter: ColorFilter.mode(
+                              isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     const Spacer(),
@@ -188,7 +200,17 @@ class _NewPostModalState extends State<NewPostModal> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle),
-                        child: Icon(Icons.open_in_full, color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B), size: 20),
+                        child: Center(
+                          child: SvgPicture.string(
+                            CustomIcons.openInFull,
+                            width: 20,
+                            height: 20,
+                            colorFilter: ColorFilter.mode(
+                              isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -240,7 +262,19 @@ class _NewPostModalState extends State<NewPostModal> {
                           right: 8,
                           child: GestureDetector(
                             onTap: _removeImage,
-                            child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle), child: const Icon(Icons.close, color: Colors.white, size: 18)),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                              child: SvgPicture.string(
+                                CustomIcons.close,
+                                width: 18,
+                                height: 18,
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.white,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ]),
@@ -256,12 +290,42 @@ class _NewPostModalState extends State<NewPostModal> {
                   const Spacer(),
                   GestureDetector(
                     onTap: _pickImage,
-                    child: Container(width: 38, height: 38, decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle), child: const Icon(Icons.image, color: Color(0xFF45BD62), size: 20)),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                      child: Center(
+                        child: SvgPicture.string(
+                          CustomIcons.image,
+                          width: 20,
+                          height: 20,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF45BD62),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: _takePhoto,
-                    child: Container(width: 38, height: 38, decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Color(0xFF1877F2), size: 18)),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                      child: Center(
+                        child: SvgPicture.string(
+                          CustomIcons.camera,
+                          width: 18,
+                          height: 18,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF1877F2),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
@@ -271,8 +335,16 @@ class _NewPostModalState extends State<NewPostModal> {
                         builder: (ctx) {
                           final TextEditingController ctrl = TextEditingController(text: _videoUrl ?? '');
                           return AlertDialog(
-                            title: const Text('Adicionar URL de vídeo'),
-                            content: TextField(controller: ctrl, decoration: const InputDecoration(hintText: 'Cole a URL do vídeo (YouTube, Facebook, etc)')),
+                            backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
+                            title: Text('Adicionar URL de vídeo', style: TextStyle(color: textColor)),
+                            content: TextField(
+                              controller: ctrl,
+                              style: TextStyle(color: textColor),
+                              decoration: InputDecoration(
+                                hintText: 'Cole a URL do vídeo (YouTube, Facebook, etc)',
+                                hintStyle: TextStyle(color: isDark ? const Color(0xFF4E4F50) : const Color(0xFFBCC0C4)),
+                              ),
+                            ),
                             actions: [
                               TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
                               TextButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('OK')),
@@ -282,7 +354,22 @@ class _NewPostModalState extends State<NewPostModal> {
                       );
                       if (url != null) _setVideoUrl(url);
                     },
-                    child: Container(width: 38, height: 38, decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle), child: const Icon(Icons.video_library_outlined, color: Color(0xFFFFB020), size: 18)),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                      child: Center(
+                        child: SvgPicture.string(
+                          CustomIcons.videoLibrary,
+                          width: 18,
+                          height: 18,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFFFFB020),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ]),
               ),
