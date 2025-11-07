@@ -11,7 +11,6 @@ class PostService {
 
   Stream<List<Post>> get stream => _controller.stream;
 
-  // news keys (usar com cuidado; para produção mover para servidor)
   static const _newsdataKeys = [
     'pub_7d7d1ac2f86b4bc6b4662fd5d6dad47c',
     'pub_8101437cf6db27e4bb3a5473976cdc86571fc',
@@ -47,7 +46,6 @@ class PostService {
     try {
       final List<Post> results = [];
 
-      // Try Newsdata (keys list)
       for (final key in _newsdataKeys) {
         try {
           final url = Uri.parse('https://newsdata.io/api/1/news?apikey=$key&language=en');
@@ -63,7 +61,7 @@ class PostService {
                 userAvatar: null,
                 content: (it['description'] ?? '').toString(),
                 imageBase64: null,
-                imageUrls: [(it['image_url'] ?? it['image'])?.toString()].where((e) => e != 'null' && e != 'null').toList(),
+                imageUrls: [(it['image_url'] ?? it['image'])?.toString()].whereType<String>().where((e) => e != 'null').toList(), // CORRIGIDO
                 videoUrl: null,
                 isNews: true,
                 newsUrl: it['link'] ?? it['url'],
@@ -79,7 +77,6 @@ class PostService {
         }
       }
 
-      // fallback: newsapi.org
       if (results.length < 5) {
         try {
           final uri = Uri.parse('https://newsapi.org/v2/top-headlines?language=en&pageSize=5&apiKey=$_newsApiKey');
@@ -95,7 +92,7 @@ class PostService {
                 userAvatar: null,
                 content: it['description'] ?? '',
                 imageBase64: null,
-                imageUrls: [it['urlToImage']?.toString()].where((e) => e != null && e != 'null').toList(),
+                imageUrls: [it['urlToImage']?.toString()].whereType<String>().where((e) => e != 'null').toList(), // CORRIGIDO
                 videoUrl: null,
                 isNews: true,
                 newsUrl: it['url'],
@@ -108,7 +105,6 @@ class PostService {
         } catch (_) {}
       }
 
-      // gnews fallback
       if (results.length < 5) {
         for (final key in _gnewsKeys) {
           try {
@@ -125,7 +121,7 @@ class PostService {
                   userAvatar: null,
                   content: it['description'] ?? '',
                   imageBase64: null,
-                  imageUrls: [it['image']?.toString()].where((e) => e != null && e != 'null').toList(),
+                  imageUrls: [it['image']?.toString()].whereType<String>().where((e) => e != 'null').toList(), // CORRIGIDO
                   videoUrl: null,
                   isNews: true,
                   newsUrl: it['url'],
@@ -144,17 +140,45 @@ class PostService {
 
       _news = results;
       _emitCombined();
-    } catch (_) {
-      // não fatal
-    }
+    } catch (_) {}
   }
 
   void _emitCombined() {
     final List<Post> combined = [];
-    // posts first (realtime), then news
     combined.addAll(_posts);
     combined.addAll(_news);
     _controller.add(combined);
+  }
+
+  // MÉTODO ADICIONADO
+  Future<void> createPost({
+    required String userId,
+    required String userName,
+    String? userAvatar,
+    required String content,
+    String? imageBase64,
+    String? videoUrl,
+  }) async {
+    try {
+      await _firestore.collection('posts').add({
+        'userId': userId,
+        'userName': userName,
+        'userAvatar': userAvatar,
+        'content': content,
+        'imageBase64': imageBase64,
+        'imageUrls': imageBase64 != null ? [] : null,
+        'videoUrl': videoUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'comments': 0,
+        'shares': 0,
+        'likedBy': [],
+        'isNews': false,
+      });
+    } catch (e) {
+      print('Error creating post: $e');
+      rethrow;
+    }
   }
 
   Future<void> toggleLike(String postId, String uid) async {
