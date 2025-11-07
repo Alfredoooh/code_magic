@@ -9,17 +9,9 @@ import 'package:image/image.dart' as img;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 
-/// Service centralizado para manipulação de imagens:
-/// - seleção (câmera / galeria)
-/// - compressão / redimensionamento
-/// - conversão Base64 <-> bytes
-/// - criação de thumbnail
-/// - widgets para exibir imagens (base64 / url) com placeholders e fallback
 class ImageService {
   static final ImagePicker _picker = ImagePicker();
 
-  /// Pega imagem (gallery ou camera) e retorna Base64 (ou null se cancelado)
-  /// usa compressão interna antes de converter
   static Future<String?> pickImageAsBase64({
     required ImageSource source,
     int maxDimension = 1920,
@@ -44,7 +36,6 @@ class ImageService {
     }
   }
 
-  /// Pega imagem (gallery/camera) e retorna os bytes comprimidos (Uint8List) ou null
   static Future<Uint8List?> pickImageAsBytes({
     required ImageSource source,
     int maxDimension = 1920,
@@ -69,23 +60,17 @@ class ImageService {
     }
   }
 
-  /// Compress / resize usando package:image (funciona em mobile e web)
-  /// Retorna bytes comprimidos (JPEG)
   static Future<Uint8List> compressImage(
     Uint8List bytes, {
     int maxDimension = 1920,
     int quality = 85,
   }) async {
     try {
-      // Decodifica
       img.Image? image = img.decodeImage(bytes);
       if (image == null) {
-        // se não decodificou, retorna original
         return bytes;
       }
 
-      // Rotacionamento baseado em EXIF (se existir) - image package lê orientação automaticamente ao decodificar
-      // Redimensiona mantendo proporção
       final int width = image.width;
       final int height = image.height;
       if (width > maxDimension || height > maxDimension) {
@@ -96,7 +81,6 @@ class ImageService {
         }
       }
 
-      // Codifica em JPEG com qualidade
       final encoded = img.encodeJpg(image, quality: quality);
       return Uint8List.fromList(encoded);
     } catch (e) {
@@ -105,7 +89,6 @@ class ImageService {
     }
   }
 
-  /// Converte Base64 para bytes
   static Uint8List base64ToBytes(String base64String) {
     try {
       return base64Decode(base64String);
@@ -115,7 +98,6 @@ class ImageService {
     }
   }
 
-  /// Verifica se string é Base64 válida (simples)
   static bool isValidBase64(String? value) {
     if (value == null || value.isEmpty) return false;
     try {
@@ -126,14 +108,14 @@ class ImageService {
     }
   }
 
-  /// Cria thumbnail quadrado a partir de Base64 (retorna Base64 do thumbnail)
+  // CORRIGIDO: Agora usa parâmetro nomeado "size:"
   static Future<String?> createThumbnailFromBase64(String base64String, {int size = 200, int quality = 80}) async {
     try {
       final bytes = base64Decode(base64String);
       img.Image? image = img.decodeImage(bytes);
       if (image == null) return null;
 
-      final thumb = img.copyResizeCropSquare(image, size);
+      final thumb = img.copyResizeCropSquare(image, size: size); // CORRIGIDO
       final encoded = img.encodeJpg(thumb, quality: quality);
       return base64Encode(encoded);
     } catch (e) {
@@ -142,12 +124,12 @@ class ImageService {
     }
   }
 
-  /// Cria thumbnail quadrado a partir de bytes (retorna bytes)
+  // CORRIGIDO: Agora usa parâmetro nomeado "size:"
   static Future<Uint8List?> createThumbnailFromBytes(Uint8List bytes, {int size = 200, int quality = 80}) async {
     try {
       img.Image? image = img.decodeImage(bytes);
       if (image == null) return null;
-      final thumb = img.copyResizeCropSquare(image, size);
+      final thumb = img.copyResizeCropSquare(image, size: size); // CORRIGIDO
       final encoded = img.encodeJpg(thumb, quality: quality);
       return Uint8List.fromList(encoded);
     } catch (e) {
@@ -156,7 +138,6 @@ class ImageService {
     }
   }
 
-  /// Constrói widget a partir de Base64. Placeholder e errorWidget podem ser passados.
   static Widget buildImageFromBase64(
     String? base64String, {
     double? width,
@@ -197,8 +178,6 @@ class ImageService {
     }
   }
 
-  /// Constrói widget a partir de URL com loading e error handling.
-  /// Tenta usar cache manager em mobile/web; se falhar, usa Image.network direto.
   static Widget buildImageFromUrl(
     String url, {
     double? width,
@@ -213,7 +192,6 @@ class ImageService {
 
     if (url.isEmpty) return ph;
 
-    // se for web, Image.network com loadingBuilder é suficiente e compatível
     if (kIsWeb) {
       return Image.network(
         url,
@@ -228,12 +206,10 @@ class ImageService {
       );
     }
 
-    // mobile: tentar usar cache manager para reduzir requests
     return FutureBuilder<FileInfo?>(
       future: DefaultCacheManager().getFileFromCache(url).then((v) async {
         if (v != null) return v;
         try {
-          // tenta baixar e guardar no cache
           final f = await DefaultCacheManager().getSingleFile(url);
           return await DefaultCacheManager().getFileFromCache(url);
         } catch (_) {
@@ -242,7 +218,7 @@ class ImageService {
       }),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return SizedBox(width: width, height: height, child: Center(child: CircularProgressIndicator()));
+          return SizedBox(width: width, height: height, child: const Center(child: CircularProgressIndicator()));
         }
         final fileInfo = snap.data;
         if (fileInfo != null && fileInfo.file.existsSync()) {
@@ -258,7 +234,6 @@ class ImageService {
             return err;
           }
         }
-        // fallback para Image.network
         return Image.network(
           url,
           width: width,
@@ -274,7 +249,6 @@ class ImageService {
     );
   }
 
-  /// Widget placeholder padrão
   static Widget _defaultPlaceholder({double? width, double? height}) {
     return Container(
       width: width,
@@ -286,8 +260,6 @@ class ImageService {
     );
   }
 
-  /// Mostra diálogo para escolher entre galeria ou câmera e retorna Base64 (ou null).
-  /// Uso seguro: evita múltiplos Navigator.pop no fluxo.
   static Future<String?> showImageSourceDialogAsBase64(BuildContext context, {int maxDimension = 1920, int quality = 85}) async {
     final result = await showDialog<String?>(
       context: context,
@@ -324,7 +296,6 @@ class ImageService {
     return null;
   }
 
-  /// Download de imagem remota e retorno de bytes (útil para gerar thumbnail etc).
   static Future<Uint8List?> fetchUrlBytes(String url) async {
     try {
       final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 12));
@@ -336,20 +307,17 @@ class ImageService {
     }
   }
 
-  /// Pequeno helper para verificar se string parece ser uma URL de imagem
   static bool looksLikeImageUrl(String? url) {
     if (url == null) return false;
     final lower = url.toLowerCase();
     return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.contains('image') || lower.contains('imgur') || lower.contains('cdn');
   }
 
-  // Transparent 1x1 PNG in memory for FadeInImage placeholder
   static final kTransparentImage = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
   );
 }
 
-/// Widget customizado para exibir avatar com suporte a Base64 (mantém compatibilidade)
 class Base64Avatar extends StatelessWidget {
   final String? base64Image;
   final String fallbackText;
@@ -393,9 +361,8 @@ class Base64Avatar extends StatelessWidget {
   }
 }
 
-/// Widget para exibir imagem de post (aceita Base64 ou URL) e abre fullscreen ao tocar
 class PostImageWidget extends StatelessWidget {
-  final String source; // pode ser base64 ou url
+  final String source;
   final double? height;
   final VoidCallback? onTap;
 
@@ -423,7 +390,6 @@ class PostImageWidget extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ??
           () {
-            // Fullscreen viewer
             Navigator.of(context).push(MaterialPageRoute(builder: (_) {
               return Scaffold(
                 backgroundColor: Colors.black,
