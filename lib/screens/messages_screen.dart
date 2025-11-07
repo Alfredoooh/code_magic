@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' as auth; // CORRIGIDO: alias para evitar conflito
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -27,15 +27,13 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
   }
 
   Future<void> _initAdmin() async {
-    // determina se é admin: primeiro checa userData, senão tenta claims
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = context.read<auth.AuthProvider>(); // CORRIGIDO: usa alias
     final localUserData = authProvider.userData;
     bool isAdmin = false;
     try {
       if (localUserData != null && localUserData['userType'] == 'admin') {
         isAdmin = true;
       } else {
-        // checar custom claim
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           final tokenRes = await user.getIdTokenResult(true);
@@ -57,7 +55,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final authProvider = context.watch<AuthProvider>();
+    final authProvider = context.watch<auth.AuthProvider>(); // CORRIGIDO: usa alias
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
@@ -122,10 +120,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  // -----------------------
-  // TAB de inbox para usuário normal (e também a primeira tab do admin)
-  // -----------------------
-  Widget _buildUserInbox(Color cardColor, Color textColor, Color hintColor, AuthProvider authProvider) {
+  Widget _buildUserInbox(Color cardColor, Color textColor, Color hintColor, auth.AuthProvider authProvider) {
     final currentUid = authProvider.user?.uid;
     if (currentUid == null) {
       return Center(child: Text('Usuário não autenticado', style: TextStyle(color: hintColor)));
@@ -182,16 +177,10 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  // -----------------------
-  // Abas do admin: Emails, Usuarios, Enviar
-  // -----------------------
-  List<Widget> _buildAdminTabs(Color cardColor, Color textColor, Color hintColor, AuthProvider authProvider) {
+  List<Widget> _buildAdminTabs(Color cardColor, Color textColor, Color hintColor, auth.AuthProvider authProvider) {
     return [
-      // Emails: mostra todos os emails (admin pode pesquisar e deletar)
       _buildAdminEmailsTab(cardColor, textColor, hintColor),
-      // Users: lista de usuários com ações (block/delete/edit) -> chama Cloud Functions
       _buildAdminUsersTab(cardColor, textColor, hintColor),
-      // Send: formulário para enviar email a um usuário
       _buildAdminSendTab(cardColor, textColor, hintColor, authProvider),
     ];
   }
@@ -243,7 +232,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
   }
 
   Widget _buildAdminUsersTab(Color cardColor, Color textColor, Color hintColor) {
-    // lista de usuários — curiosamente tens coleção 'users' já
     final query = FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true);
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
@@ -285,8 +273,8 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                   }
                 },
                 itemBuilder: (_) => [
-                  PopupMenuItem(value: 'send', child: Text('Enviar email')),
-                  PopupMenuItem(value: 'edit', child: Text('Editar')),
+                  const PopupMenuItem(value: 'send', child: Text('Enviar email')),
+                  const PopupMenuItem(value: 'edit', child: Text('Editar')),
                   PopupMenuItem(value: 'block', child: Text(isBlocked ? 'Desbloquear' : 'Bloquear')),
                   const PopupMenuItem(value: 'delete', child: Text('Deletar')),
                 ],
@@ -298,17 +286,17 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildAdminSendTab(Color cardColor, Color textColor, Color hintColor, AuthProvider authProvider) {
-    final TextEditingController _toController = TextEditingController();
-    final TextEditingController _subjectController = TextEditingController();
-    final TextEditingController _bodyController = TextEditingController();
+  Widget _buildAdminSendTab(Color cardColor, Color textColor, Color hintColor, auth.AuthProvider authProvider) {
+    final TextEditingController toController = TextEditingController();
+    final TextEditingController subjectController = TextEditingController();
+    final TextEditingController bodyController = TextEditingController();
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           TextField(
-            controller: _toController,
+            controller: toController,
             decoration: InputDecoration(
               hintText: 'UID do destinatário (ou deixe vazio para broadcast)',
               filled: true,
@@ -317,13 +305,13 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
           ),
           const SizedBox(height: 12),
           TextField(
-            controller: _subjectController,
+            controller: subjectController,
             decoration: InputDecoration(hintText: 'Assunto', filled: true, fillColor: cardColor),
           ),
           const SizedBox(height: 12),
           Expanded(
             child: TextField(
-              controller: _bodyController,
+              controller: bodyController,
               maxLines: null,
               expands: true,
               decoration: InputDecoration(hintText: 'Corpo do email', filled: true, fillColor: cardColor),
@@ -335,14 +323,14 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
               Expanded(
                 child: ElevatedButton(
                   onPressed: () async {
-                    final recipientId = _toController.text.trim();
-                    final subject = _subjectController.text.trim();
-                    final body = _bodyController.text.trim();
+                    final recipientId = toController.text.trim();
+                    final subject = subjectController.text.trim();
+                    final body = bodyController.text.trim();
                     await _adminSendEmail(recipientId.isEmpty ? null : recipientId, subject, body);
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email enviado')));
-                    _toController.clear();
-                    _subjectController.clear();
-                    _bodyController.clear();
+                    toController.clear();
+                    subjectController.clear();
+                    bodyController.clear();
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2)),
                   child: const Text('Enviar'),
@@ -355,15 +343,10 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  // -----------------------
-  // Ações admin (chama Cloud Functions)
-  // -----------------------
   Future<void> _adminSendEmail(String? recipientId, String subject, String body) async {
     try {
       final HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('sendEmailToUser');
       if (recipientId == null) {
-        // broadcast: buscar todos os usuários e criar emails — preferível criar uma função que faça broadcast no servidor
-        // Aqui iremos chamar a função para cada usuário localmente (não ideal para muitos usuários).
         final usersSnap = await FirebaseFirestore.instance.collection('users').get();
         for (final u in usersSnap.docs) {
           await callable.call({
@@ -425,9 +408,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     }
   }
 
-  // -----------------------
-  // Leitura de email (usuário)
-  // -----------------------
   Future<void> _openEmailDetail(String emailId, Map<String, dynamic> data, String currentUid) async {
     await showDialog(
       context: context,
@@ -435,7 +415,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
         final subject = data['subject'] ?? '(Sem assunto)';
         final body = data['body'] ?? '';
         final senderName = data['senderName'] ?? 'Sistema';
-        final created = data['createdAt'] as Timestamp?;
         return AlertDialog(
           title: Text(subject),
           content: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('De: $senderName'), const SizedBox(height: 8), Text(body)])),
@@ -449,7 +428,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
       },
     );
 
-    // marcar como lido (se for o destinatário)
     try {
       final docRef = FirebaseFirestore.instance.collection('emails').doc(emailId);
       final doc = await docRef.get();
@@ -461,7 +439,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     }
   }
 
-  // leitura de email admin (visualiza e pode marcar/editar)
   Future<void> _openEmailDetailAdmin(String emailId, Map<String, dynamic> data) async {
     await showDialog(
       context: context,
@@ -477,7 +454,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
             TextButton(
               onPressed: () async {
-                // deletar email
                 await FirebaseFirestore.instance.collection('emails').doc(emailId).delete();
                 Navigator.of(context).pop();
               },
@@ -489,9 +465,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  // -----------------------
-  // Edit user dialog (admin)
-  // -----------------------
   void _openEditUserDialog(String uid, Map<String, dynamic> data) {
     final nameController = TextEditingController(text: data['name'] ?? '');
     final emailController = TextEditingController(text: data['email'] ?? '');
@@ -513,7 +486,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
               final updates = <String, dynamic>{};
               if (nameController.text.trim().isNotEmpty) updates['name'] = nameController.text.trim();
               if (emailController.text.trim().isNotEmpty) updates['email'] = emailController.text.trim();
-              // chamar cloud function updateUserData
               try {
                 final callable = FirebaseFunctions.instance.httpsCallable('updateUserData');
                 await callable.call({'uid': uid, 'updates': updates});
@@ -562,9 +534,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  // -----------------------
-  // Util
-  // -----------------------
   String _formatTimestamp(Timestamp? ts) {
     if (ts == null) return '';
     final dt = ts.toDate();
