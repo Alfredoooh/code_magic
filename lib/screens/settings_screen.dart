@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -10,6 +11,26 @@ import 'terms_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  // Método para navegação horizontal
+  void _navigateHorizontally(BuildContext context, Widget screen) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +46,15 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: cardColor,
         elevation: 0,
+        leading: IconButton(
+          icon: SvgPicture.string(
+            CustomIcons.arrowLeft,
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Configurações',
           style: TextStyle(
@@ -46,13 +76,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           // Profile Card
           GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                CupertinoPageRoute(
-                  builder: (_) => const UserProfileScreen(),
-                ),
-              );
-            },
+            onTap: () => _navigateHorizontally(context, const UserProfileScreen()),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.all(16),
@@ -110,10 +134,14 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  SvgIcon(
-                    svgString: CustomIcons.chevronRight,
-                    color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                    size: 20,
+                  SvgPicture.string(
+                    CustomIcons.chevronRight,
+                    width: 20,
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ],
               ),
@@ -184,13 +212,7 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   CustomIcons.userCircle,
                   'Minha conta',
-                  () {
-                    Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (_) => const UserProfileScreen(),
-                      ),
-                    );
-                  },
+                  () => _navigateHorizontally(context, const UserProfileScreen()),
                   isDark,
                 ),
                 Divider(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
@@ -218,13 +240,7 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   CustomIcons.document,
                   'Termos de uso',
-                  () {
-                    Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (_) => const TermsScreen(type: TermsType.terms),
-                      ),
-                    );
-                  },
+                  () => _navigateHorizontally(context, const TermsScreen(type: TermsType.terms)),
                   isDark,
                 ),
                 Divider(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
@@ -232,13 +248,7 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   CustomIcons.shield,
                   'Política de privacidade',
-                  () {
-                    Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (_) => const TermsScreen(type: TermsType.privacy),
-                      ),
-                    );
-                  },
+                  () => _navigateHorizontally(context, const TermsScreen(type: TermsType.privacy)),
                   isDark,
                 ),
                 Divider(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
@@ -246,40 +256,50 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   CustomIcons.globe,
                   'Sobre',
-                  () {
-                    Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (_) => const TermsScreen(type: TermsType.about),
-                      ),
-                    );
-                  },
+                  () => _navigateHorizontally(context, const TermsScreen(type: TermsType.about)),
                   isDark,
                 ),
               ],
             ),
           ),
 
-          // Logout Button
+          // Logout Button com ícone custom
           Container(
             margin: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
+              height: 48,
               child: OutlinedButton(
                 onPressed: () => _showLogoutDialog(context, authProvider),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFFA383E),
                   side: const BorderSide(color: Color(0xFFFA383E), width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Sair',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SvgPicture.string(
+                      CustomIcons.logout,
+                      width: 20,
+                      height: 20,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFFFA383E),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Sair',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -302,10 +322,14 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            SvgIcon(
-              svgString: iconSvg,
-              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-              size: 22,
+            SvgPicture.string(
+              iconSvg,
+              width: 22,
+              height: 22,
+              colorFilter: ColorFilter.mode(
+                isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                BlendMode.srcIn,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -318,10 +342,14 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SvgIcon(
-              svgString: CustomIcons.chevronRight,
-              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-              size: 18,
+            SvgPicture.string(
+              CustomIcons.chevronRight,
+              width: 18,
+              height: 18,
+              colorFilter: ColorFilter.mode(
+                isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                BlendMode.srcIn,
+              ),
             ),
           ],
         ),
@@ -352,7 +380,7 @@ class SettingsScreen extends StatelessWidget {
     if (confirm == true && context.mounted) {
       await authProvider.signOut();
       if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     }
   }
