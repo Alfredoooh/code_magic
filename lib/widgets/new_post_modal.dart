@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart'; // ADICIONADO
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
@@ -36,7 +37,6 @@ class _NewPostModalState extends State<NewPostModal> {
     if (base64 == null) return;
 
     final bytes = ImageService.base64ToBytes(base64);
-    // Limite 5MB (ajusta se quiseres)
     if (bytes.length > 5 * 1024 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -95,8 +95,6 @@ class _NewPostModalState extends State<NewPostModal> {
       final name = auth.userData?['name'] ?? 'Usuário';
       final avatar = auth.userData?['photoURL'];
 
-      // createPost: espera que o teu PostService implemente este método.
-      // Se não tiveres, altera para escrever diretamente no Firestore.
       await _postService.createPost(
         userId: uid,
         userName: name,
@@ -107,7 +105,7 @@ class _NewPostModalState extends State<NewPostModal> {
       );
 
       if (mounted) {
-        Navigator.pop(context); // fechar modal
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Publicação criada com sucesso'), backgroundColor: Color(0xFF31A24C)),
         );
@@ -124,7 +122,6 @@ class _NewPostModalState extends State<NewPostModal> {
   }
 
   Future<void> _openFullscreenEditor() async {
-    // envia o estado atual para o fullscreen editor e aguarda o resultado
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => FullscreenNewPost(
@@ -136,7 +133,6 @@ class _NewPostModalState extends State<NewPostModal> {
       ),
     );
 
-    // resultado esperado: {'content': string, 'imageBase64': string?, 'videoUrl': string?}
     if (result != null && mounted) {
       setState(() {
         _contentController.text = result['content'] ?? _contentController.text;
@@ -169,7 +165,6 @@ class _NewPostModalState extends State<NewPostModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header (fechar + titulo + expand)
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA), width: 0.3))),
@@ -185,10 +180,8 @@ class _NewPostModalState extends State<NewPostModal> {
                       ),
                     ),
                     const Spacer(),
-                    Text('Criar publicação',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textColor)),
+                    Text('Criar publicação', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textColor)),
                     const Spacer(),
-                    // Expand (abrir fullscreen)
                     GestureDetector(
                       onTap: _openFullscreenEditor,
                       child: Container(
@@ -201,28 +194,21 @@ class _NewPostModalState extends State<NewPostModal> {
                   ],
                 ),
               ),
-
-              // Content
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // User info
                     Row(children: [
                       CircleAvatar(
                         radius: 18,
                         backgroundColor: const Color(0xFF1877F2),
                         backgroundImage: authProvider.userData?['photoURL'] != null ? NetworkImage(authProvider.userData!['photoURL']) : null,
-                        child: authProvider.userData?['photoURL'] == null
-                            ? Text(authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16))
-                            : null,
+                        child: authProvider.userData?['photoURL'] == null ? Text(authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)) : null,
                       ),
                       const SizedBox(width: 10),
                       Text(authProvider.userData?['name'] ?? 'Usuário', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
                     ]),
                     const SizedBox(height: 12),
-
-                    // Text field
                     TextField(
                       controller: _contentController,
                       maxLines: null,
@@ -236,8 +222,6 @@ class _NewPostModalState extends State<NewPostModal> {
                       ),
                       onChanged: (_) => setState(() {}),
                     ),
-
-                    // Video URL preview (se existir)
                     if (_videoUrl != null && _videoUrl!.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Container(
@@ -247,8 +231,6 @@ class _NewPostModalState extends State<NewPostModal> {
                         child: Text(_videoUrl!, style: TextStyle(color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B))),
                       ),
                     ],
-
-                    // Image preview
                     if (_imageBytes != null) ...[
                       const SizedBox(height: 12),
                       Stack(children: [
@@ -266,29 +248,22 @@ class _NewPostModalState extends State<NewPostModal> {
                   ]),
                 ),
               ),
-
-              // Add to post section
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(border: Border(top: BorderSide(color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA), width: 0.3))),
                 child: Row(children: [
                   Text('Adicionar à publicação', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
                   const Spacer(),
-                  // photo
                   GestureDetector(
-                    onTap: () async {
-                      await _pickImage();
-                    },
+                    onTap: _pickImage,
                     child: Container(width: 38, height: 38, decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle), child: const Icon(Icons.image, color: Color(0xFF45BD62), size: 20)),
                   ),
                   const SizedBox(width: 8),
-                  // camera
                   GestureDetector(
                     onTap: _takePhoto,
                     child: Container(width: 38, height: 38, decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Color(0xFF1877F2), size: 18)),
                   ),
                   const SizedBox(width: 8),
-                  // video url open small dialog
                   GestureDetector(
                     onTap: () async {
                       final url = await showDialog<String?>(
@@ -311,17 +286,13 @@ class _NewPostModalState extends State<NewPostModal> {
                   ),
                 ]),
               ),
-
-              // Post button
               Container(
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
                   height: 44,
                   child: ElevatedButton(
-                    onPressed: _isPosting || (_contentController.text.trim().isEmpty && _imageBase64 == null && (_videoUrl == null || _videoUrl!.isEmpty))
-                        ? null
-                        : _createPost,
+                    onPressed: _isPosting || (_contentController.text.trim().isEmpty && _imageBase64 == null && (_videoUrl == null || _videoUrl!.isEmpty)) ? null : _createPost,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1877F2),
                       foregroundColor: Colors.white,
@@ -330,9 +301,7 @@ class _NewPostModalState extends State<NewPostModal> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: _isPosting
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                        : const Text('Publicar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    child: _isPosting ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))) : const Text('Publicar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ),
