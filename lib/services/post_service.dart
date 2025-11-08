@@ -10,12 +10,16 @@ import '../screens/image_viewer_screen.dart';
 enum FeedFilter { mixed, postsOnly, newsOnly }
 
 class PostService {
+  static final PostService _instance = PostService._internal();
+  factory PostService() => _instance;
+  PostService._internal();
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final StreamController<List<Post>> _controller = StreamController.broadcast();
 
   Stream<List<Post>> get stream => _controller.stream;
 
-  // SUA CHAVE API
+  // API Key
   static const _newsApiKey = 'b2e4d59068e545abbdffaf947c371bcd';
 
   StreamSubscription<QuerySnapshot>? _postsSub;
@@ -56,10 +60,10 @@ class PostService {
         .snapshots()
         .listen((snap) {
       _posts = snap.docs.map((d) => Post.fromFirestore(d)).toList();
-      print('📝 Posts: ${_posts.length}');
+      print('📝 Posts do Firebase: ${_posts.length}');
       _emitCombined();
     }, onError: (e) {
-      print('❌ Erro posts: $e');
+      print('❌ Erro ao buscar posts: $e');
       _controller.addError(e);
     });
   }
@@ -67,48 +71,50 @@ class PostService {
   Future<void> _fetchNewsOnce() async {
     print('');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('📰 BUSCANDO NOTÍCIAS...');
+    print('📰 INICIANDO BUSCA DE NOTÍCIAS...');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     try {
       final List<Post> results = [];
       final Set<String> seenUrls = {};
 
-      // ENDPOINT 1: Top Headlines US Business
       print('');
-      print('🔍 Tentando: Top Headlines US Business');
+      print('🔍 ENDPOINT 1: Top Headlines US Business');
       await _fetchTopHeadlinesUS(results, seenUrls);
 
-      // ENDPOINT 2: TechCrunch
       print('');
-      print('🔍 Tentando: TechCrunch');
+      print('🔍 ENDPOINT 2: TechCrunch');
       await _fetchTechCrunch(results, seenUrls);
 
-      // ENDPOINT 3: Everything - Bitcoin
       print('');
-      print('🔍 Tentando: Bitcoin News');
+      print('🔍 ENDPOINT 3: Bitcoin News');
       await _fetchBitcoin(results, seenUrls);
 
-      // ENDPOINT 4: Everything - Technology
       print('');
-      print('🔍 Tentando: Technology News');
+      print('🔍 ENDPOINT 4: Technology News');
       await _fetchTechnology(results, seenUrls);
 
       print('');
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       if (results.isEmpty) {
         print('❌ NENHUMA NOTÍCIA CARREGADA!');
-        print('   Verifique sua conexão de internet');
+        print('   Verifique:');
+        print('   1. Conexão com internet');
+        print('   2. Validade da API Key');
+        print('   3. Limites da API');
         _news = [];
       } else {
         results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         _news = results.take(50).toList();
         print('✅ ${_news.length} NOTÍCIAS CARREGADAS COM SUCESSO!');
         print('');
-        print('📋 Primeiras 3 notícias:');
-        for (int i = 0; i < _news.length && i < 3; i++) {
-          print('   ${i + 1}. ${_news[i].title}');
-          print('      Fonte: ${_news[i].userName}');
+        print('📋 Primeiras 5 notícias:');
+        for (int i = 0; i < _news.length && i < 5; i++) {
+          final post = _news[i];
+          print('   ${i + 1}. ${post.title}');
+          print('      Fonte: ${post.userName}');
+          print('      URL: ${post.newsUrl}');
+          print('');
         }
       }
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -116,148 +122,166 @@ class PostService {
 
       _emitCombined();
     } catch (e) {
-      print('❌ ERRO GERAL: $e');
+      print('❌ ERRO GERAL ao buscar notícias: $e');
       _news = [];
       _emitCombined();
     }
   }
 
-  // ENDPOINT 1: Top Headlines US Business
   Future<void> _fetchTopHeadlinesUS(List<Post> results, Set<String> seenUrls) async {
     try {
       final url = 'https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=$_newsApiKey';
-      print('   URL: $url');
+      print('   URL: ${url.replaceAll(_newsApiKey, "***")}');
 
-      final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      
-      print('   Status: ${resp.statusCode}');
+      final resp = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
+
+      print('   Status Code: ${resp.statusCode}');
 
       if (resp.statusCode == 200) {
         final json = jsonDecode(resp.body);
-        final List articles = json['articles'] ?? [];
-        
-        print('   ✓ ${articles.length} artigos encontrados');
+        final String? status = json['status'];
+        final List? articles = json['articles'];
 
-        int added = 0;
-        for (var article in articles) {
-          if (_addArticle(article, results, seenUrls, 'US Business')) {
-            added++;
+        print('   Status: $status');
+        print('   Total de artigos: ${articles?.length ?? 0}');
+
+        if (articles != null && articles.isNotEmpty) {
+          int added = 0;
+          for (var article in articles) {
+            if (_addArticle(article, results, seenUrls, 'US Business')) {
+              added++;
+            }
+            if (results.length >= 50) break;
           }
-          if (results.length >= 50) break;
+          print('   ✅ $added notícias adicionadas ao feed');
         }
-        print('   ✓ $added notícias adicionadas');
-      } else if (resp.statusCode == 426) {
-        print('   ⚠️ ERRO 426: Upgrade Required');
-        print('   Sua chave API precisa de upgrade ou está limitada');
-      } else if (resp.statusCode == 429) {
-        print('   ⚠️ ERRO 429: Limite de requisições atingido');
-      } else if (resp.statusCode == 401) {
-        print('   ⚠️ ERRO 401: Chave API inválida');
       } else {
-        print('   ⚠️ Erro ${resp.statusCode}');
-        print('   Resposta: ${resp.body.substring(0, resp.body.length > 200 ? 200 : resp.body.length)}');
+        final json = jsonDecode(resp.body);
+        print('   ❌ Erro ${resp.statusCode}');
+        print('   Mensagem: ${json['message'] ?? 'Sem mensagem'}');
+        print('   Code: ${json['code'] ?? 'Sem código'}');
       }
     } catch (e) {
       print('   ❌ Exceção: $e');
     }
   }
 
-  // ENDPOINT 2: TechCrunch
   Future<void> _fetchTechCrunch(List<Post> results, Set<String> seenUrls) async {
     try {
       final url = 'https://newsapi.org/v2/top-headlines?sources=techcrunch&apiKey=$_newsApiKey';
-      print('   URL: $url');
+      print('   URL: ${url.replaceAll(_newsApiKey, "***")}');
 
-      final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      
-      print('   Status: ${resp.statusCode}');
+      final resp = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
+
+      print('   Status Code: ${resp.statusCode}');
 
       if (resp.statusCode == 200) {
         final json = jsonDecode(resp.body);
-        final List articles = json['articles'] ?? [];
-        
-        print('   ✓ ${articles.length} artigos encontrados');
+        final List? articles = json['articles'];
 
-        int added = 0;
-        for (var article in articles) {
-          if (_addArticle(article, results, seenUrls, 'TechCrunch')) {
-            added++;
+        print('   Total de artigos: ${articles?.length ?? 0}');
+
+        if (articles != null && articles.isNotEmpty) {
+          int added = 0;
+          for (var article in articles) {
+            if (_addArticle(article, results, seenUrls, 'TechCrunch')) {
+              added++;
+            }
+            if (results.length >= 50) break;
           }
-          if (results.length >= 50) break;
+          print('   ✅ $added notícias adicionadas ao feed');
         }
-        print('   ✓ $added notícias adicionadas');
       } else {
-        print('   ⚠️ Erro ${resp.statusCode}');
+        final json = jsonDecode(resp.body);
+        print('   ❌ Erro ${resp.statusCode}');
+        print('   Mensagem: ${json['message'] ?? 'Sem mensagem'}');
       }
     } catch (e) {
       print('   ❌ Exceção: $e');
     }
   }
 
-  // ENDPOINT 3: Bitcoin
   Future<void> _fetchBitcoin(List<Post> results, Set<String> seenUrls) async {
     try {
+      // CORREÇÃO: Data correta (ontem)
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       final dateStr = yesterday.toIso8601String().split('T')[0];
-      
-      final url = 'https://newsapi.org/v2/everything?q=bitcoin&from=$dateStr&sortBy=publishedAt&apiKey=$_newsApiKey';
-      print('   URL: $url');
 
-      final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      
-      print('   Status: ${resp.statusCode}');
+      final url = 'https://newsapi.org/v2/everything?q=bitcoin&from=$dateStr&sortBy=publishedAt&apiKey=$_newsApiKey';
+      print('   URL: ${url.replaceAll(_newsApiKey, "***")}');
+      print('   Data de busca: $dateStr');
+
+      final resp = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
+
+      print('   Status Code: ${resp.statusCode}');
 
       if (resp.statusCode == 200) {
         final json = jsonDecode(resp.body);
-        final List articles = json['articles'] ?? [];
-        
-        print('   ✓ ${articles.length} artigos encontrados');
+        final List? articles = json['articles'];
 
-        int added = 0;
-        for (var article in articles) {
-          if (_addArticle(article, results, seenUrls, 'Bitcoin News')) {
-            added++;
+        print('   Total de artigos: ${articles?.length ?? 0}');
+
+        if (articles != null && articles.isNotEmpty) {
+          int added = 0;
+          for (var article in articles) {
+            if (_addArticle(article, results, seenUrls, 'Bitcoin News')) {
+              added++;
+            }
+            if (results.length >= 50) break;
           }
-          if (results.length >= 50) break;
+          print('   ✅ $added notícias adicionadas ao feed');
         }
-        print('   ✓ $added notícias adicionadas');
       } else {
-        print('   ⚠️ Erro ${resp.statusCode}');
+        final json = jsonDecode(resp.body);
+        print('   ❌ Erro ${resp.statusCode}');
+        print('   Mensagem: ${json['message'] ?? 'Sem mensagem'}');
       }
     } catch (e) {
       print('   ❌ Exceção: $e');
     }
   }
 
-  // ENDPOINT 4: Technology
   Future<void> _fetchTechnology(List<Post> results, Set<String> seenUrls) async {
     try {
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       final dateStr = yesterday.toIso8601String().split('T')[0];
-      
-      final url = 'https://newsapi.org/v2/everything?q=technology&from=$dateStr&sortBy=publishedAt&apiKey=$_newsApiKey';
-      print('   URL: $url');
 
-      final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      
-      print('   Status: ${resp.statusCode}');
+      final url = 'https://newsapi.org/v2/everything?q=technology&from=$dateStr&sortBy=publishedAt&language=en&apiKey=$_newsApiKey';
+      print('   URL: ${url.replaceAll(_newsApiKey, "***")}');
+      print('   Data de busca: $dateStr');
+
+      final resp = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
+
+      print('   Status Code: ${resp.statusCode}');
 
       if (resp.statusCode == 200) {
         final json = jsonDecode(resp.body);
-        final List articles = json['articles'] ?? [];
-        
-        print('   ✓ ${articles.length} artigos encontrados');
+        final List? articles = json['articles'];
 
-        int added = 0;
-        for (var article in articles) {
-          if (_addArticle(article, results, seenUrls, 'Tech News')) {
-            added++;
+        print('   Total de artigos: ${articles?.length ?? 0}');
+
+        if (articles != null && articles.isNotEmpty) {
+          int added = 0;
+          for (var article in articles) {
+            if (_addArticle(article, results, seenUrls, 'Tech News')) {
+              added++;
+            }
+            if (results.length >= 50) break;
           }
-          if (results.length >= 50) break;
+          print('   ✅ $added notícias adicionadas ao feed');
         }
-        print('   ✓ $added notícias adicionadas');
       } else {
-        print('   ⚠️ Erro ${resp.statusCode}');
+        final json = jsonDecode(resp.body);
+        print('   ❌ Erro ${resp.statusCode}');
+        print('   Mensagem: ${json['message'] ?? 'Sem mensagem'}');
       }
     } catch (e) {
       print('   ❌ Exceção: $e');
@@ -269,32 +293,58 @@ class PostService {
       final url = article['url'];
       final title = article['title'];
 
-      if (url == null || seenUrls.contains(url)) return false;
-      if (title == null || title.toString().contains('[Removed]')) return false;
+      // Validações
+      if (url == null || url.toString().isEmpty) {
+        print('      ⚠️ Artigo sem URL');
+        return false;
+      }
+
+      if (seenUrls.contains(url)) {
+        print('      ⚠️ Artigo duplicado');
+        return false;
+      }
+
+      if (title == null || 
+          title.toString().isEmpty || 
+          title.toString().contains('[Removed]') ||
+          title.toString().toLowerCase().contains('removed')) {
+        print('      ⚠️ Artigo removido ou sem título');
+        return false;
+      }
 
       seenUrls.add(url);
 
       final imageUrl = article['urlToImage'];
-      
+      final description = article['description'];
+      final sourceName = article['source']?['name'];
+      final publishedAt = article['publishedAt'];
+
+      // Log do artigo adicionado
+      print('      ✓ Adicionando: ${title.toString().substring(0, title.toString().length > 50 ? 50 : title.toString().length)}...');
+
       results.add(Post(
         id: 'news_${results.length}_${DateTime.now().millisecondsSinceEpoch}',
-        userId: 'newsapi_$category',
-        userName: article['source']?['name'] ?? category,
+        userId: 'newsapi_${category.replaceAll(' ', '_').toLowerCase()}',
+        userName: sourceName?.toString() ?? category,
         userAvatar: null,
-        content: article['description']?.toString() ?? title.toString(),
+        content: description?.toString() ?? title.toString(),
         imageBase64: null,
-        imageUrls: imageUrl != null && imageUrl.toString() != 'null' ? [imageUrl.toString()] : [],
+        imageUrls: (imageUrl != null && imageUrl.toString() != 'null' && imageUrl.toString().isNotEmpty) 
+            ? [imageUrl.toString()] 
+            : [],
         videoUrl: null,
         isNews: true,
-        newsUrl: url,
+        newsUrl: url.toString(),
         title: title.toString(),
-        summary: article['description']?.toString() ?? title.toString(),
-        timestamp: article['publishedAt'] != null ? DateTime.tryParse(article['publishedAt']) ?? DateTime.now() : DateTime.now(),
+        summary: description?.toString() ?? title.toString(),
+        timestamp: publishedAt != null 
+            ? DateTime.tryParse(publishedAt.toString()) ?? DateTime.now() 
+            : DateTime.now(),
       ));
 
       return true;
     } catch (e) {
-      print('   ⚠️ Erro ao processar artigo: $e');
+      print('      ❌ Erro ao processar artigo: $e');
       return false;
     }
   }
@@ -304,6 +354,7 @@ class PostService {
 
     switch (_currentFilter) {
       case FeedFilter.mixed:
+        // Intercala: 2 posts, 1 notícia
         int postIdx = 0;
         int newsIdx = 0;
         while (postIdx < _posts.length || newsIdx < _news.length) {
@@ -325,7 +376,10 @@ class PostService {
         break;
     }
 
-    print('📊 Feed: ${combined.length} itens (${combined.where((p) => p.isNews).length} notícias)');
+    final newsCount = combined.where((p) => p.isNews).length;
+    final postsCount = combined.where((p) => !p.isNews).length;
+    
+    print('📊 Feed emitido: $postsCount posts + $newsCount notícias = ${combined.length} total');
     _controller.add(combined);
   }
 
@@ -333,9 +387,11 @@ class PostService {
     if (imageUrls.isEmpty) return;
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => ImageViewerScreen(imageUrls: imageUrls, initialUrl: initialUrl),
+        pageBuilder: (context, animation, secondaryAnimation) => 
+            ImageViewerScreen(imageUrls: imageUrls, initialUrl: initialUrl),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          var tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero).chain(CurveTween(curve: Curves.easeInOutCubic));
+          var tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+              .chain(CurveTween(curve: Curves.easeInOutCubic));
           return SlideTransition(position: animation.drive(tween), child: child);
         },
         transitionDuration: const Duration(milliseconds: 350),
@@ -367,8 +423,9 @@ class PostService {
         'likedBy': [],
         'isNews': false,
       });
+      print('✅ Post criado com sucesso');
     } catch (e) {
-      print('Error creating post: $e');
+      print('❌ Erro ao criar post: $e');
       rethrow;
     }
   }
@@ -397,12 +454,14 @@ class PostService {
   }
 
   Future<void> deletePost(String postId) async {
-    await _firestore.collection('posts').doc(postId).delete();
+    await _firestore.collection('posts').doc(postId);
+    print('✅ Post deletado');
   }
 
   void dispose() {
     _postsSub?.cancel();
     _newsTimer?.cancel();
     _controller.close();
+    _started = false;
   }
 }
