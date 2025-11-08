@@ -348,8 +348,8 @@ class _UsersScreenState extends State<UsersScreen> {
               radius: 28,
               backgroundColor: const Color(0xFF1877F2),
               backgroundImage: photoBase64 != null
-                  ? MemoryImage(base64Decode(photoBase64))
-                  : (photoURL != null ? NetworkImage(photoURL) : null),
+                  ? MemoryImage(base64Decode(photoBase64 as String)) as ImageProvider
+                  : (photoURL != null ? NetworkImage(photoURL as String) as ImageProvider : null),
               child: photoBase64 == null && photoURL == null
                   ? Text(
                       userData['name']?.substring(0, 1).toUpperCase() ?? 'U',
