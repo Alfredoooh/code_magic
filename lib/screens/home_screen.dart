@@ -10,11 +10,11 @@ import '../widgets/post_feed.dart';
 import '../widgets/new_post_modal.dart';
 import 'search_screen.dart';
 import 'messages_screen.dart';
-import 'invest_screen.dart';
 import 'users_screen.dart';
 import 'marketplace_screen.dart';
 import 'marketplace/add_book_screen.dart';
-import 'bets_screen.dart';
+import 'diary_screen.dart';
+import 'new_request_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,8 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     'Início',
     'Usuários',
     'Marketplace',
-    'Bets',
-    'Investir',
+    'Diário',
+    'Novo Pedido',
   ];
 
   @override
@@ -66,10 +66,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _pages[2] = const MarketplaceScreen();
         break;
       case 3:
-        _pages[3] = const BetsScreen();
+        _pages[3] = const DiaryScreen();
         break;
       case 4:
-        _pages[4] = const InvestScreen();
+        _pages[4] = const NewRequestScreen();
         break;
       default:
         _pages[index] = const SizedBox.shrink();
@@ -181,7 +181,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Método para navegação horizontal simples
   void _navigateHorizontally(BuildContext context, Widget screen) {
     Navigator.of(context).push(
       PageRouteBuilder(
@@ -201,6 +200,84 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _showRequestOptionsMenu(BuildContext context) {
+    final themeProv = context.read<ThemeProvider>();
+    final isDark = themeProv.isDarkMode;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: SvgIcon(
+                  svgString: CustomIcons.edit,
+                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                ),
+                title: Text(
+                  'Editar Pedido',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implementar edição
+                },
+              ),
+              ListTile(
+                leading: SvgIcon(
+                  svgString: CustomIcons.share,
+                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                ),
+                title: Text(
+                  'Compartilhar',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implementar compartilhamento
+                },
+              ),
+              ListTile(
+                leading: const SvgIcon(
+                  svgString: CustomIcons.delete,
+                  color: Colors.red,
+                ),
+                title: const Text(
+                  'Excluir Pedido',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implementar exclusão
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProv = context.watch<ThemeProvider>();
@@ -211,7 +288,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
     final isWideScreen = MediaQuery.of(context).size.width > 600;
-    final bool showSearchButton = _currentIndex != 1;
+
+    // Controle de visibilidade dos ícones baseado na aba atual
+    final bool showPlusButton = _currentIndex == 0 || _currentIndex == 2;
+    final bool showSearchButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2 || _currentIndex == 3;
+    final bool showInboxButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2;
+    final bool showMoreMenu = _currentIndex == 4; // Novo ícone de três pontos
 
     return Scaffold(
       key: _scaffoldKey,
@@ -228,6 +310,92 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         children: [
           Row(
             children: [
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _drawerSlideController,
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: Offset(
+                        MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
+                        0,
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Column(
+                    children: [
+                      Container(
+                        color: bgColor,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                height: 56,
+                                child: Row(
+                                  children: [
+                                    // Drawer sempre visível
+                                    IconButton(
+                                      icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
+                                      onPressed: _toggleDrawer,
+                                    ),
+                                    Text(
+                                      _tabTitles[_currentIndex],
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: iconColor,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    // Plus button (Início e Marketplace)
+                                    if (showPlusButton)
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
+                                        onPressed: () => _handlePlusButton(context),
+                                      ),
+                                    // Search button (exceto em Novo Pedido)
+                                    if (showSearchButton)
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                        onPressed: () => _navigateHorizontally(context, const SearchScreen()),
+                                      ),
+                                    // Inbox button (exceto em Diário e Novo Pedido)
+                                    if (showInboxButton)
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                        onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
+                                      ),
+                                    // More menu (apenas em Novo Pedido)
+                                    if (showMoreMenu)
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.moreVert, color: iconColor),
+                                        onPressed: () => _showRequestOptionsMenu(context),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                color: topBorderColor,
+                                height: 0.5,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      Expanded(
+                        child: IndexedStack(
+                          index: _currentIndex,
+                          children: List.generate(5, (i) => _getPage(i)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Bottom Navigation para telas largas (lado direito)
               if (isWideScreen)
                 AnimatedBuilder(
                   animation: _drawerSlideController,
@@ -260,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                         ? Colors.black.withOpacity(0.3)
                                         : Colors.black.withOpacity(0.08),
                                     blurRadius: 12,
-                                    offset: const Offset(4, 0),
+                                    offset: const Offset(-4, 0),
                                   ),
                                 ],
                               ),
@@ -270,8 +438,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   _buildVerticalTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
                                   _buildVerticalTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
                                   _buildVerticalTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                                  _buildVerticalTabItem(index: 3, svg: CustomIcons.roulette, unselectedColor: unselectedColor),
-                                  _buildVerticalTabItem(index: 4, svg: CustomIcons.trendingUp, unselectedColor: unselectedColor),
+                                  _buildVerticalTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
+                                  _buildVerticalTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
                                 ],
                               ),
                             ),
@@ -282,81 +450,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                   ),
                 ),
-
-              Expanded(
-                child: AnimatedBuilder(
-                  animation: _drawerSlideController,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(
-                        MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
-                        0,
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: Column(
-                    children: [
-                      Container(
-                        color: bgColor,
-                        child: SafeArea(
-                          bottom: false,
-                          child: Column(
-                            children: [
-                              SizedBox(
-                                height: 56,
-                                child: Row(
-                                  children: [
-                                    if (!isWideScreen)
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
-                                        onPressed: _toggleDrawer,
-                                      ),
-                                    if (isWideScreen) const SizedBox(width: 16),
-                                    Text(
-                                      _tabTitles[_currentIndex],
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w700,
-                                        color: iconColor,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                      onPressed: () => _handlePlusButton(context),
-                                    ),
-                                    if (showSearchButton)
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                        onPressed: () => _navigateHorizontally(context, const SearchScreen()),
-                                      ),
-                                    IconButton(
-                                      icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                      onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                color: topBorderColor,
-                                height: 0.5,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      Expanded(
-                        child: IndexedStack(
-                          index: _currentIndex,
-                          children: List.generate(5, (i) => _getPage(i)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
 
@@ -389,9 +482,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               },
               child: Container(
                 color: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Container(
-                  height: 56,
+                  height: 50, // Reduzido de 56 para 50
                   decoration: BoxDecoration(
                     color: bgColor,
                     borderRadius: BorderRadius.circular(100),
@@ -412,8 +505,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
                       _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
                       _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 3, svg: CustomIcons.roulette, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 4, svg: CustomIcons.trendingUp, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
                     ],
                   ),
                 ),
