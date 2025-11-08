@@ -226,6 +226,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       tags: List<String>.from(data['tags'] ?? []),
                       isFavorite: data['isFavorite'] ?? false,
+                      createdAt: (data['createdAt'] as Timestamp).toDate(),
+                      updatedAt: data['updatedAt'] != null 
+                          ? (data['updatedAt'] as Timestamp).toDate() 
+                          : null,
                     );
 
                     return GestureDetector(
