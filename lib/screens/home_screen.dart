@@ -1,7 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_icons.dart';
@@ -26,11 +26,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
   late AnimationController _drawerSlideController;
-
   final List<Widget?> _pages = [const PostFeed(), null, null, null, null];
-
   static const Color _activeBlue = Color(0xFF1877F2);
 
   final List<String> _tabTitles = [
@@ -145,34 +142,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
         ),
         content: Text(
-          'Apenas usuários Pro ou Premium podem adicionar livros ao Marketplace. Atualize sua conta para desbloquear este recurso!',
-          style: TextStyle(
-            color: hintColor,
-            fontSize: 15,
-          ),
+          'Apenas usuários Pro ou Premium podem adicionar livros ao Marketplace.',
+          style: TextStyle(color: hintColor, fontSize: 15),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Entendi',
-              style: TextStyle(
-                color: hintColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text('Entendi', style: TextStyle(color: hintColor, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-            },
+            onPressed: () => Navigator.pop(ctx),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1877F2),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Ver Planos'),
           ),
@@ -190,91 +174,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           const end = Offset.zero;
           const curve = Curves.easeInOut;
           var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
+          return SlideTransition(position: animation.drive(tween), child: child);
         },
         transitionDuration: const Duration(milliseconds: 300),
       ),
     );
   }
 
-  void _showRequestOptionsMenu(BuildContext context) {
-    final themeProv = context.read<ThemeProvider>();
-    final isDark = themeProv.isDarkMode;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                leading: SvgIcon(
-                  svgString: CustomIcons.edit,
-                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                ),
-                title: Text(
-                  'Editar Pedido',
-                  style: TextStyle(
-                    color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Implementar edição
-                },
-              ),
-              ListTile(
-                leading: SvgIcon(
-                  svgString: CustomIcons.share,
-                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                ),
-                title: Text(
-                  'Compartilhar',
-                  style: TextStyle(
-                    color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Implementar compartilhamento
-                },
-              ),
-              ListTile(
-                leading: const SvgIcon(
-                  svgString: CustomIcons.delete,
-                  color: Colors.red,
-                ),
-                title: const Text(
-                  'Excluir Pedido',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Implementar exclusão
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
+  Widget _buildNotificationBadge(int count) {
+    if (count == 0) return const SizedBox.shrink();
+    
+    return Positioned(
+      right: 8,
+      top: 8,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(
+          color: Color(0xFF4CAF50),
+          shape: BoxShape.circle,
+        ),
+        constraints: const BoxConstraints(
+          minWidth: 16,
+          minHeight: 16,
+        ),
+        child: Text(
+          count > 9 ? '9+' : count.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
           ),
-        );
-      },
+          textAlign: TextAlign.center,
+        ),
+      ),
     );
   }
 
@@ -286,14 +218,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final iconColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final unselectedColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
     final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
-
     final isWideScreen = MediaQuery.of(context).size.width > 600;
+    final authProvider = context.watch<AuthProvider>();
+    final currentUid = authProvider.user?.uid;
 
-    // Controle de visibilidade dos ícones baseado na aba atual
     final bool showPlusButton = _currentIndex == 0 || _currentIndex == 2;
     final bool showSearchButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2 || _currentIndex == 3;
     final bool showInboxButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2;
-    final bool showMoreMenu = _currentIndex == 4; // Novo ícone de três pontos
 
     return Scaffold(
       key: _scaffoldKey,
@@ -334,7 +265,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 height: 56,
                                 child: Row(
                                   children: [
-                                    // Drawer sempre visível
                                     IconButton(
                                       icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
                                       onPressed: _toggleDrawer,
@@ -348,42 +278,44 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                       ),
                                     ),
                                     const Spacer(),
-                                    // Plus button (Início e Marketplace)
                                     if (showPlusButton)
                                       IconButton(
                                         icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
                                         onPressed: () => _handlePlusButton(context),
                                       ),
-                                    // Search button (exceto em Novo Pedido)
                                     if (showSearchButton)
                                       IconButton(
                                         icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
                                         onPressed: () => _navigateHorizontally(context, const SearchScreen()),
                                       ),
-                                    // Inbox button (exceto em Diário e Novo Pedido)
-                                    if (showInboxButton)
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                        onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
-                                      ),
-                                    // More menu (apenas em Novo Pedido)
-                                    if (showMoreMenu)
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.moreVert, color: iconColor),
-                                        onPressed: () => _showRequestOptionsMenu(context),
+                                    if (showInboxButton && currentUid != null)
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('document_requests')
+                                            .where('userId', isEqualTo: currentUid)
+                                            .where('status', whereIn: ['in_progress', 'completed'])
+                                            .snapshots(),
+                                        builder: (context, snapshot) {
+                                          final unreadCount = snapshot.data?.docs.length ?? 0;
+                                          return Stack(
+                                            children: [
+                                              IconButton(
+                                                icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                                onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
+                                              ),
+                                              _buildNotificationBadge(unreadCount),
+                                            ],
+                                          );
+                                        },
                                       ),
                                   ],
                                 ),
                               ),
-                              Container(
-                                color: topBorderColor,
-                                height: 0.5,
-                              ),
+                              Container(color: topBorderColor, height: 0.5),
                             ],
                           ),
                         ),
                       ),
-
                       Expanded(
                         child: IndexedStack(
                           index: _currentIndex,
@@ -394,8 +326,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
               ),
-
-              // Bottom Navigation para telas largas (lado direito)
               if (isWideScreen)
                 AnimatedBuilder(
                   animation: _drawerSlideController,
@@ -452,7 +382,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
             ],
           ),
-
           AnimatedBuilder(
             animation: _drawerSlideController,
             builder: (context, child) {
@@ -467,7 +396,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-
       bottomNavigationBar: !isWideScreen
           ? AnimatedBuilder(
               animation: _drawerSlideController,
@@ -484,7 +412,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 color: Colors.transparent,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Container(
-                  height: 50, // Reduzido de 56 para 50
+                  height: 50,
                   decoration: BoxDecoration(
                     color: bgColor,
                     borderRadius: BorderRadius.circular(100),
@@ -529,11 +457,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         onTap: () => _onTap(index),
         borderRadius: BorderRadius.circular(100),
         child: Center(
-          child: SvgIcon(
-            svgString: svg, 
-            size: 24, 
-            color: iconColor,
-          ),
+          child: SvgIcon(svgString: svg, size: 24, color: iconColor),
         ),
       ),
     );
@@ -552,11 +476,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         onTap: () => _onTap(index),
         borderRadius: BorderRadius.circular(100),
         child: Center(
-          child: SvgIcon(
-            svgString: svg, 
-            size: 24, 
-            color: iconColor,
-          ),
+          child: SvgIcon(svgString: svg, size: 24, color: iconColor),
         ),
       ),
     );
