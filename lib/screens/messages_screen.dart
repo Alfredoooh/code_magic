@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
 import '../providers/auth_provider.dart' as auth_provider;
+import '../services/document_service.dart';
+import '../models/document_template_model.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -20,6 +22,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
   bool _isAdmin = false;
   bool _loadingAdminCheck = true;
   TabController? _tabController;
+  final DocumentService _documentService = DocumentService();
 
   @override
   void initState() {
@@ -57,7 +60,10 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
       setState(() {
         _isAdmin = isAdmin;
         _loadingAdminCheck = false;
-        _tabController = TabController(length: isAdmin ? 3 : 1, vsync: this);
+        _tabController = TabController(
+          length: isAdmin ? 5 : 2, // Admin: 5 abas, Usuário: 2 abas
+          vsync: this,
+        );
       });
     }
   }
@@ -112,21 +118,25 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                       labelColor: const Color(0xFF1877F2),
                       labelStyle: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                        fontSize: 14,
                       ),
                       unselectedLabelColor: hintColor,
                       unselectedLabelStyle: const TextStyle(
                         fontWeight: FontWeight.w500,
-                        fontSize: 15,
+                        fontSize: 14,
                       ),
+                      isScrollable: true,
                       tabs: _isAdmin
                           ? const [
                               Tab(text: 'Emails'),
                               Tab(text: 'Usuários'),
                               Tab(text: 'Enviar'),
+                              Tab(text: 'Pedidos'),
+                              Tab(text: 'Templates'),
                             ]
                           : const [
                               Tab(text: 'Inbox'),
+                              Tab(text: 'Meus Pedidos'),
                             ],
                     ),
                   ],
@@ -151,11 +161,329 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
               controller: _tabController,
               children: _isAdmin
                   ? _buildAdminTabs(cardColor, textColor, hintColor)
-                  : [_buildUserInbox(cardColor, textColor, hintColor)],
+                  : _buildUserTabs(cardColor, textColor, hintColor),
             ),
     );
   }
 
+  List<Widget> _buildUserTabs(Color cardColor, Color textColor, Color hintColor) {
+    return [
+      _buildUserInbox(cardColor, textColor, hintColor),
+      _buildUserRequests(cardColor, textColor, hintColor),
+    ];
+  }
+
+  List<Widget> _buildAdminTabs(Color cardColor, Color textColor, Color hintColor) {
+    final authProvider = context.watch<auth_provider.AuthProvider>();
+    return [
+      _buildAdminEmailsTab(cardColor, textColor, hintColor),
+      _buildAdminUsersTab(cardColor, textColor, hintColor),
+      _buildAdminSendTab(cardColor, textColor, hintColor, authProvider),
+      _buildAdminRequestsTab(cardColor, textColor, hintColor),
+      _buildAdminTemplatesTab(cardColor, textColor, hintColor),
+    ];
+  }
+
+  Widget _buildUserRequests(Color cardColor, Color textColor, Color hintColor) {
+    final authProvider = context.watch<auth_provider.AuthProvider>();
+    final currentUid = authProvider.user?.uid;
+
+    if (currentUid == null) {
+      return Center(
+        child: Text(
+          'Usuário não autenticado',
+          style: TextStyle(color: hintColor),
+        ),
+      );
+    }
+
+    return StreamBuilder<List<DocumentRequest>>(
+      stream: _documentService.getUserRequests(currentUid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Erro: ${snapshot.error}'));
+        }
+
+        final requests = snapshot.data ?? [];
+
+        if (requests.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SvgPicture.string(
+                  CustomIcons.inbox,
+                  width: 64,
+                  height: 64,
+                  colorFilter: ColorFilter.mode(
+                    hintColor.withOpacity(0.5),
+                    BlendMode.srcIn,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Nenhum pedido enviado',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: requests.length,
+          itemBuilder: (context, index) {
+            return _RequestCard(
+              request: requests[index],
+              cardColor: cardColor,
+              textColor: textColor,
+              hintColor: hintColor,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAdminRequestsTab(Color cardColor, Color textColor, Color hintColor) {
+    return StreamBuilder<List<DocumentRequest>>(
+      stream: _documentService.getAllRequests(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Erro: ${snapshot.error}'));
+        }
+
+        final requests = snapshot.data ?? [];
+
+        if (requests.isEmpty) {
+          return Center(
+            child: Text(
+              'Nenhum pedido recebido',
+              style: TextStyle(color: hintColor),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: requests.length,
+          itemBuilder: (context, index) {
+            return _AdminRequestCard(
+              request: requests[index],
+              cardColor: cardColor,
+              textColor: textColor,
+              hintColor: hintColor,
+              onStatusUpdate: (status, notes) async {
+                await _documentService.updateRequestStatus(
+                  requests[index].id,
+                  status,
+                  adminNotes: notes,
+                );
+              },
+              onDelete: () async {
+                await _documentService.deleteRequest(requests[index].id);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAdminTemplatesTab(Color cardColor, Color textColor, Color hintColor) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () => _showAddTemplateDialog(cardColor, textColor, hintColor),
+            icon: const Icon(Icons.add),
+            label: const Text('Adicionar Template'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1877F2),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<DocumentTemplate>>(
+            stream: _documentService.getTemplates(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Erro: ${snapshot.error}'));
+              }
+
+              final templates = snapshot.data ?? [];
+
+              if (templates.isEmpty) {
+                return Center(
+                  child: Text(
+                    'Nenhum template cadastrado',
+                    style: TextStyle(color: hintColor),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: templates.length,
+                itemBuilder: (context, index) {
+                  final template = templates[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          template.imageUrl,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 50,
+                              height: 50,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image),
+                            );
+                          },
+                        ),
+                      ),
+                      title: Text(
+                        template.name,
+                        style: TextStyle(color: textColor),
+                      ),
+                      subtitle: Text(
+                        '${template.usageCount} usos',
+                        style: TextStyle(color: hintColor),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          await _documentService.deleteTemplate(template.id);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddTemplateDialog(Color cardColor, Color textColor, Color hintColor) {
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+    final imageUrlController = TextEditingController();
+    DocumentCategory selectedCategory = DocumentCategory.curriculum;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: cardColor,
+              title: Text('Novo Template', style: TextStyle(color: textColor)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      style: TextStyle(color: textColor),
+                      decoration: const InputDecoration(labelText: 'Nome'),
+                    ),
+                    TextField(
+                      controller: descController,
+                      style: TextStyle(color: textColor),
+                      decoration: const InputDecoration(labelText: 'Descrição'),
+                    ),
+                    TextField(
+                      controller: imageUrlController,
+                      style: TextStyle(color: textColor),
+                      decoration: const InputDecoration(labelText: 'URL da Imagem'),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<DocumentCategory>(
+                      value: selectedCategory,
+                      style: TextStyle(color: textColor),
+                      decoration: const InputDecoration(labelText: 'Categoria'),
+                      items: DocumentCategory.values.map((cat) {
+                        return DropdownMenuItem(
+                          value: cat,
+                          child: Text(cat.toString().split('.').last),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => selectedCategory = val);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final template = DocumentTemplate(
+                      id: '',
+                      name: nameController.text,
+                      description: descController.text,
+                      imageUrl: imageUrlController.text,
+                      category: selectedCategory,
+                      createdAt: DateTime.now(),
+                    );
+                    await _documentService.createTemplate(template);
+                    if (mounted) Navigator.pop(context);
+                  },
+                  child: const Text('Salvar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Mantém todos os métodos originais da tela de mensagens...
+  // (buildUserInbox, buildAdminEmailsTab, buildAdminUsersTab, buildAdminSendTab, etc.)
+  // Por brevidade, não estou repetindo todo o código original aqui
+  
   Widget _buildUserInbox(Color cardColor, Color textColor, Color hintColor) {
     final authProvider = context.watch<auth_provider.AuthProvider>();
     final currentUid = authProvider.user?.uid;
@@ -321,15 +649,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
         );
       },
     );
-  }
-
-  List<Widget> _buildAdminTabs(Color cardColor, Color textColor, Color hintColor) {
-    final authProvider = context.watch<auth_provider.AuthProvider>();
-    return [
-      _buildAdminEmailsTab(cardColor, textColor, hintColor),
-      _buildAdminUsersTab(cardColor, textColor, hintColor),
-      _buildAdminSendTab(cardColor, textColor, hintColor, authProvider),
-    ];
   }
 
   Widget _buildAdminEmailsTab(Color cardColor, Color textColor, Color hintColor) {
