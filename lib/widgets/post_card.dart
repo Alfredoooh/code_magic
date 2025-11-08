@@ -38,6 +38,11 @@ class PostCard extends StatelessWidget {
 
     final isLiked = auth.user != null ? post.isLikedBy(auth.user!.uid) : false;
 
+    // FILTRO: Não mostra notícias sem conteúdo
+    if (post.isNews && (post.title == null || post.title!.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -525,55 +530,115 @@ class PostCard extends StatelessWidget {
 
   void _showOptions(BuildContext context) {
     final isDark = context.read<ThemeProvider>().isDarkMode;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
+      backgroundColor: Colors.transparent,
       builder: (_) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: SvgPicture.string(
-                  CustomIcons.delete,
-                  width: 24,
-                  height: 24,
-                  colorFilter: const ColorFilter.mode(
-                    Colors.red,
-                    BlendMode.srcIn,
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle indicator
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 12),
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-                title: const Text('Excluir', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  PostService().deletePost(post.id);
-                },
-              ),
-              ListTile(
-                leading: SvgPicture.string(
-                  CustomIcons.edit,
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
-                    isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                    BlendMode.srcIn,
+                // Delete option
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      PostService().deletePost(post.id);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          SvgPicture.string(
+                            CustomIcons.delete,
+                            width: 20,
+                            height: 20,
+                            colorFilter: const ColorFilter.mode(
+                              Colors.red,
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Excluir',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                title: Text(
-                  'Editar',
-                  style: TextStyle(
-                    color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                // Edit option
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          SvgPicture.string(
+                            CustomIcons.edit,
+                            width: 20,
+                            height: 20,
+                            colorFilter: ColorFilter.mode(
+                              isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Editar',
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         );
       },
