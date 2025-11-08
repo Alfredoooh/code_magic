@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import '../models/post_model.dart';
 import '../screens/image_viewer_screen.dart';
 
+enum FeedFilter { mixed, postsOnly, newsOnly }
+
 class PostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final StreamController<List<Post>> _controller = StreamController.broadcast();
@@ -29,27 +31,35 @@ class PostService {
     '6faf083df1638391a56bb22c4f91e132',
   ];
 
-  // Alpha Vantage para notícias financeiras
-  static const _alphaVantageKeys = [
-    'YOUR_ALPHA_VANTAGE_KEY',
-  ];
-
-  // Índice para rotação de APIs
-  int _currentApiIndex = 0;
-
   StreamSubscription<QuerySnapshot>? _postsSub;
   Timer? _newsTimer;
   bool _started = false;
   List<Post> _posts = [];
   List<Post> _news = [];
+  FeedFilter _currentFilter = FeedFilter.mixed;
+
+  FeedFilter get currentFilter => _currentFilter;
+
+  void setFilter(FeedFilter filter) {
+    _currentFilter = filter;
+    print('🔄 Filtro alterado para: $filter');
+    _emitCombined();
+  }
 
   void ensureStarted() {
     if (_started) return;
     _started = true;
+    
+    print('🚀 PostService iniciado');
+    
     _listenPosts();
     _fetchNewsOnce();
+    
     // Atualiza notícias a cada 5 minutos
-    _newsTimer = Timer.periodic(const Duration(minutes: 5), (_) => _fetchNewsOnce());
+    _newsTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      print('🔄 Atualizando notícias...');
+      _fetchNewsOnce();
+    });
   }
 
   void _listenPosts() {
@@ -59,74 +69,80 @@ class PostService {
         .snapshots()
         .listen((snap) {
       _posts = snap.docs.map((d) => Post.fromFirestore(d)).toList();
+      print('📝 Posts do Firestore: ${_posts.length}');
       _emitCombined();
     }, onError: (e) {
+      print('❌ Erro ao escutar posts: $e');
       _controller.addError(e);
     });
   }
 
   Future<void> _fetchNewsOnce() async {
+    print('📰 Iniciando busca de notícias...');
+    
     try {
       final List<Post> results = [];
       final Set<String> seenUrls = {};
 
-      // Rotaciona entre as APIs para evitar repetição
-      switch (_currentApiIndex % 6) {
-        case 0:
-          await _fetchNewsAPI(results, seenUrls);
-          break;
-        case 1:
-          await _fetchNewsAPITopHeadlines(results, seenUrls);
-          break;
-        case 2:
-          await _fetchGNews(results, seenUrls);
-          break;
-        case 3:
-          await _fetchNewsData(results, seenUrls);
-          break;
-        case 4:
-          await _fetchFinancialNews(results, seenUrls);
-          break;
-        case 5:
-          await _fetchTechNews(results, seenUrls);
-          break;
+      // Tenta todas as APIs em paralelo
+      await Future.wait([
+        _fetchNewsAPI(results, seenUrls).catchError((e) {
+          print('⚠️ NewsAPI falhou: $e');
+        }),
+        _fetchNewsAPITopHeadlines(results, seenUrls).catchError((e) {
+          print('⚠️ NewsAPI Headlines falhou: $e');
+        }),
+        _fetchGNews(results, seenUrls).catchError((e) {
+          print('⚠️ GNews falhou: $e');
+        }),
+        _fetchNewsData(results, seenUrls).catchError((e) {
+          print('⚠️ NewsData falhou: $e');
+        }),
+      ]);
+
+      if (results.isEmpty) {
+        print('⚠️ Nenhuma notícia foi carregada das APIs');
+        _news = [];
+      } else {
+        // Ordena por data
+        results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        _news = results.take(50).toList();
+        print('✅ NOTÍCIAS CARREGADAS: ${_news.length}');
       }
-
-      _currentApiIndex++;
-
-      // Ordena por data
-      results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-      // Remove duplicatas e limita
-      _news = results.take(50).toList();
+      
+      print('📊 Posts: ${_posts.length} | Notícias: ${_news.length}');
       _emitCombined();
 
-      print('✅ Notícias carregadas: ${_news.length} (API Index: ${_currentApiIndex - 1})');
     } catch (e) {
-      print('❌ Erro ao buscar notícias: $e');
+      print('❌ ERRO ao buscar notícias: $e');
+      _news = [];
+      _emitCombined();
     }
   }
 
   // NewsAPI - Everything
   Future<void> _fetchNewsAPI(List<Post> results, Set<String> seenUrls) async {
-    final queries = ['stocks', 'cryptocurrency', 'trading', 'business'];
-    
+    final queries = ['technology', 'business', 'ai', 'science'];
+
     for (final query in queries) {
-      if (results.length >= 50) break;
+      if (results.length >= 40) break;
 
       for (final key in _newsApiKeys) {
         try {
           final yesterday = DateTime.now().subtract(const Duration(days: 1));
-          final dateStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
-          
+          final dateStr = yesterday.toIso8601String().split('T')[0];
+
           final uri = Uri.parse(
-            'https://newsapi.org/v2/everything?q=$query&from=$dateStr&sortBy=publishedAt&pageSize=25&apiKey=$key',
+            'https://newsapi.org/v2/everything?q=$query&from=$dateStr&sortBy=publishedAt&pageSize=20&language=en&apiKey=$key',
           );
-          final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+          
+          final resp = await http.get(uri).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['articles'] ?? [];
+
+            print('📰 NewsAPI ($query): ${items.length} artigos encontrados');
 
             for (var it in items) {
               final newsUrl = it['url'];
@@ -137,11 +153,11 @@ class PostService {
 
               final imageUrl = it['urlToImage'];
               results.add(Post(
-                id: newsUrl,
+                id: 'news_${results.length}_${DateTime.now().millisecondsSinceEpoch}',
                 userId: 'newsapi_$query',
-                userName: it['source']?['name'] ?? 'News',
+                userName: it['source']?['name'] ?? 'News Source',
                 userAvatar: null,
-                content: it['description'] ?? '',
+                content: it['description'] ?? it['title'] ?? '',
                 imageBase64: null,
                 imageUrls: imageUrl != null && imageUrl.toString() != 'null'
                     ? [imageUrl.toString()]
@@ -150,18 +166,22 @@ class PostService {
                 isNews: true,
                 newsUrl: newsUrl,
                 title: it['title'],
-                summary: it['description'],
+                summary: it['description'] ?? it['title'],
                 timestamp: it['publishedAt'] != null
                     ? DateTime.tryParse(it['publishedAt']) ?? DateTime.now()
                     : DateTime.now(),
               ));
 
-              if (results.length >= 50) break;
+              if (results.length >= 40) break;
             }
-            break;
+            
+            if (results.isNotEmpty) break;
+            
+          } else {
+            print('⚠️ NewsAPI retornou status ${resp.statusCode}');
           }
         } catch (e) {
-          print('NewsAPI error: $e');
+          print('❌ NewsAPI error ($query): $e');
           continue;
         }
       }
@@ -171,20 +191,23 @@ class PostService {
   // NewsAPI - Top Headlines
   Future<void> _fetchNewsAPITopHeadlines(List<Post> results, Set<String> seenUrls) async {
     final categories = ['business', 'technology', 'science'];
-    
+
     for (final category in categories) {
-      if (results.length >= 50) break;
+      if (results.length >= 40) break;
 
       for (final key in _newsApiKeys) {
         try {
           final uri = Uri.parse(
             'https://newsapi.org/v2/top-headlines?category=$category&language=en&pageSize=20&apiKey=$key',
           );
-          final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+          
+          final resp = await http.get(uri).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['articles'] ?? [];
+
+            print('📰 NewsAPI Headlines ($category): ${items.length} artigos');
 
             for (var it in items) {
               final newsUrl = it['url'];
@@ -195,11 +218,11 @@ class PostService {
 
               final imageUrl = it['urlToImage'];
               results.add(Post(
-                id: newsUrl,
+                id: 'news_${results.length}_${DateTime.now().millisecondsSinceEpoch}',
                 userId: 'newsapi_headlines_$category',
-                userName: it['source']?['name'] ?? 'Top News',
+                userName: it['source']?['name'] ?? 'Top Headlines',
                 userAvatar: null,
-                content: it['description'] ?? '',
+                content: it['description'] ?? it['title'] ?? '',
                 imageBase64: null,
                 imageUrls: imageUrl != null && imageUrl.toString() != 'null'
                     ? [imageUrl.toString()]
@@ -208,18 +231,20 @@ class PostService {
                 isNews: true,
                 newsUrl: newsUrl,
                 title: it['title'],
-                summary: it['description'],
+                summary: it['description'] ?? it['title'],
                 timestamp: it['publishedAt'] != null
                     ? DateTime.tryParse(it['publishedAt']) ?? DateTime.now()
                     : DateTime.now(),
               ));
 
-              if (results.length >= 50) break;
+              if (results.length >= 40) break;
             }
-            break;
+            
+            if (results.isNotEmpty) break;
+            
           }
         } catch (e) {
-          print('NewsAPI Headlines error: $e');
+          print('❌ NewsAPI Headlines error: $e');
           continue;
         }
       }
@@ -228,21 +253,24 @@ class PostService {
 
   // GNews
   Future<void> _fetchGNews(List<Post> results, Set<String> seenUrls) async {
-    final topics = ['business', 'technology', 'sports', 'entertainment'];
-    
+    final topics = ['technology', 'business', 'world'];
+
     for (final topic in topics) {
-      if (results.length >= 50) break;
+      if (results.length >= 40) break;
 
       for (final key in _gnewsKeys) {
         try {
           final uri = Uri.parse(
-            'https://gnews.io/api/v4/top-headlines?category=$topic&token=$key&lang=en&max=15',
+            'https://gnews.io/api/v4/top-headlines?category=$topic&lang=en&max=20&apikey=$key',
           );
-          final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+          
+          final resp = await http.get(uri).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['articles'] ?? [];
+
+            print('📰 GNews ($topic): ${items.length} artigos');
 
             for (var it in items) {
               final newsUrl = it['url'];
@@ -252,11 +280,11 @@ class PostService {
 
               final imageUrl = it['image'];
               results.add(Post(
-                id: newsUrl,
+                id: 'news_${results.length}_${DateTime.now().millisecondsSinceEpoch}',
                 userId: 'gnews_$topic',
                 userName: it['source']?['name'] ?? 'GNews',
                 userAvatar: null,
-                content: it['description'] ?? '',
+                content: it['description'] ?? it['title'] ?? '',
                 imageBase64: null,
                 imageUrls: imageUrl != null && imageUrl.toString() != 'null'
                     ? [imageUrl.toString()]
@@ -265,18 +293,20 @@ class PostService {
                 isNews: true,
                 newsUrl: newsUrl,
                 title: it['title'],
-                summary: it['description'],
+                summary: it['description'] ?? it['title'],
                 timestamp: it['publishedAt'] != null
                     ? DateTime.tryParse(it['publishedAt']) ?? DateTime.now()
                     : DateTime.now(),
               ));
 
-              if (results.length >= 50) break;
+              if (results.length >= 40) break;
             }
-            break;
+            
+            if (results.isNotEmpty) break;
+            
           }
         } catch (e) {
-          print('GNews error: $e');
+          print('❌ GNews error: $e');
           continue;
         }
       }
@@ -285,21 +315,24 @@ class PostService {
 
   // NewsData.io
   Future<void> _fetchNewsData(List<Post> results, Set<String> seenUrls) async {
-    final categories = ['business', 'technology', 'sports'];
-    
+    final categories = ['technology', 'business', 'top'];
+
     for (final category in categories) {
-      if (results.length >= 50) break;
+      if (results.length >= 40) break;
 
       for (final key in _newsdataKeys) {
         try {
           final url = Uri.parse(
-            'https://newsdata.io/api/1/news?apikey=$key&language=en&category=$category',
+            'https://newsdata.io/api/1/news?apikey=$key&language=en&category=$category&size=20',
           );
-          final resp = await http.get(url).timeout(const Duration(seconds: 10));
+          
+          final resp = await http.get(url).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['results'] ?? [];
+
+            print('📰 NewsData ($category): ${items.length} artigos');
 
             for (var it in items) {
               final newsUrl = it['link'];
@@ -309,11 +342,11 @@ class PostService {
 
               final imageUrl = it['image_url'];
               results.add(Post(
-                id: newsUrl.toString(),
+                id: 'news_${results.length}_${DateTime.now().millisecondsSinceEpoch}',
                 userId: 'newsdata_$category',
-                userName: 'NewsData',
+                userName: it['source_id'] ?? 'NewsData',
                 userAvatar: null,
-                content: (it['description'] ?? '').toString(),
+                content: (it['description'] ?? it['title'] ?? '').toString(),
                 imageBase64: null,
                 imageUrls: imageUrl != null && imageUrl.toString() != 'null' 
                     ? [imageUrl.toString()] 
@@ -322,154 +355,59 @@ class PostService {
                 isNews: true,
                 newsUrl: newsUrl,
                 title: it['title'],
-                summary: it['description'],
+                summary: it['description'] ?? it['title'],
                 timestamp: (it['pubDate'] != null)
                     ? DateTime.tryParse(it['pubDate']) ?? DateTime.now()
                     : DateTime.now(),
               ));
 
-              if (results.length >= 50) break;
+              if (results.length >= 40) break;
             }
-            break;
+            
+            if (results.isNotEmpty) break;
+            
           }
         } catch (e) {
-          print('NewsData error: $e');
+          print('❌ NewsData error: $e');
           continue;
         }
-      }
-    }
-  }
-
-  // Notícias Financeiras (Alpha Vantage, MarketWatch, etc)
-  Future<void> _fetchFinancialNews(List<Post> results, Set<String> seenUrls) async {
-    // Usando NewsAPI com queries financeiras específicas
-    final queries = ['stock market', 'forex', 'crypto', 'nasdaq', 'dow jones'];
-    
-    for (final query in queries) {
-      if (results.length >= 50) break;
-
-      for (final key in _newsApiKeys) {
-        try {
-          final uri = Uri.parse(
-            'https://newsapi.org/v2/everything?q=$query&domains=bloomberg.com,reuters.com,marketwatch.com&sortBy=publishedAt&pageSize=10&apiKey=$key',
-          );
-          final resp = await http.get(uri).timeout(const Duration(seconds: 10));
-
-          if (resp.statusCode == 200) {
-            final json = jsonDecode(resp.body) as Map<String, dynamic>;
-            final List items = json['articles'] ?? [];
-
-            for (var it in items) {
-              final newsUrl = it['url'];
-              if (newsUrl == null || seenUrls.contains(newsUrl)) continue;
-              if (it['title'] == null || it['title'].toString().contains('[Removed]')) continue;
-
-              seenUrls.add(newsUrl);
-
-              final imageUrl = it['urlToImage'];
-              results.add(Post(
-                id: newsUrl,
-                userId: 'financial_$query',
-                userName: it['source']?['name'] ?? 'Financial News',
-                userAvatar: null,
-                content: it['description'] ?? '',
-                imageBase64: null,
-                imageUrls: imageUrl != null && imageUrl.toString() != 'null'
-                    ? [imageUrl.toString()]
-                    : [],
-                videoUrl: null,
-                isNews: true,
-                newsUrl: newsUrl,
-                title: it['title'],
-                summary: it['description'],
-                timestamp: it['publishedAt'] != null
-                    ? DateTime.tryParse(it['publishedAt']) ?? DateTime.now()
-                    : DateTime.now(),
-              ));
-
-              if (results.length >= 50) break;
-            }
-            break;
-          }
-        } catch (e) {
-          print('Financial News error: $e');
-          continue;
-        }
-      }
-    }
-  }
-
-  // Notícias de Tecnologia (TechCrunch, etc)
-  Future<void> _fetchTechNews(List<Post> results, Set<String> seenUrls) async {
-    for (final key in _newsApiKeys) {
-      try {
-        final uri = Uri.parse(
-          'https://newsapi.org/v2/top-headlines?sources=techcrunch,the-verge,wired,ars-technica&apiKey=$key',
-        );
-        final resp = await http.get(uri).timeout(const Duration(seconds: 10));
-
-        if (resp.statusCode == 200) {
-          final json = jsonDecode(resp.body) as Map<String, dynamic>;
-          final List items = json['articles'] ?? [];
-
-          for (var it in items) {
-            final newsUrl = it['url'];
-            if (newsUrl == null || seenUrls.contains(newsUrl)) continue;
-            if (it['title'] == null || it['title'].toString().contains('[Removed]')) continue;
-
-            seenUrls.add(newsUrl);
-
-            final imageUrl = it['urlToImage'];
-            results.add(Post(
-              id: newsUrl,
-              userId: 'tech_news',
-              userName: it['source']?['name'] ?? 'Tech News',
-              userAvatar: null,
-              content: it['description'] ?? '',
-              imageBase64: null,
-              imageUrls: imageUrl != null && imageUrl.toString() != 'null'
-                  ? [imageUrl.toString()]
-                  : [],
-              videoUrl: null,
-              isNews: true,
-              newsUrl: newsUrl,
-              title: it['title'],
-              summary: it['description'],
-              timestamp: it['publishedAt'] != null
-                  ? DateTime.tryParse(it['publishedAt']) ?? DateTime.now()
-                  : DateTime.now(),
-            ));
-
-            if (results.length >= 50) break;
-          }
-          break;
-        }
-      } catch (e) {
-        print('Tech News error: $e');
-        continue;
       }
     }
   }
 
   void _emitCombined() {
-    final List<Post> combined = [];
+    List<Post> combined = [];
 
-    // Intercala posts e notícias
-    int postIndex = 0;
-    int newsIndex = 0;
+    switch (_currentFilter) {
+      case FeedFilter.mixed:
+        // Intercala posts e notícias (2 posts, 1 notícia)
+        int postIndex = 0;
+        int newsIndex = 0;
 
-    while (postIndex < _posts.length || newsIndex < _news.length) {
-      // Adiciona 2 posts
-      for (int i = 0; i < 2 && postIndex < _posts.length; i++) {
-        combined.add(_posts[postIndex++]);
-      }
+        while (postIndex < _posts.length || newsIndex < _news.length) {
+          // Adiciona 2 posts
+          for (int i = 0; i < 2 && postIndex < _posts.length; i++) {
+            combined.add(_posts[postIndex++]);
+          }
 
-      // Adiciona 1 notícia
-      if (newsIndex < _news.length) {
-        combined.add(_news[newsIndex++]);
-      }
+          // Adiciona 1 notícia
+          if (newsIndex < _news.length) {
+            combined.add(_news[newsIndex++]);
+          }
+        }
+        break;
+
+      case FeedFilter.postsOnly:
+        combined = List.from(_posts);
+        break;
+
+      case FeedFilter.newsOnly:
+        combined = List.from(_news);
+        break;
     }
 
+    print('✅ Feed combinado (${_currentFilter.name}): ${combined.length} itens');
+    
     _controller.add(combined);
   }
 
