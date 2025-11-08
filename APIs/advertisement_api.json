@@ -1,0 +1,80 @@
+{
+  "advertisements": [
+    {
+      "id": "ad_001",
+      "title": "Template Premium de Currículo",
+      "description": "Destaque-se no mercado com nossos templates profissionais",
+      "imageUrl": "https://example.com/images/ad_curriculum.jpg",
+      "actionUrl": "https://example.com/premium/curriculum",
+      "actionText": "Ver Mais",
+      "category": "curriculum",
+      "backgroundColor": "#1877F2",
+      "priority": 1,
+      "isActive": true,
+      "startDate": "2025-01-01T00:00:00Z",
+      "endDate": "2025-12-31T23:59:59Z"
+    },
+    {
+      "id": "ad_002",
+      "title": "Certificados Personalizados",
+      "description": "Crie certificados impressionantes em minutos",
+      "imageUrl": "https://example.com/images/ad_certificates.jpg",
+      "actionUrl": "https://example.com/templates/certificates",
+      "actionText": "Explorar",
+      "category": "certificate",
+      "backgroundColor": "#4CAF50",
+      "priority": 2,
+      "isActive": true,
+      "startDate": "2025-01-01T00:00:00Z",
+      "endDate": "2025-12-31T23:59:59Z"
+    },
+    {
+      "id": "ad_003",
+      "title": "Apresentações Profissionais",
+      "description": "Slides modernos para suas apresentações de negócios",
+      "imageUrl": "https://example.com/images/ad_presentations.jpg",
+      "actionUrl": "https://example.com/premium/presentations",
+      "actionText": "Começar Agora",
+      "category": "presentation",
+      "backgroundColor": "#FF9800",
+      "priority": 3,
+      "isActive": true,
+      "startDate": "2025-01-01T00:00:00Z",
+      "endDate": "2025-12-31T23:59:59Z"
+    },
+    {
+      "id": "ad_004",
+      "title": "Contratos Jurídicos",
+      "description": "Modelos de contratos revisados por advogados",
+      "imageUrl": "https://example.com/images/ad_contracts.jpg",
+      "actionUrl": "https://example.com/legal/contracts",
+      "actionText": "Ver Templates",
+      "category": "contract",
+      "backgroundColor": "#9C27B0",
+      "priority": 4,
+      "isActive": true,
+      "startDate": "2025-01-01T00:00:00Z",
+      "endDate": "2025-12-31T23:59:59Z"
+    },
+    {
+      "id": "ad_005",
+      "title": "Relatórios Executivos",
+      "description": "Templates profissionais para seus relatórios corporativos",
+      "imageUrl": "https://example.com/images/ad_reports.jpg",
+      "actionUrl": "https://example.com/business/reports",
+      "actionText": "Descobrir",
+      "category": "report",
+      "backgroundColor": "#2196F3",
+      "priority": 5,
+      "isActive": true,
+      "startDate": "2025-01-01T00:00:00Z",
+      "endDate": "2025-12-31T23:59:59Z"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-01-01T00:00:00Z",
+    "totalAds": 5,
+    "autoRotationInterval": 5000
+  }
+}
