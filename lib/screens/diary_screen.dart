@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/diary_service.dart';
 import '../models/diary_entry_model.dart';
 import '../widgets/custom_icons.dart';
+import '../widgets/diary_filter_modal.dart';
 import 'diary_editor_screen.dart';
 import 'diary_detail_screen.dart';
 
@@ -19,7 +20,6 @@ class DiaryScreen extends StatefulWidget {
 
 class _DiaryScreenState extends State<DiaryScreen> {
   final DiaryService _diaryService = DiaryService();
-  String _searchQuery = '';
   DiaryMood? _selectedMood;
   bool _showFavoritesOnly = false;
 
@@ -36,99 +36,25 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   void _showFilters() {
-    final isDark = context.read<ThemeProvider>().isDarkMode;
-
-    showModalBottomSheet(
+    showDiaryFilterModal(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Filtros',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedMood = null;
-                            _showFavoritesOnly = false;
-                          });
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Limpar'),
-                      ),
-                    ],
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(
-                    _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-                    color: _showFavoritesOnly ? Colors.red : null,
-                  ),
-                  title: const Text('Apenas Favoritos'),
-                  onTap: () {
-                    setState(() {
-                      _showFavoritesOnly = !_showFavoritesOnly;
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Por Humor',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Wrap(
-                    spacing: 8,
-                    children: DiaryMood.values.map((mood) {
-                      final isSelected = _selectedMood == mood;
-                      return FilterChip(
-                        label: Text(_getMoodEmoji(mood)),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedMood = selected ? mood : null;
-                          });
-                          Navigator.pop(context);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        );
+      selectedMood: _selectedMood,
+      showFavoritesOnly: _showFavoritesOnly,
+      onMoodSelected: (mood) {
+        setState(() {
+          _selectedMood = mood;
+        });
+      },
+      onFavoritesToggle: (value) {
+        setState(() {
+          _showFavoritesOnly = value;
+        });
+      },
+      onClear: () {
+        setState(() {
+          _selectedMood = null;
+          _showFavoritesOnly = false;
+        });
       },
     );
   }
@@ -175,41 +101,34 @@ class _DiaryScreenState extends State<DiaryScreen> {
       color: bgColor,
       child: Column(
         children: [
-          Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF242526) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    style: TextStyle(
-                      color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+          // Botão de filtro no topo
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE91E63),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE91E63).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar entradas...',
-                      border: InputBorder.none,
-                      icon: Icon(
-                        Icons.search,
-                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-                IconButton(
+                child: IconButton(
                   icon: Icon(
                     Icons.filter_list,
-                    color: (_selectedMood != null || _showFavoritesOnly)
-                        ? const Color(0xFF1877F2)
-                        : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93)),
+                    color: Colors.white,
+                    size: 24,
                   ),
                   onPressed: _showFilters,
                 ),
-              ],
+              ),
             ),
           ),
           Expanded(
@@ -229,12 +148,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 }
 
                 var entries = snapshot.data ?? [];
-
-                if (_searchQuery.isNotEmpty) {
-                  entries = entries.where((entry) =>
-                      entry.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                      entry.content.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-                }
 
                 if (entries.isEmpty) {
                   return Center(
