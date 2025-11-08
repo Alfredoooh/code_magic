@@ -1,266 +1,180 @@
-// lib/widgets/post_card.dart
-import 'dart:convert';
+// lib/widgets/post_feed.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
-import '../models/post_model.dart';
-import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
-import '../widgets/expandable_link_text.dart';
-import '../widgets/video_widget.dart';
-import '../services/image_service.dart';
-import '../screens/post_detail_screen.dart';
-import '../screens/user_detail_screen.dart';
+import '../models/post_model.dart';
+import 'post_card.dart';
 import 'custom_icons.dart';
 
-class PostCard extends StatelessWidget {
-  final Post post;
-  const PostCard({super.key, required this.post});
+class PostFeed extends StatefulWidget {
+  const PostFeed({super.key});
 
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final diff = now.difference(timestamp);
-    if (diff.inSeconds < 60) return 'agora';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return '${timestamp.day}/${timestamp.month}';
+  @override
+  State<PostFeed> createState() => _PostFeedState();
+}
+
+class _PostFeedState extends State<PostFeed> {
+  final PostService _postService = PostService();
+  late final Stream<List<Post>> _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    _postService.ensureStarted();
+    _stream = _postService.stream;
+  }
+
+  @override
+  void dispose() {
+    _postService.dispose();
+    super.dispose();
+  }
+
+  void _showFilterModal() {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
+    final currentFilter = _postService.currentFilter;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 12),
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  
+                  // Título
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      'Filtrar Feed',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  // Opção: Misto
+                  _FilterOption(
+                    icon: CustomIcons.dashboard,
+                    title: 'Misto',
+                    subtitle: 'Posts e notícias intercalados',
+                    isSelected: currentFilter == FeedFilter.mixed,
+                    onTap: () {
+                      _postService.setFilter(FeedFilter.mixed);
+                      Navigator.pop(context);
+                    },
+                  ),
+
+                  // Opção: Só Posts
+                  _FilterOption(
+                    icon: CustomIcons.person,
+                    title: 'Apenas Posts',
+                    subtitle: 'Exibir somente publicações de usuários',
+                    isSelected: currentFilter == FeedFilter.postsOnly,
+                    onTap: () {
+                      _postService.setFilter(FeedFilter.postsOnly);
+                      Navigator.pop(context);
+                    },
+                  ),
+
+                  // Opção: Só Notícias
+                  _FilterOption(
+                    icon: CustomIcons.newspaper,
+                    title: 'Apenas Notícias',
+                    subtitle: 'Exibir somente notícias em tempo real',
+                    isSelected: currentFilter == FeedFilter.newsOnly,
+                    onTap: () {
+                      _postService.setFilter(FeedFilter.newsOnly);
+                      Navigator.pop(context);
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final auth = context.watch<AuthProvider>();
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final postService = PostService();
-
-    final isLiked = auth.user != null ? post.isLikedBy(auth.user!.uid) : false;
-
-    // FILTRO: Não mostra notícias sem conteúdo
-    if (post.isNews && (post.title == null || post.title!.isEmpty)) {
-      return const SizedBox.shrink();
-    }
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      color: bgColor,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          InkWell(
-            onTap: () {
-              Navigator.of(context).push(
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) => 
-                    UserDetailScreen(userId: post.userId),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    const begin = Offset(1.0, 0.0);
-                    const end = Offset.zero;
-                    const curve = Curves.easeInOutCubic;
-                    var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                    return SlideTransition(position: animation.drive(tween), child: child);
-                  },
-                  transitionDuration: const Duration(milliseconds: 350),
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F0),
-                    backgroundImage: post.userAvatar != null
-                        ? MemoryImage(base64Decode(post.userAvatar!))
-                        : null,
-                    child: post.userAvatar == null
-                        ? Text(
-                            post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.userName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: textColor,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _formatTimestamp(post.timestamp),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (auth.user?.uid == post.userId)
-                    IconButton(
-                      icon: SvgPicture.string(
-                        CustomIcons.moreHoriz,
-                        width: 24,
-                        height: 24,
+          // Botão de filtro no topo
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Material(
+              color: isDark ? const Color(0xFF242526) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              elevation: isDark ? 0 : 1,
+              shadowColor: Colors.black.withOpacity(0.05),
+              child: InkWell(
+                onTap: _showFilterModal,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      SvgPicture.string(
+                        CustomIcons.filterList,
+                        width: 22,
+                        height: 22,
                         colorFilter: ColorFilter.mode(
-                          isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                          isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
                           BlendMode.srcIn,
                         ),
                       ),
-                      onPressed: () => _showOptions(context),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // Content
-          if (post.content.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              child: ExpandableLinkText(text: post.content),
-            ),
-
-          // CRÍTICO: Se for notícia, só mostra o News Card
-          if (post.isNews)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => 
-                        PostDetailScreen(postId: post.id, isNews: true),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        const begin = Offset(1.0, 0.0);
-                        const end = Offset.zero;
-                        const curve = Curves.easeInOutCubic;
-                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                        return SlideTransition(position: animation.drive(tween), child: child);
-                      },
-                      transitionDuration: const Duration(milliseconds: 350),
-                    ),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (post.imageUrls != null && post.imageUrls!.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                          child: ImageService.buildImageFromUrl(
-                            post.imageUrls!.first,
-                            width: double.infinity,
-                            height: 180,
-                            fit: BoxFit.cover,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _getFilterText(_postService.currentFilter),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
                           ),
                         ),
-                      Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (post.title != null)
-                              Text(
-                                post.title!,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                  color: textColor,
-                                  height: 1.3,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            if (post.summary != null) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                post.summary!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                                  height: 1.4,
-                                ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                SvgPicture.string(
-                                  CustomIcons.accessTime,
-                                  width: 14,
-                                  height: 14,
-                                  colorFilter: ColorFilter.mode(
-                                    isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999),
-                                    BlendMode.srcIn,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatTimestamp(post.timestamp),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  'Ler mais',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                SvgPicture.string(
-                                  CustomIcons.arrowForward,
-                                  width: 12,
-                                  height: 12,
-                                  colorFilter: ColorFilter.mode(
-                                    isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-                                    BlendMode.srcIn,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                      ),
+                      SvgPicture.string(
+                        CustomIcons.expandMore,
+                        width: 20,
+                        height: 20,
+                        colorFilter: ColorFilter.mode(
+                          isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                          BlendMode.srcIn,
                         ),
                       ),
                     ],
@@ -268,380 +182,255 @@ class PostCard extends StatelessWidget {
                 ),
               ),
             ),
+          ),
 
-          // Image - APENAS PARA POSTS NORMAIS (não notícias)
-          if (!post.isNews && post.imageBase64 != null)
-            GestureDetector(
-              onTap: () => postService.openImageViewer(
-                context,
-                [post.imageBase64!],
-                post.imageBase64!,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    base64Decode(post.imageBase64!),
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 200,
-                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F0),
-                        child: const Center(
-                          child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            )
-          else if (!post.isNews && post.imageUrls != null && post.imageUrls!.isNotEmpty)
-            GestureDetector(
-              onTap: () => postService.openImageViewer(
-                context,
-                post.imageUrls!,
-                post.imageUrls!.first,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ImageService.buildImageFromUrl(
-                    post.imageUrls!.first,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-
-          // Video - APENAS PARA POSTS NORMAIS
-          if (!post.isNews && post.videoUrl != null)
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: VideoWidget(url: post.videoUrl!),
-                ),
-              ),
-            ),
-
-          // Stats
-          if (!post.isNews && (post.likes > 0 || post.comments > 0 || post.shares > 0))
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Row(
-                children: [
-                  if (post.likes > 0)
-                    Row(
+          // Feed de posts
+          Expanded(
+            child: StreamBuilder<List<Post>>(
+              stream: _stream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF007AFF),
-                            shape: BoxShape.circle,
-                          ),
-                          child: SvgPicture.string(
-                            CustomIcons.thumbUp,
-                            width: 11,
-                            height: 11,
-                            colorFilter: const ColorFilter.mode(
-                              Colors.white,
-                              BlendMode.srcIn,
-                            ),
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Erro ao carregar feed',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(height: 8),
                         Text(
-                          '${post.likes}',
+                          '${snapshot.error}',
                           style: TextStyle(
                             fontSize: 14,
-                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
+                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final posts = snapshot.data ?? [];
+                
+                if (posts.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.string(
+                          CustomIcons.inbox,
+                          width: 64,
+                          height: 64,
+                          colorFilter: ColorFilter.mode(
+                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _getEmptyMessage(_postService.currentFilter),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _getEmptySubtitle(_postService.currentFilter),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
                           ),
                         ),
                       ],
                     ),
-                  const Spacer(),
-                  if (post.comments > 0)
-                    Text(
-                      '${post.comments} comentários',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                      ),
-                    ),
-                  if (post.shares > 0) ...[
-                    const SizedBox(width: 12),
-                    Text(
-                      '${post.shares} compartilhamentos',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                  );
+                }
 
-          // Divider
-          if (!post.isNews)
-            Container(
-              height: 0.5,
-              margin: const EdgeInsets.symmetric(horizontal: 14),
-              color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
+                return LayoutBuilder(builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 800;
+                  
+                  if (isWide) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.8,
+                      ),
+                      itemCount: posts.length,
+                      itemBuilder: (context, index) => PostCard(post: posts[index]),
+                    );
+                  } else {
+                    return ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: posts.length,
+                      itemBuilder: (context, index) => PostCard(post: posts[index]),
+                    );
+                  }
+                });
+              },
             ),
-
-          // Actions
-          if (!post.isNews)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: auth.user == null
-                          ? null
-                          : () => postService.toggleLike(post.id, auth.user!.uid),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.string(
-                              isLiked ? CustomIcons.thumbUp : CustomIcons.thumbUpOutlined,
-                              width: 20,
-                              height: 20,
-                              colorFilter: ColorFilter.mode(
-                                isLiked
-                                    ? const Color(0xFF007AFF)
-                                    : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666)),
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Curtir',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: isLiked
-                                    ? const Color(0xFF007AFF)
-                                    : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => 
-                              PostDetailScreen(postId: post.id),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOutCubic;
-                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                              return SlideTransition(position: animation.drive(tween), child: child);
-                            },
-                            transitionDuration: const Duration(milliseconds: 350),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.string(
-                              CustomIcons.commentOutlined,
-                              width: 20,
-                              height: 20,
-                              colorFilter: ColorFilter.mode(
-                                isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Comentar',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => postService.sharePost(post),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.string(
-                              CustomIcons.shareOutlined,
-                              width: 20,
-                              height: 20,
-                              colorFilter: ColorFilter.mode(
-                                isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Compartilhar',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF666666),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ),
         ],
       ),
     );
   }
 
-  void _showOptions(BuildContext context) {
-    final isDark = context.read<ThemeProvider>().isDarkMode;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+  String _getFilterText(FeedFilter filter) {
+    switch (filter) {
+      case FeedFilter.mixed:
+        return 'Feed Misto';
+      case FeedFilter.postsOnly:
+        return 'Apenas Posts';
+      case FeedFilter.newsOnly:
+        return 'Apenas Notícias';
+    }
+  }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return Container(
+  String _getEmptyMessage(FeedFilter filter) {
+    switch (filter) {
+      case FeedFilter.mixed:
+        return 'Nenhum conteúdo disponível';
+      case FeedFilter.postsOnly:
+        return 'Nenhuma publicação ainda';
+      case FeedFilter.newsOnly:
+        return 'Nenhuma notícia disponível';
+    }
+  }
+
+  String _getEmptySubtitle(FeedFilter filter) {
+    switch (filter) {
+      case FeedFilter.mixed:
+        return 'Aguardando posts e notícias';
+      case FeedFilter.postsOnly:
+        return 'Seja o primeiro a publicar';
+      case FeedFilter.newsOnly:
+        return 'Aguardando notícias em tempo real';
+    }
+  }
+}
+
+class _FilterOption extends StatelessWidget {
+  final String icon;
+  final String title;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            color: isSelected
+                ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.12) : const Color(0xFF007AFF).withOpacity(0.08))
+                : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9)),
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(
+                    color: isDark ? const Color(0xFF0A84FF).withOpacity(0.3) : const Color(0xFF007AFF).withOpacity(0.2),
+                    width: 1,
+                  )
+                : null,
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle indicator
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 12),
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.15) : const Color(0xFF007AFF).withOpacity(0.1))
+                      : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: SvgPicture.string(
+                  icon,
+                  width: 22,
+                  height: 22,
+                  colorFilter: ColorFilter.mode(
+                    isSelected
+                        ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
+                        : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B)),
+                    BlendMode.srcIn,
                   ),
                 ),
-                // Delete option
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      PostService().deletePost(post.id);
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          SvgPicture.string(
-                            CustomIcons.delete,
-                            width: 20,
-                            height: 20,
-                            colorFilter: const ColorFilter.mode(
-                              Colors.red,
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Excluir',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
+                            : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
                       ),
                     ),
-                  ),
-                ),
-                // Edit option
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.of(context).pop();
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          SvgPicture.string(
-                            CustomIcons.edit,
-                            width: 20,
-                            height: 20,
-                            colorFilter: ColorFilter.mode(
-                              isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Editar',
-                            style: TextStyle(
-                              color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
                       ),
                     ),
+                  ],
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(width: 8),
+                SvgPicture.string(
+                  CustomIcons.checkCircle,
+                  width: 22,
+                  height: 22,
+                  colorFilter: ColorFilter.mode(
+                    isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                    BlendMode.srcIn,
                   ),
                 ),
-                const SizedBox(height: 8),
               ],
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
