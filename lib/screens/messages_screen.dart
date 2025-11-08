@@ -1,4 +1,4 @@
-// lib/screens/messages_screen.dart
+// lib/screens/messages_screen.dart - PARTE 1
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,6 +10,7 @@ import '../widgets/custom_icons.dart';
 import '../providers/auth_provider.dart' as auth_provider;
 import '../services/document_service.dart';
 import '../models/document_template_model.dart';
+import '../widgets/request_cards.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -61,7 +62,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
         _isAdmin = isAdmin;
         _loadingAdminCheck = false;
         _tabController = TabController(
-          length: isAdmin ? 5 : 2, // Admin: 5 abas, Usuário: 2 abas
+          length: isAdmin ? 5 : 2,
           vsync: this,
         );
       });
@@ -242,7 +243,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: requests.length,
           itemBuilder: (context, index) {
-            return _RequestCard(
+            return RequestCard(
               request: requests[index],
               cardColor: cardColor,
               textColor: textColor,
@@ -281,7 +282,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: requests.length,
           itemBuilder: (context, index) {
-            return _AdminRequestCard(
+            return AdminRequestCard(
               request: requests[index],
               cardColor: cardColor,
               textColor: textColor,
@@ -398,6 +399,8 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
       ],
     );
   }
+  // lib/screens/messages_screen.dart - PARTE 2 (CONTINUAÇÃO)
+// ADICIONE ESTE CÓDIGO APÓS O _buildAdminTemplatesTab
 
   void _showAddTemplateDialog(Color cardColor, Color textColor, Color hintColor) {
     final nameController = TextEditingController();
@@ -480,10 +483,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  // Mantém todos os métodos originais da tela de mensagens...
-  // (buildUserInbox, buildAdminEmailsTab, buildAdminUsersTab, buildAdminSendTab, etc.)
-  // Por brevidade, não estou repetindo todo o código original aqui
-  
   Widget _buildUserInbox(Color cardColor, Color textColor, Color hintColor) {
     final authProvider = context.watch<auth_provider.AuthProvider>();
     final currentUid = authProvider.user?.uid;
@@ -837,7 +836,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     Color hintColor,
     auth_provider.AuthProvider authProvider,
   ) {
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
     final TextEditingController toController = TextEditingController();
     final TextEditingController subjectController = TextEditingController();
     final TextEditingController bodyController = TextEditingController();
