@@ -1,4 +1,5 @@
 // lib/screens/users_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -15,8 +16,6 @@ class UsersScreen extends StatefulWidget {
 }
 
 class _UsersScreenState extends State<UsersScreen> {
-  String _searchQuery = '';
-
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -80,8 +79,6 @@ class _UsersScreenState extends State<UsersScreen> {
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('users')
-                .orderBy('isOnline', descending: true)
-                .orderBy('lastActive', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -103,6 +100,15 @@ class _UsersScreenState extends State<UsersScreen> {
                             color: hintColor,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error.toString(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: hintColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),
@@ -120,17 +126,34 @@ class _UsersScreenState extends State<UsersScreen> {
               }
 
               final allUsers = snapshot.data?.docs ?? [];
-              final users = allUsers.where((doc) => doc.id != currentUserId).toList();
               
+              // Filtra o usuário atual
+              final users = allUsers.where((doc) => doc.id != currentUserId).toList();
+
+              // Separa usuários online e offline
               final onlineUsers = users.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return data['isOnline'] == true;
+                final data = doc.data() as Map<String, dynamic>?;
+                return data?['isOnline'] == true;
               }).toList();
 
               final offlineUsers = users.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return data['isOnline'] != true;
+                final data = doc.data() as Map<String, dynamic>?;
+                return data?['isOnline'] != true;
               }).toList();
+
+              // Ordena offline por lastActive
+              offlineUsers.sort((a, b) {
+                final aData = a.data() as Map<String, dynamic>?;
+                final bData = b.data() as Map<String, dynamic>?;
+                final aTime = aData?['lastActive'] as Timestamp?;
+                final bTime = bData?['lastActive'] as Timestamp?;
+                
+                if (aTime == null && bTime == null) return 0;
+                if (aTime == null) return 1;
+                if (bTime == null) return -1;
+                
+                return bTime.compareTo(aTime);
+              });
 
               if (users.isEmpty) {
                 return SliverFillRemaining(
@@ -161,7 +184,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     // Header online
-                    if (index == 0) {
+                    if (index == 0 && onlineUsers.isNotEmpty) {
                       return Container(
                         padding: const EdgeInsets.all(16),
                         margin: const EdgeInsets.only(bottom: 1),
@@ -191,14 +214,23 @@ class _UsersScreenState extends State<UsersScreen> {
                     }
 
                     // Lista de usuários online
-                    if (index <= onlineUsers.length) {
+                    if (onlineUsers.isNotEmpty && index <= onlineUsers.length) {
                       final userDoc = onlineUsers[index - 1];
-                      final userData = userDoc.data() as Map<String, dynamic>;
-                      return _buildUserTile(context, userDoc.id, userData, true, cardColor, textColor, isDark);
+                      final userData = userDoc.data() as Map<String, dynamic>?;
+                      if (userData == null) return const SizedBox.shrink();
+                      return _buildUserTile(
+                        context,
+                        userDoc.id,
+                        userData,
+                        true,
+                        cardColor,
+                        textColor,
+                        isDark,
+                      );
                     }
 
                     // Header offline
-                    if (index == onlineUsers.length + 1) {
+                    if (offlineUsers.isNotEmpty && index == onlineUsers.length + 1) {
                       return Container(
                         padding: const EdgeInsets.all(16),
                         margin: const EdgeInsets.only(top: 8, bottom: 1),
@@ -229,11 +261,27 @@ class _UsersScreenState extends State<UsersScreen> {
 
                     // Lista de usuários offline
                     final offlineIndex = index - onlineUsers.length - 2;
-                    final userDoc = offlineUsers[offlineIndex];
-                    final userData = userDoc.data() as Map<String, dynamic>;
-                    return _buildUserTile(context, userDoc.id, userData, false, cardColor, textColor, isDark);
+                    if (offlineIndex >= 0 && offlineIndex < offlineUsers.length) {
+                      final userDoc = offlineUsers[offlineIndex];
+                      final userData = userDoc.data() as Map<String, dynamic>?;
+                      if (userData == null) return const SizedBox.shrink();
+                      return _buildUserTile(
+                        context,
+                        userDoc.id,
+                        userData,
+                        false,
+                        cardColor,
+                        textColor,
+                        isDark,
+                      );
+                    }
+
+                    return const SizedBox.shrink();
                   },
-                  childCount: users.length + 2,
+                  childCount: (onlineUsers.isNotEmpty ? 1 : 0) + 
+                              onlineUsers.length + 
+                              (offlineUsers.isNotEmpty ? 1 : 0) + 
+                              offlineUsers.length,
                 ),
               );
             },
@@ -254,10 +302,12 @@ class _UsersScreenState extends State<UsersScreen> {
   ) {
     final lastActive = userData['lastActive'] as Timestamp?;
     final userType = userData['userType'] ?? 'person';
-    
+    final photoBase64 = userData['photoBase64'];
+    final photoURL = userData['photoURL'];
+
     String userTypeLabel = '';
     IconData? userTypeIcon;
-    
+
     switch (userType) {
       case 'student':
         userTypeLabel = 'Estudante';
@@ -286,7 +336,7 @@ class _UsersScreenState extends State<UsersScreen> {
               builder: (_) => ChatScreen(
                 recipientId: userId,
                 recipientName: userData['name'] ?? 'Usuário',
-                recipientPhotoURL: userData['photoURL'],
+                recipientPhotoURL: photoURL,
                 isOnline: isOnline,
               ),
             ),
@@ -297,10 +347,10 @@ class _UsersScreenState extends State<UsersScreen> {
             CircleAvatar(
               radius: 28,
               backgroundColor: const Color(0xFF1877F2),
-              backgroundImage: userData['photoURL'] != null
-                  ? NetworkImage(userData['photoURL'])
-                  : null,
-              child: userData['photoURL'] == null
+              backgroundImage: photoBase64 != null
+                  ? MemoryImage(base64Decode(photoBase64))
+                  : (photoURL != null ? NetworkImage(photoURL) : null),
+              child: photoBase64 == null && photoURL == null
                   ? Text(
                       userData['name']?.substring(0, 1).toUpperCase() ?? 'U',
                       style: const TextStyle(
