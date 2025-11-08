@@ -49,12 +49,12 @@ class PostService {
   void ensureStarted() {
     if (_started) return;
     _started = true;
-    
+
     print('🚀 PostService iniciado');
-    
+
     _listenPosts();
     _fetchNewsOnce();
-    
+
     // Atualiza notícias a cada 5 minutos
     _newsTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       print('🔄 Atualizando notícias...');
@@ -79,7 +79,7 @@ class PostService {
 
   Future<void> _fetchNewsOnce() async {
     print('📰 Iniciando busca de notícias...');
-    
+
     try {
       final List<Post> results = [];
       final Set<String> seenUrls = {};
@@ -108,8 +108,11 @@ class PostService {
         results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         _news = results.take(50).toList();
         print('✅ NOTÍCIAS CARREGADAS: ${_news.length}');
+        for (int i = 0; i < _news.length && i < 3; i++) {
+          print('   ➜ [${i + 1}] ${_news[i].title ?? _news[i].content.substring(0, 30)}');
+        }
       }
-      
+
       print('📊 Posts: ${_posts.length} | Notícias: ${_news.length}');
       _emitCombined();
 
@@ -135,14 +138,15 @@ class PostService {
           final uri = Uri.parse(
             'https://newsapi.org/v2/everything?q=$query&from=$dateStr&sortBy=publishedAt&pageSize=20&language=en&apiKey=$key',
           );
-          
+
+          print('🌐 Requisição NewsAPI ($query)...');
           final resp = await http.get(uri).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['articles'] ?? [];
 
-            print('📰 NewsAPI ($query): ${items.length} artigos encontrados');
+            print('✓ NewsAPI ($query): ${items.length} artigos encontrados');
 
             for (var it in items) {
               final newsUrl = it['url'];
@@ -174,9 +178,9 @@ class PostService {
 
               if (results.length >= 40) break;
             }
-            
+
             if (results.isNotEmpty) break;
-            
+
           } else {
             print('⚠️ NewsAPI retornou status ${resp.statusCode}');
           }
@@ -200,14 +204,15 @@ class PostService {
           final uri = Uri.parse(
             'https://newsapi.org/v2/top-headlines?category=$category&language=en&pageSize=20&apiKey=$key',
           );
-          
+
+          print('🌐 Requisição NewsAPI Headlines ($category)...');
           final resp = await http.get(uri).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['articles'] ?? [];
 
-            print('📰 NewsAPI Headlines ($category): ${items.length} artigos');
+            print('✓ NewsAPI Headlines ($category): ${items.length} artigos');
 
             for (var it in items) {
               final newsUrl = it['url'];
@@ -239,9 +244,9 @@ class PostService {
 
               if (results.length >= 40) break;
             }
-            
+
             if (results.isNotEmpty) break;
-            
+
           }
         } catch (e) {
           print('❌ NewsAPI Headlines error: $e');
@@ -263,14 +268,15 @@ class PostService {
           final uri = Uri.parse(
             'https://gnews.io/api/v4/top-headlines?category=$topic&lang=en&max=20&apikey=$key',
           );
-          
+
+          print('🌐 Requisição GNews ($topic)...');
           final resp = await http.get(uri).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['articles'] ?? [];
 
-            print('📰 GNews ($topic): ${items.length} artigos');
+            print('✓ GNews ($topic): ${items.length} artigos');
 
             for (var it in items) {
               final newsUrl = it['url'];
@@ -301,9 +307,9 @@ class PostService {
 
               if (results.length >= 40) break;
             }
-            
+
             if (results.isNotEmpty) break;
-            
+
           }
         } catch (e) {
           print('❌ GNews error: $e');
@@ -325,14 +331,15 @@ class PostService {
           final url = Uri.parse(
             'https://newsdata.io/api/1/news?apikey=$key&language=en&category=$category&size=20',
           );
-          
+
+          print('🌐 Requisição NewsData ($category)...');
           final resp = await http.get(url).timeout(const Duration(seconds: 12));
 
           if (resp.statusCode == 200) {
             final json = jsonDecode(resp.body) as Map<String, dynamic>;
             final List items = json['results'] ?? [];
 
-            print('📰 NewsData ($category): ${items.length} artigos');
+            print('✓ NewsData ($category): ${items.length} artigos');
 
             for (var it in items) {
               final newsUrl = it['link'];
@@ -363,9 +370,9 @@ class PostService {
 
               if (results.length >= 40) break;
             }
-            
+
             if (results.isNotEmpty) break;
-            
+
           }
         } catch (e) {
           print('❌ NewsData error: $e');
@@ -407,7 +414,7 @@ class PostService {
     }
 
     print('✅ Feed combinado (${_currentFilter.name}): ${combined.length} itens');
-    
+
     _controller.add(combined);
   }
 
