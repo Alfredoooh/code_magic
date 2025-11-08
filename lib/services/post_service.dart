@@ -107,10 +107,10 @@ class PostService {
     }
   }
 
-  // NewsAPI - Everything
+  // NewsAPI - Everything (agora com language=pt e queries em português)
   Future<void> _fetchNewsAPI(List<Post> results, Set<String> seenUrls) async {
-    final queries = ['stocks', 'cryptocurrency', 'trading', 'business'];
-    
+    final queries = ['ações', 'criptomoeda', 'trading', 'negócios'];
+
     for (final query in queries) {
       if (results.length >= 50) break;
 
@@ -118,9 +118,9 @@ class PostService {
         try {
           final yesterday = DateTime.now().subtract(const Duration(days: 1));
           final dateStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
-          
+
           final uri = Uri.parse(
-            'https://newsapi.org/v2/everything?q=$query&from=$dateStr&sortBy=publishedAt&pageSize=25&apiKey=$key',
+            'https://newsapi.org/v2/everything?q=${Uri.encodeQueryComponent(query)}&from=$dateStr&sortBy=publishedAt&pageSize=25&language=pt&apiKey=$key',
           );
           final resp = await http.get(uri).timeout(const Duration(seconds: 10));
 
@@ -168,17 +168,17 @@ class PostService {
     }
   }
 
-  // NewsAPI - Top Headlines
+  // NewsAPI - Top Headlines (em português)
   Future<void> _fetchNewsAPITopHeadlines(List<Post> results, Set<String> seenUrls) async {
     final categories = ['business', 'technology', 'science'];
-    
+
     for (final category in categories) {
       if (results.length >= 50) break;
 
       for (final key in _newsApiKeys) {
         try {
           final uri = Uri.parse(
-            'https://newsapi.org/v2/top-headlines?category=$category&language=en&pageSize=20&apiKey=$key',
+            'https://newsapi.org/v2/top-headlines?category=$category&language=pt&pageSize=20&apiKey=$key',
           );
           final resp = await http.get(uri).timeout(const Duration(seconds: 10));
 
@@ -226,17 +226,17 @@ class PostService {
     }
   }
 
-  // GNews
+  // GNews (agora com lang=pt)
   Future<void> _fetchGNews(List<Post> results, Set<String> seenUrls) async {
     final topics = ['business', 'technology', 'sports', 'entertainment'];
-    
+
     for (final topic in topics) {
       if (results.length >= 50) break;
 
       for (final key in _gnewsKeys) {
         try {
           final uri = Uri.parse(
-            'https://gnews.io/api/v4/top-headlines?category=$topic&token=$key&lang=en&max=15',
+            'https://gnews.io/api/v4/top-headlines?category=$topic&token=$key&lang=pt&max=15',
           );
           final resp = await http.get(uri).timeout(const Duration(seconds: 10));
 
@@ -283,17 +283,17 @@ class PostService {
     }
   }
 
-  // NewsData.io
+  // NewsData.io (language=pt)
   Future<void> _fetchNewsData(List<Post> results, Set<String> seenUrls) async {
     final categories = ['business', 'technology', 'sports'];
-    
+
     for (final category in categories) {
       if (results.length >= 50) break;
 
       for (final key in _newsdataKeys) {
         try {
           final url = Uri.parse(
-            'https://newsdata.io/api/1/news?apikey=$key&language=en&category=$category',
+            'https://newsdata.io/api/1/news?apikey=$key&language=pt&category=$category',
           );
           final resp = await http.get(url).timeout(const Duration(seconds: 10));
 
@@ -315,8 +315,8 @@ class PostService {
                 userAvatar: null,
                 content: (it['description'] ?? '').toString(),
                 imageBase64: null,
-                imageUrls: imageUrl != null && imageUrl.toString() != 'null' 
-                    ? [imageUrl.toString()] 
+                imageUrls: imageUrl != null && imageUrl.toString() != 'null'
+                    ? [imageUrl.toString()]
                     : [],
                 videoUrl: null,
                 isNews: true,
@@ -340,18 +340,17 @@ class PostService {
     }
   }
 
-  // Notícias Financeiras (Alpha Vantage, MarketWatch, etc)
+  // Notícias Financeiras (usando language=pt e queries em português)
   Future<void> _fetchFinancialNews(List<Post> results, Set<String> seenUrls) async {
-    // Usando NewsAPI com queries financeiras específicas
-    final queries = ['stock market', 'forex', 'crypto', 'nasdaq', 'dow jones'];
-    
+    final queries = ['mercado de ações', 'câmbio', 'criptomoeda', 'nasdaq', 'dow jones'];
+
     for (final query in queries) {
       if (results.length >= 50) break;
 
       for (final key in _newsApiKeys) {
         try {
           final uri = Uri.parse(
-            'https://newsapi.org/v2/everything?q=$query&domains=bloomberg.com,reuters.com,marketwatch.com&sortBy=publishedAt&pageSize=10&apiKey=$key',
+            'https://newsapi.org/v2/everything?q=${Uri.encodeQueryComponent(query)}&language=pt&sortBy=publishedAt&pageSize=10&apiKey=$key',
           );
           final resp = await http.get(uri).timeout(const Duration(seconds: 10));
 
@@ -399,12 +398,12 @@ class PostService {
     }
   }
 
-  // Notícias de Tecnologia (TechCrunch, etc)
+  // Notícias de Tecnologia — usa query 'tecnologia' + language=pt para melhores resultados em português
   Future<void> _fetchTechNews(List<Post> results, Set<String> seenUrls) async {
     for (final key in _newsApiKeys) {
       try {
         final uri = Uri.parse(
-          'https://newsapi.org/v2/top-headlines?sources=techcrunch,the-verge,wired,ars-technica&apiKey=$key',
+          'https://newsapi.org/v2/everything?q=tecnologia&language=pt&sortBy=publishedAt&pageSize=25&apiKey=$key',
         );
         final resp = await http.get(uri).timeout(const Duration(seconds: 10));
 
