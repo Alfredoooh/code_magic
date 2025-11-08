@@ -141,7 +141,7 @@ class PostCard extends StatelessWidget {
               child: ExpandableLinkText(text: post.content),
             ),
 
-          // Image
+          // Image - CORRIGIDO: Apenas uma verificação, prioriza imageBase64
           if (post.imageBase64 != null)
             GestureDetector(
               onTap: () => postService.openImageViewer(
@@ -170,7 +170,7 @@ class PostCard extends StatelessWidget {
                 ),
               ),
             )
-          else if (post.imageUrls != null && post.imageUrls!.isNotEmpty)
+          else if (post.imageUrls != null && post.imageUrls!.isNotEmpty && !post.isNews)
             GestureDetector(
               onTap: () => postService.openImageViewer(
                 context,
@@ -525,7 +525,7 @@ class PostCard extends StatelessWidget {
 
   void _showOptions(BuildContext context) {
     final isDark = context.read<ThemeProvider>().isDarkMode;
-    
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
