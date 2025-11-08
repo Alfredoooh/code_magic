@@ -1,8 +1,13 @@
 // lib/screens/new_request_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/document_service.dart';
+import '../models/document_template_model.dart';
 import '../widgets/custom_icons.dart';
+import 'document_request_detail_screen.dart';
 
 class NewRequestScreen extends StatefulWidget {
   const NewRequestScreen({super.key});
@@ -12,58 +17,106 @@ class NewRequestScreen extends StatefulWidget {
 }
 
 class _NewRequestScreenState extends State<NewRequestScreen> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String _selectedCategory = 'Suporte Técnico';
-  String _selectedPriority = 'Normal';
+  final DocumentService _documentService = DocumentService();
+  DocumentCategory? _selectedCategory;
+  DocumentTemplate? _selectedTemplate;
+  bool _showingTemplates = false;
 
-  final List<String> _categories = [
-    'Suporte Técnico',
-    'Financeiro',
-    'Atendimento',
-    'Sugestão',
-    'Reclamação',
-    'Outro',
-  ];
-
-  final List<String> _priorities = [
-    'Baixa',
-    'Normal',
-    'Alta',
-    'Urgente',
-  ];
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
+  String _getCategoryName(DocumentCategory category) {
+    switch (category) {
+      case DocumentCategory.curriculum:
+        return 'Currículo';
+      case DocumentCategory.certificate:
+        return 'Certificado';
+      case DocumentCategory.letter:
+        return 'Carta';
+      case DocumentCategory.report:
+        return 'Relatório';
+      case DocumentCategory.contract:
+        return 'Contrato';
+      case DocumentCategory.invoice:
+        return 'Fatura';
+      case DocumentCategory.presentation:
+        return 'Apresentação';
+      case DocumentCategory.essay:
+        return 'Trabalho Acadêmico';
+      case DocumentCategory.other:
+        return 'Outro';
+    }
   }
 
-  void _submitRequest() {
-    if (_titleController.text.trim().isEmpty || _descriptionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, preencha todos os campos'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+  String _getCategoryIcon(DocumentCategory category) {
+    switch (category) {
+      case DocumentCategory.curriculum:
+        return CustomIcons.person;
+      case DocumentCategory.certificate:
+        return CustomIcons.certificate;
+      case DocumentCategory.letter:
+        return CustomIcons.envelope;
+      case DocumentCategory.report:
+        return CustomIcons.description;
+      case DocumentCategory.contract:
+        return CustomIcons.contract;
+      case DocumentCategory.invoice:
+        return CustomIcons.invoice;
+      case DocumentCategory.presentation:
+        return CustomIcons.presentation;
+      case DocumentCategory.essay:
+        return CustomIcons.school;
+      case DocumentCategory.other:
+        return CustomIcons.folder;
     }
+  }
 
-    // Aqui você implementaria o envio do pedido
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pedido enviado com sucesso!'),
-        backgroundColor: Colors.green,
+  String _getCategoryDescription(DocumentCategory category) {
+    switch (category) {
+      case DocumentCategory.curriculum:
+        return 'CV profissional e portfólio';
+      case DocumentCategory.certificate:
+        return 'Certificados e diplomas';
+      case DocumentCategory.letter:
+        return 'Cartas formais e informais';
+      case DocumentCategory.report:
+        return 'Relatórios técnicos e executivos';
+      case DocumentCategory.contract:
+        return 'Contratos e acordos';
+      case DocumentCategory.invoice:
+        return 'Faturas e recibos';
+      case DocumentCategory.presentation:
+        return 'Slides e apresentações';
+      case DocumentCategory.essay:
+        return 'TCC, artigos e trabalhos';
+      case DocumentCategory.other:
+        return 'Outros documentos';
+    }
+  }
+
+  void _selectCategory(DocumentCategory category) {
+    setState(() {
+      _selectedCategory = category;
+      _selectedTemplate = null;
+      _showingTemplates = true;
+    });
+  }
+
+  void _selectTemplate(DocumentTemplate template) {
+    setState(() {
+      _selectedTemplate = template;
+    });
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocumentRequestDetailScreen(template: template),
       ),
     );
+  }
 
-    _titleController.clear();
-    _descriptionController.clear();
+  void _backToCategories() {
     setState(() {
-      _selectedCategory = 'Suporte Técnico';
-      _selectedPriority = 'Normal';
+      _showingTemplates = false;
+      _selectedCategory = null;
+      _selectedTemplate = null;
     });
   }
 
@@ -71,286 +124,431 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+
+    if (_showingTemplates && _selectedCategory != null) {
+      return _buildTemplatesView(isDark, bgColor);
+    }
+
+    return _buildCategoriesView(isDark, bgColor);
+  }
+
+  Widget _buildCategoriesView(bool isDark, Color bgColor) {
     final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final hintColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93);
 
     return Container(
       color: bgColor,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Info Card
-            Container(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1877F2).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF1877F2).withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  const SvgIcon(
-                    svgString: CustomIcons.info,
-                    size: 24,
-                    color: Color(0xFF1877F2),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Preencha o formulário abaixo para enviar seu pedido. Nossa equipe responderá em breve.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Form Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título
-                  Text(
-                    'Título do Pedido',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _titleController,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      hintText: 'Ex: Problema com pagamento',
-                      hintStyle: TextStyle(color: hintColor),
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF242526) : const Color(0xFFF0F2F5),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Categoria
-                  Text(
-                    'Categoria',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF242526) : const Color(0xFFF0F2F5),
+                      color: const Color(0xFF1877F2).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedCategory,
-                        isExpanded: true,
-                        dropdownColor: isDark ? const Color(0xFF242526) : Colors.white,
-                        style: TextStyle(color: textColor, fontSize: 15),
-                        icon: SvgIcon(
-                          svgString: CustomIcons.expandMore,
-                          size: 20,
-                          color: hintColor,
-                        ),
-                        items: _categories.map((category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child: Text(category),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => _selectedCategory = value);
-                          }
-                        },
+                      border: Border.all(
+                        color: const Color(0xFF1877F2).withOpacity(0.3),
+                        width: 1,
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Prioridade
-                  Text(
-                    'Prioridade',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: _priorities.map((priority) {
-                      final isSelected = priority == _selectedPriority;
-                      return ChoiceChip(
-                        label: Text(priority),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedPriority = priority);
-                          }
-                        },
-                        selectedColor: const Color(0xFF1877F2),
-                        backgroundColor: isDark ? const Color(0xFF242526) : const Color(0xFFF0F2F5),
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : textColor,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Descrição
-                  Text(
-                    'Descrição',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _descriptionController,
-                    style: TextStyle(color: textColor),
-                    maxLines: 6,
-                    decoration: InputDecoration(
-                      hintText: 'Descreva seu pedido em detalhes...',
-                      hintStyle: TextStyle(color: hintColor),
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF242526) : const Color(0xFFF0F2F5),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.all(16),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Botão de enviar
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _submitRequest,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1877F2),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SvgIcon(
-                            svgString: CustomIcons.send,
-                            size: 20,
-                            color: Colors.white,
+                    child: Row(
+                      children: [
+                        SvgPicture.string(
+                          CustomIcons.info,
+                          width: 24,
+                          height: 24,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF1877F2),
+                            BlendMode.srcIn,
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Enviar Pedido',
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Selecione a categoria do documento que deseja criar',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Categorias de Documentos',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Status Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.85,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tempo de Resposta Estimado',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final category = DocumentCategory.values[index];
+                  return _CategoryCard(
+                    category: category,
+                    name: _getCategoryName(category),
+                    description: _getCategoryDescription(category),
+                    icon: _getCategoryIcon(category),
+                    onTap: () => _selectCategory(category),
+                    isDark: isDark,
+                    cardColor: cardColor,
+                    textColor: textColor,
+                  );
+                },
+                childCount: DocumentCategory.values.length,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTemplatesView(bool isDark, Color bgColor) {
+    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+
+    return Container(
+      color: bgColor,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardColor,
+              boxShadow: [
+                BoxShadow(
+                  color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: SvgPicture.string(
+                    CustomIcons.arrowLeft,
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
+                  onPressed: _backToCategories,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SvgIcon(
-                        svgString: CustomIcons.accessTime,
-                        size: 16,
-                        color: hintColor,
-                      ),
-                      const SizedBox(width: 6),
                       Text(
-                        '24-48 horas úteis',
+                        _getCategoryName(_selectedCategory!),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      Text(
+                        'Escolha um template',
                         style: TextStyle(
                           fontSize: 13,
-                          color: hintColor,
+                          color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
                         ),
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<List<DocumentTemplate>>(
+              stream: _documentService.getTemplatesByCategory(_selectedCategory!),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Erro: ${snapshot.error}'));
+                }
+
+                final templates = snapshot.data ?? [];
+
+                if (templates.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.string(
+                          CustomIcons.folder,
+                          width: 64,
+                          height: 64,
+                          colorFilter: ColorFilter.mode(
+                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Nenhum template disponível',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.7,
+                  ),
+                  itemCount: templates.length,
+                  itemBuilder: (context, index) {
+                    return _TemplateCard(
+                      template: templates[index],
+                      onTap: () => _selectTemplate(templates[index]),
+                      isDark: isDark,
+                      cardColor: cardColor,
+                      textColor: textColor,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final DocumentCategory category;
+  final String name;
+  final String description;
+  final String icon;
+  final VoidCallback onTap;
+  final bool isDark;
+  final Color cardColor;
+  final Color textColor;
+
+  const _CategoryCard({
+    required this.category,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.onTap,
+    required this.isDark,
+    required this.cardColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1877F2).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SvgPicture.string(
+                  icon,
+                  width: 32,
+                  height: 32,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFF1877F2),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TemplateCard extends StatelessWidget {
+  final DocumentTemplate template;
+  final VoidCallback onTap;
+  final bool isDark;
+  final Color cardColor;
+  final Color textColor;
+
+  const _TemplateCard({
+    required this.template,
+    required this.onTap,
+    required this.isDark,
+    required this.cardColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(
+                  template.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F2F5),
+                      child: Center(
+                        child: SvgPicture.string(
+                          CustomIcons.image,
+                          width: 48,
+                          height: 48,
+                          colorFilter: ColorFilter.mode(
+                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    template.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    template.description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (template.usageCount > 0) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        SvgPicture.string(
+                          CustomIcons.star,
+                          width: 12,
+                          height: 12,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFFFFA000),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${template.usageCount} usos',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
