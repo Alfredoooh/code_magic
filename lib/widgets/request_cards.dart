@@ -6,13 +6,15 @@ import '../providers/theme_provider.dart';
 import '../models/document_template_model.dart';
 import 'custom_icons.dart';
 
-class _RequestCard extends StatelessWidget {
+// REMOVI O UNDERSCORE PARA TORNAR AS CLASSES PÚBLICAS
+class RequestCard extends StatelessWidget {
   final DocumentRequest request;
   final Color cardColor;
   final Color textColor;
   final Color hintColor;
 
-  const _RequestCard({
+  const RequestCard({
+    super.key,
     required this.request,
     required this.cardColor,
     required this.textColor,
@@ -56,7 +58,6 @@ class _RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor(request.status);
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -120,7 +121,7 @@ class _RequestCard extends StatelessWidget {
         onTap: () {
           showDialog(
             context: context,
-            builder: (context) => _RequestDetailDialog(
+            builder: (context) => RequestDetailDialog(
               request: request,
               cardColor: cardColor,
               textColor: textColor,
@@ -133,7 +134,7 @@ class _RequestCard extends StatelessWidget {
   }
 }
 
-class _AdminRequestCard extends StatelessWidget {
+class AdminRequestCard extends StatelessWidget {
   final DocumentRequest request;
   final Color cardColor;
   final Color textColor;
@@ -141,7 +142,8 @@ class _AdminRequestCard extends StatelessWidget {
   final Function(String status, String? notes) onStatusUpdate;
   final VoidCallback onDelete;
 
-  const _AdminRequestCard({
+  const AdminRequestCard({
+    super.key,
     required this.request,
     required this.cardColor,
     required this.textColor,
@@ -225,13 +227,14 @@ class _AdminRequestCard extends StatelessWidget {
   }
 }
 
-class _RequestDetailDialog extends StatelessWidget {
+class RequestDetailDialog extends StatelessWidget {
   final DocumentRequest request;
   final Color cardColor;
   final Color textColor;
   final Color hintColor;
 
-  const _RequestDetailDialog({
+  const RequestDetailDialog({
+    super.key,
     required this.request,
     required this.cardColor,
     required this.textColor,
