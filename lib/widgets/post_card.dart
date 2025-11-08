@@ -141,69 +141,7 @@ class PostCard extends StatelessWidget {
               child: ExpandableLinkText(text: post.content),
             ),
 
-          // Image - CORRIGIDO: Apenas uma verificação, prioriza imageBase64
-          if (post.imageBase64 != null)
-            GestureDetector(
-              onTap: () => postService.openImageViewer(
-                context,
-                [post.imageBase64!],
-                post.imageBase64!,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    base64Decode(post.imageBase64!),
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 200,
-                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F0),
-                        child: const Center(
-                          child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            )
-          else if (post.imageUrls != null && post.imageUrls!.isNotEmpty && !post.isNews)
-            GestureDetector(
-              onTap: () => postService.openImageViewer(
-                context,
-                post.imageUrls!,
-                post.imageUrls!.first,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ImageService.buildImageFromUrl(
-                    post.imageUrls!.first,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-
-          // Video
-          if (post.videoUrl != null)
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: VideoWidget(url: post.videoUrl!),
-                ),
-              ),
-            ),
-
-          // News Card - Redesenhado
+          // CRÍTICO: Se for notícia, só mostra o News Card
           if (post.isNews)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -322,6 +260,68 @@ class PostCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
+
+          // Image - APENAS PARA POSTS NORMAIS (não notícias)
+          if (!post.isNews && post.imageBase64 != null)
+            GestureDetector(
+              onTap: () => postService.openImageViewer(
+                context,
+                [post.imageBase64!],
+                post.imageBase64!,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    base64Decode(post.imageBase64!),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 200,
+                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F0),
+                        child: const Center(
+                          child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            )
+          else if (!post.isNews && post.imageUrls != null && post.imageUrls!.isNotEmpty)
+            GestureDetector(
+              onTap: () => postService.openImageViewer(
+                context,
+                post.imageUrls!,
+                post.imageUrls!.first,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: ImageService.buildImageFromUrl(
+                    post.imageUrls!.first,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+
+          // Video - APENAS PARA POSTS NORMAIS
+          if (!post.isNews && post.videoUrl != null)
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: VideoWidget(url: post.videoUrl!),
                 ),
               ),
             ),
