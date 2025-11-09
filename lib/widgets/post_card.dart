@@ -11,6 +11,7 @@ import '../services/image_service.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/user_detail_screen.dart';
 import '../screens/video_detail_screen.dart';
+import '../widgets/custom_icons.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -134,8 +135,8 @@ class PostCard extends StatelessWidget {
                   ),
                   if (auth.user?.uid == post.userId)
                     IconButton(
-                      icon: Icon(
-                        Icons.more_vert,
+                      icon: SvgIcon(
+                        svgString: CustomIcons.moreVert,
                         color: textColor,
                         size: 24,
                       ),
@@ -166,8 +167,8 @@ class PostCard extends StatelessWidget {
                     width: double.infinity,
                     height: 400,
                     color: isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5),
-                    child: const Icon(
-                      Icons.play_circle_outline,
+                    child: SvgIcon(
+                      svgString: CustomIcons.videoLibrary,
                       size: 80,
                       color: Colors.white70,
                     ),
@@ -181,7 +182,11 @@ class PostCard extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                        SvgIcon(
+                          svgString: CustomIcons.arrowForward,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'Tocar vídeo',
@@ -213,8 +218,12 @@ class PostCard extends StatelessWidget {
                   return Container(
                     height: 400,
                     color: isDark ? const Color(0xFF262626) : const Color(0xFFFAFAFA),
-                    child: const Center(
-                      child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                    child: Center(
+                      child: SvgIcon(
+                        svgString: CustomIcons.warning,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
                     ),
                   );
                 },
@@ -243,10 +252,10 @@ class PostCard extends StatelessWidget {
                   onTap: post.isNews || auth.user == null
                       ? null
                       : () => postService.toggleLike(post.id, auth.user!.uid),
-                  child: Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
-                    size: 28,
+                  child: SvgIcon(
+                    svgString: isLiked ? CustomIcons.thumbUp : CustomIcons.thumbUpOutlined,
                     color: isLiked ? Colors.red : textColor,
+                    size: 28,
                   ),
                 ),
                 const SizedBox(width: 18),
@@ -261,26 +270,26 @@ class PostCard extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Icon(
-                    Icons.chat_bubble_outline,
-                    size: 26,
+                  child: SvgIcon(
+                    svgString: CustomIcons.commentOutlined,
                     color: textColor,
+                    size: 26,
                   ),
                 ),
                 const SizedBox(width: 18),
                 InkWell(
                   onTap: post.isNews ? null : () => postService.sharePost(post),
-                  child: Icon(
-                    Icons.send_outlined,
-                    size: 26,
+                  child: SvgIcon(
+                    svgString: CustomIcons.shareOutlined,
                     color: textColor,
+                    size: 26,
                   ),
                 ),
                 const Spacer(),
-                Icon(
-                  Icons.bookmark_border,
-                  size: 26,
+                SvgIcon(
+                  svgString: CustomIcons.star,
                   color: textColor,
+                  size: 26,
                 ),
               ],
             ),
@@ -307,7 +316,7 @@ class PostCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (post.isNews && post.title?.isNotEmpty == true)
+                  if (post.isNews && post.title != null && post.title!.isNotEmpty)
                     Text(
                       post.title!,
                       style: TextStyle(
@@ -318,7 +327,7 @@ class PostCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  if (post.isNews && post.summary?.isNotEmpty == true || !post.isNews && post.content.isNotEmpty)
+                  if (post.isNews && post.summary != null && post.summary!.isNotEmpty || !post.isNews && post.content.isNotEmpty)
                     RichText(
                       text: TextSpan(
                         children: [
@@ -413,7 +422,10 @@ class PostCard extends StatelessWidget {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.edit, color: Colors.blue),
+                leading: SvgIcon(
+                  svgString: CustomIcons.edit,
+                  color: Colors.blue,
+                ),
                 title: const Text(
                   'Editar publicação',
                   style: TextStyle(fontSize: 16),
@@ -425,7 +437,10 @@ class PostCard extends StatelessWidget {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
+                leading: SvgIcon(
+                  svgString: CustomIcons.delete,
+                  color: Colors.red,
+                ),
                 title: const Text(
                   'Excluir publicação',
                   style: TextStyle(fontSize: 16, color: Colors.red),
