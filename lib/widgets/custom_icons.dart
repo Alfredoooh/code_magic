@@ -264,6 +264,216 @@ class CustomIcons {
   <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd" />
 </svg>
 ''';
+
+  // --- Ícones acrescentados (copiar/colar) ---
+
+  static const String addCircle = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <circle cx="12" cy="12" r="9"/>
+  <path d="M12 8v8M8 12h8" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+  static const String trendingUp = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 17l6-6 4 4 8-8v8H3z"/>
+</svg>
+''';
+
+  static const String roulette = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <circle cx="12" cy="12" r="9"/>
+  <path d="M12 3v9l6 3" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+  static const String dashboard = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 13h8V3H3v10zm10 8h8V3h-8v18zM3 21h8v-6H3v6z"/>
+</svg>
+''';
+
+  static const String newspaper = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="3" y="4" width="14" height="16" rx="1"/>
+  <rect x="6" y="7" width="8" height="3" rx="0.5" />
+  <rect x="6" y="11" width="10" height="2" rx="0.5" />
+</svg>
+''';
+
+  static const String filterList = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 5h18v2L13 13v6l-2 1v-7L3 7V5z"/>
+</svg>
+''';
+
+  static const String expandMore = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M7 10l5 5 5-5H7z"/>
+</svg>
+''';
+
+  static const String openInFull = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 9V3h6M21 15v6h-6M21 3h-6v6M9 21H3v-6"/>
+</svg>
+''';
+
+  static const String videoLibrary = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="3" y="5" width="14" height="14" rx="2"/>
+  <path d="M21 7v10l-4-5 4-5z"/>
+</svg>
+''';
+
+  static const String chartBar = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="4" y="10" width="3" height="8" rx="0.5"/>
+  <rect x="10.5" y="6" width="3" height="12" rx="0.5"/>
+  <rect x="17" y="3" width="3" height="15" rx="0.5"/>
+</svg>
+''';
+
+  static const String wallet = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="2" y="6" width="18" height="12" rx="2"/>
+  <circle cx="18" cy="12" r="1.2"/>
+</svg>
+''';
+
+  static const String currencyDollar = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M12 1v22M17 5a4 4 0 00-8 0M7 19a4 4 0 008 0"/>
+</svg>
+''';
+
+  static const String bitcoin = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <circle cx="12" cy="12" r="9"/>
+  <path d="M10 8h4a2 2 0 010 4h-4v4" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+  static const String chartLine = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <polyline points="3 17 8 11 13 14 21 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+  static const String buildingLibrary = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="3" y="4" width="6" height="16"/>
+  <rect x="9" y="8" width="12" height="12"/>
+</svg>
+''';
+
+  static const String lightBulb = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M9 18h6v1a3 3 0 01-6 0v-1z"/>
+  <path d="M12 2a6 6 0 00-4 10.9V14a4 4 0 008 0v-1.1A6 6 0 0012 2z"/>
+</svg>
+''';
+
+  static const String puzzle = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 3h8v4H7v3H3V3zM13 3h8v8h-4v-2h-4V3zM3 13h4v4H3v-4zM13 13h8v8h-8v-4h-2v-4h2z"/>
+</svg>
+''';
+
+  static const String academicCap = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M12 2l9 4-9 4-9-4 9-4z"/>
+  <path d="M3 10v6a9 9 0 0018 0v-6" />
+</svg>
+''';
+
+  static const String photo = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="3" y="5" width="18" height="14" rx="2"/>
+  <circle cx="8.5" cy="10.5" r="2"/>
+</svg>
+''';
+
+  static const String gift = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="3" y="8" width="18" height="11" rx="1"/>
+  <path d="M12 8v11M3 11h18" />
+</svg>
+''';
+
+  static const String checkCircle = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <circle cx="12" cy="12" r="9"/>
+  <path d="M9 12l2 2 4-4" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+  static const String moreVert = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <circle cx="12" cy="5" r="1.5"/>
+  <circle cx="12" cy="12" r="1.5"/>
+  <circle cx="12" cy="19" r="1.5"/>
+</svg>
+''';
+
+  static const String arrowForward = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M8 4l8 8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
+''';
+
+  static const String thumbUp = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M2 11h4v9H2zM22 11c0-1.1-.9-2-2-2h-6l1-6-4 0v10h9c1.1 0 2-.9 2-2z"/>
+</svg>
+''';
+
+  static const String thumbUpOutlined = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+  <path d="M2 11h4v9H2z"/>
+  <path d="M22 11c0-1.1-.9-2-2-2h-6l1-6-4 0v10h9c1.1 0 2-.9 2-2z"/>
+</svg>
+''';
+
+  static const String commentOutlined = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+  <rect x="3" y="3" width="18" height="14" rx="2"/>
+  <path d="M7 21l4-4" />
+</svg>
+''';
+
+  static const String shareOutlined = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+  <path d="M4 12v6a2 2 0 002 2h12"/>
+  <path d="M16 6l5 5-5 5"/>
+  <path d="M20 11H7"/>
+</svg>
+''';
+
+  static const String edit = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3 21v-3l11-11 3 3L6 21H3zM20.7 7.3l-2 2-3-3 2-2 3 3z"/>
+</svg>
+''';
+
+  static const String delete = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M6 7h12M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/>
+  <path d="M5 7l1 13a2 2 0 002 2h8a2 2 0 002-2l1-13"/>
+</svg>
+''';
+
+  static const String save = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M17 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V7l-4-4zM7 8h10"/>
+</svg>
+''';
+
+  static const String openInNew = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M14 3h7v7M10 14l11-11"/>
+</svg>
+''';
 }
 
 class SvgIcon extends StatelessWidget {
