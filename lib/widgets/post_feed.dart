@@ -39,86 +39,127 @@ class _PostFeedState extends State<PostFeed> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle bar
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 12),
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  
-                  // Título
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Text(
-                      'Filtrar Feed',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Opção: Misto
-                  _FilterOption(
-                    icon: CustomIcons.dashboard,
-                    title: 'Misto',
-                    subtitle: 'Posts e notícias intercalados',
-                    isSelected: currentFilter == FeedFilter.mixed,
-                    onTap: () {
-                      _postService.setFilter(FeedFilter.mixed);
-                      Navigator.pop(context);
-                    },
-                  ),
-
-                  // Opção: Só Posts
-                  _FilterOption(
-                    icon: CustomIcons.person,
-                    title: 'Apenas Posts',
-                    subtitle: 'Exibir somente publicações de usuários',
-                    isSelected: currentFilter == FeedFilter.postsOnly,
-                    onTap: () {
-                      _postService.setFilter(FeedFilter.postsOnly);
-                      Navigator.pop(context);
-                    },
-                  ),
-
-                  // Opção: Só Notícias
-                  _FilterOption(
-                    icon: CustomIcons.newspaper,
-                    title: 'Apenas Notícias',
-                    subtitle: 'Exibir somente notícias em tempo real',
-                    isSelected: currentFilter == FeedFilter.newsOnly,
-                    onTap: () {
-                      _postService.setFilter(FeedFilter.newsOnly);
-                      Navigator.pop(context);
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-                ],
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
-            ),
-          ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Filtros',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              _postService.setFilter(FeedFilter.mixed);
+                              Navigator.pop(context);
+                            },
+                            child: Text(
+                              'Limpar',
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Seção de tipos de feed
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Tipo de Conteúdo',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF8E8E93),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Opções de filtro
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          _FilterOptionTile(
+                            icon: CustomIcons.dashboard,
+                            emoji: '🌐',
+                            title: 'Misto',
+                            subtitle: 'Posts e notícias intercalados',
+                            isSelected: currentFilter == FeedFilter.mixed,
+                            color: const Color(0xFF1877F2),
+                            onTap: () {
+                              setModalState(() {
+                                _postService.setFilter(FeedFilter.mixed);
+                              });
+                              Navigator.pop(context);
+                            },
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 8),
+                          _FilterOptionTile(
+                            icon: CustomIcons.person,
+                            emoji: '👤',
+                            title: 'Apenas Posts',
+                            subtitle: 'Exibir somente publicações de usuários',
+                            isSelected: currentFilter == FeedFilter.postsOnly,
+                            color: const Color(0xFF4CAF50),
+                            onTap: () {
+                              setModalState(() {
+                                _postService.setFilter(FeedFilter.postsOnly);
+                              });
+                              Navigator.pop(context);
+                            },
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 8),
+                          _FilterOptionTile(
+                            icon: CustomIcons.newspaper,
+                            emoji: '📰',
+                            title: 'Apenas Notícias',
+                            subtitle: 'Exibir somente notícias em tempo real',
+                            isSelected: currentFilter == FeedFilter.newsOnly,
+                            color: const Color(0xFFFF9800),
+                            onTap: () {
+                              setModalState(() {
+                                _postService.setFilter(FeedFilter.newsOnly);
+                              });
+                              Navigator.pop(context);
+                            },
+                            isDark: isDark,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -148,13 +189,24 @@ class _PostFeedState extends State<PostFeed> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
-                      SvgPicture.string(
-                        CustomIcons.filterList,
-                        width: 22,
-                        height: 22,
-                        colorFilter: ColorFilter.mode(
-                          isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                          BlendMode.srcIn,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _postService.currentFilter != FeedFilter.mixed
+                              ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.15) : const Color(0xFF007AFF).withOpacity(0.1))
+                              : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SvgPicture.string(
+                          CustomIcons.filterList,
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(
+                            _postService.currentFilter != FeedFilter.mixed
+                                ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
+                                : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                            BlendMode.srcIn,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -164,10 +216,29 @@ class _PostFeedState extends State<PostFeed> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                            color: _postService.currentFilter != FeedFilter.mixed
+                                ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
+                                : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
                           ),
                         ),
                       ),
+                      if (_postService.currentFilter != FeedFilter.mixed)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '1',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       SvgPicture.string(
                         CustomIcons.expandMore,
                         width: 20,
@@ -223,11 +294,15 @@ class _PostFeedState extends State<PostFeed> {
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                    ),
+                  );
                 }
 
                 final posts = snapshot.data ?? [];
-                
+
                 if (posts.isEmpty) {
                   return Center(
                     child: Column(
@@ -266,7 +341,7 @@ class _PostFeedState extends State<PostFeed> {
 
                 return LayoutBuilder(builder: (context, constraints) {
                   final isWide = constraints.maxWidth > 800;
-                  
+
                   if (isWide) {
                     return GridView.builder(
                       padding: const EdgeInsets.all(12),
@@ -329,106 +404,86 @@ class _PostFeedState extends State<PostFeed> {
   }
 }
 
-class _FilterOption extends StatelessWidget {
+class _FilterOptionTile extends StatelessWidget {
   final String icon;
+  final String emoji;
   final String title;
   final String subtitle;
   final bool isSelected;
+  final Color color;
   final VoidCallback onTap;
+  final bool isDark;
 
-  const _FilterOption({
+  const _FilterOptionTile({
     required this.icon,
+    required this.emoji,
     required this.title,
     required this.subtitle,
     required this.isSelected,
+    required this.color,
     required this.onTap,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.12) : const Color(0xFF007AFF).withOpacity(0.08))
-                : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF9F9F9)),
-            borderRadius: BorderRadius.circular(12),
-            border: isSelected
-                ? Border.all(
-                    color: isDark ? const Color(0xFF0A84FF).withOpacity(0.3) : const Color(0xFF007AFF).withOpacity(0.2),
-                    width: 1,
-                  )
-                : null,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? color : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
+            width: 2,
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.15) : const Color(0xFF007AFF).withOpacity(0.1))
-                      : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: SvgPicture.string(
-                  icon,
-                  width: 22,
-                  height: 22,
-                  colorFilter: ColorFilter.mode(
-                    isSelected
-                        ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
-                        : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B)),
-                    BlendMode.srcIn,
-                  ),
-                ),
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isSelected ? color.withOpacity(0.15) : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected
-                            ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
-                            : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
-                      ),
-                    ),
-                  ],
-                ),
+              child: Text(
+                emoji,
+                style: const TextStyle(fontSize: 24),
               ),
-              if (isSelected) ...[
-                const SizedBox(width: 8),
-                SvgPicture.string(
-                  CustomIcons.checkCircle,
-                  width: 22,
-                  height: 22,
-                  colorFilter: ColorFilter.mode(
-                    isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-                    BlendMode.srcIn,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? color : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                    ),
                   ),
-                ),
-              ],
-            ],
-          ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: color,
+                size: 24,
+              ),
+          ],
         ),
       ),
     );
