@@ -101,12 +101,12 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         final allUsers = snapshot.data?.docs ?? [];
         final filteredUsers = allUsers.where((doc) {
           if (doc.id == currentUserId) return false;
-          
+
           final data = doc.data() as Map<String, dynamic>;
           final name = (data['name'] ?? '').toLowerCase();
           final nickname = (data['nickname'] ?? '').toLowerCase();
           final email = (data['email'] ?? '').toLowerCase();
-          
+
           return name.contains(_searchQuery) ||
                  nickname.contains(_searchQuery) ||
                  email.contains(_searchQuery);
@@ -133,10 +133,10 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
             final userData = userDoc.data() as Map<String, dynamic>;
             final isOnline = userData['isOnline'] == true;
             final userType = userData['userType'] ?? 'person';
-            
+
             String userTypeLabel = '';
             IconData? userTypeIcon;
-            
+
             switch (userType) {
               case 'student':
                 userTypeLabel = 'Estudante';
@@ -508,7 +508,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(CustomIcons.arrowLeft, color: textColor, size: 20),
+          icon: SvgIcon(svgString: CustomIcons.arrowLeft, color: textColor, size: 20) // ✅
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: TextField(
