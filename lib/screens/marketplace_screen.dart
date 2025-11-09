@@ -23,7 +23,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   bool hasMoreBooks = true;
 
   // URL da sua API
-  static const String _apiBaseUrl = 'https://data-9v20.onrender.com';
+  static const String _apiBaseUrl = 'https://data-ekoe.onrender.com';
 
   final List<Map<String, dynamic>> categories = [
     {'name': 'Todos', 'icon': CustomIcons.globe},
