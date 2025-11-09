@@ -1,4 +1,4 @@
-// lib/screens/messages_screen.dart - PARTE 1
+// lib/screens/messages_screen.dart
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -105,40 +105,67 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                 child: LinearProgressIndicator(),
               )
             : PreferredSize(
-                preferredSize: const Size.fromHeight(49),
+                preferredSize: const Size.fromHeight(64),
                 child: Column(
                   children: [
+                    // linha fina separadora
                     Container(
                       color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
                       height: 0.5,
                     ),
-                    TabBar(
-                      controller: _tabController,
-                      indicatorColor: const Color(0xFF1877F2),
-                      indicatorWeight: 3,
-                      labelColor: const Color(0xFF1877F2),
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      unselectedLabelColor: hintColor,
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                      isScrollable: true,
-                      tabs: _isAdmin
-                          ? const [
-                              Tab(text: 'Emails'),
-                              Tab(text: 'Usuários'),
-                              Tab(text: 'Enviar'),
-                              Tab(text: 'Pedidos'),
-                              Tab(text: 'Templates'),
-                            ]
-                          : const [
-                              Tab(text: 'Inbox'),
-                              Tab(text: 'Meus Pedidos'),
+                    // espaço e fundo arredondado para as tabs (estilo pílula)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFECECEC),
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          // indicador em forma de pílula para a tab seleccionada
+                          indicator: BoxDecoration(
+                            color: const Color(0xFF1877F2),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
                             ],
+                          ),
+                          // espaçamento entre o indicador e o contêiner
+                          indicatorPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          labelColor: Colors.white,
+                          unselectedLabelColor: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          // dá algum padding horizontal às labels para formar a "pílula"
+                          labelPadding: const EdgeInsets.symmetric(horizontal: 18),
+                          isScrollable: true,
+                          tabs: _isAdmin
+                              ? const [
+                                  Tab(text: 'Emails'),
+                                  Tab(text: 'Usuários'),
+                                  Tab(text: 'Enviar'),
+                                  Tab(text: 'Pedidos'),
+                                  Tab(text: 'Templates'),
+                                ]
+                              : const [
+                                  Tab(text: 'Inbox'),
+                                  Tab(text: 'Meus Pedidos'),
+                                ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -399,8 +426,6 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
       ],
     );
   }
-  // lib/screens/messages_screen.dart - PARTE 2 (CONTINUAÇÃO)
-// ADICIONE ESTE CÓDIGO APÓS O _buildAdminTemplatesTab
 
   void _showAddTemplateDialog(Color cardColor, Color textColor, Color hintColor) {
     final nameController = TextEditingController();
