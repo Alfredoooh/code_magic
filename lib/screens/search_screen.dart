@@ -508,8 +508,12 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: SvgIcon(svgString: CustomIcons.arrowLeft, color: textColor, size: 20) // ✅
-          onPressed: () => Navigator.of(context).pop(),
+          icon: SvgIcon(
+            svgString: CustomIcons.arrowLeft,
+            color: textColor,
+            size: 20,
+          ),
+          onPressed: () => Navigator.of(context).pop(), // ✅ VÍRGULA CORRIGIDA
         ),
         title: TextField(
           controller: _searchController,
