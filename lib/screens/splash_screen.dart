@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'facebook',
+              'printerNet',
               style: TextStyle(
                 fontSize: 56,
                 fontWeight: FontWeight.w700,
