@@ -88,14 +88,26 @@ class MyApp extends StatelessWidget {
   }
 
   Widget _getInitialScreen(AuthProvider authProvider) {
+    // Enquanto está inicializando, mostra splash
     if (!authProvider.isInitialized) {
       return const SplashScreen();
     }
 
+    // Se está autenticado
     if (authProvider.isAuthenticated) {
+      // Verifica se o email foi verificado
+      final isEmailVerified = authProvider.userData?['emailVerified'] == true;
+      
+      if (!isEmailVerified) {
+        // FORÇA a tela de OTP se o email não foi verificado
+        return const OTPVerificationScreen();
+      }
+      
+      // Se tudo ok, vai para home
       return const HomeScreen();
     }
 
+    // Se não está autenticado, vai para login
     return const LoginScreen();
   }
 }
