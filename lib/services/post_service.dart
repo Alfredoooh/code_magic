@@ -20,8 +20,8 @@ class PostService {
   Stream<List<Post>> get stream => _controller.stream;
 
   // ENDPOINT DA SUA API
-  static const _apiBaseUrl = 'https://seu-data-server.onrender.com';
-  
+  static const _apiBaseUrl = 'https://data-9v20.onrender.com';
+
   StreamSubscription<QuerySnapshot>? _postsSub;
   Timer? _newsTimer;
   bool _started = false;
@@ -29,7 +29,7 @@ class PostService {
   List<Post> _news = [];
   FeedFilter _currentFilter = FeedFilter.mixed;
   int _currentNewsFile = 1;
-  
+
   // SEM LIMITE! Continua tentando até encontrar 404
   bool _hasMoreNews = true;
 
@@ -84,12 +84,12 @@ class PostService {
       final List<Post> results = [];
       int consecutiveErrors = 0;
       int filesLoaded = 0;
-      
+
       // Busca notícias até encontrar 3 erros consecutivos
       while (_hasMoreNews && filesLoaded < 10) {
         final url = '$_apiBaseUrl/news/news$_currentNewsFile.json';
         print('🔍 Tentando: news$_currentNewsFile.json');
-        
+
         try {
           final resp = await http
               .get(Uri.parse(url))
@@ -103,7 +103,7 @@ class PostService {
               print('   ✅ ${articles.length} artigos encontrados');
               filesLoaded++;
               consecutiveErrors = 0; // Reset contador de erros
-              
+
               for (var article in articles) {
                 results.add(Post(
                   id: article['id'] ?? 'news_${_currentNewsFile}_${results.length}',
@@ -123,7 +123,7 @@ class PostService {
                       : DateTime.now(),
                 ));
               }
-              
+
               _currentNewsFile++;
             } else {
               print('   ⚠️ Arquivo vazio');
@@ -134,7 +134,7 @@ class PostService {
             print('   ⚠️ Arquivo não existe (404)');
             consecutiveErrors++;
             _currentNewsFile++;
-            
+
             // Se encontrar 3 erros consecutivos, volta pro início
             if (consecutiveErrors >= 3) {
               print('   🔄 Voltando para news1.json');
@@ -151,7 +151,7 @@ class PostService {
           print('   ❌ Erro ao buscar news$_currentNewsFile.json: $e');
           consecutiveErrors++;
           _currentNewsFile++;
-          
+
           if (consecutiveErrors >= 3) {
             print('   🔄 Muitos erros, voltando para news1.json');
             _currentNewsFile = 1;
