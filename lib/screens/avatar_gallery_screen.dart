@@ -36,7 +36,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
 
     try {
       // URL do JSON hospedado - SUBSTITUA PELA SUA URL REAL
-      const avatarJsonUrl = 'https://raw.githubusercontent.com/yourusername/avatars/main/avatars.json';
+      const avatarJsonUrl = 'https://data-ekoe.onrender.com/avatars/avatar1.json';
 
       final response = await http.get(Uri.parse(avatarJsonUrl)).timeout(
         const Duration(seconds: 5),
