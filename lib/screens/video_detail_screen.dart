@@ -1,11 +1,12 @@
 // lib/screens/video_detail_screen.dart
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'package:provider/provider.dart';
 import '../models/post_model.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/post_service.dart';
+import 'dart:html' as html;
+import 'dart:ui' as ui;
 
 class VideoDetailScreen extends StatefulWidget {
   final String videoUrl;
@@ -22,10 +23,8 @@ class VideoDetailScreen extends StatefulWidget {
 }
 
 class _VideoDetailScreenState extends State<VideoDetailScreen> {
-  late VideoPlayerController _controller;
+  final String _viewId = 'video-player-${DateTime.now().millisecondsSinceEpoch}';
   bool _isInitialized = false;
-  bool _hasError = false;
-  bool _showControls = true;
 
   @override
   void initState() {
@@ -33,49 +32,28 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
     _initializeVideo();
   }
 
-  Future<void> _initializeVideo() async {
-    try {
-      _controller = VideoPlayerController.network(widget.videoUrl);
-      await _controller.initialize();
-      setState(() {
-        _isInitialized = true;
-      });
-      _controller.play();
-      _controller.setLooping(true);
-    } catch (e) {
-      setState(() {
-        _hasError = true;
-      });
-    }
-  }
+  void _initializeVideo() {
+    // Register view factory for HTML video element
+    // ignore: undefined_prefixed_name
+    ui.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) {
+        final videoElement = html.VideoElement()
+          ..src = widget.videoUrl
+          ..controls = true
+          ..autoplay = true
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.objectFit = 'contain'
+          ..setAttribute('playsinline', 'true');
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+        return videoElement;
+      },
+    );
 
-  void _togglePlayPause() {
     setState(() {
-      if (_controller.value.isPlaying) {
-        _controller.pause();
-      } else {
-        _controller.play();
-      }
+      _isInitialized = true;
     });
-  }
-
-  void _toggleControls() {
-    setState(() {
-      _showControls = !_showControls;
-    });
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
   }
 
   @override
@@ -125,130 +103,15 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
 
             // Video Player
             Expanded(
-              child: GestureDetector(
-                onTap: _toggleControls,
-                child: Container(
-                  color: Colors.black,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (_hasError)
-                        const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                size: 64,
-                                color: Colors.red,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Erro ao carregar vídeo',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else if (!_isInitialized)
-                        const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
-                        )
-                      else
-                        Center(
-                          child: AspectRatio(
-                            aspectRatio: _controller.value.aspectRatio,
-                            child: VideoPlayer(_controller),
-                          ),
+              child: Container(
+                color: Colors.black,
+                child: _isInitialized
+                    ? HtmlElementView(viewType: _viewId)
+                    : const Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
                         ),
-
-                      // Play/Pause overlay
-                      if (_isInitialized && _showControls)
-                        Center(
-                          child: GestureDetector(
-                            onTap: _togglePlayPause,
-                            child: Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _controller.value.isPlaying
-                                    ? Icons.pause
-                                    : Icons.play_arrow,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Video progress bar
-                      if (_isInitialized && _showControls)
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [
-                                  Colors.black.withOpacity(0.7),
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                VideoProgressIndicator(
-                                  _controller,
-                                  allowScrubbing: true,
-                                  colors: const VideoProgressColors(
-                                    playedColor: Colors.blue,
-                                    bufferedColor: Colors.grey,
-                                    backgroundColor: Colors.white24,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _formatDuration(_controller.value.position),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatDuration(_controller.value.duration),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+                      ),
               ),
             ),
 
