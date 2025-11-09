@@ -23,10 +23,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late AnimationController _drawerSlideController;
   final List<Widget?> _pages = [const PostFeed(), null, null, null, null];
   static const Color _activeBlue = Color(0xFF1877F2);
 
@@ -37,21 +36,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     'Diário',
     'Novo Pedido',
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _drawerSlideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-  }
-
-  @override
-  void dispose() {
-    _drawerSlideController.dispose();
-    super.dispose();
-  }
 
   Widget _getPage(int index) {
     if (_pages[index] != null) return _pages[index]!;
@@ -77,16 +61,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void _onTap(int index) {
     if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
-  }
-
-  void _toggleDrawer() {
-    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      _drawerSlideController.reverse();
-      Navigator.of(context).pop();
-    } else {
-      _scaffoldKey.currentState?.openDrawer();
-      _drawerSlideController.forward();
-    }
   }
 
   void _handlePlusButton(BuildContext context) {
@@ -183,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildNotificationBadge(int count) {
     if (count == 0) return const SizedBox.shrink();
-    
+
     return Positioned(
       right: 8,
       top: 8,
@@ -230,213 +204,154 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       key: _scaffoldKey,
       backgroundColor: bgColor,
       drawer: const CustomDrawer(),
-      onDrawerChanged: (isOpened) {
-        if (isOpened) {
-          _drawerSlideController.forward();
-        } else {
-          _drawerSlideController.reverse();
-        }
-      },
-      body: Stack(
+      body: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: AnimatedBuilder(
-                  animation: _drawerSlideController,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(
-                        MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
-                        0,
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: Column(
-                    children: [
-                      Container(
-                        color: bgColor,
-                        child: SafeArea(
-                          bottom: false,
-                          child: Column(
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  color: bgColor,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 56,
+                          child: Row(
                             children: [
-                              SizedBox(
-                                height: 56,
-                                child: Row(
-                                  children: [
-                                    IconButton(
-                                      icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
-                                      onPressed: _toggleDrawer,
-                                    ),
-                                    Text(
-                                      _tabTitles[_currentIndex],
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w700,
-                                        color: iconColor,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    if (showPlusButton)
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                        onPressed: () => _handlePlusButton(context),
-                                      ),
-                                    if (showSearchButton)
-                                      IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                        onPressed: () => _navigateHorizontally(context, const SearchScreen()),
-                                      ),
-                                    if (showInboxButton && currentUid != null)
-                                      StreamBuilder<QuerySnapshot>(
-                                        stream: FirebaseFirestore.instance
-                                            .collection('document_requests')
-                                            .where('userId', isEqualTo: currentUid)
-                                            .where('status', whereIn: ['in_progress', 'completed'])
-                                            .snapshots(),
-                                        builder: (context, snapshot) {
-                                          final unreadCount = snapshot.data?.docs.length ?? 0;
-                                          return Stack(
-                                            children: [
-                                              IconButton(
-                                                icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                                onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
-                                              ),
-                                              _buildNotificationBadge(unreadCount),
-                                            ],
-                                          );
-                                        },
-                                      ),
-                                  ],
+                              IconButton(
+                                icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
+                                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                              ),
+                              Text(
+                                _tabTitles[_currentIndex],
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: iconColor,
                                 ),
                               ),
-                              Container(color: topBorderColor, height: 0.5),
+                              const Spacer(),
+                              if (showPlusButton)
+                                IconButton(
+                                  icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
+                                  onPressed: () => _handlePlusButton(context),
+                                ),
+                              if (showSearchButton)
+                                IconButton(
+                                  icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                  onPressed: () => _navigateHorizontally(context, const SearchScreen()),
+                                ),
+                              if (showInboxButton && currentUid != null)
+                                StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('document_requests')
+                                      .where('userId', isEqualTo: currentUid)
+                                      .where('status', whereIn: ['in_progress', 'completed'])
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    final unreadCount = snapshot.data?.docs.length ?? 0;
+                                    return Stack(
+                                      children: [
+                                        IconButton(
+                                          icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                          onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
+                                        ),
+                                        _buildNotificationBadge(unreadCount),
+                                      ],
+                                    );
+                                  },
+                                ),
                             ],
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: IndexedStack(
-                          index: _currentIndex,
-                          children: List.generate(5, (i) => _getPage(i)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (isWideScreen)
-                AnimatedBuilder(
-                  animation: _drawerSlideController,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(
-                        MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
-                        0,
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: Container(
-                    width: 80,
-                    color: Colors.transparent,
-                    child: SafeArea(
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: bgColor,
-                                borderRadius: BorderRadius.circular(100),
-                                border: Border.all(color: topBorderColor, width: 0.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isDark
-                                        ? Colors.black.withOpacity(0.3)
-                                        : Colors.black.withOpacity(0.08),
-                                    blurRadius: 12,
-                                    offset: const Offset(-4, 0),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildVerticalTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                                  _buildVerticalTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                                  _buildVerticalTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                                  _buildVerticalTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                                  _buildVerticalTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
+                        Container(color: topBorderColor, height: 0.5),
+                      ],
                     ),
                   ),
                 ),
-            ],
-          ),
-          AnimatedBuilder(
-            animation: _drawerSlideController,
-            builder: (context, child) {
-              if (_drawerSlideController.value == 0) return const SizedBox.shrink();
-              return GestureDetector(
-                onTap: _toggleDrawer,
-                child: Container(
-                  color: Colors.black.withOpacity(0.4 * _drawerSlideController.value),
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: List.generate(5, (i) => _getPage(i)),
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
           ),
+          if (isWideScreen)
+            Container(
+              width: 80,
+              color: Colors.transparent,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: topBorderColor, width: 0.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.08),
+                              blurRadius: 12,
+                              offset: const Offset(-4, 0),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildVerticalTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+                            _buildVerticalTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+                            _buildVerticalTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
+                            _buildVerticalTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
+                            _buildVerticalTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: !isWideScreen
-          ? AnimatedBuilder(
-              animation: _drawerSlideController,
-              builder: (context, child) {
-                return Transform.translate(
-                  offset: Offset(
-                    MediaQuery.of(context).size.width * 0.75 * _drawerSlideController.value,
-                    0,
-                  ),
-                  child: child,
-                );
-              },
+          ? Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
-                color: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: topBorderColor, width: 0.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark 
-                            ? Colors.black.withOpacity(0.3)
-                            : Colors.black.withOpacity(0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
-                    ],
-                  ),
+                height: 50,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: topBorderColor, width: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark 
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+                    _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+                    _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
+                    _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
+                    _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                  ],
                 ),
               ),
             )
