@@ -559,7 +559,13 @@ class RequestDetailScreen extends StatelessWidget {
         backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(CustomIcons.arrowLeft, color: textColor, size: 20),
+          // ✅ CORREÇÃO: Usar SvgIcon ao invés de Icon direto com CustomIcons
+          icon: SvgPicture.string(
+            CustomIcons.arrowLeft,
+            width: 20,
+            height: 20,
+            colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -717,7 +723,7 @@ class RequestDetailScreen extends StatelessWidget {
     Color? accentColor,
   ]) {
     final Color sectionColor = accentColor ?? textColor;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
