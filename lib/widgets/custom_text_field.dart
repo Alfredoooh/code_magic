@@ -7,9 +7,10 @@ class CustomTextField extends StatelessWidget {
   final String hintText;
   final bool obscureText;
   final TextInputType? keyboardType;
-  final Widget? prefixIcon; // ADICIONADO
+  final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final void Function(String)? onChanged; // ✅ PARÂMETRO ADICIONADO
   final bool isDark;
   final int? maxLines;
   final double borderRadius;
@@ -21,9 +22,10 @@ class CustomTextField extends StatelessWidget {
     required this.hintText,
     this.obscureText = false,
     this.keyboardType,
-    this.prefixIcon, // ADICIONADO
+    this.prefixIcon,
     this.suffixIcon,
     this.validator,
+    this.onChanged, // ✅ PARÂMETRO ADICIONADO
     required this.isDark,
     this.maxLines = 1,
     this.borderRadius = 12.0,
@@ -39,7 +41,6 @@ class CustomTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Mostra o label acima do campo (mantém coerência com a propriedade required)
         Text(
           label,
           style: TextStyle(
@@ -54,6 +55,7 @@ class CustomTextField extends StatelessWidget {
           obscureText: obscureText,
           keyboardType: keyboardType,
           validator: validator,
+          onChanged: onChanged, // ✅ CALLBACK ADICIONADO
           maxLines: maxLines,
           style: TextStyle(
             fontSize: 15,
@@ -67,7 +69,7 @@ class CustomTextField extends StatelessWidget {
             ),
             filled: true,
             fillColor: bgColor,
-            prefixIcon: prefixIcon, // usa o prefixIcon recebido
+            prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(borderRadius),
