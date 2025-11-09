@@ -452,7 +452,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         hintColor,
                       ),
                       if (userData?['bio'] != null &&
-                          userData?['bio'].toString().isNotEmpty) ...[
+                          (userData?['bio']?.toString().isNotEmpty ?? false) // ✅) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
                           Icons.info,
