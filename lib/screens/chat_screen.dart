@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/custom_icons.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class ChatScreen extends StatefulWidget {
@@ -29,6 +30,35 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _chatId;
   bool _isInitializing = true;
+  bool _showQuickMessages = true;
+
+  // Mensagens rápidas pré-definidas
+  final List<Map<String, String>> _quickMessages = [
+    {
+      'title': 'Quero saber dos vossos serviços',
+      'message': 'Olá! Gostaria de saber mais sobre os vossos serviços. Podem me dar mais informações?'
+    },
+    {
+      'title': 'Interesse em parceria',
+      'message': 'Tenho interesse em estabelecer uma parceria. Podemos conversar sobre isso?'
+    },
+    {
+      'title': 'Dúvida sobre produto',
+      'message': 'Olá! Tenho algumas dúvidas sobre os produtos disponíveis. Podem me ajudar?'
+    },
+    {
+      'title': 'Solicitar orçamento',
+      'message': 'Bom dia! Gostaria de solicitar um orçamento para os vossos serviços.'
+    },
+    {
+      'title': 'Marcar reunião',
+      'message': 'Olá! Gostaria de marcar uma reunião para conversarmos melhor. Qual a vossa disponibilidade?'
+    },
+    {
+      'title': 'Suporte técnico',
+      'message': 'Olá! Preciso de suporte técnico. Podem me ajudar com isso?'
+    },
+  ];
 
   @override
   void initState() {
@@ -79,16 +109,26 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || _chatId == null) return;
+  Future<void> _sendMessage({String? predefinedMessage}) async {
+    final messageText = predefinedMessage ?? _messageController.text.trim();
+    
+    if (messageText.isEmpty || _chatId == null) return;
 
     final authProvider = context.read<AuthProvider>();
     final currentUserId = authProvider.user?.uid;
 
     if (currentUserId == null) return;
 
-    final messageText = _messageController.text.trim();
-    _messageController.clear();
+    if (predefinedMessage == null) {
+      _messageController.clear();
+    }
+
+    // Esconde as mensagens rápidas após enviar a primeira mensagem
+    if (_showQuickMessages) {
+      setState(() {
+        _showQuickMessages = false;
+      });
+    }
 
     try {
       await FirebaseFirestore.instance
@@ -130,6 +170,108 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Widget _buildQuickMessageButton(String title, String message, bool isDark) {
+    return InkWell(
+      onTap: () => _sendMessage(predefinedMessage: message),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF3A3B3C) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1877F2).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline,
+                color: const Color(0xFF1877F2),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickMessagesSection(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.bolt,
+                color: const Color(0xFF1877F2),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Mensagens rápidas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Escolha uma opção ou escreva sua própria mensagem',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _quickMessages.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final quickMsg = _quickMessages[index];
+              return _buildQuickMessageButton(
+                quickMsg['title']!,
+                quickMsg['message']!,
+                isDark,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -146,7 +288,7 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
+          icon: SvgIcon(svgString: CustomIcons.arrowBack, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -258,6 +400,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
                       final messages = snapshot.data?.docs ?? [];
 
+                      if (messages.isEmpty && _showQuickMessages) {
+                        return SingleChildScrollView(
+                          child: _buildQuickMessagesSection(isDark),
+                        );
+                      }
+
                       if (messages.isEmpty) {
                         return Center(
                           child: Column(
@@ -365,44 +513,47 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF3A3B3C)
-                          : const Color(0xFFF0F2F5),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: TextField(
-                      controller: _messageController,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        hintText: 'Escrever mensagem...',
-                        hintStyle: TextStyle(
-                          color: isDark
-                              ? const Color(0xFFB0B3B8)
-                              : const Color(0xFF65676B),
-                        ),
-                        border: InputBorder.none,
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF3A3B3C)
+                            : const Color(0xFFF0F2F5),
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
+                      child: TextField(
+                        controller: _messageController,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Escrever mensagem...',
+                          hintStyle: TextStyle(
+                            color: isDark
+                                ? const Color(0xFFB0B3B8)
+                                : const Color(0xFF65676B),
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        maxLines: null,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: const Color(0xFF1877F2),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _sendMessage,
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFF1877F2),
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                      onPressed: () => _sendMessage(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
