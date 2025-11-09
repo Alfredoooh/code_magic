@@ -5,10 +5,8 @@ import '../models/post_model.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/post_service.dart';
-import 'dart:html' as html;
-import 'dart:ui' as ui;
 
-class VideoDetailScreen extends StatefulWidget {
+class VideoDetailScreen extends StatelessWidget {
   final String videoUrl;
   final Post post;
 
@@ -19,49 +17,11 @@ class VideoDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<VideoDetailScreen> createState() => _VideoDetailScreenState();
-}
-
-class _VideoDetailScreenState extends State<VideoDetailScreen> {
-  final String _viewId = 'video-player-${DateTime.now().millisecondsSinceEpoch}';
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideo();
-  }
-
-  void _initializeVideo() {
-    // Register view factory for HTML video element
-    // ignore: undefined_prefixed_name
-    ui.platformViewRegistry.registerViewFactory(
-      _viewId,
-      (int viewId) {
-        final videoElement = html.VideoElement()
-          ..src = widget.videoUrl
-          ..controls = true
-          ..autoplay = true
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..style.objectFit = 'contain'
-          ..setAttribute('playsinline', 'true');
-
-        return videoElement;
-      },
-    );
-
-    setState(() {
-      _isInitialized = true;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final auth = context.watch<AuthProvider>();
     final postService = PostService();
-    final isLiked = auth.user != null ? widget.post.isLikedBy(auth.user!.uid) : false;
+    final isLiked = auth.user != null ? post.isLikedBy(auth.user!.uid) : false;
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
@@ -82,7 +42,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                   ),
                   Expanded(
                     child: Text(
-                      widget.post.userName,
+                      post.userName,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -90,28 +50,57 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                    onPressed: () {},
-                  ),
                 ],
               ),
             ),
 
-            // Video Player
+            // Video Player - Iframe
             Expanded(
               child: Container(
                 color: Colors.black,
-                child: _isInitialized
-                    ? HtmlElementView(viewType: _viewId)
-                    : const Center(
-                        child: CircularProgressIndicator(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.play_circle_outline,
+                        size: 80,
+                        color: Colors.white70,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Vídeo',
+                        style: TextStyle(
                           color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Abre o vídeo em nova aba
+                            // ignore: avoid_web_libraries_in_flutter
+                            // import 'dart:html' as html;
+                            // html.window.open(videoUrl, '_blank');
+                          },
+                          icon: const Icon(Icons.open_in_new),
+                          label: const Text('Abrir vídeo'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -132,7 +121,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                   InkWell(
                     onTap: auth.user == null
                         ? null
-                        : () => postService.toggleLike(widget.post.id, auth.user!.uid),
+                        : () => postService.toggleLike(post.id, auth.user!.uid),
                     child: Icon(
                       isLiked ? Icons.favorite : Icons.favorite_border,
                       size: 28,
@@ -147,7 +136,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                   ),
                   const SizedBox(width: 18),
                   InkWell(
-                    onTap: () => postService.sharePost(widget.post),
+                    onTap: () => postService.sharePost(post),
                     child: Icon(
                       Icons.send_outlined,
                       size: 26,
@@ -171,22 +160,22 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.post.likes > 0)
+                  if (post.likes > 0)
                     Text(
-                      '${widget.post.likes} ${widget.post.likes == 1 ? "curtida" : "curtidas"}',
+                      '${post.likes} ${post.likes == 1 ? "curtida" : "curtidas"}',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                         color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
-                  if (widget.post.content.isNotEmpty) ...[
+                  if (post.content.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     RichText(
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: '${widget.post.userName} ',
+                            text: '${post.userName} ',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
@@ -194,7 +183,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                             ),
                           ),
                           TextSpan(
-                            text: widget.post.content,
+                            text: post.content,
                             style: TextStyle(
                               fontSize: 14,
                               color: isDark ? Colors.white : Colors.black,
