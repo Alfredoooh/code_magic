@@ -1,6 +1,3 @@
-// lib/widgets/video_widget_io.dart
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -18,9 +15,9 @@ class VideoWidget extends StatefulWidget {
 
 class _VideoWidgetState extends State<VideoWidget> {
   YoutubePlayerController? _ytController;
+  WebViewController? _webViewController;
   bool _isYoutube = false;
   late final String _initialUrl;
-  bool _webViewReady = false;
 
   @override
   void initState() {
@@ -40,17 +37,15 @@ class _VideoWidgetState extends State<VideoWidget> {
       );
     } else {
       _isYoutube = false;
-    }
-
-    // webview_flutter: enable hybrid composition for Android if needed
-    if (!kIsWeb && Platform.isAndroid) {
-      WebView.platform = SurfaceAndroidWebView();
+      _webViewController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0x00000000))
+        ..loadRequest(Uri.parse(_initialUrl));
     }
   }
 
   @override
   void dispose() {
-    _ytController?.close();
     _ytController?.dispose();
     super.dispose();
   }
@@ -75,16 +70,15 @@ class _VideoWidgetState extends State<VideoWidget> {
     }
 
     // Fallback: generic webview for other URLs
+    if (_webViewController == null) {
+      return const Center(child: Text('Error loading video'));
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         height: 210,
-        child: WebView(
-          initialUrl: _initialUrl,
-          javascriptMode: JavascriptMode.unrestricted,
-          allowsInlineMediaPlayback: true,
-          initialMediaPlaybackPolicy: AutoMediaPlaybackPolicy.require_user_action_for_all_media_types,
-        ),
+        child: WebViewWidget(controller: _webViewController!),
       ),
     );
   }
