@@ -28,6 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final List<Widget?> _pages = [const PostFeed(), null, null, null, null];
   static const Color _activeBlue = Color(0xFF1877F2);
+  
+  bool _isNavigating = false;
+  double _navigationProgress = 0.0;
 
   final List<String> _tabTitles = [
     'Início',
@@ -72,11 +75,67 @@ class _HomeScreenState extends State<HomeScreen> {
                               authProvider.userData?['isPremium'] == true;
 
       if (canAddBook) {
-        _navigateHorizontally(context, const AddBookScreen());
+        _navigateWithProgress(context, const AddBookScreen());
       } else {
         _showProRequiredDialog(context);
       }
     }
+  }
+
+  Future<void> _simulateNavigationProgress() async {
+    setState(() {
+      _isNavigating = true;
+      _navigationProgress = 0.0;
+    });
+    
+    // Simula progresso de navegação
+    for (int i = 0; i <= 100; i += 10) {
+      if (!_isNavigating || !mounted) break;
+      await Future.delayed(const Duration(milliseconds: 30));
+      if (mounted) {
+        setState(() => _navigationProgress = i / 100);
+      }
+    }
+    
+    // Garante que chegou a 100%
+    if (mounted && _isNavigating) {
+      setState(() => _navigationProgress = 1.0);
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    
+    if (mounted) {
+      setState(() => _isNavigating = false);
+    }
+  }
+
+  Future<void> _navigateWithProgress(BuildContext context, Widget screen) async {
+    _simulateNavigationProgress();
+    
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+    
+    // Para a animação quando voltar
+    if (mounted) {
+      setState(() {
+        _isNavigating = false;
+        _navigationProgress = 0.0;
+      });
+    }
+  }
+
+  void _navigateHorizontally(BuildContext context, Widget screen) {
+    _navigateWithProgress(context, screen);
   }
 
   void _showProRequiredDialog(BuildContext context) {
@@ -105,12 +164,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              'Recurso Pro',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                'Recurso Pro',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -122,7 +183,13 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Entendi', style: TextStyle(color: hintColor, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Entendi',
+              style: TextStyle(
+                color: hintColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
@@ -130,27 +197,13 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: const Color(0xFF1877F2),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Ver Planos'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _navigateHorizontally(BuildContext context, Widget screen) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => screen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(position: animation.drive(tween), child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 300),
       ),
     );
   }
@@ -204,120 +257,195 @@ class _HomeScreenState extends State<HomeScreen> {
       key: _scaffoldKey,
       backgroundColor: bgColor,
       drawer: const CustomDrawer(),
-      body: Row(
+      body: Stack(
         children: [
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  color: bgColor,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 56,
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
-                                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                              ),
-                              Text(
-                                _tabTitles[_currentIndex],
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: iconColor,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (showPlusButton)
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                  onPressed: () => _handlePlusButton(context),
-                                ),
-                              if (showSearchButton)
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                  onPressed: () => _navigateHorizontally(context, const SearchScreen()),
-                                ),
-                              if (showInboxButton && currentUid != null)
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('document_requests')
-                                      .where('userId', isEqualTo: currentUid)
-                                      .where('status', whereIn: ['in_progress', 'completed'])
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    final unreadCount = snapshot.data?.docs.length ?? 0;
-                                    return Stack(
-                                      children: [
-                                        IconButton(
-                                          icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                          onPressed: () => _navigateHorizontally(context, const MessagesScreen()),
-                                        ),
-                                        _buildNotificationBadge(unreadCount),
-                                      ],
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-                        Container(color: topBorderColor, height: 0.5),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: IndexedStack(
-                    index: _currentIndex,
-                    children: List.generate(5, (i) => _getPage(i)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isWideScreen)
-            Container(
-              width: 80,
-              color: Colors.transparent,
-              child: SafeArea(
+          Row(
+            children: [
+              Expanded(
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: topBorderColor, width: 0.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: isDark
-                                  ? Colors.black.withOpacity(0.3)
-                                  : Colors.black.withOpacity(0.08),
-                              blurRadius: 12,
-                              offset: const Offset(-4, 0),
-                            ),
-                          ],
-                        ),
+                    Container(
+                      color: bgColor,
+                      child: SafeArea(
+                        bottom: false,
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildVerticalTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                            _buildVerticalTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                            _buildVerticalTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                            _buildVerticalTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                            _buildVerticalTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                            SizedBox(
+                              height: 56,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: SvgIcon(
+                                      svgString: CustomIcons.menu,
+                                      color: iconColor,
+                                    ),
+                                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                                  ),
+                                  Text(
+                                    _tabTitles[_currentIndex],
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: iconColor,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (showPlusButton)
+                                    IconButton(
+                                      icon: SvgIcon(
+                                        svgString: CustomIcons.plus,
+                                        color: iconColor,
+                                      ),
+                                      onPressed: () => _handlePlusButton(context),
+                                    ),
+                                  if (showSearchButton)
+                                    IconButton(
+                                      icon: SvgIcon(
+                                        svgString: CustomIcons.search,
+                                        color: iconColor,
+                                      ),
+                                      onPressed: () => _navigateHorizontally(
+                                        context,
+                                        const SearchScreen(),
+                                      ),
+                                    ),
+                                  if (showInboxButton && currentUid != null)
+                                    StreamBuilder<QuerySnapshot>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('document_requests')
+                                          .where('userId', isEqualTo: currentUid)
+                                          .where('status', whereIn: ['in_progress', 'completed'])
+                                          .snapshots(),
+                                      builder: (context, snapshot) {
+                                        final unreadCount = snapshot.data?.docs.length ?? 0;
+                                        return Stack(
+                                          children: [
+                                            IconButton(
+                                              icon: SvgIcon(
+                                                svgString: CustomIcons.inbox,
+                                                color: iconColor,
+                                              ),
+                                              onPressed: () => _navigateHorizontally(
+                                                context,
+                                                const MessagesScreen(),
+                                              ),
+                                            ),
+                                            _buildNotificationBadge(unreadCount),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Container(color: topBorderColor, height: 0.5),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _currentIndex,
+                        children: List.generate(5, (i) => _getPage(i)),
+                      ),
+                    ),
                   ],
+                ),
+              ),
+              if (isWideScreen)
+                Container(
+                  width: 80,
+                  color: Colors.transparent,
+                  child: SafeArea(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              borderRadius: BorderRadius.circular(100),
+                              border: Border.all(
+                                color: topBorderColor,
+                                width: 0.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.08),
+                                  blurRadius: 12,
+                                  offset: const Offset(-4, 0),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildVerticalTabItem(
+                                  index: 0,
+                                  svg: CustomIcons.home,
+                                  unselectedColor: unselectedColor,
+                                ),
+                                _buildVerticalTabItem(
+                                  index: 1,
+                                  svg: CustomIcons.users,
+                                  unselectedColor: unselectedColor,
+                                ),
+                                _buildVerticalTabItem(
+                                  index: 2,
+                                  svg: CustomIcons.marketplace,
+                                  unselectedColor: unselectedColor,
+                                ),
+                                _buildVerticalTabItem(
+                                  index: 3,
+                                  svg: CustomIcons.book,
+                                  unselectedColor: unselectedColor,
+                                ),
+                                _buildVerticalTabItem(
+                                  index: 4,
+                                  svg: CustomIcons.addCircle,
+                                  unselectedColor: unselectedColor,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          // Progress Bar (Facebook style) - no topo da tela
+          if (_isNavigating)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 100),
+                  tween: Tween(begin: 0.0, end: _navigationProgress),
+                  builder: (context, value, child) {
+                    return LinearProgressIndicator(
+                      value: value,
+                      backgroundColor: isDark 
+                        ? const Color(0xFF3A3B3C) 
+                        : const Color(0xFFE4E6EB),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF1877F2),
+                      ),
+                      minHeight: 3,
+                    );
+                  },
                 ),
               ),
             ),
@@ -346,11 +474,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                    _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                    _buildTabItem(index: 2, svg: CustomIcons.marketplace, unselectedColor: unselectedColor),
-                    _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                    _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                    _buildTabItem(
+                      index: 0,
+                      svg: CustomIcons.home,
+                      unselectedColor: unselectedColor,
+                    ),
+                    _buildTabItem(
+                      index: 1,
+                      svg: CustomIcons.users,
+                      unselectedColor: unselectedColor,
+                    ),
+                    _buildTabItem(
+                      index: 2,
+                      svg: CustomIcons.marketplace,
+                      unselectedColor: unselectedColor,
+                    ),
+                    _buildTabItem(
+                      index: 3,
+                      svg: CustomIcons.book,
+                      unselectedColor: unselectedColor,
+                    ),
+                    _buildTabItem(
+                      index: 4,
+                      svg: CustomIcons.addCircle,
+                      unselectedColor: unselectedColor,
+                    ),
                   ],
                 ),
               ),
