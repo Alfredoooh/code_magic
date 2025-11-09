@@ -68,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
-    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final iconColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
@@ -82,10 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo
                   const Text(
                     'PrinterLite',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 56,
                       fontWeight: FontWeight.w700,
@@ -102,135 +103,148 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 50),
 
-                  // Login Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                  // Email Field
+                  CustomTextField(
+                    controller: _emailController,
+                    label: 'Email',
+                    hintText: 'Digite seu email',
+                    keyboardType: TextInputType.emailAddress,
+                    isDark: isDark,
+                    borderRadius: 12,
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SvgIcon(
+                        svgString: CustomIcons.envelope,
+                        color: iconColor,
+                        size: 20,
+                      ),
                     ),
-                    child: Column(
-                      children: [
-                        // Email Field
-                        CustomTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          hintText: 'Digite seu email',
-                          keyboardType: TextInputType.emailAddress,
-                          isDark: isDark,
-                          borderRadius: 12,
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: SvgIcon(
-                              svgString: CustomIcons.envelope,
-                              color: iconColor,
-                              size: 20,
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Digite seu email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Digite seu email';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
-                        // Password Field
-                        CustomTextField(
-                          controller: _passwordController,
-                          label: 'Senha',
-                          hintText: 'Digite sua senha',
-                          obscureText: !_showPassword,
-                          isDark: isDark,
-                          borderRadius: 12,
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: SvgIcon(
-                              svgString: CustomIcons.shield,
-                              color: iconColor,
-                              size: 20,
-                            ),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _showPassword ? Icons.visibility_off : Icons.visibility,
-                              color: iconColor,
-                            ),
-                            onPressed: () {
-                              setState(() => _showPassword = !_showPassword);
-                            },
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Digite sua senha';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
+                  // Password Field
+                  CustomTextField(
+                    controller: _passwordController,
+                    label: 'Senha',
+                    hintText: 'Digite sua senha',
+                    obscureText: !_showPassword,
+                    isDark: isDark,
+                    borderRadius: 12,
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SvgIcon(
+                        svgString: CustomIcons.shield,
+                        color: iconColor,
+                        size: 20,
+                      ),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _showPassword ? Icons.visibility_off : Icons.visibility,
+                        color: iconColor,
+                      ),
+                      onPressed: () {
+                        setState(() => _showPassword = !_showPassword);
+                      },
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Digite sua senha';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
 
-                        // Login Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleLogin,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1877F2),
-                              disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Text(
-                                  'Entrar',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                          ),
+                  // Forgot Password
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        // TODO: Implementar forgot password
+                      },
+                      child: const Text(
+                        'Esqueceu a senha?',
+                        style: TextStyle(
+                          color: Color(0xFF1877F2),
+                          fontSize: 14,
                         ),
-                        const SizedBox(height: 12),
-
-                        // Forgot Password
-                        TextButton(
-                          onPressed: () {
-                            // TODO: Implementar forgot password
-                          },
-                          child: const Text(
-                            'Esqueceu a senha?',
-                            style: TextStyle(
-                              color: Color(0xFF1877F2),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  // Login Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1877F2),
+                        disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Entrar',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Divider
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADDE1),
+                          thickness: 1,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'ou',
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADDE1),
+                          thickness: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
 
                   // Create Account Button
                   SizedBox(
