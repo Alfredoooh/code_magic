@@ -19,15 +19,19 @@ class PostService {
 
   Stream<List<Post>> get stream => _controller.stream;
 
-  // 🔥 SEU ENDPOINT CUSTOMIZADO (substitua pelo URL do Render após deploy)
-  static const String _newsEndpoint = 'https://seu-app.onrender.com/news.json';
-
+  // ENDPOINT DA SUA API
+  static const _apiBaseUrl = 'https://seu-data-server.onrender.com';
+  
   StreamSubscription<QuerySnapshot>? _postsSub;
   Timer? _newsTimer;
   bool _started = false;
   List<Post> _posts = [];
   List<Post> _news = [];
   FeedFilter _currentFilter = FeedFilter.mixed;
+  int _currentNewsFile = 1;
+  
+  // SEM LIMITE! Continua tentando até encontrar 404
+  bool _hasMoreNews = true;
 
   FeedFilter get currentFilter => _currentFilter;
 
@@ -42,14 +46,15 @@ class PostService {
     _started = true;
 
     print('🚀 PostService iniciado');
-    print('🌐 Endpoint: $_newsEndpoint');
+    print('🌐 API Base: $_apiBaseUrl');
+    print('♾️ Sistema de news infinito ativado');
 
     _listenPosts();
-    _fetchNewsOnce();
+    _fetchNewsFromAPI();
 
-    _newsTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+    _newsTimer = Timer.periodic(const Duration(minutes: 10), (_) {
       print('🔄 Atualizando notícias...');
-      _fetchNewsOnce();
+      _fetchNewsFromAPI();
     });
   }
 
@@ -68,159 +73,119 @@ class PostService {
     });
   }
 
-  Future<void> _fetchNewsOnce() async {
+  Future<void> _fetchNewsFromAPI() async {
     print('');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     print('📰 BUSCANDO NOTÍCIAS DA API...');
+    print('♾️ Modo infinito: buscando até encontrar 404');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     try {
-      print('🌐 URL: $_newsEndpoint');
+      final List<Post> results = [];
+      int consecutiveErrors = 0;
+      int filesLoaded = 0;
       
-      final response = await http
-          .get(Uri.parse(_newsEndpoint))
-          .timeout(const Duration(seconds: 15));
-
-      print('📊 Status Code: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
+      // Busca notícias até encontrar 3 erros consecutivos
+      while (_hasMoreNews && filesLoaded < 10) {
+        final url = '$_apiBaseUrl/news/news$_currentNewsFile.json';
+        print('🔍 Tentando: news$_currentNewsFile.json');
         
-        // Valida estrutura do JSON
-        if (jsonData is! Map<String, dynamic>) {
-          throw Exception('JSON inválido: esperado um objeto');
-        }
+        try {
+          final resp = await http
+              .get(Uri.parse(url))
+              .timeout(const Duration(seconds: 10));
 
-        final List<dynamic>? articles = jsonData['articles'];
-        final String? version = jsonData['version'];
-        final String? lastUpdate = jsonData['lastUpdate'];
+          if (resp.statusCode == 200) {
+            final json = jsonDecode(resp.body);
+            final List? articles = json['articles'];
 
-        print('📌 Versão da API: $version');
-        print('🕐 Última atualização: $lastUpdate');
-        print('📄 Total de artigos: ${articles?.length ?? 0}');
-
-        if (articles == null || articles.isEmpty) {
-          print('⚠️ Nenhum artigo encontrado no JSON');
-          _news = [];
-          _emitCombined();
-          return;
-        }
-
-        final List<Post> results = [];
-        int added = 0;
-        int skipped = 0;
-
-        for (var article in articles) {
-          try {
-            final post = _parseArticle(article, added);
-            if (post != null) {
-              results.add(post);
-              added++;
+            if (articles != null && articles.isNotEmpty) {
+              print('   ✅ ${articles.length} artigos encontrados');
+              filesLoaded++;
+              consecutiveErrors = 0; // Reset contador de erros
+              
+              for (var article in articles) {
+                results.add(Post(
+                  id: article['id'] ?? 'news_${_currentNewsFile}_${results.length}',
+                  userId: 'news_api',
+                  userName: article['source'] ?? 'News API',
+                  userAvatar: null,
+                  content: article['description'] ?? '',
+                  imageBase64: null,
+                  imageUrls: article['imageUrl'] != null ? [article['imageUrl']] : [],
+                  videoUrl: null,
+                  isNews: true,
+                  newsUrl: article['url'] ?? '',
+                  title: article['title'] ?? '',
+                  summary: article['description'] ?? '',
+                  timestamp: article['publishedAt'] != null 
+                      ? DateTime.parse(article['publishedAt']) 
+                      : DateTime.now(),
+                ));
+              }
+              
+              _currentNewsFile++;
             } else {
-              skipped++;
+              print('   ⚠️ Arquivo vazio');
+              consecutiveErrors++;
+              _currentNewsFile++;
             }
-          } catch (e) {
-            print('   ❌ Erro ao processar artigo: $e');
-            skipped++;
+          } else if (resp.statusCode == 404) {
+            print('   ⚠️ Arquivo não existe (404)');
+            consecutiveErrors++;
+            _currentNewsFile++;
+            
+            // Se encontrar 3 erros consecutivos, volta pro início
+            if (consecutiveErrors >= 3) {
+              print('   🔄 Voltando para news1.json');
+              _currentNewsFile = 1;
+              _hasMoreNews = false; // Pausa até próxima atualização
+              break;
+            }
+          } else {
+            print('   ⚠️ Erro ${resp.statusCode}');
+            consecutiveErrors++;
+            _currentNewsFile++;
+          }
+        } catch (e) {
+          print('   ❌ Erro ao buscar news$_currentNewsFile.json: $e');
+          consecutiveErrors++;
+          _currentNewsFile++;
+          
+          if (consecutiveErrors >= 3) {
+            print('   🔄 Muitos erros, voltando para news1.json');
+            _currentNewsFile = 1;
+            _hasMoreNews = false;
+            break;
           }
         }
-
-        results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        _news = results;
-
-        print('');
-        print('✅ $added notícias carregadas com sucesso');
-        print('⚠️ $skipped artigos ignorados');
-        print('');
-        
-        if (_news.isNotEmpty) {
-          print('📋 Primeiras 3 notícias:');
-          for (int i = 0; i < _news.length && i < 3; i++) {
-            final post = _news[i];
-            print('   ${i + 1}. ${post.title}');
-            print('      Fonte: ${post.userName}');
-            print('      Categoria: ${post.content.split('|').first}');
-            print('');
-          }
-        }
-
-        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        _emitCombined();
-
-      } else {
-        print('❌ Erro HTTP ${response.statusCode}');
-        print('   Body: ${response.body}');
-        _news = [];
-        _emitCombined();
       }
+
+      // Reset para próxima busca
+      _hasMoreNews = true;
+
+      print('');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      if (results.isEmpty) {
+        print('❌ NENHUMA NOTÍCIA CARREGADA!');
+        print('   Próxima tentativa: news$_currentNewsFile.json');
+        _news = [];
+      } else {
+        results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        _news = results.take(50).toList();
+        print('✅ ${_news.length} NOTÍCIAS CARREGADAS!');
+        print('📂 $filesLoaded arquivos processados');
+        print('🔜 Próximo arquivo: news$_currentNewsFile.json');
+      }
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('');
+
+      _emitCombined();
     } catch (e) {
-      print('❌ ERRO ao buscar notícias: $e');
+      print('❌ ERRO GERAL ao buscar notícias: $e');
       _news = [];
       _emitCombined();
     }
-  }
-
-  Post? _parseArticle(Map<String, dynamic> article, int index) {
-    // Validações obrigatórias
-    final String? id = article['id'];
-    final String? title = article['title'];
-    final String? url = article['url'];
-
-    if (id == null || id.isEmpty) {
-      print('   ⚠️ Artigo sem ID');
-      return null;
-    }
-
-    if (title == null || title.isEmpty || title.contains('[Removed]')) {
-      print('   ⚠️ Artigo sem título válido');
-      return null;
-    }
-
-    if (url == null || url.isEmpty) {
-      print('   ⚠️ Artigo sem URL');
-      return null;
-    }
-
-    // Campos opcionais
-    final String? description = article['description'];
-    final String? imageUrl = article['imageUrl'];
-    final String? source = article['source'];
-    final String? category = article['category'];
-    final String? author = article['author'];
-    final String? publishedAt = article['publishedAt'];
-
-    // Parse da data
-    DateTime timestamp = DateTime.now();
-    if (publishedAt != null && publishedAt.isNotEmpty) {
-      try {
-        timestamp = DateTime.parse(publishedAt);
-      } catch (e) {
-        print('   ⚠️ Data inválida: $publishedAt');
-      }
-    }
-
-    // Cria o conteúdo com categoria
-    final String content = category != null 
-        ? '$category | ${description ?? title}'
-        : description ?? title;
-
-    print('   ✓ ${title.substring(0, title.length > 50 ? 50 : title.length)}...');
-
-    return Post(
-      id: 'news_$id',
-      userId: 'newsapi_${category?.replaceAll(' ', '_').toLowerCase() ?? 'general'}',
-      userName: source ?? 'News Source',
-      userAvatar: null,
-      content: content,
-      imageBase64: null,
-      imageUrls: (imageUrl != null && imageUrl.isNotEmpty) ? [imageUrl] : [],
-      videoUrl: null,
-      isNews: true,
-      newsUrl: url,
-      title: title,
-      summary: description ?? title,
-      timestamp: timestamp,
-    );
   }
 
   void _emitCombined() {
@@ -228,7 +193,6 @@ class PostService {
 
     switch (_currentFilter) {
       case FeedFilter.mixed:
-        // Intercala: 2 posts, 1 notícia
         int postIdx = 0;
         int newsIdx = 0;
         while (postIdx < _posts.length || newsIdx < _news.length) {
@@ -328,24 +292,16 @@ class PostService {
   }
 
   Future<void> deletePost(String postId) async {
-    try {
-      await _firestore.collection('posts').doc(postId).delete();
-      print('✅ Post deletado');
-    } catch (e) {
-      print('❌ Erro ao deletar post: $e');
-    }
+    await _firestore.collection('posts').doc(postId).delete();
+    print('✅ Post deletado');
   }
 
   Future<void> updatePost(String postId, String newContent) async {
-    try {
-      await _firestore.collection('posts').doc(postId).update({
-        'content': newContent,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      print('✅ Post atualizado');
-    } catch (e) {
-      print('❌ Erro ao atualizar post: $e');
-    }
+    await _firestore.collection('posts').doc(postId).update({
+      'content': newContent,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    print('✅ Post atualizado');
   }
 
   void dispose() {
