@@ -35,9 +35,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _bioController = TextEditingController();
 
   String _selectedUserType = '';
+  DateTime? _selectedDate;
   bool _showPassword = false;
   bool _showConfirmPassword = false;
   bool _isLoading = false;
+  double _loadingProgress = 0.0;
 
   @override
   void dispose() {
@@ -59,7 +61,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _nextPage() {
-    if (_currentPage < 3) {
+    if (_currentPage < 3 && _validateCurrentPage()) {
       _pageController.animateToPage(
         _currentPage + 1,
         duration: const Duration(milliseconds: 300),
@@ -83,12 +85,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       case 0:
         return _selectedUserType.isNotEmpty;
       case 1:
-        return _nameController.text.isNotEmpty &&
-               _nicknameController.text.isNotEmpty &&
+        return _nameController.text.trim().isNotEmpty &&
+               _nicknameController.text.trim().isNotEmpty &&
                _birthDateController.text.isNotEmpty;
       case 2:
-        return _emailController.text.isNotEmpty &&
+        return _emailController.text.trim().isNotEmpty &&
+               _emailController.text.contains('@') &&
                _passwordController.text.isNotEmpty &&
+               _passwordController.text.length >= 6 &&
                _confirmPasswordController.text.isNotEmpty &&
                _passwordController.text == _confirmPasswordController.text;
       case 3:
@@ -98,7 +102,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<void> _simulateProgress() async {
+    setState(() => _loadingProgress = 0.0);
+    
+    // Simula progresso de criação de conta
+    for (int i = 0; i <= 100; i += 4) {
+      if (!_isLoading) break;
+      await Future.delayed(const Duration(milliseconds: 60));
+      if (mounted) {
+        setState(() => _loadingProgress = i / 100);
+      }
+    }
+  }
+
   Future<void> _handleSignUp() async {
+    if (!_validateCurrentPage()) return;
+
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -110,6 +129,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     setState(() => _isLoading = true);
+    _simulateProgress();
 
     try {
       final authProvider = context.read<AuthProvider>();
@@ -130,6 +150,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (mounted) {
+        setState(() => _loadingProgress = 1.0);
+        await Future.delayed(const Duration(milliseconds: 200));
         Navigator.pushReplacementNamed(context, '/otp-verification');
       }
     } catch (e) {
@@ -142,41 +164,88 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() {
+        _isLoading = false;
+        _loadingProgress = 0.0;
+      });
     }
   }
 
-  Future<void> _selectDate() async {
-    final date = await showDatePicker(
+  void _showIOSDatePicker() {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
+    
+    showCupertinoModalPopup(
       context: context,
-      initialDate: DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        final isDark = context.read<ThemeProvider>().isDarkMode;
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: const Color(0xFF1877F2),
-              surface: isDark ? const Color(0xFF242526) : Colors.white,
-            ),
+      builder: (BuildContext context) {
+        return Container(
+          height: 300,
+          color: isDark ? const Color(0xFF242526) : Colors.white,
+          child: Column(
+            children: [
+              // Header
+              Container(
+                height: 44,
+                color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                        ),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    CupertinoButton(
+                      child: const Text(
+                        'Confirmar',
+                        style: TextStyle(
+                          color: Color(0xFF1877F2),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: () {
+                        if (_selectedDate != null) {
+                          _birthDateController.text = 
+                            '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}';
+                          setState(() {});
+                        }
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              // Date Picker
+              Expanded(
+                child: CupertinoTheme(
+                  data: CupertinoThemeData(
+                    textTheme: CupertinoTextThemeData(
+                      dateTimePickerTextStyle: TextStyle(
+                        color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                        fontSize: 20,
+                      ),
+                    ),
+                    brightness: isDark ? Brightness.dark : Brightness.light,
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: _selectedDate ?? DateTime(2000),
+                    minimumYear: 1950,
+                    maximumDate: DateTime.now(),
+                    onDateTimeChanged: (DateTime newDate) {
+                      _selectedDate = newDate;
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: child!,
         );
       },
     );
-
-    if (date != null) {
-      _birthDateController.text = '${date.day}/${date.month}/${date.year}';
-    }
-  }
-
-  Future<bool> _onWillPop() async {
-    if (_currentPage > 0) {
-      _previousPage();
-      return false;
-    }
-    return true;
   }
 
   @override
@@ -187,9 +256,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
 
     return PopScope(
-      canPop: _currentPage == 0,
-      onPopInvoked: (didPop) {
-        if (!didPop && _currentPage > 0) {
+      canPop: _currentPage == 0 && !_isLoading,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentPage > 0 && !_isLoading) {
           _previousPage();
         }
       },
@@ -204,9 +273,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               color: textColor,
               size: 24,
             ),
-            onPressed: _currentPage == 0 
-              ? () => Navigator.pop(context)
-              : _previousPage,
+            onPressed: _isLoading 
+              ? null 
+              : (_currentPage == 0 
+                ? () => Navigator.pop(context)
+                : _previousPage),
           ),
           title: Text(
             'Cadastre-se',
@@ -224,46 +295,85 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Progress indicator
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: List.generate(4, (index) {
-                    return Expanded(
-                      child: Container(
-                        margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: index <= _currentPage 
-                            ? const Color(0xFF1877F2)
-                            : isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  // Progress indicator (Facebook style)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: List.generate(4, (index) {
+                        final isActive = index <= _currentPage;
+                        final isCompleted = index < _currentPage;
+                        
+                        return Expanded(
+                          child: Container(
+                            margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                ? const Color(0xFF1877F2)
+                                : isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: isCompleted
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1877F2),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                )
+                              : null,
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
 
-              // Content
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (page) => setState(() => _currentPage = page),
-                  children: [
-                    _buildUserTypePage(isDark, textColor),
-                    _buildPersonalInfoPage(isDark, textColor),
-                    _buildCredentialsPage(isDark, textColor),
-                    _buildAdditionalInfoPage(isDark, textColor),
-                  ],
+                  // Content
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      onPageChanged: (page) => setState(() => _currentPage = page),
+                      children: [
+                        _buildUserTypePage(isDark, textColor),
+                        _buildPersonalInfoPage(isDark, textColor),
+                        _buildCredentialsPage(isDark, textColor),
+                        _buildAdditionalInfoPage(isDark, textColor),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Progress Bar (estilo Facebook - no topo)
+            if (_isLoading)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 100),
+                  tween: Tween(begin: 0.0, end: _loadingProgress),
+                  builder: (context, value, child) {
+                    return LinearProgressIndicator(
+                      value: value,
+                      backgroundColor: isDark 
+                        ? const Color(0xFF3A3B3C) 
+                        : const Color(0xFFE4E6EB),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF1877F2),
+                      ),
+                      minHeight: 3,
+                    );
+                  },
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -279,7 +389,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final isSelected = _selectedUserType == value;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedUserType = value),
+      onTap: () => setState(() {
+        _selectedUserType = value;
+      }),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -348,7 +460,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // ... [Continue nos próximos artifacts devido ao limite de espaço]
   Widget _buildUserTypePage(bool isDark, Color textColor) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -460,6 +571,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             label: 'Nome completo',
             hintText: 'Digite seu nome completo',
             isDark: isDark,
+            onChanged: (value) => setState(() {}),
           ),
           const SizedBox(height: 16),
 
@@ -468,18 +580,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
             label: 'Nome de usuário',
             hintText: 'Digite seu nome de usuário',
             isDark: isDark,
+            onChanged: (value) => setState(() {}),
           ),
           const SizedBox(height: 16),
 
           GestureDetector(
-            onTap: _selectDate,
+            onTap: _showIOSDatePicker,
             child: AbsorbPointer(
               child: CustomTextField(
                 controller: _birthDateController,
                 label: 'Data de nascimento',
                 hintText: 'DD/MM/AAAA',
                 isDark: isDark,
-                suffixIcon: const Icon(Icons.calendar_today, size: 20),
+                suffixIcon: const Icon(
+                  CupertinoIcons.calendar,
+                  size: 20,
+                  color: Color(0xFF1877F2),
+                ),
               ),
             ),
           ),
@@ -576,15 +693,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
             hintText: 'Digite seu email',
             keyboardType: TextInputType.emailAddress,
             isDark: isDark,
+            onChanged: (value) => setState(() {}),
           ),
           const SizedBox(height: 16),
 
           CustomTextField(
             controller: _passwordController,
             label: 'Senha',
-            hintText: 'Digite sua senha',
+            hintText: 'Digite sua senha (mínimo 6 caracteres)',
             obscureText: !_showPassword,
             isDark: isDark,
+            onChanged: (value) => setState(() {}),
             suffixIcon: IconButton(
               icon: Icon(
                 _showPassword ? Icons.visibility_off : Icons.visibility,
@@ -601,6 +720,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             hintText: 'Confirme sua senha',
             obscureText: !_showConfirmPassword,
             isDark: isDark,
+            onChanged: (value) => setState(() {}),
             suffixIcon: IconButton(
               icon: Icon(
                 _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
@@ -609,6 +729,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
               onPressed: () => setState(() => _showConfirmPassword = !_showConfirmPassword),
             ),
           ),
+          
+          // Validação visual de senha
+          if (_passwordController.text.isNotEmpty || _confirmPasswordController.text.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPasswordValidationItem(
+                    'Mínimo de 6 caracteres',
+                    _passwordController.text.length >= 6,
+                    isDark,
+                  ),
+                  const SizedBox(height: 4),
+                  _buildPasswordValidationItem(
+                    'As senhas coincidem',
+                    _passwordController.text.isNotEmpty && 
+                    _passwordController.text == _confirmPasswordController.text,
+                    isDark,
+                  ),
+                ],
+              ),
+            ),
+          
           const SizedBox(height: 32),
 
           Row(
@@ -660,6 +804,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPasswordValidationItem(String text, bool isValid, bool isDark) {
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.cancel,
+          size: 16,
+          color: isValid 
+            ? const Color(0xFF42B72A) 
+            : isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            color: isValid 
+              ? const Color(0xFF42B72A) 
+              : isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+          ),
+        ),
+      ],
     );
   }
 
@@ -748,7 +916,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _previousPage,
+                  onPressed: _isLoading ? null : _previousPage,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF1877F2),
                     side: const BorderSide(color: Color(0xFF1877F2)),
