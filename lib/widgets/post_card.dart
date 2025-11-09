@@ -240,7 +240,7 @@ class PostCard extends StatelessWidget {
             child: Row(
               children: [
                 InkWell(
-                  onTap: auth.user == null
+                  onTap: post.isNews || auth.user == null
                       ? null
                       : () => postService.toggleLike(post.id, auth.user!.uid),
                   child: Icon(
@@ -269,7 +269,7 @@ class PostCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 18),
                 InkWell(
-                  onTap: () => postService.sharePost(post),
+                  onTap: post.isNews ? null : () => postService.sharePost(post),
                   child: Icon(
                     Icons.send_outlined,
                     size: 26,
@@ -301,32 +301,50 @@ class PostCard extends StatelessWidget {
             ),
 
           // Content
-          if (post.content.isNotEmpty)
+          if (post.isNews ? (post.title?.isNotEmpty == true || post.summary?.isNotEmpty == true) : post.content.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '${post.userName} ',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (post.isNews && post.title?.isNotEmpty == true)
+                    Text(
+                      post.title!,
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                         color: textColor,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    TextSpan(
-                      text: post.content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: textColor,
-                        height: 1.3,
+                  if (post.isNews && post.summary?.isNotEmpty == true || !post.isNews && post.content.isNotEmpty)
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          if (!post.isNews)
+                            TextSpan(
+                              text: '${post.userName} ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: textColor,
+                              ),
+                            ),
+                          TextSpan(
+                            text: post.isNews ? post.summary : post.content,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: textColor,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
                       ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                ],
               ),
             ),
 
@@ -373,7 +391,7 @@ class PostCard extends StatelessWidget {
 
   void _showOptionsDialog(BuildContext context, PostService postService) {
     final isDark = context.read<ThemeProvider>().isDarkMode;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark ? const Color(0xFF262626) : Colors.white,
@@ -427,7 +445,7 @@ class PostCard extends StatelessWidget {
 
   void _confirmDelete(BuildContext context, PostService postService) {
     final isDark = context.read<ThemeProvider>().isDarkMode;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
