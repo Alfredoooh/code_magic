@@ -14,12 +14,9 @@ class CustomDrawer extends StatelessWidget {
 
   static const Color _activeBlue = Color(0xFF1877F2);
 
-  // Método para navegação horizontal
   void _navigateHorizontally(BuildContext context, Widget screen) {
-    // Fecha o drawer primeiro
     Navigator.pop(context);
-    
-    // Depois navega com animação horizontal
+
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => screen,
@@ -142,14 +139,6 @@ class CustomDrawer extends StatelessWidget {
                   () => _navigateHorizontally(context, const SettingsScreen()),
                   isDark,
                 ),
-                _buildDrawerItem(
-                  context,
-                  CustomIcons.logout,
-                  'Sair',
-                  () => _showLogoutDialog(context),
-                  isDark,
-                  isDestructive: true,
-                ),
               ],
             ),
           ),
@@ -217,116 +206,6 @@ class CustomDrawer extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const NewPostModal(),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    // Fecha o drawer antes de mostrar o dialog
-    Navigator.pop(context);
-    
-    final isDark = context.read<ThemeProvider>().isDarkMode;
-    final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final subtitleColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFA383E).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SvgPicture.string(
-                  CustomIcons.logout,
-                  width: 24,
-                  height: 24,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFFFA383E),
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Terminar sessão?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            'Tem certeza que deseja sair da sua conta?',
-            style: TextStyle(
-              fontSize: 15,
-              color: subtitleColor,
-            ),
-          ),
-          actionsPadding: const EdgeInsets.all(16),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: subtitleColor,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Fecha o dialog
-                Navigator.of(dialogContext).pop();
-                
-                // Pega o authProvider do contexto original (não do dialog)
-                final authProvider = context.read<AuthProvider>();
-                
-                // Faz o logout
-                await authProvider.signOut();
-                
-                // Navega para a tela de login removendo todas as rotas anteriores
-                if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
-                    (route) => false,
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFA383E),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Sair',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
