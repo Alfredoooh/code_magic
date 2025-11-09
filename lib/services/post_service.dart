@@ -110,7 +110,7 @@ class PostService {
                   userId: 'news_api',
                   userName: article['source'] ?? 'News API',
                   userAvatar: null,
-                  content: article['description'] ?? '',
+                  content: article['content'] ?? '',
                   imageBase64: null,
                   imageUrls: article['imageUrl'] != null ? [article['imageUrl']] : [],
                   videoUrl: null,
@@ -269,6 +269,7 @@ class PostService {
   }
 
   Future<void> toggleLike(String postId, String uid) async {
+    if (postId.startsWith('news_')) return; // Não permitir likes em notícias
     final docRef = _firestore.collection('posts').doc(postId);
     await _firestore.runTransaction((tx) async {
       final snap = await tx.get(docRef);
@@ -287,6 +288,7 @@ class PostService {
   }
 
   Future<void> sharePost(Post post) async {
+    if (post.isNews) return; // Não permitir shares em notícias
     final ref = _firestore.collection('posts').doc(post.id);
     await ref.update({'shares': FieldValue.increment(1)});
   }
