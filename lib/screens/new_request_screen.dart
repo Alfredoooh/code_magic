@@ -1,4 +1,5 @@
 // lib/screens/new_request_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +7,9 @@ import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/document_service.dart';
 import '../models/document_template_model.dart';
+import '../models/advertisement_model.dart';
 import '../widgets/custom_icons.dart';
+import '../widgets/custom_snackbar.dart';
 import 'document_request_detail_screen.dart';
 
 class NewRequestScreen extends StatefulWidget {
@@ -18,9 +21,85 @@ class NewRequestScreen extends StatefulWidget {
 
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final DocumentService _documentService = DocumentService();
+  final PageController _adPageController = PageController();
+  Timer? _adTimer;
+  int _currentAdPage = 0;
+  
   DocumentCategory? _selectedCategory;
   DocumentTemplate? _selectedTemplate;
   bool _showingTemplates = false;
+
+  // Lista de anúncios (depois você vai buscar de uma API)
+  final List<Advertisement> _advertisements = [
+    Advertisement(
+      id: 'ad_001',
+      title: 'Template Premium de Currículo',
+      description: 'Destaque-se no mercado com nossos templates profissionais',
+      imageUrl: 'https://via.placeholder.com/400x200/1877F2/FFFFFF?text=Curriculo+Premium',
+      actionUrl: 'https://example.com/premium/curriculum',
+      actionText: 'Ver Mais',
+      category: 'curriculum',
+      backgroundColor: '#1877F2',
+      priority: 1,
+      isActive: true,
+      startDate: DateTime.now().subtract(const Duration(days: 30)),
+      endDate: DateTime.now().add(const Duration(days: 365)),
+    ),
+    Advertisement(
+      id: 'ad_002',
+      title: 'Certificados Personalizados',
+      description: 'Crie certificados impressionantes em minutos',
+      imageUrl: 'https://via.placeholder.com/400x200/4CAF50/FFFFFF?text=Certificados',
+      actionUrl: 'https://example.com/templates/certificates',
+      actionText: 'Explorar',
+      category: 'certificate',
+      backgroundColor: '#4CAF50',
+      priority: 2,
+      isActive: true,
+      startDate: DateTime.now().subtract(const Duration(days: 30)),
+      endDate: DateTime.now().add(const Duration(days: 365)),
+    ),
+    Advertisement(
+      id: 'ad_003',
+      title: 'Apresentações Profissionais',
+      description: 'Slides modernos para suas apresentações de negócios',
+      imageUrl: 'https://via.placeholder.com/400x200/FF9800/FFFFFF?text=Apresentacoes',
+      actionUrl: 'https://example.com/premium/presentations',
+      actionText: 'Começar Agora',
+      category: 'presentation',
+      backgroundColor: '#FF9800',
+      priority: 3,
+      isActive: true,
+      startDate: DateTime.now().subtract(const Duration(days: 30)),
+      endDate: DateTime.now().add(const Duration(days: 365)),
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _startAdAutoRotation();
+  }
+
+  @override
+  void dispose() {
+    _adTimer?.cancel();
+    _adPageController.dispose();
+    super.dispose();
+  }
+
+  void _startAdAutoRotation() {
+    _adTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_adPageController.hasClients) {
+        final nextPage = (_currentAdPage + 1) % _advertisements.length;
+        _adPageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
 
   String _getCategoryName(DocumentCategory category) {
     switch (category) {
@@ -91,7 +170,36 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     }
   }
 
-  void _selectCategory(DocumentCategory category) {
+  Color _getCategoryColor(DocumentCategory category) {
+    switch (category) {
+      case DocumentCategory.curriculum:
+        return const Color(0xFF1877F2);
+      case DocumentCategory.certificate:
+        return const Color(0xFF4CAF50);
+      case DocumentCategory.letter:
+        return const Color(0xFF9C27B0);
+      case DocumentCategory.report:
+        return const Color(0xFF2196F3);
+      case DocumentCategory.contract:
+        return const Color(0xFFFF5722);
+      case DocumentCategory.invoice:
+        return const Color(0xFF009688);
+      case DocumentCategory.presentation:
+        return const Color(0xFFFF9800);
+      case DocumentCategory.essay:
+        return const Color(0xFF673AB7);
+      case DocumentCategory.other:
+        return const Color(0xFF607D8B);
+    }
+  }
+
+  void _selectCategory(DocumentCategory category, bool isDark) {
+    CustomSnackbar.showInfo(
+      context,
+      message: 'Selecionando templates de ${_getCategoryName(category)}',
+      isDark: isDark,
+    );
+
     setState(() {
       _selectedCategory = category;
       _selectedTemplate = null;
@@ -103,7 +211,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     setState(() {
       _selectedTemplate = template;
     });
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -140,26 +248,89 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       color: bgColor,
       child: CustomScrollView(
         slivers: [
+          // Carrossel de Anúncios
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1877F2).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF1877F2).withOpacity(0.3),
-                        width: 1,
+                  SizedBox(
+                    height: 180,
+                    child: PageView.builder(
+                      controller: _adPageController,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentAdPage = index;
+                        });
+                      },
+                      itemCount: _advertisements.length,
+                      itemBuilder: (context, index) {
+                        return _AdCard(
+                          ad: _advertisements[index],
+                          isDark: isDark,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _advertisements.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentAdPage == index ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _currentAdPage == index
+                              ? const Color(0xFF1877F2)
+                              : (isDark
+                                  ? const Color(0xFF3A3B3C)
+                                  : const Color(0xFFDADADA)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        SvgPicture.string(
-                          CustomIcons.info,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Card de Classificação
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF1877F2).withOpacity(0.1),
+                      const Color(0xFF9C27B0).withOpacity(0.1),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF1877F2).withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1877F2).withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: SvgPicture.string(
+                          CustomIcons.star,
                           width: 24,
                           height: 24,
                           colorFilter: const ColorFilter.mode(
@@ -167,32 +338,83 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                             BlendMode.srcIn,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Selecione a categoria do documento que deseja criar',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Classificação',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFA000),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  '4.8',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Mais de 10.000 documentos criados',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                              fontSize: 13,
+                              color: isDark
+                                  ? const Color(0xFFB0B3B8)
+                                  : const Color(0xFF65676B),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Categorias de Documentos',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+          // Título
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Categorias de Documentos',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          // Grid de Categorias
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverGrid(
@@ -210,7 +432,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     name: _getCategoryName(category),
                     description: _getCategoryDescription(category),
                     icon: _getCategoryIcon(category),
-                    onTap: () => _selectCategory(category),
+                    color: _getCategoryColor(category),
+                    onTap: () => _selectCategory(category, isDark),
                     isDark: isDark,
                     cardColor: cardColor,
                     textColor: textColor,
@@ -220,9 +443,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               ),
             ),
           ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 16),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
       ),
     );
@@ -354,11 +575,123 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 }
 
+class _AdCard extends StatelessWidget {
+  final Advertisement ad;
+  final bool isDark;
+
+  const _AdCard({
+    required this.ad,
+    required this.isDark,
+  });
+
+  Color _hexToColor(String hex) {
+    hex = hex.replaceAll('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              ad.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: _hexToColor(ad.backgroundColor),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.image,
+                        size: 48,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        ad.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ad.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    ad.description,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CategoryCard extends StatelessWidget {
   final DocumentCategory category;
   final String name;
   final String description;
   final String icon;
+  final Color color;
   final VoidCallback onTap;
   final bool isDark;
   final Color cardColor;
@@ -369,6 +702,7 @@ class _CategoryCard extends StatelessWidget {
     required this.name,
     required this.description,
     required this.icon,
+    required this.color,
     required this.onTap,
     required this.isDark,
     required this.cardColor,
@@ -382,11 +716,11 @@ class _CategoryCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-              blurRadius: 8,
+              color: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.04),
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
@@ -399,17 +733,14 @@ class _CategoryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1877F2).withOpacity(0.1),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: SvgPicture.string(
                   icon,
                   width: 32,
                   height: 32,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFF1877F2),
-                    BlendMode.srcIn,
-                  ),
+                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
                 ),
               ),
               const SizedBox(height: 12),
