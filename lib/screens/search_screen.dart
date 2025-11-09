@@ -1,557 +1,506 @@
-// lib/widgets/request_cards.dart
+// lib/screens/search_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
-import '../models/document_template_model.dart';
-import 'custom_icons.dart';
+import '../providers/auth_provider.dart';
+import '../models/diary_entry_model.dart';
+import '../widgets/custom_icons.dart';
+import 'chat_screen.dart';
+import 'diary_detail_screen.dart';
 
-class RequestCard extends StatelessWidget {
-  final DocumentRequest request;
-  final Color cardColor;
-  final Color textColor;
-  final Color hintColor;
+enum SearchType { users, diary }
 
-  const RequestCard({
+class SearchScreen extends StatefulWidget {
+  final SearchType initialSearchType;
+
+  const SearchScreen({
     super.key,
-    required this.request,
-    required this.cardColor,
-    required this.textColor,
-    required this.hintColor,
+    this.initialSearchType = SearchType.users,
   });
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return const Color(0xFFFFA000);
-      case 'in_progress':
-        return const Color(0xFF2196F3);
-      case 'completed':
-        return const Color(0xFF4CAF50);
-      case 'cancelled':
-        return const Color(0xFFF44336);
-      default:
-        return Colors.grey;
-    }
+  @override
+  State<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderStateMixin {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _isSearching = false;
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialSearchType == SearchType.users ? 0 : 1,
+    );
   }
 
-  Color _getCardColor(String status, bool isDark) {
-    switch (status) {
-      case 'pending':
-        return isDark ? const Color(0xFF2D2416) : const Color(0xFFFFF8E1);
-      case 'in_progress':
-        return isDark ? const Color(0xFF1A2332) : const Color(0xFFE3F2FD);
-      case 'completed':
-        return isDark ? const Color(0xFF1B2E1F) : const Color(0xFFE8F5E9);
-      case 'cancelled':
-        return isDark ? const Color(0xFF2E1C1C) : const Color(0xFFFFEBEE);
-      default:
-        return cardColor;
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
-  String _getStatusLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Pendente';
-      case 'in_progress':
-        return 'Em andamento';
-      case 'completed':
-        return 'Concluído';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return status;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'pending':
-        return Icons.schedule;
-      case 'in_progress':
-        return Icons.autorenew;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.description;
+  String _getMoodEmoji(DiaryMood mood) {
+    switch (mood) {
+      case DiaryMood.happy:
+        return '😊';
+      case DiaryMood.sad:
+        return '😔';
+      case DiaryMood.motivated:
+        return '💪';
+      case DiaryMood.calm:
+        return '😌';
+      case DiaryMood.stressed:
+        return '😰';
+      case DiaryMood.excited:
+        return '🤩';
+      case DiaryMood.tired:
+        return '😴';
+      case DiaryMood.grateful:
+        return '🙏';
     }
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inDays == 0) return 'Hoje';
+    if (diff.inDays == 1) return 'Ontem';
+    if (diff.inDays < 7) return '${diff.inDays} dias atrás';
+
+    return '${date.day}/${date.month}/${date.year}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final statusColor = _getStatusColor(request.status);
-    final bgColor = _getCardColor(request.status, isDark);
-    final statusIcon = _getStatusIcon(request.status);
+  Widget _buildUsersSearch(BuildContext context, bool isDark, Color cardColor, 
+      Color textColor, Color hintColor, String? currentUserId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('name')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildErrorState(isDark, hintColor, 'Erro ao pesquisar');
+        }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: isDark 
-                ? Colors.black.withOpacity(0.2) 
-                : Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+            ),
+          );
+        }
+
+        final allUsers = snapshot.data?.docs ?? [];
+        final filteredUsers = allUsers.where((doc) {
+          if (doc.id == currentUserId) return false;
+          
+          final data = doc.data() as Map<String, dynamic>;
+          final name = (data['name'] ?? '').toLowerCase();
+          final nickname = (data['nickname'] ?? '').toLowerCase();
+          final email = (data['email'] ?? '').toLowerCase();
+          
+          return name.contains(_searchQuery) ||
+                 nickname.contains(_searchQuery) ||
+                 email.contains(_searchQuery);
+        }).toList();
+
+        if (filteredUsers.isEmpty) {
+          return _buildEmptyState(
+            isDark, 
+            hintColor, 
+            Icons.search_off, 
+            'Nenhum usuário encontrado'
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: filteredUsers.length,
+          separatorBuilder: (context, index) => Container(
+            height: 1,
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => RequestDetailScreen(
-                  request: request,
-                  cardColor: cardColor,
-                  textColor: textColor,
-                  hintColor: hintColor,
-                ),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        statusIcon,
-                        color: statusColor,
-                        size: 24,
+          itemBuilder: (context, index) {
+            final userDoc = filteredUsers[index];
+            final userData = userDoc.data() as Map<String, dynamic>;
+            final isOnline = userData['isOnline'] == true;
+            final userType = userData['userType'] ?? 'person';
+            
+            String userTypeLabel = '';
+            IconData? userTypeIcon;
+            
+            switch (userType) {
+              case 'student':
+                userTypeLabel = 'Estudante';
+                userTypeIcon = Icons.school;
+                break;
+              case 'professional':
+                userTypeLabel = 'Profissional';
+                userTypeIcon = Icons.work;
+                break;
+              case 'company':
+                userTypeLabel = 'Empresa';
+                userTypeIcon = Icons.business;
+                break;
+              default:
+                userTypeLabel = 'Pessoa';
+                userTypeIcon = Icons.person;
+            }
+
+            return Container(
+              color: cardColor,
+              child: ListTile(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        recipientId: userDoc.id,
+                        recipientName: userData['name'] ?? 'Usuário',
+                        recipientPhotoURL: userData['photoURL'],
+                        isOnline: isOnline,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            request.title,
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: textColor,
-                              height: 1.2,
+                  );
+                },
+                leading: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: const Color(0xFF1877F2),
+                      backgroundImage: userData['photoURL'] != null
+                          ? NetworkImage(userData['photoURL'])
+                          : null,
+                      child: userData['photoURL'] == null
+                          ? Text(
+                              userData['name']?.substring(0, 1).toUpperCase() ?? 'U',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 20,
+                              ),
+                            )
+                          : null,
+                    ),
+                    if (isOnline)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF31A24C),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: cardColor,
+                              width: 3,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            request.templateName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: hintColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
+                  ],
+                ),
+                title: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        userData['name'] ?? 'Usuário',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      userTypeIcon,
+                      size: 14,
+                      color: hintColor,
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
+                    Text(
+                      userTypeLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hintColor,
                       ),
-                      child: Text(
-                        _getStatusLabel(request.status),
+                    ),
+                    if (userData['nickname'] != null)
+                      Text(
+                        '@${userData['nickname']}',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
+                          color: hintColor,
                         ),
                       ),
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: hintColor.withOpacity(0.7),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDate(request.createdAt),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: hintColor.withOpacity(0.9),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class AdminRequestCard extends StatelessWidget {
-  final DocumentRequest request;
-  final Color cardColor;
-  final Color textColor;
-  final Color hintColor;
-  final Function(String status, String? notes) onStatusUpdate;
-  final VoidCallback onDelete;
-
-  const AdminRequestCard({
-    super.key,
-    required this.request,
-    required this.cardColor,
-    required this.textColor,
-    required this.hintColor,
-    required this.onStatusUpdate,
-    required this.onDelete,
-  });
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return const Color(0xFFFFA000);
-      case 'in_progress':
-        return const Color(0xFF2196F3);
-      case 'completed':
-        return const Color(0xFF4CAF50);
-      case 'cancelled':
-        return const Color(0xFFF44336);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Color _getCardColor(String status, bool isDark) {
-    switch (status) {
-      case 'pending':
-        return isDark ? const Color(0xFF2D2416) : const Color(0xFFFFF8E1);
-      case 'in_progress':
-        return isDark ? const Color(0xFF1A2332) : const Color(0xFFE3F2FD);
-      case 'completed':
-        return isDark ? const Color(0xFF1B2E1F) : const Color(0xFFE8F5E9);
-      case 'cancelled':
-        return isDark ? const Color(0xFF2E1C1C) : const Color(0xFFFFEBEE);
-      default:
-        return cardColor;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'pending':
-        return Icons.schedule;
-      case 'in_progress':
-        return Icons.autorenew;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.description;
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final statusColor = _getStatusColor(request.status);
-    final bgColor = _getCardColor(request.status, isDark);
-    final statusIcon = _getStatusIcon(request.status);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: isDark 
-                ? Colors.black.withOpacity(0.2) 
-                : Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => RequestDetailScreen(
-                  request: request,
-                  cardColor: cardColor,
-                  textColor: textColor,
-                  hintColor: hintColor,
                 ),
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        statusIcon,
-                        color: statusColor,
-                        size: 24,
-                      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDiarySearch(BuildContext context, bool isDark, Color cardColor,
+      Color textColor, Color hintColor, String? currentUserId) {
+    if (currentUserId == null) {
+      return Center(
+        child: Text(
+          'Faça login para pesquisar no diário',
+          style: TextStyle(color: textColor),
+        ),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('diary_entries')
+          .where('userId', isEqualTo: currentUserId)
+          .orderBy('date', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildErrorState(isDark, hintColor, 'Erro ao pesquisar');
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE91E63)),
+            ),
+          );
+        }
+
+        final allEntries = snapshot.data?.docs ?? [];
+        final filteredEntries = allEntries.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final title = (data['title'] ?? '').toLowerCase();
+          final content = (data['content'] ?? '').toLowerCase();
+          final tags = List<String>.from(data['tags'] ?? []);
+          final tagsString = tags.join(' ').toLowerCase();
+
+          return title.contains(_searchQuery) ||
+                 content.contains(_searchQuery) ||
+                 tagsString.contains(_searchQuery);
+        }).toList();
+
+        if (filteredEntries.isEmpty) {
+          return _buildEmptyState(
+            isDark,
+            hintColor,
+            Icons.search_off,
+            'Nenhuma entrada encontrada'
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          itemCount: filteredEntries.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final entryDoc = filteredEntries[index];
+            final data = entryDoc.data() as Map<String, dynamic>;
+
+            final entry = DiaryEntry(
+              id: entryDoc.id,
+              userId: data['userId'] ?? '',
+              title: data['title'] ?? '',
+              content: data['content'] ?? '',
+              date: (data['date'] as Timestamp).toDate(),
+              mood: DiaryMood.values.firstWhere(
+                (m) => m.toString() == 'DiaryMood.${data['mood']}',
+                orElse: () => DiaryMood.calm,
+              ),
+              tags: List<String>.from(data['tags'] ?? []),
+              isFavorite: data['isFavorite'] ?? false,
+              createdAt: (data['createdAt'] as Timestamp).toDate(),
+              updatedAt: data['updatedAt'] != null 
+                  ? (data['updatedAt'] as Timestamp).toDate() 
+                  : null,
+            );
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DiaryDetailScreen(entry: entry),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
                           Text(
-                            request.title,
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: textColor,
-                              height: 1.2,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            _getMoodEmoji(entry.mood),
+                            style: const TextStyle(fontSize: 28),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            request.userName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: hintColor,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  entry.title,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: textColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatDate(entry.date),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: hintColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            request.userEmail,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: hintColor.withOpacity(0.8),
-                            ),
-                          ),
+                          if (entry.isFavorite)
+                            const Icon(Icons.favorite, color: Color(0xFFE91E63), size: 20),
                         ],
                       ),
-                    ),
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: textColor),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 12),
+                      Text(
+                        entry.content,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: hintColor,
+                          height: 1.5,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      color: cardColor,
-                      onSelected: (value) async {
-                        if (value == 'delete') {
-                          onDelete();
-                        } else {
-                          await onStatusUpdate(value, null);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'in_progress',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.autorenew, size: 18, color: Color(0xFF2196F3)),
-                              const SizedBox(width: 8),
-                              Text('Em andamento', style: TextStyle(color: textColor)),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'completed',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.check_circle, size: 18, color: Color(0xFF4CAF50)),
-                              const SizedBox(width: 8),
-                              Text('Concluído', style: TextStyle(color: textColor)),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'cancelled',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.cancel, size: 18, color: Color(0xFFF44336)),
-                              const SizedBox(width: 8),
-                              Text('Cancelar', style: TextStyle(color: textColor)),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuDivider(),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.delete, size: 18, color: Colors.red),
-                              const SizedBox(width: 8),
-                              const Text('Excluir', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
+                      if (entry.tags.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: entry.tags.take(3).map((tag) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF2C2C2E)
+                                    : const Color(0xFFF0F2F5),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '#$tag',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFE91E63),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isDark 
-                        ? Colors.white.withOpacity(0.05) 
-                        : Colors.black.withOpacity(0.03),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Template: ${request.templateName}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: hintColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: hintColor.withOpacity(0.7),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(request.createdAt),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: hintColor.withOpacity(0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildErrorState(bool isDark, Color hintColor, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              color: hintColor,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
-}
 
-class RequestDetailScreen extends StatelessWidget {
-  final DocumentRequest request;
-  final Color cardColor;
-  final Color textColor;
-  final Color hintColor;
-
-  const RequestDetailScreen({
-    super.key,
-    required this.request,
-    required this.cardColor,
-    required this.textColor,
-    required this.hintColor,
-  });
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return const Color(0xFFFFA000);
-      case 'in_progress':
-        return const Color(0xFF2196F3);
-      case 'completed':
-        return const Color(0xFF4CAF50);
-      case 'cancelled':
-        return const Color(0xFFF44336);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStatusLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Pendente';
-      case 'in_progress':
-        return 'Em andamento';
-      case 'completed':
-        return 'Concluído';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return status;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'pending':
-        return Icons.schedule;
-      case 'in_progress':
-        return Icons.autorenew;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.description;
-    }
+  Widget _buildEmptyState(bool isDark, Color hintColor, IconData icon, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 64,
+            color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              color: hintColor,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final statusColor = _getStatusColor(request.status);
+    final authProvider = context.watch<AuthProvider>();
+    final currentUserId = authProvider.user?.uid;
+
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -562,225 +511,120 @@ class RequestDetailScreen extends StatelessWidget {
           icon: Icon(CustomIcons.arrowLeft, color: textColor, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          'Detalhes da Solicitação',
+        title: TextField(
+          controller: _searchController,
+          autofocus: true,
           style: TextStyle(
+            fontSize: 16,
             color: textColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
           ),
+          decoration: InputDecoration(
+            hintText: _tabController.index == 0 
+                ? 'Pesquisar usuários...' 
+                : 'Pesquisar no diário...',
+            hintStyle: TextStyle(
+              color: hintColor,
+              fontSize: 16,
+            ),
+            border: InputBorder.none,
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear, color: hintColor),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                        _isSearching = false;
+                      });
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value.trim().toLowerCase();
+              _isSearching = value.trim().isNotEmpty;
+            });
+          },
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-            height: 0.5,
+          preferredSize: const Size.fromHeight(49),
+          child: Column(
+            children: [
+              TabBar(
+                controller: _tabController,
+                labelColor: _tabController.index == 0 
+                    ? const Color(0xFF1877F2) 
+                    : const Color(0xFFE91E63),
+                unselectedLabelColor: hintColor,
+                indicatorColor: _tabController.index == 0 
+                    ? const Color(0xFF1877F2) 
+                    : const Color(0xFFE91E63),
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                onTap: (index) {
+                  setState(() {
+                    _searchController.clear();
+                    _searchQuery = '';
+                    _isSearching = false;
+                  });
+                },
+                tabs: const [
+                  Tab(text: 'Usuários'),
+                  Tab(text: 'Diário'),
+                ],
+              ),
+              Container(
+                color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                height: 0.5,
+              ),
+            ],
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+      body: _isSearching
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildUsersSearch(context, isDark, cardColor, textColor, hintColor, currentUserId),
+                _buildDiarySearch(context, isDark, cardColor, textColor, hintColor, currentUserId),
+              ],
+            )
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _getStatusIcon(request.status),
-                      color: statusColor,
-                      size: 32,
-                    ),
+                  Icon(
+                    Icons.search,
+                    size: 64,
+                    color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFDADADA),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          request.title,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: textColor,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            _getStatusLabel(request.status),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: statusColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildSection(
-              context,
-              'Template',
-              request.templateName,
-              Icons.description,
-              isDark,
-            ),
-            const SizedBox(height: 16),
-            _buildSection(
-              context,
-              'Descrição',
-              request.description,
-              Icons.text_snippet,
-              isDark,
-            ),
-            if (request.adminNotes != null) ...[
-              const SizedBox(height: 16),
-              _buildSection(
-                context,
-                'Notas do Admin',
-                request.adminNotes!,
-                Icons.admin_panel_settings,
-                isDark,
-                const Color(0xFF2196F3),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark 
-                          ? Colors.black.withOpacity(0.2) 
-                          : Colors.black.withOpacity(0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 20,
+                  const SizedBox(height: 16),
+                  Text(
+                    _tabController.index == 0
+                        ? 'Digite para pesquisar usuários'
+                        : 'Digite para pesquisar no diário',
+                    style: TextStyle(
+                      fontSize: 16,
                       color: hintColor,
                     ),
-                    const SizedBox(width: 12),
+                  ),
+                  if (_tabController.index == 1) ...[
+                    const SizedBox(height: 8),
                     Text(
-                      'Criado em: ${_formatDate(request.createdAt)}',
+                      'Busque por título, conteúdo ou tags',
                       style: TextStyle(
                         fontSize: 14,
-                        color: hintColor,
-                        fontWeight: FontWeight.w500,
+                        color: hintColor.withOpacity(0.7),
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
     );
-  }
-
-  Widget _buildSection(
-    BuildContext context,
-    String title,
-    String content,
-    IconData icon,
-    bool isDark, [
-    Color? accentColor,
-  ]) {
-    final Color sectionColor = accentColor ?? textColor;
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: isDark 
-                  ? Colors.black.withOpacity(0.2) 
-                  : Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: sectionColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: sectionColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: hintColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                content,
-                style: TextStyle(
-                  color: hintColor,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
