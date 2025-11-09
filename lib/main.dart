@@ -6,8 +6,6 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/invest_screen.dart';
-import 'screens/bets_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/otp_verification_screen.dart';
@@ -76,8 +74,6 @@ class MyApp extends StatelessWidget {
               '/otp-verification': (context) => const OTPVerificationScreen(),
               '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
-              '/invest': (context) => const InvestScreen(),
-              '/bets': (context) => const BetsScreen(),
               '/messages': (context) => const MessagesScreen(),
               '/search': (context) => const SearchScreen(),
             },
