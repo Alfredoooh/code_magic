@@ -451,35 +451,38 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         textColor,
                         hintColor,
                       ),
+                      // ✅ CORREÇÃO: Verificação de bio com bool explícito
                       if (userData?['bio'] != null &&
-                          (userData?['bio']?.toString().isNotEmpty ?? false) // ✅) ...[
+                          (userData!['bio'] as String).isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
                           Icons.info,
                           'Bio',
-                          userData?['bio'] ?? '-',
+                          userData['bio'] ?? '-',
                           textColor,
                           hintColor,
                         ),
                       ],
+                      // ✅ CORREÇÃO: Verificação de school com bool explícito
                       if (userData?['school'] != null &&
-                          userData?['school'].toString().isNotEmpty) ...[
+                          (userData!['school'] as String).isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
                           Icons.school,
                           'Escola/Instituição',
-                          userData?['school'] ?? '-',
+                          userData['school'] ?? '-',
                           textColor,
                           hintColor,
                         ),
                       ],
+                      // ✅ CORREÇÃO: Verificação de phoneNumber com bool explícito
                       if (userData?['phoneNumber'] != null &&
-                          userData?['phoneNumber'].toString().isNotEmpty) ...[
+                          (userData!['phoneNumber'] as String).isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
                           Icons.phone,
                           'Telefone',
-                          userData?['phoneNumber'] ?? '-',
+                          userData['phoneNumber'] ?? '-',
                           textColor,
                           hintColor,
                         ),
