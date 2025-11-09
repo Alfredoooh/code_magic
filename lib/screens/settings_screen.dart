@@ -1,36 +1,16 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
+import '../widgets/custom_snackbar.dart';
 import 'user_profile_screen.dart';
 import 'terms_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  // Método para navegação horizontal
-  void _navigateHorizontally(BuildContext context, Widget screen) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => screen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +20,7 @@ class SettingsScreen extends StatelessWidget {
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -49,8 +30,8 @@ class SettingsScreen extends StatelessWidget {
         leading: IconButton(
           icon: SvgPicture.string(
             CustomIcons.arrowLeft,
-            width: 24,
-            height: 24,
+            width: 20,
+            height: 20,
             colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
           ),
           onPressed: () => Navigator.pop(context),
@@ -58,7 +39,7 @@ class SettingsScreen extends StatelessWidget {
         title: Text(
           'Configurações',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
             color: textColor,
           ),
@@ -72,36 +53,69 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
           // Profile Card
           GestureDetector(
-            onTap: () => _navigateHorizontally(context, const UserProfileScreen()),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const UserProfileScreen(),
+                ),
+              );
+            },
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: cardColor,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: const Color(0xFF1877F2),
-                    backgroundImage: authProvider.userData?['photoURL'] != null
-                        ? NetworkImage(authProvider.userData!['photoURL'])
-                        : null,
-                    child: authProvider.userData?['photoURL'] == null
-                        ? Text(
-                            authProvider.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
-                            style: const TextStyle(
-                              fontSize: 28,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : null,
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark
+                              ? Colors.black.withOpacity(0.3)
+                              : Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 32,
+                      backgroundColor: const Color(0xFF1877F2),
+                      backgroundImage: authProvider.userData?['photoURL'] != null
+                          ? NetworkImage(authProvider.userData!['photoURL'])
+                          : null,
+                      child: authProvider.userData?['photoURL'] == null
+                          ? Text(
+                              authProvider.userData?['name']
+                                      ?.substring(0, 1)
+                                      .toUpperCase() ??
+                                  'U',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -112,35 +126,47 @@ class SettingsScreen extends StatelessWidget {
                           authProvider.userData?['name'] ?? 'Usuário',
                           style: TextStyle(
                             fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: textColor,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          authProvider.userData?['nickname'] ?? '@usuario',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                        const SizedBox(height: 4),
+                        if (authProvider.userData?['nickname'] != null)
+                          Text(
+                            '@${authProvider.userData?['nickname']}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: hintColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
+                        const SizedBox(height: 2),
                         Text(
                           authProvider.userData?['email'] ?? '',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            fontSize: 13,
+                            color: hintColor,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  SvgPicture.string(
-                    CustomIcons.chevronRight,
-                    width: 20,
-                    height: 20,
-                    colorFilter: ColorFilter.mode(
-                      isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                      BlendMode.srcIn,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1877F2).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: SvgPicture.string(
+                      CustomIcons.chevronRight,
+                      width: 20,
+                      height: 20,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFF1877F2),
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ],
@@ -148,30 +174,56 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          const SizedBox(height: 8),
+
           // Appearance Section
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cardColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Aparência',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withOpacity(0.2)
+                      : Colors.black.withOpacity(0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Row(
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1877F2).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.palette_outlined,
+                          color: Color(0xFF1877F2),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Aparência',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
                       Expanded(
                         child: _ThemeButton(
@@ -194,17 +246,28 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+
+          const SizedBox(height: 8),
 
           // Account Options
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cardColor,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withOpacity(0.2)
+                      : Colors.black.withOpacity(0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -212,27 +275,52 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   CustomIcons.userCircle,
                   'Minha conta',
-                  () => _navigateHorizontally(context, const UserProfileScreen()),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const UserProfileScreen(),
+                      ),
+                    );
+                  },
                   isDark,
+                  textColor,
                 ),
-                Divider(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
+                Divider(
+                    height: 1,
+                    color: isDark
+                        ? const Color(0xFF3E4042)
+                        : const Color(0xFFDADADA)),
                 _buildSettingItem(
                   context,
                   CustomIcons.trash,
                   'Eliminar histórico de atividade',
-                  () => _showClearHistoryDialog(context, authProvider),
+                  () => _showClearHistoryDialog(context, isDark, cardColor,
+                      textColor, hintColor),
                   isDark,
+                  textColor,
                 ),
               ],
             ),
           ),
+
+          const SizedBox(height: 8),
 
           // Legal Section
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cardColor,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withOpacity(0.2)
+                      : Colors.black.withOpacity(0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -240,67 +328,102 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   CustomIcons.document,
                   'Termos de uso',
-                  () => _navigateHorizontally(context, const TermsScreen(type: TermsType.terms)),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const TermsScreen(type: TermsType.terms),
+                      ),
+                    );
+                  },
                   isDark,
+                  textColor,
                 ),
-                Divider(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
+                Divider(
+                    height: 1,
+                    color: isDark
+                        ? const Color(0xFF3E4042)
+                        : const Color(0xFFDADADA)),
                 _buildSettingItem(
                   context,
                   CustomIcons.shield,
                   'Política de privacidade',
-                  () => _navigateHorizontally(context, const TermsScreen(type: TermsType.privacy)),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const TermsScreen(type: TermsType.privacy),
+                      ),
+                    );
+                  },
                   isDark,
+                  textColor,
                 ),
-                Divider(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
+                Divider(
+                    height: 1,
+                    color: isDark
+                        ? const Color(0xFF3E4042)
+                        : const Color(0xFFDADADA)),
                 _buildSettingItem(
                   context,
                   CustomIcons.globe,
                   'Sobre',
-                  () => _navigateHorizontally(context, const TermsScreen(type: TermsType.about)),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const TermsScreen(type: TermsType.about),
+                      ),
+                    );
+                  },
                   isDark,
+                  textColor,
                 ),
               ],
             ),
           ),
 
-          // Logout Button com ícone custom
+          const SizedBox(height: 8),
+
+          // Logout Button
           Container(
-            margin: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton(
-                onPressed: () => _showLogoutDialog(context, authProvider),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFFA383E),
-                  side: const BorderSide(color: Color(0xFFFA383E), width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ElevatedButton(
+              onPressed: () => _showLogoutDialog(
+                  context, authProvider, isDark, cardColor, textColor, hintColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFA383E),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.string(
+                    CustomIcons.logout,
+                    width: 20,
+                    height: 20,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SvgPicture.string(
-                      CustomIcons.logout,
-                      width: 20,
-                      height: 20,
-                      colorFilter: const ColorFilter.mode(
-                        Color(0xFFFA383E),
-                        BlendMode.srcIn,
-                      ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Sair',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'Sair',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -315,20 +438,29 @@ class SettingsScreen extends StatelessWidget {
     String title,
     VoidCallback onTap,
     bool isDark,
+    Color textColor,
   ) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
-            SvgPicture.string(
-              iconSvg,
-              width: 22,
-              height: 22,
-              colorFilter: ColorFilter.mode(
-                isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                BlendMode.srcIn,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1877F2).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: SvgPicture.string(
+                iconSvg,
+                width: 20,
+                height: 20,
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF1877F2),
+                  BlendMode.srcIn,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -337,8 +469,8 @@ class SettingsScreen extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
                 ),
               ),
             ),
@@ -357,60 +489,206 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _showLogoutDialog(BuildContext context, AuthProvider authProvider) async {
-    final confirm = await showCupertinoDialog<bool>(
+  void _showLogoutDialog(BuildContext context, AuthProvider authProvider,
+      bool isDark, Color cardColor, Color textColor, Color hintColor) {
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Sair'),
-        content: const Text('Tem certeza que deseja sair?'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: cardColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFA383E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SvgPicture.string(
+                  CustomIcons.logout,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFFA383E),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Terminar sessão?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sair'),
+          content: Text(
+            'Tem certeza que deseja sair da sua conta?',
+            style: TextStyle(
+              fontSize: 15,
+              color: hintColor,
+            ),
           ),
-        ],
-      ),
+          actionsPadding: const EdgeInsets.all(16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: hintColor,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await authProvider.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFA383E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Sair',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
-
-    if (confirm == true && context.mounted) {
-      await authProvider.signOut();
-      if (context.mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
-    }
   }
 
-  Future<void> _showClearHistoryDialog(BuildContext context, AuthProvider authProvider) async {
-    final confirm = await showCupertinoDialog<bool>(
+  void _showClearHistoryDialog(BuildContext context, bool isDark,
+      Color cardColor, Color textColor, Color hintColor) {
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Eliminar histórico'),
-        content: const Text('Tem certeza que deseja eliminar todo o histórico de atividade? Esta ação não pode ser desfeita.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: cardColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFA383E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SvgPicture.string(
+                  CustomIcons.trash,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFFA383E),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Eliminar histórico?',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
+          content: Text(
+            'Tem certeza que deseja eliminar todo o histórico de atividade? Esta ação não pode ser desfeita.',
+            style: TextStyle(
+              fontSize: 15,
+              color: hintColor,
+            ),
           ),
-        ],
-      ),
+          actionsPadding: const EdgeInsets.all(16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: hintColor,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                CustomSnackbar.showSuccess(
+                  context,
+                  message: 'Histórico eliminado com sucesso',
+                  isDark: isDark,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFA383E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
-
-    if (confirm == true && context.mounted) {
-      // TODO: Implementar lógica de limpar histórico
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Histórico eliminado com sucesso')),
-      );
-    }
   }
 }
 
@@ -434,21 +712,21 @@ class _ThemeButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF1877F2)
               : isDark
                   ? const Color(0xFF3A3B3C)
                   : const Color(0xFFF0F2F5),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFF1877F2)
                 : isDark
                     ? const Color(0xFF3E4042)
                     : const Color(0xFFDADADA),
-            width: 1,
+            width: 1.5,
           ),
         ),
         child: Row(
@@ -456,7 +734,7 @@ class _ThemeButton extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 20,
               color: isSelected
                   ? Colors.white
                   : isDark
@@ -468,7 +746,7 @@ class _ThemeButton extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: isSelected
                     ? Colors.white
                     : isDark
