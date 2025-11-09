@@ -1,0 +1,122 @@
+{
+  "avatars": [
+    {
+      "id": "avatar_001",
+      "name": "Avatar Abstrato Azul",
+      "imageUrl": "https://i.pravatar.cc/300?img=1",
+      "category": "abstract",
+      "color": "#1877F2"
+    },
+    {
+      "id": "avatar_002",
+      "name": "Avatar Abstrato Verde",
+      "imageUrl": "https://i.pravatar.cc/300?img=2",
+      "category": "abstract",
+      "color": "#4CAF50"
+    },
+    {
+      "id": "avatar_003",
+      "name": "Avatar Abstrato Roxo",
+      "imageUrl": "https://i.pravatar.cc/300?img=3",
+      "category": "abstract",
+      "color": "#9C27B0"
+    },
+    {
+      "id": "avatar_004",
+      "name": "Avatar Abstrato Laranja",
+      "imageUrl": "https://i.pravatar.cc/300?img=4",
+      "category": "abstract",
+      "color": "#FF9800"
+    },
+    {
+      "id": "avatar_005",
+      "name": "Avatar Abstrato Rosa",
+      "imageUrl": "https://i.pravatar.cc/300?img=5",
+      "category": "abstract",
+      "color": "#E91E63"
+    },
+    {
+      "id": "avatar_006",
+      "name": "Avatar Abstrato Ciano",
+      "imageUrl": "https://i.pravatar.cc/300?img=6",
+      "category": "abstract",
+      "color": "#00BCD4"
+    },
+    {
+      "id": "avatar_007",
+      "name": "Avatar Abstrato Vermelho",
+      "imageUrl": "https://i.pravatar.cc/300?img=7",
+      "category": "abstract",
+      "color": "#F44336"
+    },
+    {
+      "id": "avatar_008",
+      "name": "Avatar Abstrato Índigo",
+      "imageUrl": "https://i.pravatar.cc/300?img=8",
+      "category": "abstract",
+      "color": "#3F51B5"
+    },
+    {
+      "id": "avatar_009",
+      "name": "Avatar Profissional 1",
+      "imageUrl": "https://i.pravatar.cc/300?img=11",
+      "category": "professional",
+      "color": "#607D8B"
+    },
+    {
+      "id": "avatar_010",
+      "name": "Avatar Profissional 2",
+      "imageUrl": "https://i.pravatar.cc/300?img=12",
+      "category": "professional",
+      "color": "#795548"
+    },
+    {
+      "id": "avatar_011",
+      "name": "Avatar Estudante 1",
+      "imageUrl": "https://i.pravatar.cc/300?img=13",
+      "category": "student",
+      "color": "#2196F3"
+    },
+    {
+      "id": "avatar_012",
+      "name": "Avatar Estudante 2",
+      "imageUrl": "https://i.pravatar.cc/300?img=14",
+      "category": "student",
+      "color": "#00BCD4"
+    },
+    {
+      "id": "avatar_013",
+      "name": "Avatar Criativo 1",
+      "imageUrl": "https://i.pravatar.cc/300?img=15",
+      "category": "creative",
+      "color": "#FF5722"
+    },
+    {
+      "id": "avatar_014",
+      "name": "Avatar Criativo 2",
+      "imageUrl": "https://i.pravatar.cc/300?img=16",
+      "category": "creative",
+      "color": "#FF9800"
+    },
+    {
+      "id": "avatar_015",
+      "name": "Avatar Empresarial 1",
+      "imageUrl": "https://i.pravatar.cc/300?img=17",
+      "category": "business",
+      "color": "#3F51B5"
+    },
+    {
+      "id": "avatar_016",
+      "name": "Avatar Empresarial 2",
+      "imageUrl": "https://i.pravatar.cc/300?img=18",
+      "category": "business",
+      "color": "#1877F2"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-01-01T00:00:00Z",
+    "totalAvatars": 16,
+    "categories": ["abstract", "professional", "student", "creative", "business"]
+  }
+}
