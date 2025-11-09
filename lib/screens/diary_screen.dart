@@ -80,6 +80,39 @@ class _DiaryScreenState extends State<DiaryScreen> {
     }
   }
 
+  String _getMoodName(DiaryMood mood) {
+    switch (mood) {
+      case DiaryMood.happy:
+        return 'Feliz';
+      case DiaryMood.sad:
+        return 'Triste';
+      case DiaryMood.motivated:
+        return 'Motivado';
+      case DiaryMood.calm:
+        return 'Calmo';
+      case DiaryMood.stressed:
+        return 'Estressado';
+      case DiaryMood.excited:
+        return 'Animado';
+      case DiaryMood.tired:
+        return 'Cansado';
+      case DiaryMood.grateful:
+        return 'Grato';
+    }
+  }
+
+  String _getFilterText() {
+    if (_showFavoritesOnly) {
+      return 'Favoritos';
+    } else if (_selectedMood != null) {
+      return '${_getMoodEmoji(_selectedMood!)} ${_getMoodName(_selectedMood!)}';
+    } else {
+      return 'Todas as entradas';
+    }
+  }
+
+  bool get _hasActiveFilters => _selectedMood != null || _showFavoritesOnly;
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -101,36 +134,87 @@ class _DiaryScreenState extends State<DiaryScreen> {
       color: bgColor,
       child: Column(
         children: [
-          // Botão de filtro no topo
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE91E63),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFE91E63).withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.filter_list,
-                    color: Colors.white,
-                    size: 24,
+          // Botão de filtro moderno
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Material(
+              color: isDark ? const Color(0xFF242526) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              elevation: isDark ? 0 : 1,
+              shadowColor: Colors.black.withOpacity(0.05),
+              child: InkWell(
+                onTap: _showFilters,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _hasActiveFilters
+                              ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.15) : const Color(0xFF007AFF).withOpacity(0.1))
+                              : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SvgPicture.string(
+                          CustomIcons.filterList,
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(
+                            _hasActiveFilters
+                                ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
+                                : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _getFilterText(),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: _hasActiveFilters
+                                ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
+                                : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                          ),
+                        ),
+                      ),
+                      if (_hasActiveFilters)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '1',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      SvgPicture.string(
+                        CustomIcons.expandMore,
+                        width: 20,
+                        height: 20,
+                        colorFilter: ColorFilter.mode(
+                          isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: _showFilters,
                 ),
               ),
             ),
           ),
+
           Expanded(
             child: StreamBuilder<List<DiaryEntry>>(
               stream: _showFavoritesOnly
@@ -140,11 +224,35 @@ class _DiaryScreenState extends State<DiaryScreen> {
                       : _diaryService.getUserEntries(auth.user!.uid)),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                    ),
+                  );
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Erro: ${snapshot.error}'));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Erro ao carregar entradas',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 var entries = snapshot.data ?? [];
@@ -165,11 +273,23 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Nenhuma entrada encontrada',
+                          _hasActiveFilters 
+                              ? 'Nenhuma entrada encontrada'
+                              : 'Seu diário está vazio',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _hasActiveFilters
+                              ? 'Tente usar outros filtros'
+                              : 'Comece a escrever suas memórias',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
                           ),
                         ),
                       ],
