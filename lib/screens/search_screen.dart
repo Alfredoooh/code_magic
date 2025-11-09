@@ -1,343 +1,146 @@
-// lib/screens/new_request_screen.dart
-import 'dart:async';
+// lib/widgets/request_cards.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
-import '../providers/auth_provider.dart';
-import '../services/document_service.dart';
 import '../models/document_template_model.dart';
-import '../models/advertisement_model.dart';
-import '../widgets/custom_icons.dart';
-import '../widgets/custom_snackbar.dart';
-import 'document_request_detail_screen.dart';
+import 'custom_icons.dart';
 
-class NewRequestScreen extends StatefulWidget {
-  const NewRequestScreen({super.key});
+class RequestCard extends StatelessWidget {
+  final DocumentRequest request;
+  final Color cardColor;
+  final Color textColor;
+  final Color hintColor;
 
-  @override
-  State<NewRequestScreen> createState() => _NewRequestScreenState();
-}
+  const RequestCard({
+    super.key,
+    required this.request,
+    required this.cardColor,
+    required this.textColor,
+    required this.hintColor,
+  });
 
-class _NewRequestScreenState extends State<NewRequestScreen> {
-  final DocumentService _documentService = DocumentService();
-  final PageController _adPageController = PageController();
-  Timer? _adTimer;
-  int _currentAdPage = 0;
-  
-  DocumentCategory? _selectedCategory;
-  DocumentTemplate? _selectedTemplate;
-  bool _showingTemplates = false;
-
-  // Lista de anúncios (depois você vai buscar de uma API)
-  final List<Advertisement> _advertisements = [
-    Advertisement(
-      id: 'ad_001',
-      title: 'Template Premium de Currículo',
-      description: 'Destaque-se no mercado com nossos templates profissionais',
-      imageUrl: 'https://via.placeholder.com/400x200/1877F2/FFFFFF?text=Curriculo+Premium',
-      actionUrl: 'https://example.com/premium/curriculum',
-      actionText: 'Ver Mais',
-      category: 'curriculum',
-      backgroundColor: '#1877F2',
-      priority: 1,
-      isActive: true,
-      startDate: DateTime.now().subtract(const Duration(days: 30)),
-      endDate: DateTime.now().add(const Duration(days: 365)),
-    ),
-    Advertisement(
-      id: 'ad_002',
-      title: 'Certificados Personalizados',
-      description: 'Crie certificados impressionantes em minutos',
-      imageUrl: 'https://via.placeholder.com/400x200/4CAF50/FFFFFF?text=Certificados',
-      actionUrl: 'https://example.com/templates/certificates',
-      actionText: 'Explorar',
-      category: 'certificate',
-      backgroundColor: '#4CAF50',
-      priority: 2,
-      isActive: true,
-      startDate: DateTime.now().subtract(const Duration(days: 30)),
-      endDate: DateTime.now().add(const Duration(days: 365)),
-    ),
-    Advertisement(
-      id: 'ad_003',
-      title: 'Apresentações Profissionais',
-      description: 'Slides modernos para suas apresentações de negócios',
-      imageUrl: 'https://via.placeholder.com/400x200/FF9800/FFFFFF?text=Apresentacoes',
-      actionUrl: 'https://example.com/premium/presentations',
-      actionText: 'Começar Agora',
-      category: 'presentation',
-      backgroundColor: '#FF9800',
-      priority: 3,
-      isActive: true,
-      startDate: DateTime.now().subtract(const Duration(days: 30)),
-      endDate: DateTime.now().add(const Duration(days: 365)),
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _startAdAutoRotation();
-  }
-
-  @override
-  void dispose() {
-    _adTimer?.cancel();
-    _adPageController.dispose();
-    super.dispose();
-  }
-
-  void _startAdAutoRotation() {
-    _adTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (_adPageController.hasClients) {
-        final nextPage = (_currentAdPage + 1) % _advertisements.length;
-        _adPageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
-  String _getCategoryName(DocumentCategory category) {
-    switch (category) {
-      case DocumentCategory.curriculum:
-        return 'Currículo';
-      case DocumentCategory.certificate:
-        return 'Certificado';
-      case DocumentCategory.letter:
-        return 'Carta';
-      case DocumentCategory.report:
-        return 'Relatório';
-      case DocumentCategory.contract:
-        return 'Contrato';
-      case DocumentCategory.invoice:
-        return 'Fatura';
-      case DocumentCategory.presentation:
-        return 'Apresentação';
-      case DocumentCategory.essay:
-        return 'Trabalho Acadêmico';
-      case DocumentCategory.other:
-        return 'Outro';
-    }
-  }
-
-  String _getCategoryIcon(DocumentCategory category) {
-    switch (category) {
-      case DocumentCategory.curriculum:
-        return CustomIcons.person;
-      case DocumentCategory.certificate:
-        return CustomIcons.certificate;
-      case DocumentCategory.letter:
-        return CustomIcons.envelope;
-      case DocumentCategory.report:
-        return CustomIcons.description;
-      case DocumentCategory.contract:
-        return CustomIcons.contract;
-      case DocumentCategory.invoice:
-        return CustomIcons.invoice;
-      case DocumentCategory.presentation:
-        return CustomIcons.presentation;
-      case DocumentCategory.essay:
-        return CustomIcons.school;
-      case DocumentCategory.other:
-        return CustomIcons.folder;
-    }
-  }
-
-  String _getCategoryDescription(DocumentCategory category) {
-    switch (category) {
-      case DocumentCategory.curriculum:
-        return 'CV profissional e portfólio';
-      case DocumentCategory.certificate:
-        return 'Certificados e diplomas';
-      case DocumentCategory.letter:
-        return 'Cartas formais e informais';
-      case DocumentCategory.report:
-        return 'Relatórios técnicos e executivos';
-      case DocumentCategory.contract:
-        return 'Contratos e acordos';
-      case DocumentCategory.invoice:
-        return 'Faturas e recibos';
-      case DocumentCategory.presentation:
-        return 'Slides e apresentações';
-      case DocumentCategory.essay:
-        return 'TCC, artigos e trabalhos';
-      case DocumentCategory.other:
-        return 'Outros documentos';
-    }
-  }
-
-  Color _getCategoryColor(DocumentCategory category) {
-    switch (category) {
-      case DocumentCategory.curriculum:
-        return const Color(0xFF1877F2);
-      case DocumentCategory.certificate:
-        return const Color(0xFF4CAF50);
-      case DocumentCategory.letter:
-        return const Color(0xFF9C27B0);
-      case DocumentCategory.report:
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return const Color(0xFFFFA000);
+      case 'in_progress':
         return const Color(0xFF2196F3);
-      case DocumentCategory.contract:
-        return const Color(0xFFFF5722);
-      case DocumentCategory.invoice:
-        return const Color(0xFF009688);
-      case DocumentCategory.presentation:
-        return const Color(0xFFFF9800);
-      case DocumentCategory.essay:
-        return const Color(0xFF673AB7);
-      case DocumentCategory.other:
-        return const Color(0xFF607D8B);
+      case 'completed':
+        return const Color(0xFF4CAF50);
+      case 'cancelled':
+        return const Color(0xFFF44336);
+      default:
+        return Colors.grey;
     }
   }
 
-  void _selectCategory(DocumentCategory category, bool isDark) {
-    CustomSnackbar.showInfo(
-      context,
-      message: 'Selecionando templates de ${_getCategoryName(category)}',
-      isDark: isDark,
-    );
-
-    setState(() {
-      _selectedCategory = category;
-      _selectedTemplate = null;
-      _showingTemplates = true;
-    });
+  Color _getCardColor(String status, bool isDark) {
+    switch (status) {
+      case 'pending':
+        return isDark ? const Color(0xFF2D2416) : const Color(0xFFFFF8E1);
+      case 'in_progress':
+        return isDark ? const Color(0xFF1A2332) : const Color(0xFFE3F2FD);
+      case 'completed':
+        return isDark ? const Color(0xFF1B2E1F) : const Color(0xFFE8F5E9);
+      case 'cancelled':
+        return isDark ? const Color(0xFF2E1C1C) : const Color(0xFFFFEBEE);
+      default:
+        return cardColor;
+    }
   }
 
-  void _selectTemplate(DocumentTemplate template) {
-    setState(() {
-      _selectedTemplate = template;
-    });
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DocumentRequestDetailScreen(template: template),
-      ),
-    );
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendente';
+      case 'in_progress':
+        return 'Em andamento';
+      case 'completed':
+        return 'Concluído';
+      case 'cancelled':
+        return 'Cancelado';
+      default:
+        return status;
+    }
   }
 
-  void _backToCategories() {
-    setState(() {
-      _showingTemplates = false;
-      _selectedCategory = null;
-      _selectedTemplate = null;
-    });
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'pending':
+        return Icons.schedule;
+      case 'in_progress':
+        return Icons.autorenew;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.description;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
-
-    if (_showingTemplates && _selectedCategory != null) {
-      return _buildTemplatesView(isDark, bgColor);
-    }
-
-    return _buildCategoriesView(isDark, bgColor);
-  }
-
-  Widget _buildCategoriesView(bool isDark, Color bgColor) {
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final statusColor = _getStatusColor(request.status);
+    final bgColor = _getCardColor(request.status, isDark);
+    final statusIcon = _getStatusIcon(request.status);
 
     return Container(
-      color: bgColor,
-      child: CustomScrollView(
-        slivers: [
-          // Carrossel de Anúncios
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 180,
-                    child: PageView.builder(
-                      controller: _adPageController,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentAdPage = index;
-                        });
-                      },
-                      itemCount: _advertisements.length,
-                      itemBuilder: (context, index) {
-                        return _AdCard(
-                          ad: _advertisements[index],
-                          isDark: isDark,
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _advertisements.length,
-                      (index) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentAdPage == index ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _currentAdPage == index
-                              ? const Color(0xFF1877F2)
-                              : (isDark
-                                  ? const Color(0xFF3A3B3C)
-                                  : const Color(0xFFDADADA)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark 
+                ? Colors.black.withOpacity(0.2) 
+                : Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-
-          // Card de Classificação
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF1877F2).withOpacity(0.1),
-                      const Color(0xFF9C27B0).withOpacity(0.1),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF1877F2).withOpacity(0.3),
-                    width: 1.5,
-                  ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => RequestDetailScreen(
+                  request: request,
+                  cardColor: cardColor,
+                  textColor: textColor,
+                  hintColor: hintColor,
                 ),
-                child: Row(
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1877F2).withOpacity(0.15),
+                        color: statusColor.withOpacity(0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: Center(
-                        child: SvgPicture.string(
-                          CustomIcons.star,
-                          width: 24,
-                          height: 24,
-                          colorFilter: const ColorFilter.mode(
-                            Color(0xFF1877F2),
-                            BlendMode.srcIn,
-                          ),
-                        ),
+                      child: Icon(
+                        statusIcon,
+                        color: statusColor,
+                        size: 24,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -345,45 +148,24 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Classificação',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFA000),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  '4.8',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
                           Text(
-                            'Mais de 10.000 documentos criados',
+                            request.title,
                             style: TextStyle(
-                              fontSize: 13,
-                              color: isDark
-                                  ? const Color(0xFFB0B3B8)
-                                  : const Color(0xFF65676B),
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            request.templateName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: hintColor,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -391,380 +173,314 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-          // Título
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Categorias de Documentos',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-          // Grid de Categorias
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.85,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final category = DocumentCategory.values[index];
-                  return _CategoryCard(
-                    category: category,
-                    name: _getCategoryName(category),
-                    description: _getCategoryDescription(category),
-                    icon: _getCategoryIcon(category),
-                    color: _getCategoryColor(category),
-                    onTap: () => _selectCategory(category, isDark),
-                    isDark: isDark,
-                    cardColor: cardColor,
-                    textColor: textColor,
-                  );
-                },
-                childCount: DocumentCategory.values.length,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTemplatesView(bool isDark, Color bgColor) {
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-
-    return Container(
-      color: bgColor,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              boxShadow: [
-                BoxShadow(
-                  color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: SvgPicture.string(
-                    CustomIcons.arrowLeft,
-                    width: 24,
-                    height: 24,
-                    colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
-                  ),
-                  onPressed: _backToCategories,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getCategoryName(_selectedCategory!),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      Text(
-                        'Escolha um template',
+                      child: Text(
+                        _getStatusLabel(request.status),
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<List<DocumentTemplate>>(
-              stream: _documentService.getTemplatesByCategory(_selectedCategory!),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text('Erro: ${snapshot.error}'));
-                }
-
-                final templates = snapshot.data ?? [];
-
-                if (templates.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    ),
+                    Row(
                       children: [
-                        SvgPicture.string(
-                          CustomIcons.folder,
-                          width: 64,
-                          height: 64,
-                          colorFilter: ColorFilter.mode(
-                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                            BlendMode.srcIn,
-                          ),
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: hintColor.withOpacity(0.7),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(width: 4),
                         Text(
-                          'Nenhum template disponível',
+                          _formatDate(request.createdAt),
                           style: TextStyle(
-                            fontSize: 16,
-                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                            fontSize: 13,
+                            color: hintColor.withOpacity(0.9),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                  );
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.7,
-                  ),
-                  itemCount: templates.length,
-                  itemBuilder: (context, index) {
-                    return _TemplateCard(
-                      template: templates[index],
-                      onTap: () => _selectTemplate(templates[index]),
-                      isDark: isDark,
-                      cardColor: cardColor,
-                      textColor: textColor,
-                    );
-                  },
-                );
-              },
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _AdCard extends StatelessWidget {
-  final Advertisement ad;
-  final bool isDark;
+class AdminRequestCard extends StatelessWidget {
+  final DocumentRequest request;
+  final Color cardColor;
+  final Color textColor;
+  final Color hintColor;
+  final Function(String status, String? notes) onStatusUpdate;
+  final VoidCallback onDelete;
 
-  const _AdCard({
-    required this.ad,
-    required this.isDark,
+  const AdminRequestCard({
+    super.key,
+    required this.request,
+    required this.cardColor,
+    required this.textColor,
+    required this.hintColor,
+    required this.onStatusUpdate,
+    required this.onDelete,
   });
 
-  Color _hexToColor(String hex) {
-    hex = hex.replaceAll('#', '');
-    return Color(int.parse('FF$hex', radix: 16));
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return const Color(0xFFFFA000);
+      case 'in_progress':
+        return const Color(0xFF2196F3);
+      case 'completed':
+        return const Color(0xFF4CAF50);
+      case 'cancelled':
+        return const Color(0xFFF44336);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getCardColor(String status, bool isDark) {
+    switch (status) {
+      case 'pending':
+        return isDark ? const Color(0xFF2D2416) : const Color(0xFFFFF8E1);
+      case 'in_progress':
+        return isDark ? const Color(0xFF1A2332) : const Color(0xFFE3F2FD);
+      case 'completed':
+        return isDark ? const Color(0xFF1B2E1F) : const Color(0xFFE8F5E9);
+      case 'cancelled':
+        return isDark ? const Color(0xFF2E1C1C) : const Color(0xFFFFEBEE);
+      default:
+        return cardColor;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'pending':
+        return Icons.schedule;
+      case 'in_progress':
+        return Icons.autorenew;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.description;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final statusColor = _getStatusColor(request.status);
+    final bgColor = _getCardColor(request.status, isDark);
+    final statusIcon = _getStatusIcon(request.status);
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
-            blurRadius: 8,
+            color: isDark 
+                ? Colors.black.withOpacity(0.2) 
+                : Colors.black.withOpacity(0.04),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(
-              ad.imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: _hexToColor(ad.backgroundColor),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.image,
-                        size: 48,
-                        color: Colors.white.withOpacity(0.7),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => RequestDetailScreen(
+                  request: request,
+                  cardColor: cardColor,
+                  textColor: textColor,
+                  hintColor: hintColor,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.15),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        ad.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                      child: Icon(
+                        statusIcon,
+                        color: statusColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            request.title,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            request.userName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: hintColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            request.userEmail,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: hintColor.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: textColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      color: cardColor,
+                      onSelected: (value) async {
+                        if (value == 'delete') {
+                          onDelete();
+                        } else {
+                          await onStatusUpdate(value, null);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'in_progress',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.autorenew, size: 18, color: Color(0xFF2196F3)),
+                              const SizedBox(width: 8),
+                              Text('Em andamento', style: TextStyle(color: textColor)),
+                            ],
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.7),
+                        PopupMenuItem(
+                          value: 'completed',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle, size: 18, color: Color(0xFF4CAF50)),
+                              const SizedBox(width: 8),
+                              Text('Concluído', style: TextStyle(color: textColor)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'cancelled',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cancel, size: 18, color: Color(0xFFF44336)),
+                              const SizedBox(width: 8),
+                              Text('Cancelar', style: TextStyle(color: textColor)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete, size: 18, color: Colors.red),
+                              const SizedBox(width: 8),
+                              const Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    ad.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark 
+                        ? Colors.white.withOpacity(0.05) 
+                        : Colors.black.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ad.description,
+                  child: Text(
+                    'Template: ${request.templateName}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.9),
+                      color: hintColor,
+                      fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: hintColor.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDate(request.createdAt),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: hintColor.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryCard extends StatelessWidget {
-  final DocumentCategory category;
-  final String name;
-  final String description;
-  final String icon;
-  final Color color;
-  final VoidCallback onTap;
-  final bool isDark;
-  final Color cardColor;
-  final Color textColor;
-
-  const _CategoryCard({
-    required this.category,
-    required this.name,
-    required this.description,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    required this.isDark,
-    required this.cardColor,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: SvgPicture.string(
-                  icon,
-                  width: 32,
-                  height: 32,
-                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                name,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ),
         ),
       ),
@@ -772,120 +488,299 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-class _TemplateCard extends StatelessWidget {
-  final DocumentTemplate template;
-  final VoidCallback onTap;
-  final bool isDark;
+class RequestDetailScreen extends StatelessWidget {
+  final DocumentRequest request;
   final Color cardColor;
   final Color textColor;
+  final Color hintColor;
 
-  const _TemplateCard({
-    required this.template,
-    required this.onTap,
-    required this.isDark,
+  const RequestDetailScreen({
+    super.key,
+    required this.request,
     required this.cardColor,
     required this.textColor,
+    required this.hintColor,
   });
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return const Color(0xFFFFA000);
+      case 'in_progress':
+        return const Color(0xFF2196F3);
+      case 'completed':
+        return const Color(0xFF4CAF50);
+      case 'cancelled':
+        return const Color(0xFFF44336);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendente';
+      case 'in_progress':
+        return 'Em andamento';
+      case 'completed':
+        return 'Concluído';
+      case 'cancelled':
+        return 'Cancelado';
+      default:
+        return status;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'pending':
+        return Icons.schedule;
+      case 'in_progress':
+        return Icons.autorenew;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.description;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final statusColor = _getStatusColor(request.status);
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: cardColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(CustomIcons.arrowLeft, color: textColor, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Detalhes da Solicitação',
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            height: 0.5,
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _getStatusIcon(request.status),
+                      color: statusColor,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.title,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _getStatusLabel(request.status),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildSection(
+              context,
+              'Template',
+              request.templateName,
+              Icons.description,
+              isDark,
+            ),
+            const SizedBox(height: 16),
+            _buildSection(
+              context,
+              'Descrição',
+              request.description,
+              Icons.text_snippet,
+              isDark,
+            ),
+            if (request.adminNotes != null) ...[
+              const SizedBox(height: 16),
+              _buildSection(
+                context,
+                'Notas do Admin',
+                request.adminNotes!,
+                Icons.admin_panel_settings,
+                isDark,
+                const Color(0xFF2196F3),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark 
+                          ? Colors.black.withOpacity(0.2) 
+                          : Colors.black.withOpacity(0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 20,
+                      color: hintColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Criado em: ${_formatDate(request.createdAt)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: hintColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(
+    BuildContext context,
+    String title,
+    String content,
+    IconData icon,
+    bool isDark, [
+    Color? accentColor,
+  ]) {
+    final Color sectionColor = accentColor ?? textColor;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-              blurRadius: 8,
+              color: isDark 
+                  ? Colors.black.withOpacity(0.2) 
+                  : Colors.black.withOpacity(0.04),
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  template.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F2F5),
-                      child: Center(
-                        child: SvgPicture.string(
-                          CustomIcons.image,
-                          width: 48,
-                          height: 48,
-                          colorFilter: ColorFilter.mode(
-                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: sectionColor,
                 ),
-              ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: sectionColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
-            Padding(
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    template.name,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    template.description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (template.usageCount > 0) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        SvgPicture.string(
-                          CustomIcons.star,
-                          width: 12,
-                          height: 12,
-                          colorFilter: const ColorFilter.mode(
-                            Color(0xFFFFA000),
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${template.usageCount} usos',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+              decoration: BoxDecoration(
+                color: hintColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                content,
+                style: TextStyle(
+                  color: hintColor,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
