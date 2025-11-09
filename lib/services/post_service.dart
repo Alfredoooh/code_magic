@@ -20,7 +20,7 @@ class PostService {
   Stream<List<Post>> get stream => _controller.stream;
 
   // ENDPOINT DA SUA API
-  static const _apiBaseUrl = 'https://data-9v20.onrender.com';
+  static const _apiBaseUrl = 'https://data-ekoe.onrender.com';
 
   StreamSubscription<QuerySnapshot>? _postsSub;
   Timer? _newsTimer;
