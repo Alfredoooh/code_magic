@@ -18,10 +18,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String selectedCategory = 'Todos';
   List<Map<String, dynamic>> allBooks = [];
   bool isLoading = true;
+  bool isLoadingMore = false;
   String? error;
+  int _currentFile = 1;
+  bool _hasMoreBooks = true;
+  final ScrollController _scrollController = ScrollController();
 
-  // URL da sua API
-  static const String _apiBaseUrl = 'https://data-ekoe.onrender.com';
+  // NOVO ENDPOINT DO GITHUB
+  static const String _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
   final List<Map<String, dynamic>> categories = [
     {'name': 'Todos', 'icon': CustomIcons.globe},
@@ -42,12 +46,41 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   void initState() {
     super.initState();
     _fetchAllBooks();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 500) {
+      if (!isLoadingMore && _hasMoreBooks) {
+        _loadMoreBooks();
+      }
+    }
+  }
+
+  Future<void> _loadMoreBooks() async {
+    if (isLoadingMore || !_hasMoreBooks) return;
+
+    setState(() => isLoadingMore = true);
+
+    print('📥 Carregando mais livros...');
+    await _fetchBooksFromAPI();
+
+    setState(() => isLoadingMore = false);
   }
 
   Future<void> _fetchAllBooks() async {
     setState(() {
       isLoading = true;
       error = null;
+      _currentFile = 1;
+      _hasMoreBooks = true;
+      allBooks.clear();
     });
 
     print('');
@@ -57,18 +90,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     print('♾️ Modo infinito ativado');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    final List<Map<String, dynamic>> loadedBooks = [];
+    await _fetchBooksFromAPI();
+
+    setState(() => isLoading = false);
+  }
+
+  Future<void> _fetchBooksFromAPI() async {
     int consecutiveErrors = 0;
-    int filesLoaded = 0;
-    int currentFile = 1;
     const maxConsecutiveErrors = 3;
-    const maxFiles = 20;
+    int filesLoaded = 0;
+    final List<Map<String, dynamic>> loadedBooks = [];
 
     try {
-      // Busca livros até encontrar 3 erros consecutivos ou atingir limite
-      while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < maxFiles) {
-        final url = '$_apiBaseUrl/books/book$currentFile.json';
-        print('🔍 Tentando: book$currentFile.json');
+      // Carrega até 5 arquivos por vez ou encontrar 3 erros consecutivos
+      while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < 5 && _hasMoreBooks) {
+        final url = '$_apiBaseUrl/books/book$_currentFile.json';
+        print('🔍 Tentando: book$_currentFile.json');
         print('   URL: $url');
 
         try {
@@ -86,17 +123,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
               // Tenta diferentes formatos possíveis
               List? books;
-              
-              // Formato 1: { "books": [...] }
+
               if (data['books'] != null) {
                 books = data['books'] as List?;
-              }
-              // Formato 2: Array direto [...]
-              else if (data is List) {
+              } else if (data is List) {
                 books = data;
-              }
-              // Formato 3: { "data": [...] }
-              else if (data['data'] != null) {
+              } else if (data['data'] != null) {
                 books = data['data'] as List?;
               }
 
@@ -105,18 +137,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 filesLoaded++;
                 consecutiveErrors = 0;
 
-                // Processa cada livro
                 for (var i = 0; i < books.length; i++) {
                   final book = books[i];
-                  
+
                   try {
-                    // Debug do livro
                     final title = book['title'] ?? book['name'] ?? 'Sem título';
                     print('   📖 Livro $i: ${title.length > 40 ? title.substring(0, 40) : title}...');
-                    
-                    // Normaliza os dados do livro
+
                     final normalizedBook = {
-                      'id': book['id'] ?? book['isbn'] ?? 'book_${currentFile}_$i',
+                      'id': book['id'] ?? book['isbn'] ?? 'book_${_currentFile}_$i',
                       'title': title,
                       'author': book['author'] ?? book['authors'] ?? 'Autor desconhecido',
                       'category': book['category'] ?? book['genre'] ?? 'Outros',
@@ -134,37 +163,36 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       'inStock': book['inStock'] ?? true,
                     };
 
-                    // Validação básica
                     if (normalizedBook['title'] != 'Sem título') {
                       loadedBooks.add(normalizedBook);
-                      
+
                       if (normalizedBook['coverImageURL'] != null) {
                         print('      🖼️ Capa: ${normalizedBook['coverImageURL']}');
                       } else {
                         print('      ⚠️ Sem imagem de capa');
                       }
-                      
+
                       if (normalizedBook['digitalPrice'] != null) {
                         print('      💰 Preço: ${normalizedBook['digitalPrice']} Kz');
                       }
-                      
+
                       print('      ✅ Livro adicionado');
                     } else {
                       print('      ⚠️ Livro sem título válido, ignorado');
                     }
-                    
+
                   } catch (e) {
                     print('      ❌ Erro ao processar livro: $e');
                   }
                 }
 
-                currentFile++;
+                _currentFile++;
               } else {
                 print('   ⚠️ Array de livros vazio ou não encontrado');
                 consecutiveErrors++;
-                currentFile++;
+                _currentFile++;
               }
-              
+
             } catch (e) {
               print('   ❌ Erro ao fazer parse do JSON: $e');
               print('   Body (primeiros 300 caracteres):');
@@ -173,84 +201,89 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   : response.body;
               print('   $bodyPreview...');
               consecutiveErrors++;
-              currentFile++;
+              _currentFile++;
             }
-            
+
           } else if (response.statusCode == 404) {
             print('   ⚠️ Arquivo não existe (404)');
             consecutiveErrors++;
-            currentFile++;
           } else {
             print('   ⚠️ Erro HTTP ${response.statusCode}');
-            print('   Body: ${response.body}');
             consecutiveErrors++;
-            currentFile++;
+            _currentFile++;
           }
-          
+
         } catch (e) {
           print('   ❌ Erro de rede: $e');
           consecutiveErrors++;
-          currentFile++;
+          if (consecutiveErrors < maxConsecutiveErrors) {
+            _currentFile++;
+          }
         }
 
-        // Pequeno delay entre requisições
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
+      if (consecutiveErrors >= maxConsecutiveErrors) {
+        print('🛑 Limite de erros atingido - Fim dos livros');
+        _hasMoreBooks = false;
       }
 
       print('');
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
+
       if (loadedBooks.isEmpty) {
-        print('❌ NENHUM LIVRO CARREGADO!');
-        print('   Possíveis causas:');
-        print('   1. API não está respondendo');
-        print('   2. Formato JSON diferente do esperado');
-        print('   3. Arquivos não existem no servidor');
-        print('');
-        print('   Próximo arquivo seria: book$currentFile.json');
-        
-        setState(() {
-          error = 'Nenhum livro disponível no momento.\nVerifique sua conexão e tente novamente.';
-          isLoading = false;
-        });
+        if (allBooks.isEmpty) {
+          print('❌ NENHUM LIVRO CARREGADO!');
+          print('   Possíveis causas:');
+          print('   1. API não está respondendo');
+          print('   2. Formato JSON diferente do esperado');
+          print('   3. Arquivos não existem no servidor');
+          print('');
+          print('   Próximo arquivo seria: book$_currentFile.json');
+
+          if (mounted) {
+            setState(() {
+              error = 'Nenhum livro disponível no momento.\nVerifique sua conexão e tente novamente.';
+            });
+          }
+        } else {
+          print('⚠️ Nenhum livro novo carregado, mantendo ${allBooks.length} livros anteriores');
+        }
       } else {
-        print('✅ ${loadedBooks.length} LIVROS CARREGADOS COM SUCESSO!');
+        print('✅ ${loadedBooks.length} NOVOS LIVROS CARREGADOS!');
         print('📂 $filesLoaded arquivos processados');
-        print('🔜 Próximo arquivo: book$currentFile.json');
-        
-        // Estatísticas
+        print('📦 Total de livros: ${allBooks.length + loadedBooks.length}');
+        print('🔜 Próximo arquivo: book$_currentFile.json');
+
+        // Estatísticas dos novos livros
         final withImages = loadedBooks.where((b) => b['coverImageURL'] != null).length;
         final withPrice = loadedBooks.where((b) => b['digitalPrice'] != null).length;
         print('');
-        print('📊 Estatísticas:');
+        print('📊 Estatísticas (novos livros):');
         print('   🖼️ Com imagem: $withImages/${loadedBooks.length}');
         print('   💰 Com preço: $withPrice/${loadedBooks.length}');
-        
-        // Categorias únicas
-        final categoriesSet = loadedBooks
-            .map((b) => b['category'] as String?)
-            .where((c) => c != null)
-            .toSet();
-        print('   📑 Categorias: ${categoriesSet.length} (${categoriesSet.join(", ")})');
-        
-        setState(() {
-          allBooks = loadedBooks;
-          isLoading = false;
-        });
+
+        if (mounted) {
+          setState(() {
+            allBooks.addAll(loadedBooks);
+          });
+        }
       }
-      
+
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       print('');
-      
+
     } catch (e) {
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       print('❌ ERRO CRÍTICO: $e');
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      setState(() {
-        error = 'Erro ao carregar livros: $e';
-        isLoading = false;
-      });
+
+      if (mounted && allBooks.isEmpty) {
+        setState(() {
+          error = 'Erro ao carregar livros: $e';
+        });
+      }
     }
   }
 
@@ -274,8 +307,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
-          // Header com informações
+          // Header
           SliverToBoxAdapter(
             child: Container(
               color: bgColor,
@@ -330,7 +364,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     final int count = category['name'] == 'Todos'
                         ? allBooks.length
                         : allBooks.where((b) => b['category'] == category['name']).length;
-                    
+
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: _buildCategoryChip(
@@ -372,7 +406,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
               ),
             )
-          else if (error != null)
+          else if (error != null && allBooks.isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Padding(
@@ -487,7 +521,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Capa do livro
                             ClipRRect(
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(12),
@@ -519,7 +552,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                           );
                                         },
                                         errorBuilder: (ctx, err, st) {
-                                          print('❌ Erro ao carregar capa: $err');
                                           return Container(
                                             color: isDark
                                                 ? const Color(0xFF3A3B3C)
@@ -571,8 +603,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                       ),
                               ),
                             ),
-                            
-                            // Informações do livro
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.all(12),
@@ -624,6 +654,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     );
                   },
                   childCount: filteredBooks.length,
+                ),
+              ),
+            ),
+
+          // Loading indicator no final
+          if (isLoadingMore)
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                alignment: Alignment.center,
+                child: const Column(
+                  children: [
+                    CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Carregando mais livros...',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                 ),
               ),
             ),
