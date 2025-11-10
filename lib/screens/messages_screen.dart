@@ -105,69 +105,65 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                 child: LinearProgressIndicator(),
               )
             : PreferredSize(
-                preferredSize: const Size.fromHeight(64),
-                child: Column(
-                  children: [
-                    // linha fina separadora
-                    Container(
-                      color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA),
-                      height: 0.5,
-                    ),
-                    // espaço e fundo arredondado para as tabs (estilo pílula)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFECECEC),
-                          borderRadius: BorderRadius.circular(28),
+                // diminuir a altura do container das tabs para que não fique longo demais
+                preferredSize: const Size.fromHeight(52),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Container(
+                      // reduz o padding vertical para diminuir a altura
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFECECEC),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        // indicador em forma de pílula para a tab seleccionada
+                        indicator: BoxDecoration(
+                          color: const Color(0xFF1877F2),
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.18 : 0.08),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: TabBar(
-                          controller: _tabController,
-                          // indicador em forma de pílula para a tab seleccionada
-                          indicator: BoxDecoration(
-                            color: const Color(0xFF1877F2),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          // espaçamento entre o indicador e o contêiner
-                          indicatorPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          labelColor: Colors.white,
-                          unselectedLabelColor: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                          labelStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                          unselectedLabelStyle: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                          // dá algum padding horizontal às labels para formar a "pílula"
-                          labelPadding: const EdgeInsets.symmetric(horizontal: 18),
-                          isScrollable: true,
-                          tabs: _isAdmin
-                              ? const [
-                                  Tab(text: 'Emails'),
-                                  Tab(text: 'Usuários'),
-                                  Tab(text: 'Enviar'),
-                                  Tab(text: 'Pedidos'),
-                                  Tab(text: 'Templates'),
-                                ]
-                              : const [
-                                  Tab(text: 'Inbox'),
-                                  Tab(text: 'Meus Pedidos'),
-                                ],
+                        // diminui o espaçamento do indicador para ficar mais compacto
+                        indicatorPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
                         ),
+                        unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        // padding horizontal menor para as labels ficarem compactas
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+                        // torna scrollable apenas se for admin (muitos tabs)
+                        isScrollable: _isAdmin,
+                        tabs: _isAdmin
+                            ? const [
+                                Tab(text: 'Emails'),
+                                Tab(text: 'Usuários'),
+                                Tab(text: 'Enviar'),
+                                Tab(text: 'Pedidos'),
+                                Tab(text: 'Templates'),
+                              ]
+                            : const [
+                                Tab(text: 'Inbox'),
+                                Tab(text: 'Meus Pedidos'),
+                              ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
       ),
