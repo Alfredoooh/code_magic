@@ -255,40 +255,35 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }).toList();
   }
 
-  // Divide livros em grupos para scroll horizontal
   List<List<Map<String, dynamic>>> _getBooksInGroups() {
     final books = filteredBooks;
     List<List<Map<String, dynamic>>> groups = [];
-    
+
     if (selectedCategory == 'Todos') {
-      // Para "Todos", agrupa por categoria
       final categoryMap = <String, List<Map<String, dynamic>>>{};
-      
+
       for (var book in books) {
         final cat = book['category'] ?? 'Outros';
         categoryMap.putIfAbsent(cat, () => []);
         categoryMap[cat]!.add(book);
       }
-      
-      // Adiciona grupos de categorias com mais de 3 livros
+
       categoryMap.forEach((category, booksInCat) {
         if (booksInCat.length >= 3) {
           groups.add(booksInCat);
         }
       });
-      
-      // Se houver livros restantes, adiciona em grupo geral
+
       if (groups.isEmpty && books.isNotEmpty) {
         groups.add(books);
       }
     } else {
-      // Para categoria específica, divide em grupos de 6
       for (var i = 0; i < books.length; i += 6) {
         final end = (i + 6 < books.length) ? i + 6 : books.length;
         groups.add(books.sublist(i, end));
       }
     }
-    
+
     return groups;
   }
 
@@ -313,7 +308,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Categorias
           if (!isLoading && allBooks.isNotEmpty)
             SliverToBoxAdapter(
               child: Container(
@@ -345,7 +339,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
 
-          // Conteúdo
           if (isLoading)
             const SliverFillRemaining(
               child: Center(
@@ -445,14 +438,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 (context, groupIndex) {
                   final groups = _getBooksInGroups();
                   if (groupIndex >= groups.length) return null;
-                  
+
                   final group = groups[groupIndex];
                   final groupTitle = _getGroupTitle(group, groupIndex);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Título da seção
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                         child: Row(
@@ -488,7 +480,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                       ),
 
-                      // Lista horizontal com animação
                       SizedBox(
                         height: 280,
                         child: TweenAnimationBuilder<double>(
@@ -592,7 +583,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagem da capa
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
@@ -677,7 +667,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
 
-            // Informações do livro
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -840,28 +829,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class SvgIcon extends StatelessWidget {
-  final String svgString;
-  final Color color;
-  final double size;
-
-  const SvgIcon({
-    super.key,
-    required this.svgString,
-    required this.color,
-    this.size = 24,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.category,
-      size: size,
-      color: color,
     );
   }
 }
