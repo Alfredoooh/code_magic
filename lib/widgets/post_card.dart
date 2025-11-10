@@ -6,8 +6,6 @@ import '../models/post_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
-import '../widgets/expandable_link_text.dart';
-import '../services/image_service.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/user_detail_screen.dart';
 import '../screens/video_detail_screen.dart';
@@ -53,7 +51,7 @@ class PostCard extends StatelessWidget {
         children: [
           // Header - Instagram Style
           InkWell(
-            onTap: () {
+            onTap: post.isNews ? null : () {
               Navigator.of(context).push(
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => 
@@ -73,15 +71,21 @@ class PostCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  // Avatar com gradiente Instagram
+                  // Avatar
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF)],
-                        begin: Alignment.topRight,
-                        end: Alignment.bottomLeft,
-                      ),
+                      gradient: post.isNews
+                          ? const LinearGradient(
+                              colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                            )
+                          : const LinearGradient(
+                              colors: [Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF)],
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                            ),
                     ),
                     padding: const EdgeInsets.all(2),
                     child: Container(
@@ -98,11 +102,11 @@ class PostCard extends StatelessWidget {
                             : null,
                         child: post.userAvatar == null
                             ? Text(
-                                post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+                                post.isNews ? '📰' : (post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U'),
                                 style: TextStyle(
                                   color: textColor,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                  fontSize: post.isNews ? 16 : 14,
                                 ),
                               )
                             : null,
@@ -114,26 +118,50 @@ class PostCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                post.userName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: textColor,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (post.isNews) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF9800),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'NEWS',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         Text(
-                          post.userName,
+                          _formatTimestamp(post.timestamp),
                           style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: textColor,
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFFA8A8A8) : const Color(0xFF737373),
                           ),
                         ),
-                        if (post.isNews)
-                          Text(
-                            _formatTimestamp(post.timestamp),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? const Color(0xFFA8A8A8) : const Color(0xFF737373),
-                            ),
-                          ),
                       ],
                     ),
                   ),
-                  if (auth.user?.uid == post.userId)
+                  if (auth.user?.uid == post.userId && !post.isNews)
                     IconButton(
                       icon: SvgIcon(
                         svgString: CustomIcons.moreVert,
@@ -147,7 +175,7 @@ class PostCard extends StatelessWidget {
             ),
           ),
 
-          // Vídeo - Apenas Thumbnail
+          // Vídeo
           if (post.videoUrl != null)
             GestureDetector(
               onTap: () {
@@ -202,7 +230,7 @@ class PostCard extends StatelessWidget {
                 ],
               ),
             )
-          // Imagem
+          // Imagem Base64 (posts de usuários)
           else if (post.imageBase64 != null)
             GestureDetector(
               onTap: () => postService.openImageViewer(
@@ -215,35 +243,117 @@ class PostCard extends StatelessWidget {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
+                  print('❌ Erro ao carregar imagem base64: $error');
                   return Container(
                     height: 400,
                     color: isDark ? const Color(0xFF262626) : const Color(0xFFFAFAFA),
                     child: Center(
-                      child: SvgIcon(
-                        svgString: CustomIcons.warning,
-                        size: 48,
-                        color: Colors.grey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgIcon(
+                            svgString: CustomIcons.warning,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Erro ao carregar imagem',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey : Colors.black54,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
                 },
               ),
             )
+          // Imagem URL (notícias da API)
           else if (post.imageUrls != null && post.imageUrls!.isNotEmpty)
             GestureDetector(
-              onTap: () => postService.openImageViewer(
-                context,
-                post.imageUrls!,
-                post.imageUrls!.first,
-              ),
-              child: ImageService.buildImageFromUrl(
+              onTap: () {
+                if (post.newsUrl?.isNotEmpty == true) {
+                  // Aqui você pode abrir a URL da notícia em um navegador
+                  print('🔗 Abrir notícia: ${post.newsUrl}');
+                }
+              },
+              child: Image.network(
                 post.imageUrls!.first,
                 width: double.infinity,
+                height: 400,
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 400,
+                    color: isDark ? const Color(0xFF262626) : const Color(0xFFFAFAFA),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF9800)),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Carregando imagem...',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey : Colors.black54,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  print('❌ Erro ao carregar imagem da notícia: $error');
+                  print('   URL: ${post.imageUrls!.first}');
+                  return Container(
+                    height: 400,
+                    color: isDark ? const Color(0xFF262626) : const Color(0xFFFAFAFA),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgIcon(
+                            svgString: CustomIcons.warning,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Imagem indisponível',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey : Colors.black54,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Toque para ver a notícia',
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFFAAAAAA),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
 
-          // Actions Bar - Instagram Style
+          // Actions Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
@@ -252,10 +362,13 @@ class PostCard extends StatelessWidget {
                   onTap: post.isNews || auth.user == null
                       ? null
                       : () => postService.toggleLike(post.id, auth.user!.uid),
-                  child: SvgIcon(
-                    svgString: isLiked ? CustomIcons.thumbUp : CustomIcons.thumbUpOutlined,
-                    color: isLiked ? Colors.red : textColor,
-                    size: 28,
+                  child: Opacity(
+                    opacity: post.isNews ? 0.5 : 1.0,
+                    child: SvgIcon(
+                      svgString: isLiked ? CustomIcons.thumbUp : CustomIcons.thumbUpOutlined,
+                      color: isLiked ? Colors.red : textColor,
+                      size: 28,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 18),
@@ -279,24 +392,60 @@ class PostCard extends StatelessWidget {
                 const SizedBox(width: 18),
                 InkWell(
                   onTap: post.isNews ? null : () => postService.sharePost(post),
-                  child: SvgIcon(
-                    svgString: CustomIcons.shareOutlined,
-                    color: textColor,
-                    size: 26,
+                  child: Opacity(
+                    opacity: post.isNews ? 0.5 : 1.0,
+                    child: SvgIcon(
+                      svgString: CustomIcons.shareOutlined,
+                      color: textColor,
+                      size: 26,
+                    ),
                   ),
                 ),
                 const Spacer(),
-                SvgIcon(
-                  svgString: CustomIcons.star,
-                  color: textColor,
-                  size: 26,
-                ),
+                if (post.newsUrl?.isNotEmpty == true)
+                  InkWell(
+                    onTap: () {
+                      print('🔗 Abrir notícia original: ${post.newsUrl}');
+                      // Implementar abertura de URL aqui
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9800),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        children: [
+                          Text(
+                            'Ver notícia',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.open_in_new,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  SvgIcon(
+                    svgString: CustomIcons.star,
+                    color: textColor,
+                    size: 26,
+                  ),
               ],
             ),
           ),
 
           // Likes Count
-          if (post.likes > 0)
+          if (post.likes > 0 && !post.isNews)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
@@ -324,41 +473,44 @@ class PostCard extends StatelessWidget {
                         fontSize: 16,
                         color: textColor,
                       ),
-                      maxLines: 2,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                   if (post.isNews && post.summary != null && post.summary!.isNotEmpty || !post.isNews && post.content.isNotEmpty)
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          if (!post.isNews)
+                    Padding(
+                      padding: EdgeInsets.only(top: post.isNews && post.title != null ? 4 : 0),
+                      child: RichText(
+                        text: TextSpan(
+                          children: [
+                            if (!post.isNews)
+                              TextSpan(
+                                text: '${post.userName} ',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: textColor,
+                                ),
+                              ),
                             TextSpan(
-                              text: '${post.userName} ',
+                              text: post.isNews ? post.summary : post.content,
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
                                 fontSize: 14,
                                 color: textColor,
+                                height: 1.3,
                               ),
                             ),
-                          TextSpan(
-                            text: post.isNews ? post.summary : post.content,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: textColor,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
             ),
 
           // Comments Preview
-          if (post.comments > 0)
+          if (post.comments > 0 && !post.isNews)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
               child: InkWell(
