@@ -22,49 +22,171 @@ class AvatarGalleryScreen extends StatefulWidget {
 class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
   List<AvatarImage> _avatars = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   String? _selectedAvatarUrl;
+  int _currentFile = 1;
+  bool _hasMoreAvatars = true;
+  final ScrollController _scrollController = ScrollController();
+
+  // NOVO ENDPOINT DO GITHUB
+  static const _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
   @override
   void initState() {
     super.initState();
     _selectedAvatarUrl = widget.currentAvatarUrl;
     _loadAvatars();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && _hasMoreAvatars) {
+        _loadMoreAvatars();
+      }
+    }
   }
 
   Future<void> _loadAvatars() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _currentFile = 1;
+      _hasMoreAvatars = true;
+      _avatars.clear();
+    });
+
+    print('');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('🎭 CARREGANDO AVATARES DA API...');
+    print('🌐 API: $_apiBaseUrl');
+    print('♾️ Sistema infinito ativado');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    await _fetchAvatarsFromAPI();
+
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadMoreAvatars() async {
+    if (_isLoadingMore || !_hasMoreAvatars) return;
+
+    setState(() => _isLoadingMore = true);
+
+    print('📥 Carregando mais avatares...');
+    await _fetchAvatarsFromAPI();
+
+    setState(() => _isLoadingMore = false);
+  }
+
+  Future<void> _fetchAvatarsFromAPI() async {
+    int consecutiveErrors = 0;
+    const maxConsecutiveErrors = 3;
+    int filesLoaded = 0;
+    final List<AvatarImage> loadedAvatars = [];
 
     try {
-      // URL do JSON hospedado - SUBSTITUA PELA SUA URL REAL
-      const avatarJsonUrl = 'https://data-ekoe.onrender.com/avatars/avatar1.json';
+      // Carrega até encontrar 3 erros consecutivos
+      while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < 5) {
+        final url = '$_apiBaseUrl/avatars/avatar$_currentFile.json';
+        print('🔍 Tentando: avatar$_currentFile.json');
+        print('   URL: $url');
 
-      final response = await http.get(Uri.parse(avatarJsonUrl)).timeout(
-        const Duration(seconds: 5),
-      );
+        try {
+          final response = await http
+              .get(Uri.parse(url))
+              .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final avatarsList = data['avatars'] as List;
-        
-        if (avatarsList.isNotEmpty) {
-          setState(() {
-            _avatars = avatarsList
-                .map((avatar) => AvatarImage.fromJson(avatar))
-                .toList();
-          });
-        } else {
-          // JSON vazio, sem avatares
-          setState(() => _avatars = []);
+          print('   Status: ${response.statusCode}');
+
+          if (response.statusCode == 200) {
+            try {
+              final data = json.decode(response.body);
+              print('   ✅ JSON parseado com sucesso');
+
+              final List? avatarsList = data['avatars'];
+
+              if (avatarsList != null && avatarsList.isNotEmpty) {
+                print('   ✅ ${avatarsList.length} avatares encontrados');
+                filesLoaded++;
+                consecutiveErrors = 0;
+
+                for (var i = 0; i < avatarsList.length; i++) {
+                  try {
+                    final avatar = AvatarImage.fromJson(avatarsList[i]);
+                    loadedAvatars.add(avatar);
+                    print('      🎭 Avatar $i: ${avatar.name}');
+                  } catch (e) {
+                    print('      ❌ Erro ao processar avatar $i: $e');
+                  }
+                }
+
+                _currentFile++;
+              } else {
+                print('   ⚠️ Array de avatares vazio');
+                consecutiveErrors++;
+                _currentFile++;
+              }
+            } catch (e) {
+              print('   ❌ Erro ao fazer parse do JSON: $e');
+              consecutiveErrors++;
+              _currentFile++;
+            }
+          } else if (response.statusCode == 404) {
+            print('   ⚠️ Arquivo não existe (404)');
+            consecutiveErrors++;
+          } else {
+            print('   ⚠️ Erro HTTP ${response.statusCode}');
+            consecutiveErrors++;
+            _currentFile++;
+          }
+        } catch (e) {
+          print('   ❌ Erro de rede: $e');
+          consecutiveErrors++;
+          if (consecutiveErrors < maxConsecutiveErrors) {
+            _currentFile++;
+          }
         }
-      } else {
-        // Erro HTTP, sem avatares
-        setState(() => _avatars = []);
+
+        await Future.delayed(const Duration(milliseconds: 300));
       }
+
+      if (consecutiveErrors >= maxConsecutiveErrors) {
+        print('🛑 Limite de erros atingido - Fim dos avatares');
+        _hasMoreAvatars = false;
+      }
+
+      print('');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      if (loadedAvatars.isNotEmpty) {
+        print('✅ ${loadedAvatars.length} NOVOS AVATARES CARREGADOS!');
+        print('📂 $filesLoaded arquivos processados');
+        print('📦 Total de avatares: ${_avatars.length + loadedAvatars.length}');
+        print('🔜 Próximo arquivo: avatar$_currentFile.json');
+
+        setState(() {
+          _avatars.addAll(loadedAvatars);
+        });
+      } else {
+        print('⚠️ Nenhum avatar novo carregado');
+        if (_avatars.isEmpty) {
+          print('❌ Nenhum avatar disponível');
+        }
+      }
+
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('');
+
     } catch (e) {
-      // Erro de rede ou timeout, sem avatares
-      setState(() => _avatars = []);
-    } finally {
-      setState(() => _isLoading = false);
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('❌ ERRO CRÍTICO: $e');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
   }
 
@@ -124,8 +246,18 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Carregando avatares...',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
             )
           : _avatars.isEmpty
@@ -146,6 +278,16 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           color: hintColor,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _loadAvatars,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Tentar Novamente'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1877F2),
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ],
@@ -187,7 +329,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                '${_avatars.length} avatares disponíveis. Toque para selecionar.',
+                                '${_avatars.length} avatares disponíveis. Role para carregar mais.',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: textColor,
@@ -201,14 +343,29 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                     ),
                     Expanded(
                       child: GridView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 4,
                           mainAxisSpacing: 16,
                           crossAxisSpacing: 16,
                         ),
-                        itemCount: _avatars.length,
+                        itemCount: _avatars.length + (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          if (index == _avatars.length) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF1877F2),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
                           final avatar = _avatars[index];
                           final isSelected = _selectedAvatarUrl == avatar.imageUrl;
 
