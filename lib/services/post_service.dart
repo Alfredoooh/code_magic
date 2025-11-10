@@ -19,8 +19,8 @@ class PostService {
 
   Stream<List<Post>> get stream => _controller.stream;
 
-  // ENDPOINT DA SUA API
-  static const _apiBaseUrl = 'https://data-ekoe.onrender.com';
+  // NOVO ENDPOINT DO GITHUB
+  static const _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
   StreamSubscription<QuerySnapshot>? _postsSub;
   Timer? _newsTimer;
@@ -30,6 +30,7 @@ class PostService {
   FeedFilter _currentFilter = FeedFilter.mixed;
   int _currentNewsFile = 1;
   bool _hasMoreNews = true;
+  bool _isLoadingNews = false;
 
   FeedFilter get currentFilter => _currentFilter;
 
@@ -74,6 +75,13 @@ class PostService {
   }
 
   Future<void> _fetchNewsFromAPI() async {
+    if (_isLoadingNews) {
+      print('⏳ Já existe um carregamento em andamento, aguardando...');
+      return;
+    }
+
+    _isLoadingNews = true;
+
     print('');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     print('📰 BUSCANDO NOTÍCIAS DA API...');
@@ -82,11 +90,11 @@ class PostService {
     final List<Post> results = [];
     int consecutiveErrors = 0;
     int filesLoaded = 0;
-    const maxFiles = 10;
     const maxConsecutiveErrors = 3;
 
     try {
-      while (_hasMoreNews && filesLoaded < maxFiles && consecutiveErrors < maxConsecutiveErrors) {
+      // Carrega TODOS os arquivos disponíveis (infinito)
+      while (_hasMoreNews && consecutiveErrors < maxConsecutiveErrors) {
         final url = '$_apiBaseUrl/news/news$_currentNewsFile.json';
         print('🔍 Tentando: news$_currentNewsFile.json');
         print('   URL completa: $url');
@@ -105,7 +113,7 @@ class PostService {
               print('   Estrutura: ${json.keys.toList()}');
 
               final List? articles = json['articles'];
-              
+
               if (articles == null) {
                 print('   ⚠️ Campo "articles" não encontrado no JSON');
                 consecutiveErrors++;
@@ -122,15 +130,14 @@ class PostService {
 
               print('   ✅ ${articles.length} artigos encontrados');
               filesLoaded++;
-              consecutiveErrors = 0;
+              consecutiveErrors = 0; // Reset contador de erros
 
               for (var i = 0; i < articles.length; i++) {
                 final article = articles[i];
-                
+
                 try {
-                  // Debug do artigo
                   print('   📄 Artigo $i: ${article['title']?.substring(0, 50) ?? 'sem título'}...');
-                  
+
                   final imageUrl = article['imageUrl'] ?? article['urlToImage'];
                   if (imageUrl != null) {
                     print('      🖼️ Imagem: $imageUrl');
@@ -140,7 +147,7 @@ class PostService {
 
                   final publishedAt = article['publishedAt'];
                   DateTime timestamp;
-                  
+
                   if (publishedAt != null) {
                     try {
                       timestamp = DateTime.parse(publishedAt);
@@ -170,95 +177,111 @@ class PostService {
 
                   results.add(post);
                   print('      ✅ Notícia adicionada');
-                  
+
                 } catch (e) {
                   print('      ❌ Erro ao processar artigo: $e');
                 }
               }
 
+              // Avança para próximo arquivo
               _currentNewsFile++;
-              
+
             } catch (e) {
               print('   ❌ Erro ao fazer parse do JSON: $e');
-              print('   Body: ${resp.body.substring(0, 200)}...');
+              print('   Body preview: ${resp.body.substring(0, resp.body.length > 200 ? 200 : resp.body.length)}...');
               consecutiveErrors++;
               _currentNewsFile++;
             }
-            
+
           } else if (resp.statusCode == 404) {
-            print('   ⚠️ Arquivo não existe (404)');
+            print('   ⚠️ Arquivo não existe (404) - Fim dos arquivos disponíveis');
             consecutiveErrors++;
-            _currentNewsFile++;
+            // Não incrementa _currentNewsFile aqui, aguarda reset
           } else {
             print('   ⚠️ Erro HTTP ${resp.statusCode}');
             print('   Body: ${resp.body}');
             consecutiveErrors++;
             _currentNewsFile++;
           }
-          
+
         } catch (e) {
           print('   ❌ Erro de rede: $e');
           consecutiveErrors++;
-          _currentNewsFile++;
+          if (consecutiveErrors < maxConsecutiveErrors) {
+            _currentNewsFile++;
+          }
         }
 
-        // Pequeno delay entre requisições
-        await Future.delayed(const Duration(milliseconds: 300));
+        // Pequeno delay entre requisições para não sobrecarregar
+        await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      // Reset do contador se necessário
+      // Se atingiu o limite de erros, volta para o início
       if (consecutiveErrors >= maxConsecutiveErrors) {
-        print('🔄 Muitos erros consecutivos, voltando para news1.json');
+        print('🔄 Limite de erros atingido, voltando para news1.json');
         _currentNewsFile = 1;
-        _hasMoreNews = false;
+        _hasMoreNews = true; // Mantém ativo para próxima tentativa
       }
-
-      // Reset para próxima busca
-      Future.delayed(const Duration(minutes: 10), () {
-        _hasMoreNews = true;
-      });
 
       print('');
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
+
       if (results.isEmpty) {
-        print('❌ NENHUMA NOTÍCIA CARREGADA!');
+        print('❌ NENHUMA NOTÍCIA NOVA CARREGADA!');
+        print('   Mantendo notícias anteriores: ${_news.length}');
         print('   Próxima tentativa em 10 minutos');
         print('   Próximo arquivo: news$_currentNewsFile.json');
-        
-        // IMPORTANTE: Não limpa as notícias antigas se falhar
-        if (_news.isEmpty) {
-          _news = [];
-        }
+
+        // Mantém as notícias antigas se falhar
       } else {
+        // Ordena por data mais recente
         results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        _news = results.take(50).toList();
         
+        // Limita a 100 notícias mais recentes para não sobrecarregar
+        _news = results.take(100).toList();
+
         print('✅ ${_news.length} NOTÍCIAS CARREGADAS COM SUCESSO!');
         print('📂 $filesLoaded arquivos processados');
-        print('🔜 Próximo arquivo: news$_currentNewsFile.json');
-        
+        print('🔢 Total de artigos carregados: ${results.length}');
+        print('🔜 Próximo arquivo a tentar: news$_currentNewsFile.json');
+
         // Debug das notícias carregadas
         final newsWithImages = _news.where((n) => n.imageUrls?.isNotEmpty == true).length;
         print('🖼️ Notícias com imagem: $newsWithImages/${_news.length}');
+        
+        // Mostra intervalo de datas
+        if (_news.isNotEmpty) {
+          print('📅 Mais recente: ${_news.first.timestamp}');
+          print('📅 Mais antiga: ${_news.last.timestamp}');
+        }
       }
-      
+
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       print('');
 
       _emitCombined();
-      
+
     } catch (e) {
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       print('❌ ERRO CRÍTICO ao buscar notícias: $e');
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      // Não limpa as notícias antigas em caso de erro crítico
-      if (_news.isEmpty) {
-        _news = [];
-      }
+
+      // Mantém notícias antigas em caso de erro crítico
       _emitCombined();
+    } finally {
+      _isLoadingNews = false;
     }
+  }
+
+  // Método público para carregar mais notícias (scroll infinito)
+  Future<void> loadMoreNews() async {
+    if (!_hasMoreNews || _isLoadingNews) {
+      print('⏸️ Não pode carregar mais notícias agora');
+      return;
+    }
+
+    print('📥 Carregando mais notícias...');
+    await _fetchNewsFromAPI();
   }
 
   void _emitCombined() {
@@ -269,7 +292,7 @@ class PostService {
         // Intercala 2 posts + 1 notícia
         int postIdx = 0;
         int newsIdx = 0;
-        
+
         while (postIdx < _posts.length || newsIdx < _news.length) {
           // Adiciona 2 posts
           for (int i = 0; i < 2 && postIdx < _posts.length; i++) {
@@ -355,9 +378,9 @@ class PostService {
       print('⚠️ Não é possível curtir notícias');
       return;
     }
-    
+
     final docRef = _firestore.collection('posts').doc(postId);
-    
+
     try {
       await _firestore.runTransaction((tx) async {
         final snap = await tx.get(docRef);
@@ -365,11 +388,11 @@ class PostService {
           print('⚠️ Post não encontrado: $postId');
           return;
         }
-        
+
         final data = snap.data()!;
         final likedBy = List<String>.from(data['likedBy'] ?? []);
         final likes = (data['likes'] as int?) ?? 0;
-        
+
         if (likedBy.contains(uid)) {
           likedBy.remove(uid);
           tx.update(docRef, {
@@ -396,7 +419,7 @@ class PostService {
       print('⚠️ Não é possível compartilhar notícias');
       return;
     }
-    
+
     try {
       final ref = _firestore.collection('posts').doc(post.id);
       await ref.update({'shares': FieldValue.increment(1)});
