@@ -1,6 +1,7 @@
 // lib/screens/new_request_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -9,7 +10,6 @@ import '../services/document_service.dart';
 import '../models/document_template_model.dart';
 import '../models/advertisement_model.dart';
 import '../widgets/custom_icons.dart';
-import '../widgets/custom_snackbar.dart';
 import 'document_request_detail_screen.dart';
 
 class NewRequestScreen extends StatefulWidget {
@@ -21,15 +21,14 @@ class NewRequestScreen extends StatefulWidget {
 
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final DocumentService _documentService = DocumentService();
-  final PageController _adPageController = PageController();
+  final PageController _adPageController = PageController(viewportFraction: 0.92);
   Timer? _adTimer;
   int _currentAdPage = 0;
-  
+
   DocumentCategory? _selectedCategory;
   DocumentTemplate? _selectedTemplate;
   bool _showingTemplates = false;
 
-  // Lista de anúncios (depois você vai buscar de uma API)
   final List<Advertisement> _advertisements = [
     Advertisement(
       id: 'ad_001',
@@ -194,12 +193,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   void _selectCategory(DocumentCategory category, bool isDark) {
-    CustomSnackbar.showInfo(
-      context,
-      message: 'Selecionando templates de ${_getCategoryName(category)}',
-      isDark: isDark,
-    );
-
     setState(() {
       _selectedCategory = category;
       _selectedTemplate = null;
@@ -212,10 +205,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       _selectedTemplate = template;
     });
 
-    Navigator.push(
-      context,
+    // Navega em fullscreen
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => DocumentRequestDetailScreen(template: template),
+        fullscreenDialog: true,
       ),
     );
   }
@@ -251,7 +245,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           // Carrossel de Anúncios
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -278,7 +272,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       _advertisements.length,
-                      (index) => Container(
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         width: _currentAdPage == index ? 24 : 8,
                         height: 8,
@@ -294,103 +289,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          // Card de Classificação
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF1877F2).withOpacity(0.1),
-                      const Color(0xFF9C27B0).withOpacity(0.1),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF1877F2).withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1877F2).withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: SvgPicture.string(
-                          CustomIcons.star,
-                          width: 24,
-                          height: 24,
-                          colorFilter: const ColorFilter.mode(
-                            Color(0xFF1877F2),
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Classificação',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFA000),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  '4.8',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Mais de 10.000 documentos criados',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark
-                                  ? const Color(0xFFB0B3B8)
-                                  : const Color(0xFF65676B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),
@@ -592,7 +490,7 @@ class _AdCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
@@ -611,31 +509,6 @@ class _AdCard extends StatelessWidget {
             Image.network(
               ad.imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: _hexToColor(ad.backgroundColor),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.image,
-                        size: 48,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        ad.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              },
             ),
             Container(
               decoration: BoxDecoration(
@@ -725,47 +598,56 @@ class _CategoryCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(16),
+                  shape: BoxShape.circle,
                 ),
-                child: SvgPicture.string(
-                  icon,
-                  width: 32,
-                  height: 32,
-                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                child: Center(
+                  child: SvgPicture.string(
+                    icon,
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                name,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-                textAlign: TextAlign.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -812,22 +694,6 @@ class _TemplateCard extends StatelessWidget {
                 child: Image.network(
                   template.imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F2F5),
-                      child: Center(
-                        child: SvgPicture.string(
-                          CustomIcons.image,
-                          width: 48,
-                          height: 48,
-                          colorFilter: ColorFilter.mode(
-                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
                 ),
               ),
             ),
