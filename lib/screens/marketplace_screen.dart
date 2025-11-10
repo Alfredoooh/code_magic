@@ -24,23 +24,64 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   bool _hasMoreBooks = true;
   final ScrollController _scrollController = ScrollController();
 
-  // NOVO ENDPOINT DO GITHUB
   static const String _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
-  final List<Map<String, dynamic>> categories = [
-    {'name': 'Todos', 'icon': CustomIcons.globe},
-    {'name': 'Investimentos', 'icon': CustomIcons.trendingUp},
-    {'name': 'Trading', 'icon': CustomIcons.chartBar},
-    {'name': 'Finanças Pessoais', 'icon': CustomIcons.wallet},
-    {'name': 'Economia', 'icon': CustomIcons.currencyDollar},
-    {'name': 'Criptomoedas', 'icon': CustomIcons.bitcoin},
-    {'name': 'Análise Técnica', 'icon': CustomIcons.chartLine},
-    {'name': 'Mercado de Ações', 'icon': CustomIcons.buildingLibrary},
-    {'name': 'Empreendedorismo', 'icon': CustomIcons.lightBulb},
-    {'name': 'Biografias', 'icon': CustomIcons.userCircle},
-    {'name': 'Estratégias', 'icon': CustomIcons.puzzle},
-    {'name': 'Educação Financeira', 'icon': CustomIcons.academicCap},
-  ];
+  // Mapeamento de ícones por categoria
+  final Map<String, String> _categoryIcons = {
+    'Investimentos': CustomIcons.trendingUp,
+    'Trading': CustomIcons.chartBar,
+    'Finanças Pessoais': CustomIcons.wallet,
+    'Economia': CustomIcons.currencyDollar,
+    'Criptomoedas': CustomIcons.bitcoin,
+    'Análise Técnica': CustomIcons.chartLine,
+    'Mercado de Ações': CustomIcons.buildingLibrary,
+    'Empreendedorismo': CustomIcons.lightBulb,
+    'Biografias': CustomIcons.userCircle,
+    'Estratégias': CustomIcons.puzzle,
+    'Educação Financeira': CustomIcons.academicCap,
+    'Produtividade': CustomIcons.chartBar,
+    'Desenvolvimento Pessoal': CustomIcons.userCircle,
+    'Psicologia': CustomIcons.lightBulb,
+    'História': CustomIcons.buildingLibrary,
+    'Liderança': CustomIcons.userCircle,
+    'Educação': CustomIcons.academicCap,
+    'Tecnologia': CustomIcons.chartLine,
+    'Bem-estar': CustomIcons.lightBulb,
+  };
+
+  // Categorias dinâmicas extraídas dos livros
+  List<Map<String, dynamic>> get dynamicCategories {
+    final Map<String, int> categoryCount = {};
+    
+    // Conta livros por categoria
+    for (var book in allBooks) {
+      final category = book['category'] as String? ?? 'Outros';
+      categoryCount[category] = (categoryCount[category] ?? 0) + 1;
+    }
+
+    // Cria lista de categorias com ícones
+    List<Map<String, dynamic>> categories = [
+      {
+        'name': 'Todos',
+        'icon': CustomIcons.globe,
+        'count': allBooks.length
+      }
+    ];
+
+    // Ordena categorias por quantidade de livros
+    final sortedCategories = categoryCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    for (var entry in sortedCategories) {
+      categories.add({
+        'name': entry.key,
+        'icon': _categoryIcons[entry.key] ?? CustomIcons.puzzle,
+        'count': entry.value,
+      });
+    }
+
+    return categories;
+  }
 
   @override
   void initState() {
@@ -81,6 +122,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       _currentFile = 1;
       _hasMoreBooks = true;
       allBooks.clear();
+      selectedCategory = 'Todos';
     });
 
     print('');
@@ -102,7 +144,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final List<Map<String, dynamic>> loadedBooks = [];
 
     try {
-      // Carrega até 5 arquivos por vez ou encontrar 3 erros consecutivos
       while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < 5 && _hasMoreBooks) {
         final url = '$_apiBaseUrl/books/book$_currentFile.json';
         print('🔍 Tentando: book$_currentFile.json');
@@ -121,7 +162,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               print('   ✅ JSON parseado com sucesso');
               print('   Estrutura: ${data.keys.toList()}');
 
-              // Tenta diferentes formatos possíveis
               List? books;
 
               if (data['books'] != null) {
@@ -176,6 +216,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         print('      💰 Preço: ${normalizedBook['digitalPrice']} Kz');
                       }
 
+                      print('      📁 Categoria: ${normalizedBook['category']}');
                       print('      ✅ Livro adicionado');
                     } else {
                       print('      ⚠️ Livro sem título válido, ignorado');
@@ -256,13 +297,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         print('📦 Total de livros: ${allBooks.length + loadedBooks.length}');
         print('🔜 Próximo arquivo: book$_currentFile.json');
 
-        // Estatísticas dos novos livros
         final withImages = loadedBooks.where((b) => b['coverImageURL'] != null).length;
         final withPrice = loadedBooks.where((b) => b['digitalPrice'] != null).length;
+        
+        // Conta categorias únicas
+        final categories = loadedBooks.map((b) => b['category']).toSet();
         print('');
         print('📊 Estatísticas (novos livros):');
         print('   🖼️ Com imagem: $withImages/${loadedBooks.length}');
         print('   💰 Com preço: $withPrice/${loadedBooks.length}');
+        print('   📁 Categorias: ${categories.join(', ')}');
 
         if (mounted) {
           setState(() {
@@ -330,7 +374,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${allBooks.length} ${allBooks.length == 1 ? 'livro disponível' : 'livros disponíveis'}',
+                          '${allBooks.length} ${allBooks.length == 1 ? 'livro' : 'livros'} em ${dynamicCategories.length - 1} ${dynamicCategories.length - 1 == 1 ? 'categoria' : 'categorias'}',
                           style: TextStyle(
                             fontSize: 14,
                             color: hintColor,
@@ -350,37 +394,36 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ),
           ),
 
-          // Categorias
-          SliverToBoxAdapter(
-            child: Container(
-              color: bgColor,
-              padding: const EdgeInsets.only(top: 8, bottom: 12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: categories.map((category) {
-                    final bool isSelected = selectedCategory == category['name'];
-                    final int count = category['name'] == 'Todos'
-                        ? allBooks.length
-                        : allBooks.where((b) => b['category'] == category['name']).length;
+          // Categorias Dinâmicas
+          if (!isLoading && allBooks.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Container(
+                color: bgColor,
+                padding: const EdgeInsets.only(top: 8, bottom: 12),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: dynamicCategories.map((category) {
+                      final bool isSelected = selectedCategory == category['name'];
+                      final int count = category['count'] ?? 0;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _buildCategoryChip(
-                        category['name'],
-                        category['icon'],
-                        count,
-                        isSelected,
-                        isDark,
-                        textColor,
-                      ),
-                    );
-                  }).toList(),
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _buildCategoryChip(
+                          category['name'],
+                          category['icon'],
+                          count,
+                          isSelected,
+                          isDark,
+                          textColor,
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
-          ),
 
           // Conteúdo
           if (isLoading)
@@ -399,7 +442,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Isso pode levar alguns segundos',
+                      'Descobrindo categorias automaticamente',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -658,7 +701,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
 
-          // Loading indicator no final
           if (isLoadingMore)
             SliverToBoxAdapter(
               child: Container(
@@ -723,7 +765,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 color: isSelected ? Colors.white : textColor,
               ),
             ),
-            if (count > 0 && !isLoading) ...[
+            if (count > 0) ...[
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
