@@ -1,7 +1,6 @@
-// lib/screens/marketplace_screen.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
@@ -26,7 +25,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   static const String _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
-  // Mapeamento de ícones por categoria
   final Map<String, String> _categoryIcons = {
     'Investimentos': CustomIcons.trendingUp,
     'Trading': CustomIcons.chartBar,
@@ -49,17 +47,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     'Bem-estar': CustomIcons.lightBulb,
   };
 
-  // Categorias dinâmicas extraídas dos livros
   List<Map<String, dynamic>> get dynamicCategories {
     final Map<String, int> categoryCount = {};
-    
-    // Conta livros por categoria
+
     for (var book in allBooks) {
       final category = book['category'] as String? ?? 'Outros';
       categoryCount[category] = (categoryCount[category] ?? 0) + 1;
     }
 
-    // Cria lista de categorias com ícones
     List<Map<String, dynamic>> categories = [
       {
         'name': 'Todos',
@@ -68,7 +63,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       }
     ];
 
-    // Ordena categorias por quantidade de livros
     final sortedCategories = categoryCount.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -109,7 +103,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     setState(() => isLoadingMore = true);
 
-    print('📥 Carregando mais livros...');
     await _fetchBooksFromAPI();
 
     setState(() => isLoadingMore = false);
@@ -125,13 +118,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       selectedCategory = 'Todos';
     });
 
-    print('');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('📚 BUSCANDO LIVROS DA API...');
-    print('🌐 API: $_apiBaseUrl');
-    print('♾️ Modo infinito ativado');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     await _fetchBooksFromAPI();
 
     setState(() => isLoading = false);
@@ -146,21 +132,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     try {
       while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < 5 && _hasMoreBooks) {
         final url = '$_apiBaseUrl/books/book$_currentFile.json';
-        print('🔍 Tentando: book$_currentFile.json');
-        print('   URL: $url');
 
         try {
           final response = await http
               .get(Uri.parse(url))
               .timeout(const Duration(seconds: 15));
 
-          print('   Status: ${response.statusCode}');
-
           if (response.statusCode == 200) {
             try {
               final data = jsonDecode(response.body);
-              print('   ✅ JSON parseado com sucesso');
-              print('   Estrutura: ${data.keys.toList()}');
 
               List? books;
 
@@ -173,7 +153,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               }
 
               if (books != null && books.isNotEmpty) {
-                print('   ✅ ${books.length} livros encontrados');
                 filesLoaded++;
                 consecutiveErrors = 0;
 
@@ -182,7 +161,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
                   try {
                     final title = book['title'] ?? book['name'] ?? 'Sem título';
-                    print('   📖 Livro $i: ${title.length > 40 ? title.substring(0, 40) : title}...');
 
                     final normalizedBook = {
                       'id': book['id'] ?? book['isbn'] ?? 'book_${_currentFile}_$i',
@@ -205,57 +183,32 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
                     if (normalizedBook['title'] != 'Sem título') {
                       loadedBooks.add(normalizedBook);
-
-                      if (normalizedBook['coverImageURL'] != null) {
-                        print('      🖼️ Capa: ${normalizedBook['coverImageURL']}');
-                      } else {
-                        print('      ⚠️ Sem imagem de capa');
-                      }
-
-                      if (normalizedBook['digitalPrice'] != null) {
-                        print('      💰 Preço: ${normalizedBook['digitalPrice']} Kz');
-                      }
-
-                      print('      📁 Categoria: ${normalizedBook['category']}');
-                      print('      ✅ Livro adicionado');
-                    } else {
-                      print('      ⚠️ Livro sem título válido, ignorado');
                     }
 
                   } catch (e) {
-                    print('      ❌ Erro ao processar livro: $e');
+                    // Skip invalid book
                   }
                 }
 
                 _currentFile++;
               } else {
-                print('   ⚠️ Array de livros vazio ou não encontrado');
                 consecutiveErrors++;
                 _currentFile++;
               }
 
             } catch (e) {
-              print('   ❌ Erro ao fazer parse do JSON: $e');
-              print('   Body (primeiros 300 caracteres):');
-              final bodyPreview = response.body.length > 300 
-                  ? response.body.substring(0, 300) 
-                  : response.body;
-              print('   $bodyPreview...');
               consecutiveErrors++;
               _currentFile++;
             }
 
           } else if (response.statusCode == 404) {
-            print('   ⚠️ Arquivo não existe (404)');
             consecutiveErrors++;
           } else {
-            print('   ⚠️ Erro HTTP ${response.statusCode}');
             consecutiveErrors++;
             _currentFile++;
           }
 
         } catch (e) {
-          print('   ❌ Erro de rede: $e');
           consecutiveErrors++;
           if (consecutiveErrors < maxConsecutiveErrors) {
             _currentFile++;
@@ -266,48 +219,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       }
 
       if (consecutiveErrors >= maxConsecutiveErrors) {
-        print('🛑 Limite de erros atingido - Fim dos livros');
         _hasMoreBooks = false;
       }
 
-      print('');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
       if (loadedBooks.isEmpty) {
         if (allBooks.isEmpty) {
-          print('❌ NENHUM LIVRO CARREGADO!');
-          print('   Possíveis causas:');
-          print('   1. API não está respondendo');
-          print('   2. Formato JSON diferente do esperado');
-          print('   3. Arquivos não existem no servidor');
-          print('');
-          print('   Próximo arquivo seria: book$_currentFile.json');
-
           if (mounted) {
             setState(() {
               error = 'Nenhum livro disponível no momento.\nVerifique sua conexão e tente novamente.';
             });
           }
-        } else {
-          print('⚠️ Nenhum livro novo carregado, mantendo ${allBooks.length} livros anteriores');
         }
       } else {
-        print('✅ ${loadedBooks.length} NOVOS LIVROS CARREGADOS!');
-        print('📂 $filesLoaded arquivos processados');
-        print('📦 Total de livros: ${allBooks.length + loadedBooks.length}');
-        print('🔜 Próximo arquivo: book$_currentFile.json');
-
-        final withImages = loadedBooks.where((b) => b['coverImageURL'] != null).length;
-        final withPrice = loadedBooks.where((b) => b['digitalPrice'] != null).length;
-        
-        // Conta categorias únicas
-        final categories = loadedBooks.map((b) => b['category']).toSet();
-        print('');
-        print('📊 Estatísticas (novos livros):');
-        print('   🖼️ Com imagem: $withImages/${loadedBooks.length}');
-        print('   💰 Com preço: $withPrice/${loadedBooks.length}');
-        print('   📁 Categorias: ${categories.join(', ')}');
-
         if (mounted) {
           setState(() {
             allBooks.addAll(loadedBooks);
@@ -315,14 +238,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         }
       }
 
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('');
-
     } catch (e) {
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('❌ ERRO CRÍTICO: $e');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
       if (mounted && allBooks.isEmpty) {
         setState(() {
           error = 'Erro ao carregar livros: $e';
@@ -339,6 +255,50 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }).toList();
   }
 
+  // Divide livros em grupos para scroll horizontal
+  List<List<Map<String, dynamic>>> _getBooksInGroups() {
+    final books = filteredBooks;
+    List<List<Map<String, dynamic>>> groups = [];
+    
+    if (selectedCategory == 'Todos') {
+      // Para "Todos", agrupa por categoria
+      final categoryMap = <String, List<Map<String, dynamic>>>{};
+      
+      for (var book in books) {
+        final cat = book['category'] ?? 'Outros';
+        categoryMap.putIfAbsent(cat, () => []);
+        categoryMap[cat]!.add(book);
+      }
+      
+      // Adiciona grupos de categorias com mais de 3 livros
+      categoryMap.forEach((category, booksInCat) {
+        if (booksInCat.length >= 3) {
+          groups.add(booksInCat);
+        }
+      });
+      
+      // Se houver livros restantes, adiciona em grupo geral
+      if (groups.isEmpty && books.isNotEmpty) {
+        groups.add(books);
+      }
+    } else {
+      // Para categoria específica, divide em grupos de 6
+      for (var i = 0; i < books.length; i += 6) {
+        final end = (i + 6 < books.length) ? i + 6 : books.length;
+        groups.add(books.sublist(i, end));
+      }
+    }
+    
+    return groups;
+  }
+
+  String _getGroupTitle(List<Map<String, dynamic>> group, int index) {
+    if (selectedCategory == 'Todos' && group.isNotEmpty) {
+      return group[0]['category'] ?? 'Outros';
+    }
+    return 'Grupo ${index + 1}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -353,53 +313,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Header
-          SliverToBoxAdapter(
-            child: Container(
-              color: bgColor,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Marketplace',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: textColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${allBooks.length} ${allBooks.length == 1 ? 'livro' : 'livros'} em ${dynamicCategories.length - 1} ${dynamicCategories.length - 1 == 1 ? 'categoria' : 'categorias'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: hintColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isLoading && allBooks.isNotEmpty)
-                    IconButton(
-                      icon: Icon(Icons.refresh, color: textColor),
-                      onPressed: _fetchAllBooks,
-                      tooltip: 'Atualizar',
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // Categorias Dinâmicas
+          // Categorias
           if (!isLoading && allBooks.isNotEmpty)
             SliverToBoxAdapter(
               child: Container(
                 color: bgColor,
-                padding: const EdgeInsets.only(top: 8, bottom: 12),
+                padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -417,6 +336,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           isSelected,
                           isDark,
                           textColor,
+                          hintColor,
                         ),
                       );
                     }).toList(),
@@ -437,13 +357,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                     SizedBox(height: 16),
                     Text(
-                      'Carregando livros da API...',
+                      'Carregando livros...',
                       style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Descobrindo categorias automaticamente',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -525,179 +440,96 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             )
           else
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.65,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final book = filteredBooks[index];
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, groupIndex) {
+                  final groups = _getBooksInGroups();
+                  if (groupIndex >= groups.length) return null;
+                  
+                  final group = groups[groupIndex];
+                  final groupTitle = _getGroupTitle(group, groupIndex);
 
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => BookDetailsScreen(
-                              bookId: book['id'] ?? '',
-                              bookData: book,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Título da seção
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        child: Row(
                           children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(12),
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: 0.7,
-                                child: book['coverImageURL'] != null
-                                    ? Image.network(
-                                        book['coverImageURL'],
-                                        fit: BoxFit.cover,
-                                        loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null) return child;
-                                          return Container(
-                                            color: isDark
-                                                ? const Color(0xFF3A3B3C)
-                                                : const Color(0xFFF0F2F5),
-                                            child: Center(
-                                              child: CircularProgressIndicator(
-                                                value: loadingProgress.expectedTotalBytes != null
-                                                    ? loadingProgress.cumulativeBytesLoaded /
-                                                        loadingProgress.expectedTotalBytes!
-                                                    : null,
-                                                strokeWidth: 2,
-                                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                                  Color(0xFF1877F2),
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        errorBuilder: (ctx, err, st) {
-                                          return Container(
-                                            color: isDark
-                                                ? const Color(0xFF3A3B3C)
-                                                : const Color(0xFFF0F2F5),
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.broken_image,
-                                                  color: hintColor,
-                                                  size: 32,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Capa\nindisponível',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: hintColor,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                      )
-                                    : Container(
-                                        color: isDark
-                                            ? const Color(0xFF3A3B3C)
-                                            : const Color(0xFFF0F2F5),
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.menu_book,
-                                              size: 48,
-                                              color: hintColor,
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              'Sem capa',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: hintColor,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                            Text(
+                              groupTitle,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
                               ),
                             ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      book['title'] ?? 'Sem título',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: textColor,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      book['author'] ?? 'Autor desconhecido',
-                                      style: TextStyle(fontSize: 12, color: hintColor),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const Spacer(),
-                                    if (book['digitalPrice'] != null)
-                                      Text(
-                                        '${book['digitalPrice']} Kz',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF1877F2),
-                                        ),
-                                      )
-                                    else
-                                      Text(
-                                        'Preço não disponível',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: hintColor,
-                                        ),
-                                      ),
-                                  ],
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1877F2).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${group.length}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1877F2),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
-                  childCount: filteredBooks.length,
-                ),
+
+                      // Lista horizontal com animação
+                      SizedBox(
+                        height: 280,
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeOut,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(50 * (1 - value), 0),
+                              child: Opacity(
+                                opacity: value,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: group.length,
+                            itemBuilder: (context, index) {
+                              final book = group[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: _buildBookCard(
+                                  book,
+                                  isDark,
+                                  cardColor,
+                                  textColor,
+                                  hintColor,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                },
+                childCount: _getBooksInGroups().length,
               ),
             ),
 
@@ -726,6 +558,218 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  Widget _buildBookCard(
+    Map<String, dynamic> book,
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color hintColor,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BookDetailsScreen(
+              bookId: book['id'] ?? '',
+              bookData: book,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Imagem da capa
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              child: SizedBox(
+                height: 180,
+                width: double.infinity,
+                child: book['coverImageURL'] != null
+                    ? Image.network(
+                        book['coverImageURL'],
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: isDark
+                                ? const Color(0xFF3A3B3C)
+                                : const Color(0xFFF0F2F5),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF1877F2),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (ctx, err, st) {
+                          return Container(
+                            color: isDark
+                                ? const Color(0xFF3A3B3C)
+                                : const Color(0xFFF0F2F5),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image,
+                                  color: hintColor,
+                                  size: 32,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Capa\nindisponível',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: hintColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        color: isDark
+                            ? const Color(0xFF3A3B3C)
+                            : const Color(0xFFF0F2F5),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.menu_book,
+                              size: 48,
+                              color: hintColor,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Sem capa',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: hintColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+
+            // Informações do livro
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(16),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          book['title'] ?? 'Sem título',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          book['author'] ?? 'Autor desconhecido',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: hintColor,
+                            height: 1.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (book['digitalPrice'] != null)
+                          Text(
+                            '${book['digitalPrice']} Kz',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1877F2),
+                            ),
+                          )
+                        else
+                          Text(
+                            'Consultar',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: hintColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        if (book['rating'] != null)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 12,
+                                color: Color(0xFFFFB800),
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                book['rating'].toString(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategoryChip(
     String name,
     String iconSvg,
@@ -733,6 +777,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     bool isSelected,
     bool isDark,
     Color textColor,
+    Color hintColor,
   ) {
     const blueColor = Color(0xFF1877F2);
 
@@ -745,8 +790,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? blueColor
-              : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+              : (isDark 
+                  ? const Color(0xFF3A3B3C) 
+                  : const Color(0xFFE4E6EB)),
           borderRadius: BorderRadius.circular(20),
+          border: !isSelected && !isDark
+              ? Border.all(color: const Color(0xFFCED0D4), width: 1)
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -762,7 +812,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : textColor,
+                color: isSelected 
+                    ? Colors.white 
+                    : (isDark ? textColor : const Color(0xFF050505)),
               ),
             ),
             if (count > 0) ...[
@@ -788,6 +840,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class SvgIcon extends StatelessWidget {
+  final String svgString;
+  final Color color;
+  final double size;
+
+  const SvgIcon({
+    super.key,
+    required this.svgString,
+    required this.color,
+    this.size = 24,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(
+      Icons.category,
+      size: size,
+      color: color,
     );
   }
 }
