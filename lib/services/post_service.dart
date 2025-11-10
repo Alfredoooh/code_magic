@@ -17,6 +17,12 @@ class PostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final StreamController<List<Post>> _controller = StreamController.broadcast();
 
+  // MÉTODO PÚBLICO PARA OBTER O STREAM (ESTAVA FALTANDO!)
+  Stream<List<Post>> getPostsStream() {
+    ensureStarted(); // Garante que o serviço foi iniciado
+    return _controller.stream;
+  }
+
   Stream<List<Post>> get stream => _controller.stream;
 
   // NOVO ENDPOINT DO GITHUB
@@ -232,11 +238,15 @@ class PostService {
         print('   Próxima tentativa em 10 minutos');
         print('   Próximo arquivo: news$_currentNewsFile.json');
 
-        // Mantém as notícias antigas se falhar
+        // Se não tem notícias antigas E falhou, emite vazio para mostrar algo
+        if (_news.isEmpty) {
+          print('⚠️ Sem notícias antigas, emitindo feed vazio');
+          _emitCombined();
+        }
       } else {
         // Ordena por data mais recente
         results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        
+
         // Limita a 100 notícias mais recentes para não sobrecarregar
         _news = results.take(100).toList();
 
@@ -248,18 +258,18 @@ class PostService {
         // Debug das notícias carregadas
         final newsWithImages = _news.where((n) => n.imageUrls?.isNotEmpty == true).length;
         print('🖼️ Notícias com imagem: $newsWithImages/${_news.length}');
-        
+
         // Mostra intervalo de datas
         if (_news.isNotEmpty) {
           print('📅 Mais recente: ${_news.first.timestamp}');
           print('📅 Mais antiga: ${_news.last.timestamp}');
         }
+
+        _emitCombined();
       }
 
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       print('');
-
-      _emitCombined();
 
     } catch (e) {
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
