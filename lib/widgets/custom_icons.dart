@@ -10,6 +10,32 @@ class CustomIcons {
 </svg>
 ''';
 
+  // Novos ícones solicitados — cole dentro da classe CustomIcons
+
+  static const String briefcase = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3.75 7.5A2.25 2.25 0 016 5.25h12a2.25 2.25 0 012.25 2.25V9h-16.5V7.5zM21 10.5v6.75A2.25 2.25 0 0118.75 19.5H5.25A2.25 2.25 0 013 17.25V10.5h18zM9 6.75a.75.75 0 01.75-.75h4.5a.75.75 0 01.75.75V7.5H9v-.75z"/>
+</svg>
+''';
+
+  static const String tag = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M20.78 10.47l-8.97-8.97A2 2 0 0010.59.75H5.25A2.25 2.25 0 003 3v5.34c0 .53.21 1.04.59 1.41l8.97 8.97a2 2 0 002.83 0l5.36-5.36a2 2 0 000-2.9zM7.5 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
+</svg>
+''';
+
+  static const String chatBubble = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M3.75 5.25A2.25 2.25 0 016 3h12a2.25 2.25 0 012.25 2.25v7.5A2.25 2.25 0 0118 15H7.5L3 19.5V5.25z"/>
+</svg>
+''';
+
+  static const String lightning = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M13 2.25a.75.75 0 00-1.34-.53L5.25 9.12a.75.75 0 00.53 1.28H10.5v7.35a.75.75 0 001.28.53L18.75 14.88a.75.75 0 00-.53-1.28H13V2.25z"/>
+</svg>
+''';
+
   // Arrow back - mantido
   static const String arrowBack = '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
