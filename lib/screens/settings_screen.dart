@@ -1,6 +1,5 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -17,10 +16,10 @@ class SettingsScreen extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = themeProvider.isDarkMode;
-    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
-    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+    final bgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final textColor = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -28,11 +27,10 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: SvgPicture.string(
-            CustomIcons.arrowLeft,
-            width: 20,
-            height: 20,
-            colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+          icon: SvgIcon(
+            svgString: CustomIcons.arrowBack,
+            color: textColor,
+            size: 24,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -40,20 +38,14 @@ class SettingsScreen extends StatelessWidget {
           'Configurações',
           style: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: textColor,
           ),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-            height: 0.5,
-          ),
-        ),
+        centerTitle: false,
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(16),
         children: [
           // Profile Card
           GestureDetector(
@@ -66,18 +58,15 @@ class SettingsScreen extends StatelessWidget {
               );
             },
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: cardColor,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: isDark
-                        ? Colors.black.withOpacity(0.2)
-                        : Colors.black.withOpacity(0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -88,9 +77,7 @@ class SettingsScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: isDark
-                              ? Colors.black.withOpacity(0.3)
-                              : Colors.black.withOpacity(0.1),
+                          color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -98,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     child: CircleAvatar(
                       radius: 32,
-                      backgroundColor: const Color(0xFF1877F2),
+                      backgroundColor: const Color(0xFF007AFF),
                       backgroundImage: authProvider.userData?['photoURL'] != null
                           ? NetworkImage(authProvider.userData!['photoURL'])
                           : null,
@@ -136,7 +123,7 @@ class SettingsScreen extends StatelessWidget {
                             '@${authProvider.userData?['nickname']}',
                             style: TextStyle(
                               fontSize: 14,
-                              color: hintColor,
+                              color: secondaryColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -145,7 +132,7 @@ class SettingsScreen extends StatelessWidget {
                           authProvider.userData?['email'] ?? '',
                           style: TextStyle(
                             fontSize: 13,
-                            color: hintColor,
+                            color: secondaryColor,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -156,17 +143,13 @@ class SettingsScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1877F2).withOpacity(0.1),
+                      color: const Color(0xFF007AFF).withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: SvgPicture.string(
-                      CustomIcons.chevronRight,
-                      width: 20,
-                      height: 20,
-                      colorFilter: const ColorFilter.mode(
-                        Color(0xFF1877F2),
-                        BlendMode.srcIn,
-                      ),
+                    child: SvgIcon(
+                      svgString: CustomIcons.chevronRight,
+                      color: const Color(0xFF007AFF),
+                      size: 20,
                     ),
                   ),
                 ],
@@ -174,21 +157,18 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
 
           // Appearance Section
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cardColor,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.2)
-                      : Colors.black.withOpacity(0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -202,12 +182,12 @@ class SettingsScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1877F2).withOpacity(0.1),
+                          color: const Color(0xFF007AFF).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
                           Icons.palette_outlined,
-                          color: Color(0xFF1877F2),
+                          color: Color(0xFF007AFF),
                           size: 20,
                         ),
                       ),
@@ -251,21 +231,18 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
 
           // Account Options
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cardColor,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.2)
-                      : Colors.black.withOpacity(0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -285,40 +262,41 @@ class SettingsScreen extends StatelessWidget {
                   },
                   isDark,
                   textColor,
+                  secondaryColor,
+                  isFirst: true,
                 ),
                 Divider(
-                    height: 1,
-                    color: isDark
-                        ? const Color(0xFF3E4042)
-                        : const Color(0xFFDADADA)),
+                  height: 1,
+                  thickness: 0.5,
+                  color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+                  indent: 60,
+                ),
                 _buildSettingItem(
                   context,
                   CustomIcons.trash,
                   'Eliminar histórico de atividade',
-                  () => _showClearHistoryDialog(context, isDark, cardColor,
-                      textColor, hintColor),
+                  () => _showClearHistoryDialog(context, isDark, cardColor, textColor, secondaryColor),
                   isDark,
                   textColor,
+                  secondaryColor,
+                  isLast: true,
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
 
           // Legal Section
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cardColor,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.2)
-                      : Colors.black.withOpacity(0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -332,19 +310,21 @@ class SettingsScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const TermsScreen(type: TermsType.terms),
+                        builder: (context) => const TermsScreen(type: TermsType.terms),
                       ),
                     );
                   },
                   isDark,
                   textColor,
+                  secondaryColor,
+                  isFirst: true,
                 ),
                 Divider(
-                    height: 1,
-                    color: isDark
-                        ? const Color(0xFF3E4042)
-                        : const Color(0xFFDADADA)),
+                  height: 1,
+                  thickness: 0.5,
+                  color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+                  indent: 60,
+                ),
                 _buildSettingItem(
                   context,
                   CustomIcons.shield,
@@ -353,19 +333,20 @@ class SettingsScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const TermsScreen(type: TermsType.privacy),
+                        builder: (context) => const TermsScreen(type: TermsType.privacy),
                       ),
                     );
                   },
                   isDark,
                   textColor,
+                  secondaryColor,
                 ),
                 Divider(
-                    height: 1,
-                    color: isDark
-                        ? const Color(0xFF3E4042)
-                        : const Color(0xFFDADADA)),
+                  height: 1,
+                  thickness: 0.5,
+                  color: isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA),
+                  indent: 60,
+                ),
                 _buildSettingItem(
                   context,
                   CustomIcons.globe,
@@ -374,30 +355,29 @@ class SettingsScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const TermsScreen(type: TermsType.about),
+                        builder: (context) => const TermsScreen(type: TermsType.about),
                       ),
                     );
                   },
                   isDark,
                   textColor,
+                  secondaryColor,
+                  isLast: true,
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
 
           // Logout Button
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          SizedBox(
+            height: 50,
             child: ElevatedButton(
-              onPressed: () => _showLogoutDialog(
-                  context, authProvider, isDark, cardColor, textColor, hintColor),
+              onPressed: () => _showLogoutDialog(context, authProvider, isDark, cardColor, textColor, secondaryColor),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFA383E),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -406,14 +386,10 @@ class SettingsScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.string(
-                    CustomIcons.logout,
-                    width: 20,
-                    height: 20,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
-                      BlendMode.srcIn,
-                    ),
+                  SvgIcon(
+                    svgString: CustomIcons.logout,
+                    color: Colors.white,
+                    size: 20,
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -427,6 +403,8 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
+
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -439,10 +417,16 @@ class SettingsScreen extends StatelessWidget {
     VoidCallback onTap,
     bool isDark,
     Color textColor,
-  ) {
+    Color secondaryColor, {
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.vertical(
+        top: isFirst ? const Radius.circular(16) : Radius.zero,
+        bottom: isLast ? const Radius.circular(16) : Radius.zero,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
@@ -450,17 +434,13 @@ class SettingsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF1877F2).withOpacity(0.1),
+                color: const Color(0xFF007AFF).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: SvgPicture.string(
-                iconSvg,
-                width: 20,
-                height: 20,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFF1877F2),
-                  BlendMode.srcIn,
-                ),
+              child: SvgIcon(
+                svgString: iconSvg,
+                color: const Color(0xFF007AFF),
+                size: 20,
               ),
             ),
             const SizedBox(width: 12),
@@ -474,14 +454,10 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SvgPicture.string(
-              CustomIcons.chevronRight,
-              width: 18,
-              height: 18,
-              colorFilter: ColorFilter.mode(
-                isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                BlendMode.srcIn,
-              ),
+            SvgIcon(
+              svgString: CustomIcons.chevronRight,
+              color: secondaryColor,
+              size: 18,
             ),
           ],
         ),
@@ -489,75 +465,50 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, AuthProvider authProvider,
-      bool isDark, Color cardColor, Color textColor, Color hintColor) {
+  void _showLogoutDialog(
+    BuildContext context,
+    AuthProvider authProvider,
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryColor,
+  ) {
     showDialog(
       context: context,
-      barrierDismissible: true,
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: cardColor,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFA383E).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SvgPicture.string(
-                  CustomIcons.logout,
-                  width: 24,
-                  height: 24,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFFFA383E),
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Terminar sessão?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-            ],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Terminar sessão?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
           ),
           content: Text(
             'Tem certeza que deseja sair da sua conta?',
             style: TextStyle(
               fontSize: 15,
-              color: hintColor,
+              color: secondaryColor,
             ),
           ),
-          actionsPadding: const EdgeInsets.all(16),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: hintColor,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
                 'Cancelar',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: secondaryColor,
                 ),
               ),
             ),
-            ElevatedButton(
+            TextButton(
               onPressed: () async {
-                Navigator.of(dialogContext).pop();
+                Navigator.pop(dialogContext);
                 await authProvider.signOut();
                 if (context.mounted) {
                   Navigator.of(context).pushNamedAndRemoveUntil(
@@ -566,21 +517,12 @@ class SettingsScreen extends StatelessWidget {
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFA383E),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
               child: const Text(
                 'Sair',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
+                  color: Color(0xFFFA383E),
                 ),
               ),
             ),
@@ -590,98 +532,61 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showClearHistoryDialog(BuildContext context, bool isDark,
-      Color cardColor, Color textColor, Color hintColor) {
+  void _showClearHistoryDialog(
+    BuildContext context,
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryColor,
+  ) {
     showDialog(
       context: context,
-      barrierDismissible: true,
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: cardColor,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFA383E).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SvgPicture.string(
-                  CustomIcons.trash,
-                  width: 24,
-                  height: 24,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFFFA383E),
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Eliminar histórico?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                ),
-              ),
-            ],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Eliminar histórico?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
           ),
           content: Text(
             'Tem certeza que deseja eliminar todo o histórico de atividade? Esta ação não pode ser desfeita.',
             style: TextStyle(
               fontSize: 15,
-              color: hintColor,
+              color: secondaryColor,
             ),
           ),
-          actionsPadding: const EdgeInsets.all(16),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: hintColor,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
                 'Cancelar',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: secondaryColor,
                 ),
               ),
             ),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop();
+                Navigator.pop(dialogContext);
                 CustomSnackbar.showSuccess(
                   context,
                   message: 'Histórico eliminado com sucesso',
                   isDark: isDark,
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFA383E),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
               child: const Text(
                 'Eliminar',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
+                  color: Color(0xFFFA383E),
                 ),
               ),
             ),
@@ -715,18 +620,16 @@ class _ThemeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF1877F2)
+              ? const Color(0xFF007AFF)
               : isDark
-                  ? const Color(0xFF3A3B3C)
-                  : const Color(0xFFF0F2F5),
+                  ? const Color(0xFF3A3A3C)
+                  : const Color(0xFFF2F2F7),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF1877F2)
-                : isDark
-                    ? const Color(0xFF3E4042)
-                    : const Color(0xFFDADADA),
-            width: 1.5,
+                ? const Color(0xFF007AFF)
+                : Colors.transparent,
+            width: 2,
           ),
         ),
         child: Row(
@@ -738,8 +641,8 @@ class _ThemeButton extends StatelessWidget {
               color: isSelected
                   ? Colors.white
                   : isDark
-                      ? const Color(0xFFB0B3B8)
-                      : const Color(0xFF65676B),
+                      ? const Color(0xFF8E8E93)
+                      : const Color(0xFF6C6C70),
             ),
             const SizedBox(width: 8),
             Text(
@@ -750,8 +653,8 @@ class _ThemeButton extends StatelessWidget {
                 color: isSelected
                     ? Colors.white
                     : isDark
-                        ? const Color(0xFFE4E6EB)
-                        : const Color(0xFF050505),
+                        ? const Color(0xFFFFFFFF)
+                        : const Color(0xFF000000),
               ),
             ),
           ],
