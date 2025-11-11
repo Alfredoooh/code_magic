@@ -1,7 +1,5 @@
 // lib/screens/diary_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
@@ -19,10 +17,23 @@ class DiaryScreen extends StatefulWidget {
   State<DiaryScreen> createState() => _DiaryScreenState();
 }
 
-class _DiaryScreenState extends State<DiaryScreen> {
+class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStateMixin {
   final DiaryService _diaryService = DiaryService();
   DiaryMood? _selectedMood;
   bool _showFavoritesOnly = false;
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   void _createNewEntry() {
     final auth = context.read<AuthProvider>();
@@ -42,14 +53,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
       selectedMood: _selectedMood,
       showFavoritesOnly: _showFavoritesOnly,
       onMoodSelected: (mood) {
-        setState(() {
-          _selectedMood = mood;
-        });
+        setState(() => _selectedMood = mood);
       },
       onFavoritesToggle: (value) {
-        setState(() {
-          _showFavoritesOnly = value;
-        });
+        setState(() => _showFavoritesOnly = value);
       },
       onClear: () {
         setState(() {
@@ -62,54 +69,34 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
   String _getMoodEmoji(DiaryMood mood) {
     switch (mood) {
-      case DiaryMood.happy:
-        return '😊';
-      case DiaryMood.sad:
-        return '😔';
-      case DiaryMood.motivated:
-        return '💪';
-      case DiaryMood.calm:
-        return '😌';
-      case DiaryMood.stressed:
-        return '😰';
-      case DiaryMood.excited:
-        return '🤩';
-      case DiaryMood.tired:
-        return '😴';
-      case DiaryMood.grateful:
-        return '🙏';
+      case DiaryMood.happy: return '😊';
+      case DiaryMood.sad: return '😔';
+      case DiaryMood.motivated: return '💪';
+      case DiaryMood.calm: return '😌';
+      case DiaryMood.stressed: return '😰';
+      case DiaryMood.excited: return '🤩';
+      case DiaryMood.tired: return '😴';
+      case DiaryMood.grateful: return '🙏';
     }
   }
 
   String _getMoodName(DiaryMood mood) {
     switch (mood) {
-      case DiaryMood.happy:
-        return 'Feliz';
-      case DiaryMood.sad:
-        return 'Triste';
-      case DiaryMood.motivated:
-        return 'Motivado';
-      case DiaryMood.calm:
-        return 'Calmo';
-      case DiaryMood.stressed:
-        return 'Estressado';
-      case DiaryMood.excited:
-        return 'Animado';
-      case DiaryMood.tired:
-        return 'Cansado';
-      case DiaryMood.grateful:
-        return 'Grato';
+      case DiaryMood.happy: return 'Feliz';
+      case DiaryMood.sad: return 'Triste';
+      case DiaryMood.motivated: return 'Motivado';
+      case DiaryMood.calm: return 'Calmo';
+      case DiaryMood.stressed: return 'Estressado';
+      case DiaryMood.excited: return 'Animado';
+      case DiaryMood.tired: return 'Cansado';
+      case DiaryMood.grateful: return 'Grato';
     }
   }
 
   String _getFilterText() {
-    if (_showFavoritesOnly) {
-      return 'Favoritos';
-    } else if (_selectedMood != null) {
-      return '${_getMoodEmoji(_selectedMood!)} ${_getMoodName(_selectedMood!)}';
-    } else {
-      return 'Todas as entradas';
-    }
+    if (_showFavoritesOnly) return 'Favoritos';
+    if (_selectedMood != null) return '${_getMoodEmoji(_selectedMood!)} ${_getMoodName(_selectedMood!)}';
+    return 'Todas as entradas';
   }
 
   bool get _hasActiveFilters => _selectedMood != null || _showFavoritesOnly;
@@ -118,25 +105,21 @@ class _DiaryScreenState extends State<DiaryScreen> {
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final auth = context.watch<AuthProvider>();
-    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+    final bgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final textColor = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
 
     if (auth.user == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.login,
-              size: 64,
-              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-            ),
+            Icon(Icons.login, size: 64, color: secondaryColor),
             const SizedBox(height: 16),
             Text(
               'Faça login para acessar seu diário',
-              style: TextStyle(
-                fontSize: 16,
-                color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-              ),
+              style: TextStyle(fontSize: 16, color: textColor),
             ),
           ],
         ),
@@ -147,14 +130,49 @@ class _DiaryScreenState extends State<DiaryScreen> {
       color: bgColor,
       child: Column(
         children: [
-          // Botão de filtro moderno
+          // Tabs Diário/Tarefas
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Material(
-              color: isDark ? const Color(0xFF242526) : Colors.white,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: cardColor,
               borderRadius: BorderRadius.circular(12),
-              elevation: isDark ? 0 : 1,
-              shadowColor: Colors.black.withOpacity(0.05),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: const Color(0xFF007AFF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: Colors.white,
+              unselectedLabelColor: textColor,
+              labelStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              padding: const EdgeInsets.all(4),
+              tabs: const [
+                Tab(text: 'Diário'),
+                Tab(text: 'Tarefas'),
+              ],
+            ),
+          ),
+
+          // Botão de filtro
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Material(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 0,
               child: InkWell(
                 onTap: _showFilters,
                 borderRadius: BorderRadius.circular(12),
@@ -166,20 +184,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: _hasActiveFilters
-                              ? (isDark ? const Color(0xFF0A84FF).withOpacity(0.15) : const Color(0xFF007AFF).withOpacity(0.1))
-                              : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+                              ? const Color(0xFF007AFF).withOpacity(0.15)
+                              : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF2F2F7)),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: SvgPicture.string(
-                          CustomIcons.filterList,
-                          width: 20,
-                          height: 20,
-                          colorFilter: ColorFilter.mode(
-                            _hasActiveFilters
-                                ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
-                                : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
-                            BlendMode.srcIn,
-                          ),
+                        child: Icon(
+                          Icons.filter_list_rounded,
+                          size: 20,
+                          color: _hasActiveFilters
+                              ? const Color(0xFF007AFF)
+                              : secondaryColor,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -190,8 +204,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: _hasActiveFilters
-                                ? (isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF))
-                                : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                                ? const Color(0xFF007AFF)
+                                : textColor,
                           ),
                         ),
                       ),
@@ -200,26 +214,22 @@ class _DiaryScreenState extends State<DiaryScreen> {
                           margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
+                            color: const Color(0xFF007AFF),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
+                          child: const Text(
                             '1',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
                         ),
-                      SvgPicture.string(
-                        CustomIcons.expandMore,
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(
-                          isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                          BlendMode.srcIn,
-                        ),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: secondaryColor,
                       ),
                     ],
                   ),
@@ -228,265 +238,161 @@ class _DiaryScreenState extends State<DiaryScreen> {
             ),
           ),
 
+          // Conteúdo das tabs
           Expanded(
-            child: StreamBuilder<List<DiaryEntry>>(
-              stream: _showFavoritesOnly
-                  ? _diaryService.getFavoriteEntries(auth.user!.uid)
-                  : (_selectedMood != null
-                      ? _diaryService.getEntriesByMood(auth.user!.uid, _selectedMood!)
-                      : _diaryService.getUserEntries(auth.user!.uid)),
-              builder: (context, snapshot) {
-                // Estado de loading
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildDiaryTab(auth, isDark, textColor, secondaryColor, cardColor),
+                _buildTasksTab(isDark, textColor, secondaryColor),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiaryTab(AuthProvider auth, bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
+    return StreamBuilder<List<DiaryEntry>>(
+      stream: _showFavoritesOnly
+          ? _diaryService.getFavoriteEntries(auth.user!.uid)
+          : (_selectedMood != null
+              ? _diaryService.getEntriesByMood(auth.user!.uid, _selectedMood!)
+              : _diaryService.getUserEntries(auth.user!.uid)),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          debugPrint('❌ Erro no DiaryScreen: ${snapshot.error}');
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: secondaryColor),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Erro ao carregar entradas',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
-                  );
-                }
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tente novamente mais tarde',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: secondaryColor),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () => setState(() {}),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Tentar novamente'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF007AFF),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-                // Tratamento de erro melhorado
-                if (snapshot.hasError) {
-                  final errorMessage = snapshot.error.toString();
-                  debugPrint('❌ Erro no DiaryScreen: $errorMessage');
+        var entries = snapshot.data ?? [];
 
-                  // Tenta extrair um link (se houver) da mensagem de erro
-                  final urlRegex = RegExp(r'https?://\S+');
-                  final match = urlRegex.firstMatch(errorMessage);
-                  final indexUrl = match != null ? match.group(0) : null;
-
-                  // Verifica se é erro de índice do Firestore
-                  if (errorMessage.toLowerCase().contains('index') ||
-                      errorMessage.toLowerCase().contains('failed_precondition') ||
-                      indexUrl != null) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              size: 64,
-                              color: Colors.orange,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Índice necessário',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'O Firestore precisa criar índices para esta consulta.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            if (indexUrl != null) ...[
-                              const SizedBox(height: 8),
-                              SelectableText(
-                                indexUrl,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF1877F2),
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () async {
-                                  await Clipboard.setData(ClipboardData(text: indexUrl));
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Link do índice copiado para a área de transferência')),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.copy),
-                                label: const Text('Copiar link do índice'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1877F2),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Cole esse link no navegador (desktop) para criar o índice no Console do Firebase.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                                ),
-                              ),
-                            ] else ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                'Abra o console do Firebase e crie o índice manualmente (Firestore → Indexes).',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _selectedMood = null;
-                                  _showFavoritesOnly = false;
-                                });
-                              },
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Limpar filtros'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1877F2),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  // Outros erros
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Erro ao carregar entradas',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            errorMessage.length > 100
-                                ? '${errorMessage.substring(0, 100)}...'
-                                : errorMessage,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Tentar novamente'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1877F2),
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
+        if (entries.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.book_outlined, size: 64, color: secondaryColor),
+                const SizedBox(height: 16),
+                Text(
+                  _hasActiveFilters ? 'Nenhuma entrada encontrada' : 'Seu diário está vazio',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _hasActiveFilters ? 'Tente usar outros filtros' : 'Comece a escrever suas memórias',
+                  style: TextStyle(fontSize: 14, color: secondaryColor),
+                ),
+                if (!_hasActiveFilters) ...[
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _createNewEntry,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Criar primeira entrada'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF007AFF),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  );
-                }
+                  ),
+                ],
+              ],
+            ),
+          );
+        }
 
-                var entries = snapshot.data ?? [];
-
-                if (entries.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SvgPicture.string(
-                          CustomIcons.book,
-                          width: 64,
-                          height: 64,
-                          colorFilter: ColorFilter.mode(
-                            isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _hasActiveFilters
-                              ? 'Nenhuma entrada encontrada'
-                              : 'Seu diário está vazio',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _hasActiveFilters
-                              ? 'Tente usar outros filtros'
-                              : 'Comece a escrever suas memórias',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                          ),
-                        ),
-                        if (!_hasActiveFilters) ...[
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: _createNewEntry,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Criar primeira entrada'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1877F2),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) {
-                    return _DiaryEntryCard(
-                      entry: entries[index],
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DiaryDetailScreen(entry: entries[index]),
-                          ),
-                        );
-                      },
-                    );
-                  },
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            return _DiaryEntryCard(
+              entry: entries[index],
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DiaryDetailScreen(entry: entries[index]),
+                  ),
                 );
               },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTasksTab(bool isDark, Color textColor, Color secondaryColor) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.task_alt_rounded, size: 64, color: secondaryColor),
+          const SizedBox(height: 16),
+          Text(
+            'Tarefas',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Em breve você poderá gerenciar suas tarefas aqui',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: secondaryColor),
           ),
         ],
       ),
@@ -502,22 +408,14 @@ class _DiaryEntryCard extends StatelessWidget {
 
   String _getMoodEmoji(DiaryMood mood) {
     switch (mood) {
-      case DiaryMood.happy:
-        return '😊';
-      case DiaryMood.sad:
-        return '😔';
-      case DiaryMood.motivated:
-        return '💪';
-      case DiaryMood.calm:
-        return '😌';
-      case DiaryMood.stressed:
-        return '😰';
-      case DiaryMood.excited:
-        return '🤩';
-      case DiaryMood.tired:
-        return '😴';
-      case DiaryMood.grateful:
-        return '🙏';
+      case DiaryMood.happy: return '😊';
+      case DiaryMood.sad: return '😔';
+      case DiaryMood.motivated: return '💪';
+      case DiaryMood.calm: return '😌';
+      case DiaryMood.stressed: return '😰';
+      case DiaryMood.excited: return '🤩';
+      case DiaryMood.tired: return '😴';
+      case DiaryMood.grateful: return '🙏';
     }
   }
 
@@ -535,8 +433,9 @@ class _DiaryEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final textColor = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
 
     return GestureDetector(
       onTap: onTap,
@@ -547,9 +446,9 @@ class _DiaryEntryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -582,10 +481,7 @@ class _DiaryEntryCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           _formatDate(entry.date),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                          ),
+                          style: TextStyle(fontSize: 13, color: secondaryColor),
                         ),
                       ],
                     ),
@@ -599,7 +495,7 @@ class _DiaryEntryCard extends StatelessWidget {
                 entry.content,
                 style: TextStyle(
                   fontSize: 15,
-                  color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                  color: secondaryColor,
                   height: 1.5,
                 ),
                 maxLines: 3,
@@ -615,15 +511,15 @@ class _DiaryEntryCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? const Color(0xFF2C2C2E)
-                            : const Color(0xFFF0F2F5),
+                            ? const Color(0xFF3A3A3C)
+                            : const Color(0xFFF2F2F7),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '#$tag',
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF1877F2),
+                          color: Color(0xFF007AFF),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
