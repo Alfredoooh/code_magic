@@ -228,8 +228,6 @@ class PostCard extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => UserDetailScreen(
                           userId: post.userId,
-                          userName: post.userName,
-                          userAvatar: post.userAvatar,
                         ),
                       ),
                     );
