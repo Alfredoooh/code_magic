@@ -1,5 +1,6 @@
 // lib/screens/diary_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -248,9 +249,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 if (snapshot.hasError) {
                   final errorMessage = snapshot.error.toString();
                   debugPrint('❌ Erro no DiaryScreen: $errorMessage');
-                  
+
+                  // Tenta extrair um link (se houver) da mensagem de erro
+                  final urlRegex = RegExp(r'https?://\S+');
+                  final match = urlRegex.firstMatch(errorMessage);
+                  final indexUrl = match != null ? match.group(0) : null;
+
                   // Verifica se é erro de índice do Firestore
-                  if (errorMessage.contains('index') || errorMessage.contains('FAILED_PRECONDITION')) {
+                  if (errorMessage.toLowerCase().contains('index') ||
+                      errorMessage.toLowerCase().contains('failed_precondition') ||
+                      indexUrl != null) {
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
@@ -280,15 +288,56 @@ class _DiaryScreenState extends State<DiaryScreen> {
                                 color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Verifique o console do Firebase para o link de criação do índice.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                            const SizedBox(height: 12),
+                            if (indexUrl != null) ...[
+                              const SizedBox(height: 8),
+                              SelectableText(
+                                indexUrl,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF1877F2),
+                                  decoration: TextDecoration.underline,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  await Clipboard.setData(ClipboardData(text: indexUrl));
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Link do índice copiado para a área de transferência')),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.copy),
+                                label: const Text('Copiar link do índice'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1877F2),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Cole esse link no navegador (desktop) para criar o índice no Console do Firebase.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Abra o console do Firebase e crie o índice manualmente (Firestore → Indexes).',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 24),
                             ElevatedButton.icon(
                               onPressed: () {
@@ -310,7 +359,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                       ),
                     );
                   }
-                  
+
                   // Outros erros
                   return Center(
                     child: Padding(
@@ -334,8 +383,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            errorMessage.length > 100 
-                                ? '${errorMessage.substring(0, 100)}...' 
+                            errorMessage.length > 100
+                                ? '${errorMessage.substring(0, 100)}...'
                                 : errorMessage,
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -379,7 +428,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _hasActiveFilters 
+                          _hasActiveFilters
                               ? 'Nenhuma entrada encontrada'
                               : 'Seu diário está vazio',
                           style: TextStyle(
