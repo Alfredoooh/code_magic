@@ -121,11 +121,23 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     if (auth.user == null) {
       return Center(
-        child: Text(
-          'Faça login para acessar seu diário',
-          style: TextStyle(
-            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.login,
+              size: 64,
+              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Faça login para acessar seu diário',
+              style: TextStyle(
+                fontSize: 16,
+                color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -223,6 +235,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                       ? _diaryService.getEntriesByMood(auth.user!.uid, _selectedMood!)
                       : _diaryService.getUserEntries(auth.user!.uid)),
               builder: (context, snapshot) {
+                // Estado de loading
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
@@ -231,26 +244,119 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   );
                 }
 
+                // Tratamento de erro melhorado
                 if (snapshot.hasError) {
+                  final errorMessage = snapshot.error.toString();
+                  debugPrint('❌ Erro no DiaryScreen: $errorMessage');
+                  
+                  // Verifica se é erro de índice do Firestore
+                  if (errorMessage.contains('index') || errorMessage.contains('FAILED_PRECONDITION')) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              size: 64,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Índice necessário',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'O Firestore precisa criar índices para esta consulta.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Verifique o console do Firebase para o link de criação do índice.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedMood = null;
+                                  _showFavoritesOnly = false;
+                                });
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Limpar filtros'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1877F2),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  // Outros erros
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Erro ao carregar entradas',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Text(
+                            'Erro ao carregar entradas',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            errorMessage.length > 100 
+                                ? '${errorMessage.substring(0, 100)}...' 
+                                : errorMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tentar novamente'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1877F2),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
@@ -292,6 +398,22 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
                           ),
                         ),
+                        if (!_hasActiveFilters) ...[
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _createNewEntry,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Criar primeira entrada'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1877F2),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   );
