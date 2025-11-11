@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/custom_icons.dart';
 import 'chat_screen.dart';
 import 'search_screen.dart';
 
@@ -31,45 +32,6 @@ class _UsersScreenState extends State<UsersScreen> {
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(
-            child: Container(
-              color: cardColor,
-              padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const SearchScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search,
-                        color: hintColor,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Pesquisar usuários...',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: hintColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
           SliverToBoxAdapter(
             child: Container(
               color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
@@ -126,7 +88,7 @@ class _UsersScreenState extends State<UsersScreen> {
               }
 
               final allUsers = snapshot.data?.docs ?? [];
-              
+
               // Filtra o usuário atual
               final users = allUsers.where((doc) => doc.id != currentUserId).toList();
 
@@ -147,11 +109,11 @@ class _UsersScreenState extends State<UsersScreen> {
                 final bData = b.data() as Map<String, dynamic>?;
                 final aTime = aData?['lastActive'] as Timestamp?;
                 final bTime = bData?['lastActive'] as Timestamp?;
-                
+
                 if (aTime == null && bTime == null) return 0;
                 if (aTime == null) return 1;
                 if (bTime == null) return -1;
-                
+
                 return bTime.compareTo(aTime);
               });
 
@@ -226,6 +188,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         cardColor,
                         textColor,
                         isDark,
+                        currentUserId,
                       );
                     }
 
@@ -273,6 +236,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         cardColor,
                         textColor,
                         isDark,
+                        currentUserId,
                       );
                     }
 
@@ -299,6 +263,7 @@ class _UsersScreenState extends State<UsersScreen> {
     Color cardColor,
     Color textColor,
     bool isDark,
+    String? currentUserId,
   ) {
     final lastActive = userData['lastActive'] as Timestamp?;
     final userType = userData['userType'] ?? 'person';
@@ -306,24 +271,31 @@ class _UsersScreenState extends State<UsersScreen> {
     final photoURL = userData['photoURL'];
 
     String userTypeLabel = '';
-    IconData? userTypeIcon;
+    String userTypeIcon = '';
 
     switch (userType) {
       case 'student':
         userTypeLabel = 'Estudante';
-        userTypeIcon = Icons.school;
+        userTypeIcon = CustomIcons.academicCap;
         break;
       case 'professional':
         userTypeLabel = 'Profissional';
-        userTypeIcon = Icons.work;
+        userTypeIcon = CustomIcons.briefcase;
         break;
       case 'company':
         userTypeLabel = 'Empresa';
-        userTypeIcon = Icons.business;
+        userTypeIcon = CustomIcons.buildingLibrary;
         break;
       default:
         userTypeLabel = 'Pessoa';
-        userTypeIcon = Icons.person;
+        userTypeIcon = CustomIcons.userCircle;
+    }
+
+    // Calcula chatId para buscar mensagens não lidas
+    String? chatId;
+    if (currentUserId != null) {
+      final ids = [currentUserId, userId]..sort();
+      chatId = '${ids[0]}_${ids[1]}';
     }
 
     return Container(
@@ -331,13 +303,15 @@ class _UsersScreenState extends State<UsersScreen> {
       color: cardColor,
       child: ListTile(
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.push(
+            context,
             MaterialPageRoute(
               builder: (_) => ChatScreen(
                 recipientId: userId,
                 recipientName: userData['name'] ?? 'Usuário',
                 recipientPhotoURL: photoURL,
                 isOnline: isOnline,
+                lastActive: lastActive,
               ),
             ),
           );
@@ -394,10 +368,10 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
             ),
             const SizedBox(width: 6),
-            Icon(
-              userTypeIcon,
-              size: 14,
+            SvgIcon(
+              svgString: userTypeIcon,
               color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+              size: 14,
             ),
           ],
         ),
@@ -423,24 +397,47 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
           ],
         ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1877F2).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'Conversar',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1877F2),
-            ),
-          ),
-        ),
+        trailing: chatId != null
+            ? StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('chats')
+                    .doc(chatId)
+                    .collection('messages')
+                    .where('recipientId', isEqualTo: currentUserId)
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final unreadCount = snapshot.data?.docs.length ?? 0;
+                  
+                  if (unreadCount == 0) return const SizedBox.shrink();
+                  
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFA383E),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Center(
+                      child: Text(
+                        unreadCount > 99 ? '99+' : unreadCount.toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
