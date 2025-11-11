@@ -1,7 +1,7 @@
 // lib/widgets/post_card.dart
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../models/post_model.dart';
 import '../providers/auth_provider.dart';
@@ -30,102 +30,211 @@ class PostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final auth = context.watch<AuthProvider>();
-    
-    // Cores ajustadas - tema mais suave
-    final bgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
-    final textColor = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
-    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
-    final dividerColor = isDark ? const Color(0xFF38383A) : const Color(0xFFE5E5EA);
-    
+
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+    final dividerColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
+
     final postService = PostService();
     final isLiked = auth.user != null ? post.isLikedBy(auth.user!.uid) : false;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+      margin: const EdgeInsets.only(bottom: 8),
+      color: cardColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          _buildHeader(context, isDark, textColor, secondaryColor, postService),
+
+          // Content text
+          if (post.title != null && post.title!.isNotEmpty && post.isNews)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(
+                post.title!,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                  height: 1.3,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+          if (post.content.isNotEmpty && !post.isNews)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(
+                post.content,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: textColor,
+                  height: 1.4,
+                ),
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+          if (post.summary != null && post.summary!.isNotEmpty && post.isNews)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(
+                post.summary!,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: secondaryColor,
+                  height: 1.4,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+          // Media content
+          _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
+
+          // Stats
+          if (post.likes > 0 || post.comments > 0 || post.shares > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  if (post.likes > 0) ...[
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1877F2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.thumb_up,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${post.likes}',
+                      style: TextStyle(fontSize: 14, color: secondaryColor),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (post.comments > 0)
+                    Text(
+                      '${post.comments} comentários',
+                      style: TextStyle(fontSize: 14, color: secondaryColor),
+                    ),
+                  if (post.shares > 0) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                      '${post.shares} compartilhamentos',
+                      style: TextStyle(fontSize: 14, color: secondaryColor),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+          // Divider
+          Container(
+            height: 0.5,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            color: dividerColor,
           ),
+
+          // Actions
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              children: [
+                _buildActionButton(
+                  context,
+                  icon: CustomIcons.thumbUpOutlined,
+                  activeIcon: CustomIcons.thumbUp,
+                  label: 'Curtir',
+                  isActive: isLiked,
+                  disabled: post.isNews,
+                  onTap: () => postService.toggleLike(post.id, auth.user!.uid),
+                ),
+                _buildActionButton(
+                  context,
+                  icon: CustomIcons.commentOutlined,
+                  label: 'Comentar',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => PostDetailScreen(
+                          postId: post.id,
+                          isNews: post.isNews,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionButton(
+                  context,
+                  icon: CustomIcons.shareOutlined,
+                  label: 'Compartilhar',
+                  disabled: post.isNews,
+                  onTap: () => postService.sharePost(post),
+                ),
+              ],
+            ),
+          ),
+
+          // Botão "Ler mais" para notícias
+          if (post.isNews && post.newsUrl?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    print('🔗 Abrir notícia: ${post.newsUrl}');
+                  },
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Ler notícia completa'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1877F2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header com blur se houver imagem
-            _buildHeader(context, isDark, cardColor, textColor, secondaryColor, postService),
-
-            // Conteúdo de mídia com blur effect
-            _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
-
-            // Informações e ações
-            _buildContent(context, isDark, textColor, secondaryColor, dividerColor, postService, isLiked),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isDark, Color cardColor, Color textColor, Color secondaryColor, PostService postService) {
-    final hasMedia = post.imageBase64 != null || 
-                      (post.imageUrls?.isNotEmpty ?? false) || 
-                      post.videoUrl != null;
-
-    Widget headerContent = Padding(
-      padding: const EdgeInsets.all(16),
+  Widget _buildHeader(BuildContext context, bool isDark, Color textColor, Color secondaryColor, PostService postService) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          // Avatar com gradiente
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: post.isNews
-                  ? const LinearGradient(
-                      colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : LinearGradient(
-                      colors: [
-                        Colors.blue.shade400,
-                        Colors.purple.shade400,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-            ),
-            padding: const EdgeInsets.all(2),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: cardColor,
-              ),
-              padding: const EdgeInsets.all(2),
-              child: CircleAvatar(
-                radius: 20,
-                backgroundColor: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF2F2F7),
-                backgroundImage: post.userAvatar != null
-                    ? MemoryImage(base64Decode(post.userAvatar!))
-                    : null,
-                child: post.userAvatar == null
-                    ? Text(
-                        post.isNews ? '📰' : (post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U'),
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: post.isNews ? 18 : 16,
+          GestureDetector(
+            onTap: post.isNews
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => UserDetailScreen(
+                          userId: post.userId,
+                          userName: post.userName,
+                          userAvatar: post.userAvatar,
                         ),
-                      )
-                    : null,
-              ),
-            ),
+                      ),
+                    );
+                  },
+            child: _buildAvatar(isDark, textColor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -138,8 +247,8 @@ class PostCard extends StatelessWidget {
                       child: Text(
                         post.userName,
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
                           fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: textColor,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -150,9 +259,7 @@ class PostCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
-                          ),
+                          color: const Color(0xFFFF9800),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
@@ -168,69 +275,65 @@ class PostCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
                 Text(
                   _formatTimestamp(post.timestamp),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: secondaryColor,
-                  ),
+                  style: TextStyle(fontSize: 12, color: secondaryColor),
                 ),
               ],
             ),
           ),
           if (!post.isNews && context.read<AuthProvider>().user?.uid == post.userId)
             IconButton(
-              icon: SvgIcon(
-                svgString: CustomIcons.moreVert,
-                color: textColor,
-                size: 20,
+              icon: Icon(
+                Icons.more_horiz,
+                color: secondaryColor,
               ),
               onPressed: () => _showOptionsDialog(context, postService),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
             ),
         ],
       ),
     );
+  }
 
-    // Se tiver mídia, adiciona blur no header
-    if (hasMedia) {
-      return Stack(
-        children: [
-          // Background blur da primeira imagem
-          if (post.imageUrls?.isNotEmpty ?? false)
-            Positioned.fill(
-              child: Image.network(
-                post.imageUrls!.first,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox(),
-              ),
-            )
-          else if (post.imageBase64 != null)
-            Positioned.fill(
-              child: Image.memory(
-                base64Decode(post.imageBase64!),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox(),
-              ),
-            ),
-          // Blur effect
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                color: cardColor.withOpacity(0.7),
-              ),
-            ),
+  Widget _buildAvatar(bool isDark, Color textColor) {
+    Widget avatarContent;
+
+    if (post.userAvatar != null) {
+      avatarContent = CircleAvatar(
+        radius: 20,
+        backgroundImage: MemoryImage(base64Decode(post.userAvatar!)),
+      );
+    } else {
+      avatarContent = CircleAvatar(
+        radius: 20,
+        backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+        child: Text(
+          post.isNews ? '📰' : (post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U'),
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.w600,
+            fontSize: post.isNews ? 18 : 16,
           ),
-          // Header content
-          headerContent,
-        ],
+        ),
       );
     }
 
-    return headerContent;
+    if (post.isNews) {
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(2),
+        child: avatarContent,
+      );
+    }
+
+    return avatarContent;
   }
 
   Widget _buildMediaContent(BuildContext context, bool isDark, Color textColor, Color secondaryColor, PostService postService) {
@@ -250,7 +353,7 @@ class PostCard extends StatelessWidget {
         child: Container(
           width: double.infinity,
           height: 300,
-          color: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
+          color: isDark ? const Color(0xFF000000) : const Color(0xFFF0F2F5),
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -264,10 +367,6 @@ class PostCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
-                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -299,75 +398,47 @@ class PostCard extends StatelessWidget {
           [post.imageBase64!],
           post.imageBase64!,
         ),
-        child: Hero(
-          tag: 'post_image_${post.id}',
-          child: Image.memory(
-            base64Decode(post.imageBase64!),
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return _buildErrorImage(isDark, secondaryColor, 'Erro ao carregar imagem');
-            },
-          ),
+        child: Image.memory(
+          base64Decode(post.imageBase64!),
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildErrorImage(isDark, secondaryColor, 'Erro ao carregar imagem');
+          },
         ),
       );
     }
 
-    // Imagem URL (notícias da API)
+    // Imagem URL (notícias)
     if (post.imageUrls != null && post.imageUrls!.isNotEmpty) {
       return GestureDetector(
-        onTap: () {
-          if (post.newsUrl?.isNotEmpty == true) {
-            // Implementar abertura de URL
-            print('🔗 Abrir notícia: ${post.newsUrl}');
-          }
-        },
-        child: Hero(
-          tag: 'news_image_${post.id}',
-          child: Image.network(
-            post.imageUrls!.first,
-            width: double.infinity,
-            height: 300,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                height: 300,
-                color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                          strokeWidth: 3,
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF9800)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Carregando...',
-                        style: TextStyle(
-                          color: secondaryColor,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
+        onTap: post.newsUrl?.isNotEmpty == true
+            ? () => print('🔗 Abrir notícia: ${post.newsUrl}')
+            : null,
+        child: Image.network(
+          post.imageUrls!.first,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              height: 200,
+              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                  strokeWidth: 3,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                 ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              print('❌ Erro ao carregar imagem: $error');
-              return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
-            },
-          ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Erro ao carregar imagem da notícia: $error');
+            return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
+          },
         ),
       );
     }
@@ -377,24 +448,17 @@ class PostCard extends StatelessWidget {
 
   Widget _buildErrorImage(bool isDark, Color secondaryColor, String message) {
     return Container(
-      height: 300,
-      color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+      height: 200,
+      color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgIcon(
-              svgString: CustomIcons.warning,
-              size: 48,
-              color: secondaryColor,
-            ),
+            Icon(Icons.broken_image, size: 48, color: secondaryColor),
             const SizedBox(height: 12),
             Text(
               message,
-              style: TextStyle(
-                color: secondaryColor,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: secondaryColor, fontSize: 14),
             ),
           ],
         ),
@@ -402,197 +466,44 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, bool isDark, Color textColor, Color secondaryColor, Color dividerColor, PostService postService, bool isLiked) {
-    final auth = context.read<AuthProvider>();
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Título e conteúdo
-          if (post.isNews && post.title != null && post.title!.isNotEmpty) ...[
-            Text(
-              post.title!,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-                color: textColor,
-                height: 1.3,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-          ],
-
-          if ((post.isNews && post.summary != null && post.summary!.isNotEmpty) || 
-              (!post.isNews && post.content.isNotEmpty)) ...[
-            RichText(
-              text: TextSpan(
-                children: [
-                  if (!post.isNews)
-                    TextSpan(
-                      text: '${post.userName} ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: textColor,
-                      ),
-                    ),
-                  TextSpan(
-                    text: post.isNews ? post.summary : post.content,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: textColor,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // Divider
-          Container(
-            height: 1,
-            color: dividerColor,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-          ),
-
-          // Actions e estatísticas
-          Row(
-            children: [
-              // Like
-              _buildActionButton(
-                icon: isLiked ? CustomIcons.thumbUp : CustomIcons.thumbUpOutlined,
-                color: isLiked ? Colors.blue : textColor,
-                label: post.likes > 0 ? '${post.likes}' : null,
-                onTap: post.isNews || auth.user == null
-                    ? null
-                    : () => postService.toggleLike(post.id, auth.user!.uid),
-                disabled: post.isNews,
-              ),
-              const SizedBox(width: 4),
-
-              // Comentários
-              _buildActionButton(
-                icon: CustomIcons.commentOutlined,
-                color: textColor,
-                label: post.comments > 0 ? '${post.comments}' : null,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => PostDetailScreen(
-                        postId: post.id,
-                        isNews: post.isNews,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 4),
-
-              // Compartilhar
-              _buildActionButton(
-                icon: CustomIcons.shareOutlined,
-                color: textColor,
-                onTap: post.isNews ? null : () => postService.sharePost(post),
-                disabled: post.isNews,
-              ),
-
-              const Spacer(),
-
-              // Botão de notícia ou favorito
-              if (post.newsUrl?.isNotEmpty == true)
-                GestureDetector(
-                  onTap: () {
-                    print('🔗 Abrir: ${post.newsUrl}');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Ler mais',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                IconButton(
-                  icon: SvgIcon(
-                    svgString: CustomIcons.star,
-                    color: secondaryColor,
-                    size: 22,
-                  ),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
+  Widget _buildActionButton(
+    BuildContext context, {
     required String icon,
-    required Color color,
-    String? label,
-    VoidCallback? onTap,
+    String? activeIcon,
+    required String label,
+    bool isActive = false,
     bool disabled = false,
+    required VoidCallback onTap,
   }) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final color = isActive
+        ? const Color(0xFF1877F2)
+        : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B));
+
     return Expanded(
-      child: InkWell(
-        onTap: disabled ? null : onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Opacity(
-          opacity: disabled ? 0.4 : 1.0,
+      child: Opacity(
+        opacity: disabled ? 0.4 : 1.0,
+        child: InkWell(
+          onTap: disabled ? null : onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SvgIcon(
-                  svgString: icon,
+                  svgString: isActive && activeIcon != null ? activeIcon : icon,
+                  size: 20,
                   color: color,
-                  size: 22,
                 ),
-                if (label != null) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: color,
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -602,81 +513,47 @@ class PostCard extends StatelessWidget {
   }
 
   void _showOptionsDialog(BuildContext context, PostService postService) {
-    final isDark = context.read<ThemeProvider>().isDarkMode;
-    final bgColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF000000);
-
-    showModalBottomSheet(
+    showCupertinoModalPopup(
       context: context,
-      backgroundColor: bgColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 16),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF48484A) : const Color(0xFFD1D1D6),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_rounded, color: Colors.blue),
-                title: Text('Editar publicação', style: TextStyle(color: textColor)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showEditDialog(context, postService);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_rounded, color: Colors.red),
-                title: const Text('Excluir publicação', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _confirmDelete(context, postService);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+      builder: (context) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _showEditDialog(context, postService);
+            },
+            child: const Text('Editar publicação'),
           ),
-        );
-      },
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _confirmDelete(context, postService);
+            },
+            isDestructiveAction: true,
+            child: const Text('Excluir publicação'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ),
     );
   }
 
   void _confirmDelete(BuildContext context, PostService postService) {
-    final isDark = context.read<ThemeProvider>().isDarkMode;
-
-    showDialog(
+    showCupertinoDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF2C2C2E) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Excluir publicação?',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          'Esta ação não pode ser desfeita.',
-          style: TextStyle(
-            color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70),
-          ),
-        ),
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Excluir publicação'),
+        content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+            child: const Text('Cancelar'),
           ),
-          TextButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               Navigator.pop(context);
               postService.deletePost(post.id);
@@ -684,7 +561,7 @@ class PostCard extends StatelessWidget {
                 const SnackBar(content: Text('Publicação excluída')),
               );
             },
-            child: const Text('Excluir', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            child: const Text('Excluir'),
           ),
         ],
       ),
@@ -698,9 +575,12 @@ class PostCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF2C2C2E) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Editar publicação', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        title: Text(
+          'Editar publicação',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+        ),
         content: TextField(
           controller: controller,
           maxLines: 5,
@@ -713,7 +593,10 @@ class PostCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -725,7 +608,13 @@ class PostCard extends StatelessWidget {
                 );
               }
             },
-            child: const Text('Salvar', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Salvar',
+              style: TextStyle(
+                color: Color(0xFF1877F2),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
