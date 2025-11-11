@@ -10,59 +10,48 @@ import '../screens/image_viewer_screen.dart';
 enum FeedFilter { mixed, postsOnly, newsOnly }
 
 class PostService {
+  // Singleton
   static final PostService _instance = PostService._internal();
   factory PostService() => _instance;
   PostService._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final StreamController<List<Post>> _controller = StreamController.broadcast();
+  final StreamController<List<Post>> _controller = StreamController<List<Post>>.broadcast();
 
-  // MÉTODO PÚBLICO PARA OBTER O STREAM (ESTAVA FALTANDO!)
-  Stream<List<Post>> getPostsStream() {
-    ensureStarted(); // Garante que o serviço foi iniciado
-    return _controller.stream;
-  }
-
-  Stream<List<Post>> get stream => _controller.stream;
-
-  // NOVO ENDPOINT DO GITHUB
+  // Endpoint (GitHub raw)
   static const _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
   StreamSubscription<QuerySnapshot>? _postsSub;
   Timer? _newsTimer;
-  bool _started = false;
-  List<Post> _posts = [];
-  List<Post> _news = [];
-  FeedFilter _currentFilter = FeedFilter.mixed;
-  int _currentNewsFile = 1;
-  bool _hasMoreNews = true;
-  bool _isLoadingNews = false;
 
+  // Estado interno
+  bool _started = false;
+  bool _isLoadingNews = false;
+  bool _hasMoreNews = true;
+  int _currentNewsFile = 1;
+
+  final List<Post> _posts = [];
+  final List<Post> _news = [];
+
+  FeedFilter _currentFilter = FeedFilter.mixed;
   FeedFilter get currentFilter => _currentFilter;
 
-  void setFilter(FeedFilter filter) {
-    _currentFilter = filter;
-    print('🔄 Filtro alterado para: $filter');
-    _emitCombined();
+  /// Stream público usado pela UI
+  Stream<List<Post>> get stream {
+    ensureStarted();
+    // Emite o estado atual assim que alguém escuta, para evitar UI esperando indefinidamente
+    Future.microtask(() => _emitCombined());
+    return _controller.stream;
   }
 
+  /// Inicia o serviço (idempotente)
   void ensureStarted() {
     if (_started) return;
     _started = true;
 
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('🚀 PostService iniciado');
-    print('🌐 API Base: $_apiBaseUrl');
-    print('♾️ Sistema de news infinito ativado');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     _listenPosts();
-    _fetchNewsFromAPI();
-
-    _newsTimer = Timer.periodic(const Duration(minutes: 10), (_) {
-      print('🔄 Atualizando notícias automaticamente...');
-      _fetchNewsFromAPI();
-    });
+    _fetchNewsFromAPI(); // primeira carga
+    _newsTimer = Timer.periodic(const Duration(minutes: 10), (_) => _fetchNewsFromAPI());
   }
 
   void _listenPosts() {
@@ -71,276 +60,262 @@ class PostService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .listen((snap) {
-      _posts = snap.docs.map((d) => Post.fromFirestore(d)).toList();
-      print('📝 Posts do Firebase: ${_posts.length}');
-      _emitCombined();
+      try {
+        _posts
+          ..clear()
+          ..addAll(snap.docs.map((d) => Post.fromFirestore(d)).toList());
+        _emitCombined();
+      } catch (e) {
+        // Se der erro ao desserializar, envia erro para o stream (UI pode tratar)
+        _controller.addError(e);
+      }
     }, onError: (e) {
-      print('❌ Erro ao buscar posts: $e');
       _controller.addError(e);
     });
   }
 
+  /// Busca notícias do endpoint público. Implementado para ser robusto a 404 / timeouts.
   Future<void> _fetchNewsFromAPI() async {
-    if (_isLoadingNews) {
-      print('⏳ Já existe um carregamento em andamento, aguardando...');
-      return;
-    }
-
+    if (_isLoadingNews) return;
     _isLoadingNews = true;
 
-    print('');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('📰 BUSCANDO NOTÍCIAS DA API...');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    const maxConsecutiveErrors = 3;
+    const maxFilesPerRun = 50;
+    int consecutiveErrors = 0;
+    int triedFiles = 0;
+
+    if (_currentNewsFile < 1) _currentNewsFile = 1;
+    // Se já foi determinado que não há mais arquivos, tenta novamente a partir do 1
+    if (!_hasMoreNews) {
+      _currentNewsFile = 1;
+      _hasMoreNews = true;
+    }
 
     final List<Post> results = [];
-    int consecutiveErrors = 0;
-    int filesLoaded = 0;
-    const maxConsecutiveErrors = 3;
 
     try {
-      // Carrega TODOS os arquivos disponíveis (infinito)
-      while (_hasMoreNews && consecutiveErrors < maxConsecutiveErrors) {
+      while (triedFiles < maxFilesPerRun && consecutiveErrors < maxConsecutiveErrors && _hasMoreNews) {
         final url = '$_apiBaseUrl/news/news$_currentNewsFile.json';
-        print('🔍 Tentando: news$_currentNewsFile.json');
-        print('   URL completa: $url');
 
+        http.Response resp;
         try {
-          final resp = await http
-              .get(Uri.parse(url))
-              .timeout(const Duration(seconds: 15));
-
-          print('   Status: ${resp.statusCode}');
-
-          if (resp.statusCode == 200) {
-            try {
-              final json = jsonDecode(resp.body);
-              print('   ✅ JSON parseado com sucesso');
-              print('   Estrutura: ${json.keys.toList()}');
-
-              final List? articles = json['articles'];
-
-              if (articles == null) {
-                print('   ⚠️ Campo "articles" não encontrado no JSON');
-                consecutiveErrors++;
-                _currentNewsFile++;
-                continue;
-              }
-
-              if (articles.isEmpty) {
-                print('   ⚠️ Array "articles" está vazio');
-                consecutiveErrors++;
-                _currentNewsFile++;
-                continue;
-              }
-
-              print('   ✅ ${articles.length} artigos encontrados');
-              filesLoaded++;
-              consecutiveErrors = 0; // Reset contador de erros
-
-              for (var i = 0; i < articles.length; i++) {
-                final article = articles[i];
-
-                try {
-                  print('   📄 Artigo $i: ${article['title']?.substring(0, 50) ?? 'sem título'}...');
-
-                  final imageUrl = article['imageUrl'] ?? article['urlToImage'];
-                  if (imageUrl != null) {
-                    print('      🖼️ Imagem: $imageUrl');
-                  } else {
-                    print('      ⚠️ Sem imagem');
-                  }
-
-                  final publishedAt = article['publishedAt'];
-                  DateTime timestamp;
-
-                  if (publishedAt != null) {
-                    try {
-                      timestamp = DateTime.parse(publishedAt);
-                    } catch (e) {
-                      print('      ⚠️ Data inválida: $publishedAt');
-                      timestamp = DateTime.now();
-                    }
-                  } else {
-                    timestamp = DateTime.now();
-                  }
-
-                  final post = Post(
-                    id: article['id'] ?? 'news_${_currentNewsFile}_$i',
-                    userId: 'news_api',
-                    userName: article['source']?['name'] ?? article['source'] ?? 'News API',
-                    userAvatar: null,
-                    content: article['content'] ?? article['description'] ?? '',
-                    imageBase64: null,
-                    imageUrls: imageUrl != null ? [imageUrl] : null,
-                    videoUrl: null,
-                    isNews: true,
-                    newsUrl: article['url'] ?? '',
-                    title: article['title'] ?? 'Sem título',
-                    summary: article['description'] ?? '',
-                    timestamp: timestamp,
-                  );
-
-                  results.add(post);
-                  print('      ✅ Notícia adicionada');
-
-                } catch (e) {
-                  print('      ❌ Erro ao processar artigo: $e');
-                }
-              }
-
-              // Avança para próximo arquivo
-              _currentNewsFile++;
-
-            } catch (e) {
-              print('   ❌ Erro ao fazer parse do JSON: $e');
-              print('   Body preview: ${resp.body.substring(0, resp.body.length > 200 ? 200 : resp.body.length)}...');
-              consecutiveErrors++;
-              _currentNewsFile++;
-            }
-
-          } else if (resp.statusCode == 404) {
-            print('   ⚠️ Arquivo não existe (404) - Fim dos arquivos disponíveis');
-            consecutiveErrors++;
-            // Não incrementa _currentNewsFile aqui, aguarda reset
-          } else {
-            print('   ⚠️ Erro HTTP ${resp.statusCode}');
-            print('   Body: ${resp.body}');
-            consecutiveErrors++;
-            _currentNewsFile++;
-          }
-
+          resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 12));
         } catch (e) {
-          print('   ❌ Erro de rede: $e');
+          // erro de rede/timeout → avança arquivo e conta erro
           consecutiveErrors++;
-          if (consecutiveErrors < maxConsecutiveErrors) {
+          _currentNewsFile++;
+          triedFiles++;
+          await Future.delayed(const Duration(milliseconds: 250));
+          continue;
+        }
+
+        if (resp.statusCode == 200) {
+          dynamic jsonMap;
+          try {
+            jsonMap = jsonDecode(resp.body);
+          } catch (e) {
+            // JSON inválido → pula arquivo
+            consecutiveErrors++;
             _currentNewsFile++;
+            triedFiles++;
+            await Future.delayed(const Duration(milliseconds: 250));
+            continue;
           }
-        }
 
-        // Pequeno delay entre requisições para não sobrecarregar
-        await Future.delayed(const Duration(milliseconds: 500));
+          final List? articles = jsonMap is Map ? (jsonMap['articles'] as List?) : null;
+          if (articles == null || articles.isEmpty) {
+            // Arquivo sem artigos válidos → pula
+            consecutiveErrors++;
+            _currentNewsFile++;
+            triedFiles++;
+            await Future.delayed(const Duration(milliseconds: 250));
+            continue;
+          }
+
+          // Processa artigos válidos
+          for (var i = 0; i < articles.length; i++) {
+            try {
+              final article = (articles[i] as Map).cast<String, dynamic>();
+              final imageUrl = article['imageUrl'] ?? article['urlToImage'];
+              final publishedAt = article['publishedAt'];
+              DateTime timestamp;
+              if (publishedAt != null) {
+                try {
+                  timestamp = DateTime.parse(publishedAt.toString());
+                } catch (_) {
+                  timestamp = DateTime.now();
+                }
+              } else {
+                timestamp = DateTime.now();
+              }
+
+              final post = Post(
+                id: (article['id'] ?? 'news_${_currentNewsFile}_$i').toString(),
+                userId: 'news_api',
+                userName: article['source'] is Map ? (article['source']['name'] ?? 'News API') : (article['source'] ?? 'News API'),
+                userAvatar: null,
+                content: (article['content'] ?? article['description'] ?? '').toString(),
+                imageBase64: null,
+                imageUrls: imageUrl != null ? [imageUrl.toString()] : null,
+                videoUrl: null,
+                isNews: true,
+                newsUrl: (article['url'] ?? '').toString(),
+                title: (article['title'] ?? 'Sem título').toString(),
+                summary: (article['description'] ?? '').toString(),
+                timestamp: timestamp,
+              );
+
+              results.add(post);
+            } catch (_) {
+              // ignora artigo com formato inesperado
+              continue;
+            }
+          }
+
+          // arquivo processado com sucesso → avançar
+          consecutiveErrors = 0;
+          _currentNewsFile++;
+          triedFiles++;
+          await Future.delayed(const Duration(milliseconds: 200));
+          continue;
+        } else if (resp.statusCode == 404) {
+          // 404 = fim dos arquivos publicados
+          _hasMoreNews = false;
+          break;
+        } else {
+          // outros códigos HTTP → conta erro e avança
+          consecutiveErrors++;
+          _currentNewsFile++;
+          triedFiles++;
+          await Future.delayed(const Duration(milliseconds: 250));
+          continue;
+        }
       }
 
-      // Se atingiu o limite de erros, volta para o início
-      if (consecutiveErrors >= maxConsecutiveErrors) {
-        print('🔄 Limite de erros atingido, voltando para news1.json');
-        _currentNewsFile = 1;
-        _hasMoreNews = true; // Mantém ativo para próxima tentativa
-      }
-
-      print('');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-      if (results.isEmpty) {
-        print('❌ NENHUMA NOTÍCIA NOVA CARREGADA!');
-        print('   Mantendo notícias anteriores: ${_news.length}');
-        print('   Próxima tentativa em 10 minutos');
-        print('   Próximo arquivo: news$_currentNewsFile.json');
-
-        // Se não tem notícias antigas E falhou, emite vazio para mostrar algo
-        if (_news.isEmpty) {
-          print('⚠️ Sem notícias antigas, emitindo feed vazio');
-          _emitCombined();
-        }
-      } else {
-        // Ordena por data mais recente
+      if (results.isNotEmpty) {
+        // ordena por timestamp (mais recente primeiro) e limita
         results.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-        // Limita a 100 notícias mais recentes para não sobrecarregar
-        _news = results.take(100).toList();
-
-        print('✅ ${_news.length} NOTÍCIAS CARREGADAS COM SUCESSO!');
-        print('📂 $filesLoaded arquivos processados');
-        print('🔢 Total de artigos carregados: ${results.length}');
-        print('🔜 Próximo arquivo a tentar: news$_currentNewsFile.json');
-
-        // Debug das notícias carregadas
-        final newsWithImages = _news.where((n) => n.imageUrls?.isNotEmpty == true).length;
-        print('🖼️ Notícias com imagem: $newsWithImages/${_news.length}');
-
-        // Mostra intervalo de datas
-        if (_news.isNotEmpty) {
-          print('📅 Mais recente: ${_news.first.timestamp}');
-          print('📅 Mais antiga: ${_news.last.timestamp}');
-        }
-
+        _news
+          ..clear()
+          ..addAll(results.take(100).toList());
         _emitCombined();
+      } else {
+        // se não carregou nada e não há notícias anteriores, emite estado vazio para UI
+        if (_news.isEmpty) _emitCombined();
       }
-
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('');
-
-    } catch (e) {
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('❌ ERRO CRÍTICO ao buscar notícias: $e');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-      // Mantém notícias antigas em caso de erro crítico
-      _emitCombined();
+    } catch (_) {
+      // qualquer erro inesperado: garante que UI receba estado atual
+      if (_news.isEmpty) _emitCombined();
     } finally {
       _isLoadingNews = false;
     }
   }
 
-  // Método público para carregar mais notícias (scroll infinito)
+  /// Força carregamento de mais notícias (scroll infinito)
   Future<void> loadMoreNews() async {
-    if (!_hasMoreNews || _isLoadingNews) {
-      print('⏸️ Não pode carregar mais notícias agora');
-      return;
-    }
-
-    print('📥 Carregando mais notícias...');
+    if (!_hasMoreNews || _isLoadingNews) return;
     await _fetchNewsFromAPI();
   }
 
+  /// Emite lista combinada para o stream conforme o filtro atual
   void _emitCombined() {
-    List<Post> combined = [];
+    final List<Post> combined = [];
 
     switch (_currentFilter) {
       case FeedFilter.mixed:
-        // Intercala 2 posts + 1 notícia
-        int postIdx = 0;
-        int newsIdx = 0;
-
-        while (postIdx < _posts.length || newsIdx < _news.length) {
-          // Adiciona 2 posts
-          for (int i = 0; i < 2 && postIdx < _posts.length; i++) {
-            combined.add(_posts[postIdx++]);
-          }
-          // Adiciona 1 notícia
-          if (newsIdx < _news.length) {
-            combined.add(_news[newsIdx++]);
+        {
+          int p = 0, n = 0;
+          while (p < _posts.length || n < _news.length) {
+            for (int i = 0; i < 2 && p < _posts.length; i++) combined.add(_posts[p++]);
+            if (n < _news.length) combined.add(_news[n++]);
           }
         }
         break;
-
       case FeedFilter.postsOnly:
-        combined = List.from(_posts);
+        combined.addAll(_posts);
         break;
-
       case FeedFilter.newsOnly:
-        combined = List.from(_news);
+        combined.addAll(_news);
         break;
     }
 
-    final newsCount = combined.where((p) => p.isNews).length;
-    final postsCount = combined.where((p) => !p.isNews).length;
+    // Emite estado atual (mesmo que vazio)
+    if (!_controller.isClosed) _controller.add(List.unmodifiable(combined));
+  }
 
-    print('📊 Feed emitido:');
-    print('   📝 Posts: $postsCount');
-    print('   📰 Notícias: $newsCount');
-    print('   📦 Total: ${combined.length}');
-    print('   🎯 Filtro: $_currentFilter');
+  /// Ajusta filtro e emite novamente
+  void setFilter(FeedFilter filter) {
+    _currentFilter = filter;
+    _emitCombined();
+  }
 
-    _controller.add(combined);
+  /// Funções de CRUD / utilitárias (mantidas compatíveis com o código existente)
+  Future<void> createPost({
+    required String userId,
+    required String userName,
+    String? userAvatar,
+    required String content,
+    String? imageBase64,
+    String? videoUrl,
+  }) async {
+    await _firestore.collection('posts').add({
+      'userId': userId,
+      'userName': userName,
+      'userAvatar': userAvatar,
+      'content': content,
+      'imageBase64': imageBase64,
+      'imageUrls': null,
+      'videoUrl': videoUrl,
+      'timestamp': FieldValue.serverTimestamp(),
+      'likes': 0,
+      'comments': 0,
+      'shares': 0,
+      'likedBy': [],
+      'isNews': false,
+    });
+  }
+
+  Future<void> toggleLike(String postId, String uid) async {
+    if (postId.startsWith('news_')) return;
+    final docRef = _firestore.collection('posts').doc(postId);
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      if (!snap.exists) return;
+      final data = snap.data()!;
+      final likedBy = List<String>.from(data['likedBy'] ?? []);
+      final likes = (data['likes'] as int?) ?? 0;
+      if (likedBy.contains(uid)) {
+        likedBy.remove(uid);
+        tx.update(docRef, {'likedBy': likedBy, 'likes': likes > 0 ? likes - 1 : 0});
+      } else {
+        likedBy.add(uid);
+        tx.update(docRef, {'likedBy': likedBy, 'likes': likes + 1});
+      }
+    });
+  }
+
+  Future<void> sharePost(Post post) async {
+    if (post.isNews) return;
+    final ref = _firestore.collection('posts').doc(post.id);
+    await ref.update({'shares': FieldValue.increment(1)});
+  }
+
+  Future<void> deletePost(String postId) async {
+    await _firestore.collection('posts').doc(postId).delete();
+  }
+
+  Future<void> updatePost(String postId, String newContent) async {
+    await _firestore.collection('posts').doc(postId).update({
+      'content': newContent,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   void openImageViewer(BuildContext context, List<String> imageUrls, String initialUrl) {
     if (imageUrls.isEmpty) return;
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => 
+        pageBuilder: (context, animation, secondaryAnimation) =>
             ImageViewerScreen(imageUrls: imageUrls, initialUrl: initialUrl),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           var tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
@@ -352,119 +327,11 @@ class PostService {
     );
   }
 
-  Future<void> createPost({
-    required String userId,
-    required String userName,
-    String? userAvatar,
-    required String content,
-    String? imageBase64,
-    String? videoUrl,
-  }) async {
-    try {
-      await _firestore.collection('posts').add({
-        'userId': userId,
-        'userName': userName,
-        'userAvatar': userAvatar,
-        'content': content,
-        'imageBase64': imageBase64,
-        'imageUrls': null,
-        'videoUrl': videoUrl,
-        'timestamp': FieldValue.serverTimestamp(),
-        'likes': 0,
-        'comments': 0,
-        'shares': 0,
-        'likedBy': [],
-        'isNews': false,
-      });
-      print('✅ Post criado com sucesso');
-    } catch (e) {
-      print('❌ Erro ao criar post: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> toggleLike(String postId, String uid) async {
-    if (postId.startsWith('news_')) {
-      print('⚠️ Não é possível curtir notícias');
-      return;
-    }
-
-    final docRef = _firestore.collection('posts').doc(postId);
-
-    try {
-      await _firestore.runTransaction((tx) async {
-        final snap = await tx.get(docRef);
-        if (!snap.exists) {
-          print('⚠️ Post não encontrado: $postId');
-          return;
-        }
-
-        final data = snap.data()!;
-        final likedBy = List<String>.from(data['likedBy'] ?? []);
-        final likes = (data['likes'] as int?) ?? 0;
-
-        if (likedBy.contains(uid)) {
-          likedBy.remove(uid);
-          tx.update(docRef, {
-            'likedBy': likedBy,
-            'likes': likes > 0 ? likes - 1 : 0,
-          });
-          print('👎 Like removido');
-        } else {
-          likedBy.add(uid);
-          tx.update(docRef, {
-            'likedBy': likedBy,
-            'likes': likes + 1,
-          });
-          print('👍 Like adicionado');
-        }
-      });
-    } catch (e) {
-      print('❌ Erro ao dar like: $e');
-    }
-  }
-
-  Future<void> sharePost(Post post) async {
-    if (post.isNews) {
-      print('⚠️ Não é possível compartilhar notícias');
-      return;
-    }
-
-    try {
-      final ref = _firestore.collection('posts').doc(post.id);
-      await ref.update({'shares': FieldValue.increment(1)});
-      print('✅ Post compartilhado');
-    } catch (e) {
-      print('❌ Erro ao compartilhar: $e');
-    }
-  }
-
-  Future<void> deletePost(String postId) async {
-    try {
-      await _firestore.collection('posts').doc(postId).delete();
-      print('✅ Post deletado');
-    } catch (e) {
-      print('❌ Erro ao deletar: $e');
-    }
-  }
-
-  Future<void> updatePost(String postId, String newContent) async {
-    try {
-      await _firestore.collection('posts').doc(postId).update({
-        'content': newContent,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      print('✅ Post atualizado');
-    } catch (e) {
-      print('❌ Erro ao atualizar: $e');
-    }
-  }
-
+  /// Limpeza
   void dispose() {
     _postsSub?.cancel();
     _newsTimer?.cancel();
-    _controller.close();
+    if (!_controller.isClosed) _controller.close();
     _started = false;
-    print('🛑 PostService finalizado');
   }
 }
