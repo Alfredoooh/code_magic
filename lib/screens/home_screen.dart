@@ -1,4 +1,3 @@
-
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,7 +15,7 @@ import 'marketplace_screen.dart';
 import 'marketplace/add_book_screen.dart';
 import 'diary_screen.dart';
 import 'diary_editor_screen.dart';
-import 'new_request_screen.dart';
+import 'document_requests_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _pages[3] = const DiaryScreen();
         break;
       case 4:
-        _pages[4] = const NewRequestScreen();
+        _pages[4] = const DocumentRequestsScreen();
         break;
       default:
         _pages[index] = const SizedBox.shrink();
