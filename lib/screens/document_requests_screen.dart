@@ -71,7 +71,7 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
     if (error == null) return null;
     try {
       final s = error.toString();
-      final urlRegex = RegExp(r'https?://[^\s\)\'"]+');
+      final urlRegex = RegExp(r'https?://\S+');
       final match = urlRegex.firstMatch(s);
       return match?.group(0);
     } catch (_) {
@@ -116,9 +116,9 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
               SelectableText(
                 url,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: const Color(0xFF1877F2),
+                  color: Color(0xFF1877F2),
                   decoration: TextDecoration.underline,
                 ),
               ),
