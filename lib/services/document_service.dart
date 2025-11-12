@@ -139,6 +139,19 @@ class DocumentService {
         .map((snapshot) => snapshot.docs.length);
   }
 
+  Future<void> updateRequest(DocumentRequest request) async {
+    try {
+      await _firestore
+          .collection('document_requests')
+          .doc(request.id)
+          .update(request.toFirestore());
+      print('✅ Pedido atualizado: ${request.id}');
+    } catch (e) {
+      print('❌ Erro ao atualizar pedido: $e');
+      rethrow;
+    }
+  }
+
   Future<void> updateRequestStatus(
     String requestId, 
     String status, 
