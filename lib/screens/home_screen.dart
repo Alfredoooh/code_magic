@@ -1,3 +1,4 @@
+
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,40 +25,19 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final List<Widget?> _pages = [const PostFeed(), null, null, null, null];
   static const Color _activeBlue = Color(0xFF1877F2);
-  
-  // Tab controller para a aba "Novo Pedido"
-  late TabController _tabController;
-  int _requestTabIndex = 0;
 
   final List<String> _tabTitles = [
     'Início',
     'Usuários',
     'Marketplace',
     'Diário',
-    '', // Sem título para "Novo Pedido"
+    'Novo Pedido',
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _requestTabIndex = _tabController.index;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   Widget _getPage(int index) {
     if (_pages[index] != null) return _pages[index]!;
@@ -89,8 +69,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final authProvider = context.read<AuthProvider>();
 
     if (_currentIndex == 0) {
+      // Feed - criar novo post
       _showNewPostModal(context);
     } else if (_currentIndex == 2) {
+      // Marketplace - adicionar livro
       final bool canAddBook = authProvider.userData?['isPro'] == true || 
                               authProvider.userData?['isPremium'] == true;
 
@@ -105,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _showProRequiredDialog(context);
       }
     } else if (_currentIndex == 3) {
+      // Diário - criar nova entrada
       if (authProvider.user != null) {
         Navigator.push(
           context,
@@ -227,12 +210,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final authProvider = context.watch<AuthProvider>();
     final currentUid = authProvider.user?.uid;
 
+    // Botão + aparece em: Feed (0), Marketplace (2) e Diário (3)
     final bool showPlusButton = _currentIndex == 0 || _currentIndex == 2 || _currentIndex == 3;
     final bool showSearchButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2 || _currentIndex == 3;
     final bool showInboxButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2;
-
-    // AppBar diferente apenas para a aba "Novo Pedido"
-    final bool isNewRequestTab = _currentIndex == 4;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -260,40 +241,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                               ),
-                              // Se for aba "Novo Pedido", mostrar tabs; senão, mostrar título normal
-                              if (isNewRequestTab)
-                                Expanded(
-                                  child: TabBar(
-                                    controller: _tabController,
-                                    indicatorColor: _activeBlue,
-                                    indicatorWeight: 3,
-                                    labelColor: _activeBlue,
-                                    unselectedLabelColor: unselectedColor,
-                                    labelStyle: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    tabs: const [
-                                      Tab(text: 'Pedido'),
-                                      Tab(text: 'Gráficos'),
-                                    ],
-                                  ),
-                                )
-                              else
-                                Text(
-                                  _tabTitles[_currentIndex],
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: iconColor,
-                                  ),
+                              Text(
+                                _tabTitles[_currentIndex],
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: iconColor,
                                 ),
-                              
-                              // Spacer apenas se não for aba "Novo Pedido"
-                              if (!isNewRequestTab) const Spacer(),
-                              
-                              // Botões aparecem apenas nas abas que não são "Novo Pedido"
-                              if (!isNewRequestTab && showPlusButton)
+                              ),
+                              const Spacer(),
+                              if (showPlusButton)
                                 IconButton(
                                   icon: SvgIcon(
                                     svgString: CustomIcons.plus,
@@ -301,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   ),
                                   onPressed: () => _handlePlusButton(context),
                                 ),
-                              if (!isNewRequestTab && showSearchButton)
+                              if (showSearchButton)
                                 IconButton(
                                   icon: SvgIcon(
                                     svgString: CustomIcons.search,
@@ -316,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     );
                                   },
                                 ),
-                              if (!isNewRequestTab && showInboxButton && currentUid != null)
+                              if (showInboxButton && currentUid != null)
                                 StreamBuilder<QuerySnapshot>(
                                   stream: FirebaseFirestore.instance
                                       .collection('document_requests')
@@ -355,26 +312,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 Expanded(
-                  child: _currentIndex == 4
-                      ? TabBarView(
-                          controller: _tabController,
-                          children: [
-                            const NewRequestScreen(),
-                            Center(
-                              child: Text(
-                                'Gráficos em breve',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: unselectedColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : IndexedStack(
-                          index: _currentIndex,
-                          children: List.generate(5, (i) => _getPage(i)),
-                        ),
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: List.generate(5, (i) => _getPage(i)),
+                  ),
                 ),
               ],
             ),
