@@ -51,7 +51,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         description: 'Imagem selecionada do dispositivo',
         imageUrl: file.path, // caminho local
         usageCount: 0,
-        category: _selectedCategory ?? DocumentCategory.other, // <- CORREÇÃO: categoria obrigatória
+        category: _selectedCategory ?? DocumentCategory.other,
+        createdAt: DateTime.now(), // <-- ADICIONADO para satisfazer o construtor
       );
 
       Navigator.of(context).push(
