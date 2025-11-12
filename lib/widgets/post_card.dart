@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/post_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -10,6 +11,7 @@ import '../services/post_service.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/user_detail_screen.dart';
 import '../screens/video_detail_screen.dart';
+import '../screens/news_detail_screen.dart';
 import '../widgets/custom_icons.dart';
 
 class PostCard extends StatelessWidget {
@@ -26,6 +28,16 @@ class PostCard extends StatelessWidget {
     return '${timestamp.day}/${timestamp.month}';
   }
 
+  void _openNewsDetail(BuildContext context) {
+    if (post.isNews) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => NewsDetailScreen(post: post),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -39,178 +51,146 @@ class PostCard extends StatelessWidget {
     final postService = PostService();
     final isLiked = auth.user != null ? post.isLikedBy(auth.user!.uid) : false;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: cardColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          _buildHeader(context, isDark, textColor, secondaryColor, postService),
+    return GestureDetector(
+      onTap: post.isNews ? () => _openNewsDetail(context) : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        color: cardColor,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            _buildHeader(context, isDark, textColor, secondaryColor, postService),
 
-          // Content text
-          if (post.title != null && post.title!.isNotEmpty && post.isNews)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Text(
-                post.title!,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                  height: 1.3,
+            // Content text (somente para posts normais, não para notícias)
+            if (post.content.isNotEmpty && !post.isNews)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  post.content,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: textColor,
+                    height: 1.4,
+                  ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
               ),
+
+            // Summary para notícias (preview)
+            if (post.summary != null && post.summary!.isNotEmpty && post.isNews)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  post.summary!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: secondaryColor,
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+            // Media content
+            _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
+
+            // Stats
+            if (post.likes > 0 || post.comments > 0 || post.shares > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    if (post.likes > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF1877F2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.thumb_up,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${post.likes}',
+                        style: TextStyle(fontSize: 14, color: secondaryColor),
+                      ),
+                    ],
+                    const Spacer(),
+                    if (post.comments > 0)
+                      Text(
+                        '${post.comments} comentários',
+                        style: TextStyle(fontSize: 14, color: secondaryColor),
+                      ),
+                    if (post.shares > 0) ...[
+                      const SizedBox(width: 12),
+                      Text(
+                        '${post.shares} compartilhamentos',
+                        style: TextStyle(fontSize: 14, color: secondaryColor),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+            // Divider
+            Container(
+              height: 0.5,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              color: dividerColor,
             ),
 
-          if (post.content.isNotEmpty && !post.isNews)
+            // Actions
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Text(
-                post.content,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: textColor,
-                  height: 1.4,
-                ),
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-          if (post.summary != null && post.summary!.isNotEmpty && post.isNews)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Text(
-                post.summary!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: secondaryColor,
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-          // Media content
-          _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
-
-          // Stats
-          if (post.likes > 0 || post.comments > 0 || post.shares > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Row(
                 children: [
-                  if (post.likes > 0) ...[
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF1877F2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.thumb_up,
-                        size: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${post.likes}',
-                      style: TextStyle(fontSize: 14, color: secondaryColor),
-                    ),
-                  ],
-                  const Spacer(),
-                  if (post.comments > 0)
-                    Text(
-                      '${post.comments} comentários',
-                      style: TextStyle(fontSize: 14, color: secondaryColor),
-                    ),
-                  if (post.shares > 0) ...[
-                    const SizedBox(width: 12),
-                    Text(
-                      '${post.shares} compartilhamentos',
-                      style: TextStyle(fontSize: 14, color: secondaryColor),
-                    ),
-                  ],
+                  _buildActionButton(
+                    context,
+                    icon: CustomIcons.thumbUpOutlined,
+                    activeIcon: CustomIcons.thumbUp,
+                    label: 'Curtir',
+                    isActive: isLiked,
+                    disabled: post.isNews,
+                    onTap: () => postService.toggleLike(post.id, auth.user!.uid),
+                  ),
+                  _buildActionButton(
+                    context,
+                    icon: CustomIcons.commentOutlined,
+                    label: 'Comentar',
+                    onTap: () {
+                      if (post.isNews) {
+                        _openNewsDetail(context);
+                      } else {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => PostDetailScreen(
+                              postId: post.id,
+                              isNews: false,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  _buildActionButton(
+                    context,
+                    icon: CustomIcons.shareOutlined,
+                    label: 'Compartilhar',
+                    disabled: post.isNews,
+                    onTap: () => postService.sharePost(post),
+                  ),
                 ],
               ),
             ),
-
-          // Divider
-          Container(
-            height: 0.5,
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            color: dividerColor,
-          ),
-
-          // Actions
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            child: Row(
-              children: [
-                _buildActionButton(
-                  context,
-                  icon: CustomIcons.thumbUpOutlined,
-                  activeIcon: CustomIcons.thumbUp,
-                  label: 'Curtir',
-                  isActive: isLiked,
-                  disabled: post.isNews,
-                  onTap: () => postService.toggleLike(post.id, auth.user!.uid),
-                ),
-                _buildActionButton(
-                  context,
-                  icon: CustomIcons.commentOutlined,
-                  label: 'Comentar',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => PostDetailScreen(
-                          postId: post.id,
-                          isNews: post.isNews,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildActionButton(
-                  context,
-                  icon: CustomIcons.shareOutlined,
-                  label: 'Compartilhar',
-                  disabled: post.isNews,
-                  onTap: () => postService.sharePost(post),
-                ),
-              ],
-            ),
-          ),
-
-          // Botão "Ler mais" para notícias
-          if (post.isNews && post.newsUrl?.isNotEmpty == true)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    print('🔗 Abrir notícia: ${post.newsUrl}');
-                  },
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Ler notícia completa'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1877F2),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -294,44 +274,77 @@ class PostCard extends StatelessWidget {
   }
 
   Widget _buildAvatar(bool isDark, Color textColor) {
-    Widget avatarContent;
-
-    if (post.userAvatar != null) {
-      avatarContent = CircleAvatar(
-        radius: 20,
-        backgroundImage: MemoryImage(base64Decode(post.userAvatar!)),
-      );
-    } else {
-      avatarContent = CircleAvatar(
-        radius: 20,
-        backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-        child: Text(
-          post.isNews ? '📰' : (post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U'),
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.w600,
-            fontSize: post.isNews ? 18 : 16,
-          ),
-        ),
-      );
-    }
-
-    if (post.isNews) {
+    // Para notícias, usa favicon
+    if (post.isNews && post.newsUrl != null) {
+      final domain = Uri.parse(post.newsUrl!).host.replaceAll('www.', '');
+      final faviconUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=64';
+      
       return Container(
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+        ),
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: faviconUrl,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+              child: const Icon(Icons.language, size: 20),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+              child: const Icon(Icons.language, size: 20),
+            ),
           ),
         ),
-        padding: const EdgeInsets.all(2),
-        child: avatarContent,
       );
     }
 
-    return avatarContent;
+    // Para usuários normais
+    if (post.userAvatar != null) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+        child: ClipOval(
+          child: Image.memory(
+            base64Decode(post.userAvatar!),
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            cacheWidth: 80,
+            errorBuilder: (context, error, stackTrace) {
+              return Text(
+                post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+      child: Text(
+        post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
+        ),
+      ),
+    );
   }
 
   Widget _buildMediaContent(BuildContext context, bool isDark, Color textColor, Color secondaryColor, PostService postService) {
@@ -388,7 +401,7 @@ class PostCard extends StatelessWidget {
       );
     }
 
-    // Imagem Base64 (posts de usuários)
+    // Imagem Base64 (posts de usuários) - OTIMIZADO
     if (post.imageBase64 != null) {
       return GestureDetector(
         onTap: () => postService.openImageViewer(
@@ -400,6 +413,8 @@ class PostCard extends StatelessWidget {
           base64Decode(post.imageBase64!),
           width: double.infinity,
           fit: BoxFit.cover,
+          gaplessPlayback: true,
+          cacheHeight: 1000,
           errorBuilder: (context, error, stackTrace) {
             return _buildErrorImage(isDark, secondaryColor, 'Erro ao carregar imagem');
           },
@@ -407,37 +422,27 @@ class PostCard extends StatelessWidget {
       );
     }
 
-    // Imagem URL (notícias)
+    // Imagem URL (notícias) - Abre detalhes ao clicar
     if (post.imageUrls != null && post.imageUrls!.isNotEmpty) {
-      return GestureDetector(
-        onTap: post.newsUrl?.isNotEmpty == true
-            ? () => print('🔗 Abrir notícia: ${post.newsUrl}')
-            : null,
-        child: Image.network(
-          post.imageUrls!.first,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              height: 200,
-              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-              child: Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
-                  strokeWidth: 3,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                ),
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            print('❌ Erro ao carregar imagem da notícia: $error');
-            return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
-          },
+      return CachedNetworkImage(
+        imageUrl: post.imageUrls!.first,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        maxHeightDiskCache: 1000,
+        memCacheHeight: 1000,
+        placeholder: (context, url) => Container(
+          height: 200,
+          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+            ),
+          ),
         ),
+        errorWidget: (context, url, error) {
+          return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
+        },
       );
     }
 
