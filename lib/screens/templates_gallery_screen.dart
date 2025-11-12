@@ -5,24 +5,30 @@ import '../services/document_service.dart';
 import '../models/document_template_model.dart';
 import '../providers/theme_provider.dart';
 
-/// GALERIA COMPLETA de templates da APP (imagens via URL).
-/// Ao tocar num template, o widget faz `Navigator.pop(context, template)`,
-/// retornando o DocumentTemplate selecionado para a tela chamadora.
 class TemplatesGalleryScreen extends StatelessWidget {
   final DocumentCategory category;
   const TemplatesGalleryScreen({super.key, required this.category});
 
   String _categoryName(DocumentCategory c) {
     switch (c) {
-      case DocumentCategory.curriculum: return 'Currículo';
-      case DocumentCategory.certificate: return 'Certificado';
-      case DocumentCategory.letter: return 'Carta/Câmara';
-      case DocumentCategory.report: return 'Relatório';
-      case DocumentCategory.contract: return 'Contrato';
-      case DocumentCategory.invoice: return 'Fatura';
-      case DocumentCategory.presentation: return 'Apresentação';
-      case DocumentCategory.essay: return 'Trabalho Acadêmico';
-      case DocumentCategory.other: return 'Outro';
+      case DocumentCategory.curriculum:
+        return 'Currículo';
+      case DocumentCategory.certificate:
+        return 'Certificado';
+      case DocumentCategory.letter:
+        return 'Carta';
+      case DocumentCategory.report:
+        return 'Relatório';
+      case DocumentCategory.contract:
+        return 'Contrato';
+      case DocumentCategory.invoice:
+        return 'Fatura';
+      case DocumentCategory.presentation:
+        return 'Apresentação';
+      case DocumentCategory.essay:
+        return 'Trabalho';
+      case DocumentCategory.other:
+        return 'Outro';
     }
   }
 
@@ -30,30 +36,70 @@ class TemplatesGalleryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final DocumentService documentService = DocumentService();
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final bg = isDark ? const Color(0xFF0B0B0B) : const Color(0xFFF8F9FB);
+    
+    final bgColor = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+    final cardColor = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF5F5F5);
+    final textColor = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: bg,
+        backgroundColor: bgColor,
         elevation: 0,
-        title: Text(_categoryName(category)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Fechar',
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: textColor),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          _categoryName(category),
+          style: TextStyle(
+            color: textColor,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
-        ],
+        ),
       ),
       body: StreamBuilder<List<DocumentTemplate>>(
         stream: documentService.getTemplatesByCategory(category),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF1877F2),
+              ),
+            );
           }
+
           if (snapshot.hasError) {
-            return Center(child: Text('Erro: ${snapshot.error}'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Erro ao carregar',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
           }
 
           final templates = snapshot.data ?? [];
@@ -61,58 +107,107 @@ class TemplatesGalleryScreen extends StatelessWidget {
           if (templates.isEmpty) {
             return Center(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.folder_open_outlined, size: 64),
-                  SizedBox(height: 12),
-                  Text('Nenhum template nesta categoria'),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.folder_open_outlined,
+                    size: 64,
+                    color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhum template disponível',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: textColor,
+                    ),
+                  ),
                 ],
               ),
             );
           }
 
-          // Grid de templates: toca para selecionar e retornar o template
           return GridView.builder(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.72,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 0.75,
             ),
             itemCount: templates.length,
             itemBuilder: (context, index) {
               final t = templates[index];
+              
               return GestureDetector(
-                onTap: () {
-                  // Retorna o template seleccionado para a tela anterior
-                  Navigator.of(context).pop(t);
-                },
+                onTap: () => Navigator.of(context).pop(t),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF141414) : Colors.white,
+                    color: cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
                         child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                          child: t.imageUrl.startsWith('http')
-                              ? Image.network(t.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image))
-                              : Image.network(t.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                          child: Image.network(
+                            t.imageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  strokeWidth: 2,
+                                  color: const Color(0xFF1877F2),
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => Container(
+                              color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5),
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 48,
+                                color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text(t.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                            Text(
+                              t.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                              ),
+                            ),
+                            if (t.description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                t.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
