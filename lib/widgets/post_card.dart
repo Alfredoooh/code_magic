@@ -14,9 +14,17 @@ import '../screens/video_detail_screen.dart';
 import '../screens/news_detail_screen.dart';
 import '../widgets/custom_icons.dart';
 
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget {
   final Post post;
   const PostCard({super.key, required this.post});
+
+  @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
@@ -29,10 +37,10 @@ class PostCard extends StatelessWidget {
   }
 
   void _openNewsDetail(BuildContext context) {
-    if (post.isNews) {
+    if (widget.post.isNews) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => NewsDetailScreen(post: post),
+          builder: (context) => NewsDetailScreen(post: widget.post),
         ),
       );
     }
@@ -40,6 +48,7 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final auth = context.watch<AuthProvider>();
 
@@ -49,10 +58,10 @@ class PostCard extends StatelessWidget {
     final dividerColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
     final postService = PostService();
-    final isLiked = auth.user != null ? post.isLikedBy(auth.user!.uid) : false;
+    final isLiked = auth.user != null ? widget.post.isLikedBy(auth.user!.uid) : false;
 
     return GestureDetector(
-      onTap: post.isNews ? () => _openNewsDetail(context) : null,
+      onTap: widget.post.isNews ? () => _openNewsDetail(context) : null,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         color: cardColor,
@@ -63,11 +72,11 @@ class PostCard extends StatelessWidget {
             _buildHeader(context, isDark, textColor, secondaryColor, postService),
 
             // Content text (somente para posts normais, não para notícias)
-            if (post.content.isNotEmpty && !post.isNews)
+            if (widget.post.content.isNotEmpty && !widget.post.isNews)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 child: Text(
-                  post.content,
+                  widget.post.content,
                   style: TextStyle(
                     fontSize: 15,
                     color: textColor,
@@ -79,11 +88,11 @@ class PostCard extends StatelessWidget {
               ),
 
             // Summary para notícias (preview)
-            if (post.summary != null && post.summary!.isNotEmpty && post.isNews)
+            if (widget.post.summary != null && widget.post.summary!.isNotEmpty && widget.post.isNews)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 child: Text(
-                  post.summary!,
+                  widget.post.summary!,
                   style: TextStyle(
                     fontSize: 14,
                     color: secondaryColor,
@@ -98,12 +107,12 @@ class PostCard extends StatelessWidget {
             _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
 
             // Stats
-            if (post.likes > 0 || post.comments > 0 || post.shares > 0)
+            if (widget.post.likes > 0 || widget.post.comments > 0 || widget.post.shares > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    if (post.likes > 0) ...[
+                    if (widget.post.likes > 0) ...[
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
@@ -118,20 +127,20 @@ class PostCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${post.likes}',
+                        '${widget.post.likes}',
                         style: TextStyle(fontSize: 14, color: secondaryColor),
                       ),
                     ],
                     const Spacer(),
-                    if (post.comments > 0)
+                    if (widget.post.comments > 0)
                       Text(
-                        '${post.comments} comentários',
+                        '${widget.post.comments} comentários',
                         style: TextStyle(fontSize: 14, color: secondaryColor),
                       ),
-                    if (post.shares > 0) ...[
+                    if (widget.post.shares > 0) ...[
                       const SizedBox(width: 12),
                       Text(
-                        '${post.shares} compartilhamentos',
+                        '${widget.post.shares} compartilhamentos',
                         style: TextStyle(fontSize: 14, color: secondaryColor),
                       ),
                     ],
@@ -157,21 +166,21 @@ class PostCard extends StatelessWidget {
                     activeIcon: CustomIcons.thumbUp,
                     label: 'Curtir',
                     isActive: isLiked,
-                    disabled: post.isNews,
-                    onTap: () => postService.toggleLike(post.id, auth.user!.uid),
+                    disabled: widget.post.isNews,
+                    onTap: () => postService.toggleLike(widget.post.id, auth.user!.uid),
                   ),
                   _buildActionButton(
                     context,
                     icon: CustomIcons.commentOutlined,
                     label: 'Comentar',
                     onTap: () {
-                      if (post.isNews) {
+                      if (widget.post.isNews) {
                         _openNewsDetail(context);
                       } else {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => PostDetailScreen(
-                              postId: post.id,
+                              postId: widget.post.id,
                               isNews: false,
                             ),
                           ),
@@ -183,8 +192,8 @@ class PostCard extends StatelessWidget {
                     context,
                     icon: CustomIcons.shareOutlined,
                     label: 'Compartilhar',
-                    disabled: post.isNews,
-                    onTap: () => postService.sharePost(post),
+                    disabled: widget.post.isNews,
+                    onTap: () => postService.sharePost(widget.post),
                   ),
                 ],
               ),
@@ -201,13 +210,13 @@ class PostCard extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: post.isNews
+            onTap: widget.post.isNews
                 ? null
                 : () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => UserDetailScreen(
-                          userId: post.userId,
+                          userId: widget.post.userId,
                         ),
                       ),
                     );
@@ -219,48 +228,23 @@ class PostCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        post.userName,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (post.isNews) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF9800),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'NEWS',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                Text(
+                  widget.post.userName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  _formatTimestamp(post.timestamp),
+                  _formatTimestamp(widget.post.timestamp),
                   style: TextStyle(fontSize: 12, color: secondaryColor),
                 ),
               ],
             ),
           ),
-          if (!post.isNews && context.read<AuthProvider>().user?.uid == post.userId)
+          if (!widget.post.isNews && context.read<AuthProvider>().user?.uid == widget.post.userId)
             IconButton(
               icon: Icon(
                 Icons.more_horiz,
@@ -275,9 +259,9 @@ class PostCard extends StatelessWidget {
 
   Widget _buildAvatar(bool isDark, Color textColor) {
     // Para notícias, usa favicon
-    if (post.isNews && post.newsUrl != null) {
-      final domain = Uri.parse(post.newsUrl!).host.replaceAll('www.', '');
-      final faviconUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=64';
+    if (widget.post.isNews && widget.post.newsUrl != null) {
+      final domain = Uri.parse(widget.post.newsUrl!).host.replaceAll('www.', '');
+      final faviconUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
       
       return Container(
         width: 40,
@@ -292,6 +276,8 @@ class PostCard extends StatelessWidget {
             width: 40,
             height: 40,
             fit: BoxFit.cover,
+            memCacheWidth: 80,
+            maxWidthDiskCache: 80,
             placeholder: (context, url) => Container(
               color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
               child: const Icon(Icons.language, size: 20),
@@ -305,14 +291,14 @@ class PostCard extends StatelessWidget {
       );
     }
 
-    // Para usuários normais
-    if (post.userAvatar != null) {
+    // Para usuários normais com avatar
+    if (widget.post.userAvatar != null) {
       return CircleAvatar(
         radius: 20,
         backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
         child: ClipOval(
           child: Image.memory(
-            base64Decode(post.userAvatar!),
+            base64Decode(widget.post.userAvatar!),
             width: 40,
             height: 40,
             fit: BoxFit.cover,
@@ -320,7 +306,7 @@ class PostCard extends StatelessWidget {
             cacheWidth: 80,
             errorBuilder: (context, error, stackTrace) {
               return Text(
-                post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+                widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
                 style: TextStyle(
                   color: textColor,
                   fontWeight: FontWeight.w600,
@@ -337,7 +323,7 @@ class PostCard extends StatelessWidget {
       radius: 20,
       backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
       child: Text(
-        post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+        widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
         style: TextStyle(
           color: textColor,
           fontWeight: FontWeight.w600,
@@ -349,14 +335,14 @@ class PostCard extends StatelessWidget {
 
   Widget _buildMediaContent(BuildContext context, bool isDark, Color textColor, Color secondaryColor, PostService postService) {
     // Vídeo
-    if (post.videoUrl != null) {
+    if (widget.post.videoUrl != null) {
       return GestureDetector(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => VideoDetailScreen(
-                videoUrl: post.videoUrl!,
-                post: post,
+                videoUrl: widget.post.videoUrl!,
+                post: widget.post,
               ),
             ),
           );
@@ -401,52 +387,124 @@ class PostCard extends StatelessWidget {
       );
     }
 
-    // Imagem Base64 (posts de usuários) - OTIMIZADO
-    if (post.imageBase64 != null) {
-      return GestureDetector(
-        onTap: () => postService.openImageViewer(
-          context,
-          [post.imageBase64!],
-          post.imageBase64!,
-        ),
-        child: Image.memory(
-          base64Decode(post.imageBase64!),
+    // PRIORIDADE 1: Se tem imageUrls, usa URL (notícias ou posts com URL)
+    if (widget.post.imageUrls != null && widget.post.imageUrls!.isNotEmpty) {
+      return RepaintBoundary(
+        child: CachedNetworkImage(
+          imageUrl: widget.post.imageUrls!.first,
           width: double.infinity,
           fit: BoxFit.cover,
-          gaplessPlayback: true,
-          cacheHeight: 1000,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildErrorImage(isDark, secondaryColor, 'Erro ao carregar imagem');
+          maxHeightDiskCache: 800,
+          memCacheHeight: 800,
+          fadeInDuration: const Duration(milliseconds: 200),
+          placeholder: (context, url) => Container(
+            height: 200,
+            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                ),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) {
+            return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
           },
         ),
       );
     }
 
-    // Imagem URL (notícias) - Abre detalhes ao clicar
-    if (post.imageUrls != null && post.imageUrls!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: post.imageUrls!.first,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        maxHeightDiskCache: 1000,
-        memCacheHeight: 1000,
-        placeholder: (context, url) => Container(
-          height: 200,
-          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-          child: const Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+    // PRIORIDADE 2: Checa se imageBase64 é URL ou Base64
+    if (widget.post.imageBase64 != null && widget.post.imageBase64!.isNotEmpty) {
+      // Verifica se é URL (começa com http:// ou https://)
+      if (widget.post.imageBase64!.startsWith('http://') || widget.post.imageBase64!.startsWith('https://')) {
+        return RepaintBoundary(
+          child: CachedNetworkImage(
+            imageUrl: widget.post.imageBase64!,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            maxHeightDiskCache: 800,
+            memCacheHeight: 800,
+            fadeInDuration: const Duration(milliseconds: 200),
+            placeholder: (context, url) => Container(
+              height: 200,
+              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                  ),
+                ),
+              ),
             ),
+            errorWidget: (context, url, error) {
+              return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
+            },
           ),
+        );
+      }
+      
+      // Se não é URL, é Base64 - SUPER OTIMIZADO
+      return RepaintBoundary(
+        child: FutureBuilder<Image>(
+          future: _decodeBase64Image(widget.post.imageBase64!),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+              return GestureDetector(
+                onTap: () => postService.openImageViewer(
+                  context,
+                  [widget.post.imageBase64!],
+                  widget.post.imageBase64!,
+                ),
+                child: snapshot.data!,
+              );
+            }
+            return Container(
+              height: 200,
+              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-        errorWidget: (context, url, error) {
-          return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
-        },
       );
     }
 
     return const SizedBox.shrink();
+  }
+
+  // Decodifica base64 em isolate/async para não travar UI
+  Future<Image> _decodeBase64Image(String base64String) async {
+    final bytes = base64Decode(base64String);
+    return Image.memory(
+      bytes,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      cacheWidth: 800,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: 200,
+          color: Colors.grey[300],
+          child: const Icon(Icons.broken_image, size: 48),
+        );
+      },
+    );
   }
 
   Widget _buildErrorImage(bool isDark, Color secondaryColor, String message) {
@@ -559,7 +617,7 @@ class PostCard extends StatelessWidget {
             isDestructiveAction: true,
             onPressed: () {
               Navigator.pop(context);
-              postService.deletePost(post.id);
+              postService.deletePost(widget.post.id);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Publicação excluída')),
               );
@@ -573,7 +631,7 @@ class PostCard extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, PostService postService) {
     final isDark = context.read<ThemeProvider>().isDarkMode;
-    final controller = TextEditingController(text: post.content);
+    final controller = TextEditingController(text: widget.post.content);
 
     showDialog(
       context: context,
@@ -604,7 +662,7 @@ class PostCard extends StatelessWidget {
           TextButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
-                postService.updatePost(post.id, controller.text.trim());
+                postService.updatePost(widget.post.id, controller.text.trim());
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Publicação atualizada')),
