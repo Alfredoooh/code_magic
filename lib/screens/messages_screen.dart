@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -69,6 +70,78 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     }
   }
 
+  // -------------------------
+  // Helpers de erro / link
+  // -------------------------
+  String? _extractUrlFromError(Object? error) {
+    if (error == null) return null;
+    try {
+      final s = error.toString();
+      final urlRegex = RegExp(r'https?://[^\s\)\'"]+');
+      final match = urlRegex.firstMatch(s);
+      return match?.group(0);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildErrorWithOptionalLink(Object error, Color hintColor) {
+    final url = _extractUrlFromError(error);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: hintColor),
+            const SizedBox(height: 12),
+            Text(
+              'Erro ao carregar dados',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: hintColor),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.toString().length > 200 ? '${error.toString().substring(0, 200)}...' : error.toString(),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: hintColor),
+            ),
+            if (url != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(
+                url,
+                textAlign: TextAlign.center,
+                style: const TextStyle(decoration: TextDecoration.underline, color: Color(0xFF1877F2)),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    await Clipboard.setData(ClipboardData(text: url));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado para a área de transferência')));
+                    }
+                  } catch (_) {}
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text('Copiar link do índice'),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2)),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Cole esse link no navegador e crie o índice no Console do Firebase (Firestore → Indexes).',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: hintColor, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -------------------------
+  // Build
+  // -------------------------
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -93,26 +166,17 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
         ),
         title: Text(
           'Mensagens',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor),
         ),
         bottom: _loadingAdminCheck
-            ? const PreferredSize(
-                preferredSize: Size.fromHeight(4),
-                child: LinearProgressIndicator(),
-              )
+            ? const PreferredSize(preferredSize: Size.fromHeight(4), child: LinearProgressIndicator())
             : PreferredSize(
-                // diminuir a altura do container das tabs para que não fique longo demais
                 preferredSize: const Size.fromHeight(52),
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Container(
-                      // reduz o padding vertical para diminuir a altura
                       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFECECEC),
@@ -120,34 +184,19 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                       ),
                       child: TabBar(
                         controller: _tabController,
-                        // indicador em forma de pílula para a tab seleccionada
                         indicator: BoxDecoration(
                           color: const Color(0xFF1877F2),
                           borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.18 : 0.08),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          // sombra removida para evitar a linha preta no design
+                          // boxShadow: [],
                         ),
-                        // diminui o espaçamento do indicador para ficar mais compacto
                         indicatorPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                         indicatorSize: TabBarIndicatorSize.tab,
                         labelColor: Colors.white,
                         unselectedLabelColor: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                        labelStyle: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                        unselectedLabelStyle: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                        // padding horizontal menor para as labels ficarem compactas
+                        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-                        // torna scrollable apenas se for admin (muitos tabs)
                         isScrollable: _isAdmin,
                         tabs: _isAdmin
                             ? const [
@@ -174,18 +223,13 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
-                  Text(
-                    'Carregando...',
-                    style: TextStyle(color: hintColor),
-                  ),
+                  Text('Carregando...', style: TextStyle(color: hintColor)),
                 ],
               ),
             )
           : TabBarView(
               controller: _tabController,
-              children: _isAdmin
-                  ? _buildAdminTabs(cardColor, textColor, hintColor)
-                  : _buildUserTabs(cardColor, textColor, hintColor),
+              children: _isAdmin ? _buildAdminTabs(cardColor, textColor, hintColor) : _buildUserTabs(cardColor, textColor, hintColor),
             ),
     );
   }
@@ -208,28 +252,24 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     ];
   }
 
+  // -------------------------
+  // User Requests (with error handling + link)
+  // -------------------------
   Widget _buildUserRequests(Color cardColor, Color textColor, Color hintColor) {
     final authProvider = context.watch<auth_provider.AuthProvider>();
     final currentUid = authProvider.user?.uid;
 
     if (currentUid == null) {
-      return Center(
-        child: Text(
-          'Usuário não autenticado',
-          style: TextStyle(color: hintColor),
-        ),
-      );
+      return Center(child: Text('Usuário não autenticado', style: TextStyle(color: hintColor)));
     }
 
     return StreamBuilder<List<DocumentRequest>>(
       stream: _documentService.getUserRequests(currentUid),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
         if (snapshot.hasError) {
-          return Center(child: Text('Erro: ${snapshot.error}'));
+          return _buildErrorWithOptionalLink(snapshot.error!, hintColor);
         }
 
         final requests = snapshot.data ?? [];
@@ -239,24 +279,9 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SvgPicture.string(
-                  CustomIcons.inbox,
-                  width: 64,
-                  height: 64,
-                  colorFilter: ColorFilter.mode(
-                    hintColor.withOpacity(0.5),
-                    BlendMode.srcIn,
-                  ),
-                ),
+                SvgPicture.string(CustomIcons.inbox, width: 64, height: 64, colorFilter: ColorFilter.mode(hintColor.withOpacity(0.5), BlendMode.srcIn)),
                 const SizedBox(height: 16),
-                Text(
-                  'Nenhum pedido enviado',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
+                Text('Nenhum pedido enviado', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
               ],
             ),
           );
@@ -266,40 +291,27 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: requests.length,
           itemBuilder: (context, index) {
-            return RequestCard(
-              request: requests[index],
-              cardColor: cardColor,
-              textColor: textColor,
-              hintColor: hintColor,
-            );
+            return RequestCard(request: requests[index], cardColor: cardColor, textColor: textColor, hintColor: hintColor);
           },
         );
       },
     );
   }
 
+  // -------------------------
+  // Admin Requests (with error handling + link)
+  // -------------------------
   Widget _buildAdminRequestsTab(Color cardColor, Color textColor, Color hintColor) {
     return StreamBuilder<List<DocumentRequest>>(
       stream: _documentService.getAllRequests(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Erro: ${snapshot.error}'));
-        }
+        if (snapshot.hasError) return _buildErrorWithOptionalLink(snapshot.error!, hintColor);
 
         final requests = snapshot.data ?? [];
 
-        if (requests.isEmpty) {
-          return Center(
-            child: Text(
-              'Nenhum pedido recebido',
-              style: TextStyle(color: hintColor),
-            ),
-          );
-        }
+        if (requests.isEmpty) return Center(child: Text('Nenhum pedido recebido', style: TextStyle(color: hintColor)));
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -311,11 +323,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
               textColor: textColor,
               hintColor: hintColor,
               onStatusUpdate: (status, notes) async {
-                await _documentService.updateRequestStatus(
-                  requests[index].id,
-                  status,
-                  adminNotes: notes,
-                );
+                await _documentService.updateRequestStatus(requests[index].id, status, adminNotes: notes);
               },
               onDelete: () async {
                 await _documentService.deleteRequest(requests[index].id);
@@ -327,6 +335,9 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
+  // -------------------------
+  // Admin Templates (with error handling + link)
+  // -------------------------
   Widget _buildAdminTemplatesTab(Color cardColor, Color textColor, Color hintColor) {
     return Column(
       children: [
@@ -336,38 +347,20 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
             onPressed: () => _showAddTemplateDialog(cardColor, textColor, hintColor),
             icon: const Icon(Icons.add),
             label: const Text('Adicionar Template'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2), foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
           ),
         ),
         Expanded(
           child: StreamBuilder<List<DocumentTemplate>>(
             stream: _documentService.getTemplates(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-              if (snapshot.hasError) {
-                return Center(child: Text('Erro: ${snapshot.error}'));
-              }
+              if (snapshot.hasError) return _buildErrorWithOptionalLink(snapshot.error!, hintColor);
 
               final templates = snapshot.data ?? [];
 
-              if (templates.isEmpty) {
-                return Center(
-                  child: Text(
-                    'Nenhum template cadastrado',
-                    style: TextStyle(color: hintColor),
-                  ),
-                );
-              }
+              if (templates.isEmpty) return Center(child: Text('Nenhum template cadastrado', style: TextStyle(color: hintColor)));
 
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -376,10 +369,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                   final template = templates[index];
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
                     child: ListTile(
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
@@ -389,23 +379,12 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                           height: 50,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 50,
-                              height: 50,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image),
-                            );
+                            return Container(width: 50, height: 50, color: Colors.grey[300], child: const Icon(Icons.image));
                           },
                         ),
                       ),
-                      title: Text(
-                        template.name,
-                        style: TextStyle(color: textColor),
-                      ),
-                      subtitle: Text(
-                        '${template.usageCount} usos',
-                        style: TextStyle(color: hintColor),
-                      ),
+                      title: Text(template.name, style: TextStyle(color: textColor)),
+                      subtitle: Text('${template.usageCount} usos', style: TextStyle(color: hintColor)),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
                         onPressed: () async {
@@ -423,130 +402,25 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  void _showAddTemplateDialog(Color cardColor, Color textColor, Color hintColor) {
-    final nameController = TextEditingController();
-    final descController = TextEditingController();
-    final imageUrlController = TextEditingController();
-    DocumentCategory selectedCategory = DocumentCategory.curriculum;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: cardColor,
-              title: Text('Novo Template', style: TextStyle(color: textColor)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(labelText: 'Nome'),
-                    ),
-                    TextField(
-                      controller: descController,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(labelText: 'Descrição'),
-                    ),
-                    TextField(
-                      controller: imageUrlController,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(labelText: 'URL da Imagem'),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<DocumentCategory>(
-                      value: selectedCategory,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(labelText: 'Categoria'),
-                      items: DocumentCategory.values.map((cat) {
-                        return DropdownMenuItem(
-                          value: cat,
-                          child: Text(cat.toString().split('.').last),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => selectedCategory = val);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final template = DocumentTemplate(
-                      id: '',
-                      name: nameController.text,
-                      description: descController.text,
-                      imageUrl: imageUrlController.text,
-                      category: selectedCategory,
-                      createdAt: DateTime.now(),
-                    );
-                    await _documentService.createTemplate(template);
-                    if (mounted) Navigator.pop(context);
-                  },
-                  child: const Text('Salvar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
+  // -------------------------
+  // User Inbox (had custom error UI) -> also show link if present
+  // -------------------------
   Widget _buildUserInbox(Color cardColor, Color textColor, Color hintColor) {
     final authProvider = context.watch<auth_provider.AuthProvider>();
     final currentUid = authProvider.user?.uid;
 
-    if (currentUid == null) {
-      return Center(
-        child: Text(
-          'Usuário não autenticado',
-          style: TextStyle(color: hintColor),
-        ),
-      );
-    }
+    if (currentUid == null) return Center(child: Text('Usuário não autenticado', style: TextStyle(color: hintColor)));
 
-    final query = FirebaseFirestore.instance
-        .collection('emails')
-        .where('recipientId', isEqualTo: currentUid)
-        .orderBy('createdAt', descending: true);
+    final query = FirebaseFirestore.instance.collection('emails').where('recipientId', isEqualTo: currentUid).orderBy('createdAt', descending: true);
 
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: hintColor),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Erro ao carregar mensagens',
-                    style: TextStyle(color: hintColor),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return _buildErrorWithOptionalLink(snapshot.error!, hintColor);
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
         final docs = snapshot.data?.docs ?? [];
 
@@ -557,32 +431,11 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.string(
-                    CustomIcons.inbox,
-                    width: 80,
-                    height: 80,
-                    colorFilter: ColorFilter.mode(
-                      hintColor.withOpacity(0.5),
-                      BlendMode.srcIn,
-                    ),
-                  ),
+                  SvgPicture.string(CustomIcons.inbox, width: 80, height: 80, colorFilter: ColorFilter.mode(hintColor.withOpacity(0.5), BlendMode.srcIn)),
                   const SizedBox(height: 20),
-                  Text(
-                    'Nenhuma mensagem',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
+                  Text('Nenhuma mensagem', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: textColor)),
                   const SizedBox(height: 8),
-                  Text(
-                    'Suas mensagens aparecerão aqui',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: hintColor,
-                    ),
-                  ),
+                  Text('Suas mensagens aparecerão aqui', style: TextStyle(fontSize: 15, color: hintColor)),
                 ],
               ),
             ),
@@ -602,66 +455,16 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
 
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: CircleAvatar(
-                  backgroundColor: read
-                      ? (const Color(0xFF1877F2).withOpacity(0.1))
-                      : const Color(0xFF1877F2),
-                  child: SvgPicture.string(
-                    CustomIcons.envelope,
-                    width: 20,
-                    height: 20,
-                    colorFilter: ColorFilter.mode(
-                      read ? const Color(0xFF1877F2) : Colors.white,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+                  backgroundColor: read ? (const Color(0xFF1877F2).withOpacity(0.1)) : const Color(0xFF1877F2),
+                  child: SvgPicture.string(CustomIcons.envelope, width: 20, height: 20, colorFilter: ColorFilter.mode(read ? const Color(0xFF1877F2) : Colors.white, BlendMode.srcIn)),
                 ),
-                title: Text(
-                  subject,
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: read ? FontWeight.w500 : FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  '$senderName • ${_formatTimestamp(created)}',
-                  style: TextStyle(
-                    color: hintColor,
-                    fontSize: 13,
-                  ),
-                ),
-                trailing: read
-                    ? null
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1877F2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Novo',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                title: Text(subject, style: TextStyle(color: textColor, fontWeight: read ? FontWeight.w500 : FontWeight.w700, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text('$senderName • ${_formatTimestamp(created)}', style: TextStyle(color: hintColor, fontSize: 13)),
+                trailing: read ? null : Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: const Color(0xFF1877F2), borderRadius: BorderRadius.circular(12)), child: const Text('Novo', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
                 onTap: () => _openEmailDetail(doc.id, data, currentUid),
               ),
             );
@@ -671,37 +474,20 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
+  // -------------------------
+  // Admin Emails / Users (use generic error UI)
+  // -------------------------
   Widget _buildAdminEmailsTab(Color cardColor, Color textColor, Color hintColor) {
-    final query = FirebaseFirestore.instance
-        .collection('emails')
-        .orderBy('createdAt', descending: true);
+    final query = FirebaseFirestore.instance.collection('emails').orderBy('createdAt', descending: true);
 
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Erro ao carregar emails',
-              style: TextStyle(color: hintColor),
-            ),
-          );
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (snapshot.hasError) return _buildErrorWithOptionalLink(snapshot.error!, hintColor);
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
         final docs = snapshot.data?.docs ?? [];
-
-        if (docs.isEmpty) {
-          return Center(
-            child: Text(
-              'Nenhum email',
-              style: TextStyle(color: hintColor),
-            ),
-          );
-        }
+        if (docs.isEmpty) return Center(child: Text('Nenhum email', style: TextStyle(color: hintColor)));
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -715,27 +501,12 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
 
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                title: Text(
-                  subject,
-                  style: TextStyle(color: textColor, fontSize: 15),
-                ),
-                subtitle: Text(
-                  '$recipientName • ${_formatTimestamp(created)}',
-                  style: TextStyle(color: hintColor, fontSize: 13),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _adminDeleteEmail(doc.id),
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                title: Text(subject, style: TextStyle(color: textColor, fontSize: 15)),
+                subtitle: Text('$recipientName • ${_formatTimestamp(created)}', style: TextStyle(color: hintColor, fontSize: 13)),
+                trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _adminDeleteEmail(doc.id)),
                 onTap: () => _openEmailDetailAdmin(doc.id, data),
               ),
             );
@@ -746,36 +517,16 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
   }
 
   Widget _buildAdminUsersTab(Color cardColor, Color textColor, Color hintColor) {
-    final query = FirebaseFirestore.instance
-        .collection('users')
-        .orderBy('createdAt', descending: true);
+    final query = FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true);
 
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Erro ao carregar usuários',
-              style: TextStyle(color: hintColor),
-            ),
-          );
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (snapshot.hasError) return _buildErrorWithOptionalLink(snapshot.error!, hintColor);
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
         final docs = snapshot.data?.docs ?? [];
-
-        if (docs.isEmpty) {
-          return Center(
-            child: Text(
-              'Nenhum usuário',
-              style: TextStyle(color: hintColor),
-            ),
-          );
-        }
+        if (docs.isEmpty) return Center(child: Text('Nenhum usuário', style: TextStyle(color: hintColor)));
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -789,37 +540,12 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
 
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFF1877F2),
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  name,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  email,
-                  style: TextStyle(color: hintColor, fontSize: 13),
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(backgroundColor: const Color(0xFF1877F2), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))),
+                title: Text(name, style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: Text(email, style: TextStyle(color: hintColor, fontSize: 13)),
                 trailing: PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert, color: textColor),
                   onSelected: (val) async {
@@ -833,14 +559,8 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'send', child: Text('Enviar email')),
-                    PopupMenuItem(
-                      value: 'block',
-                      child: Text(isBlocked ? 'Desbloquear' : 'Bloquear'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Deletar', style: TextStyle(color: Colors.red)),
-                    ),
+                    PopupMenuItem(value: 'block', child: Text(isBlocked ? 'Desbloquear' : 'Bloquear')),
+                    const PopupMenuItem(value: 'delete', child: Text('Deletar', style: TextStyle(color: Colors.red))),
                   ],
                 ),
               ),
@@ -851,143 +571,60 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildAdminSendTab(
-    Color cardColor,
-    Color textColor,
-    Color hintColor,
-    auth_provider.AuthProvider authProvider,
-  ) {
+  // -------------------------
+  // Restantes funções (sem mudança)
+  // -------------------------
+  Widget _buildAdminSendTab(Color cardColor, Color textColor, Color hintColor, auth_provider.AuthProvider authProvider) {
     final TextEditingController toController = TextEditingController();
     final TextEditingController subjectController = TextEditingController();
     final TextEditingController bodyController = TextEditingController();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              controller: toController,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: 'UID do destinatário (vazio = todos)',
-                hintStyle: TextStyle(color: hintColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: cardColor,
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
+          child: TextField(
+            controller: toController,
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(hintText: 'UID do destinatário (vazio = todos)', hintStyle: TextStyle(color: hintColor), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), filled: true, fillColor: cardColor, contentPadding: const EdgeInsets.all(16)),
           ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              controller: subjectController,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: 'Assunto',
-                hintStyle: TextStyle(color: hintColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: cardColor,
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 300,
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              controller: bodyController,
-              maxLines: null,
-              expands: true,
-              style: TextStyle(color: textColor),
-              textAlignVertical: TextAlignVertical.top,
-              decoration: InputDecoration(
-                hintText: 'Corpo do email',
-                hintStyle: TextStyle(color: hintColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: cardColor,
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () async {
-              final recipientId = toController.text.trim();
-              final subject = subjectController.text.trim();
-              final body = bodyController.text.trim();
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
+          child: TextField(controller: subjectController, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: 'Assunto', hintStyle: TextStyle(color: hintColor), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), filled: true, fillColor: cardColor, contentPadding: const EdgeInsets.all(16))),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 300,
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
+          child: TextField(controller: bodyController, maxLines: null, expands: true, style: TextStyle(color: textColor), textAlignVertical: TextAlignVertical.top, decoration: InputDecoration(hintText: 'Corpo do email', hintStyle: TextStyle(color: hintColor), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), filled: true, fillColor: cardColor, contentPadding: const EdgeInsets.all(16))),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () async {
+            final recipientId = toController.text.trim();
+            final subject = subjectController.text.trim();
+            final body = bodyController.text.trim();
 
-              if (subject.isEmpty || body.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Preencha assunto e corpo'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
+            if (subject.isEmpty || body.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preencha assunto e corpo'), backgroundColor: Colors.red));
+              return;
+            }
 
-              await _adminSendEmail(
-                recipientId.isEmpty ? null : recipientId,
-                subject,
-                body,
-              );
+            await _adminSendEmail(recipientId.isEmpty ? null : recipientId, subject, body);
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Email enviado com sucesso!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email enviado com sucesso!'), backgroundColor: Colors.green));
 
-              toController.clear();
-              subjectController.clear();
-              bodyController.clear();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Enviar Email',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+            toController.clear();
+            subjectController.clear();
+            bodyController.clear();
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+          child: const Text('Enviar Email', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        ),
+      ]),
     );
   }
 
@@ -998,18 +635,10 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
       if (recipientId == null) {
         final usersSnap = await FirebaseFirestore.instance.collection('users').get();
         for (final u in usersSnap.docs) {
-          await callable.call({
-            'recipientId': u.id,
-            'subject': subject,
-            'body': body,
-          });
+          await callable.call({'recipientId': u.id, 'subject': subject, 'body': body});
         }
       } else {
-        await callable.call({
-          'recipientId': recipientId,
-          'subject': subject,
-          'body': body,
-        });
+        await callable.call({'recipientId': recipientId, 'subject': subject, 'body': body});
       }
     } catch (e) {
       debugPrint('Erro ao enviar email admin: $e');
@@ -1021,21 +650,10 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     try {
       final HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('blockUser');
       await callable.call({'uid': uid});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuário bloqueado')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuário bloqueado')));
     } catch (e) {
       debugPrint('Erro ao bloquear usuário: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao bloquear usuário'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao bloquear usuário'), backgroundColor: Colors.red));
     }
   }
 
@@ -1044,19 +662,10 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Confirmar exclusão'),
-            content: const Text(
-              'Deseja realmente deletar este usuário? Esta ação é irreversível.',
-            ),
+            content: const Text('Deseja realmente deletar este usuário? Esta ação é irreversível.'),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Deletar'),
-              ),
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+              TextButton(onPressed: () => Navigator.of(context).pop(true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Deletar')),
             ],
           ),
         ) ??
@@ -1067,32 +676,17 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     try {
       final HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('deleteUser');
       await callable.call({'uid': uid});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuário deletado')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuário deletado')));
     } catch (e) {
       debugPrint('Erro ao deletar usuário: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao deletar usuário'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao deletar usuário'), backgroundColor: Colors.red));
     }
   }
 
   Future<void> _adminDeleteEmail(String emailDocId) async {
     try {
       await FirebaseFirestore.instance.collection('emails').doc(emailDocId).delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email deletado')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email deletado')));
     } catch (e) {
       debugPrint('Erro ao deletar email: $e');
     }
@@ -1112,38 +706,16 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
 
         return AlertDialog(
           backgroundColor: cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            subject,
-            style: TextStyle(color: textColor),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(subject, style: TextStyle(color: textColor)),
           content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'De: $senderName',
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  body,
-                  style: TextStyle(color: textColor),
-                ),
-              ],
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('De: $senderName', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 16),
+              Text(body, style: TextStyle(color: textColor)),
+            ]),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fechar'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar'))],
         );
       },
     );
@@ -1151,9 +723,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
     try {
       final docRef = FirebaseFirestore.instance.collection('emails').doc(emailId);
       final doc = await docRef.get();
-      if (doc.exists &&
-          doc.data()?['recipientId'] == currentUid &&
-          doc.data()?['read'] != true) {
+      if (doc.exists && doc.data()?['recipientId'] == currentUid && doc.data()?['read'] != true) {
         await docRef.update({'read': true});
       }
     } catch (e) {
@@ -1176,29 +746,18 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
 
         return AlertDialog(
           backgroundColor: cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            subject,
-            style: TextStyle(color: textColor),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(subject, style: TextStyle(color: textColor)),
           content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('De: $senderName', style: TextStyle(color: textColor)),
-                Text('Para: $recipientName', style: TextStyle(color: textColor)),
-                const SizedBox(height: 16),
-                Text(body, style: TextStyle(color: textColor)),
-              ],
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('De: $senderName', style: TextStyle(color: textColor)),
+              Text('Para: $recipientName', style: TextStyle(color: textColor)),
+              const SizedBox(height: 16),
+              Text(body, style: TextStyle(color: textColor)),
+            ]),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fechar'),
-            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
             TextButton(
               onPressed: () async {
                 await FirebaseFirestore.instance.collection('emails').doc(emailId).delete();
@@ -1225,41 +784,15 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Enviar email para $recipientName',
-          style: TextStyle(color: textColor),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: subjectController,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                labelText: 'Assunto',
-                labelStyle: TextStyle(color: textColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bodyController,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                labelText: 'Corpo',
-                labelStyle: TextStyle(color: textColor),
-              ),
-              maxLines: 4,
-            ),
-          ],
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Enviar email para $recipientName', style: TextStyle(color: textColor)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: subjectController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: 'Assunto', labelStyle: TextStyle(color: textColor))),
+          const SizedBox(height: 12),
+          TextField(controller: bodyController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: 'Corpo', labelStyle: TextStyle(color: textColor)), maxLines: 4),
+        ]),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
           TextButton(
             onPressed: () async {
               final subject = subjectController.text.trim();
@@ -1269,9 +802,7 @@ class _MessagesScreenState extends State<MessagesScreen> with TickerProviderStat
               await _adminSendEmail(recipientId, subject, body);
               if (mounted) {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Email enviado')),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email enviado')));
               }
             },
             child: const Text('Enviar'),
