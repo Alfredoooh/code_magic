@@ -104,12 +104,15 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
 
   // -------------------------
   // Extração de URL a partir da mensagem de erro
+  // CORRIGIDO: Regex estava com escape incorreto de aspas
   // -------------------------
   String? _extractUrlFromError(Object? error) {
     if (error == null) return null;
     try {
       final s = error.toString();
-      final urlRegex = RegExp(r'https?://[^\s\)\'"]+');
+      // ANTES (ERRADO): final urlRegex = RegExp(r'https?://[^\s\)\'"]+');
+      // DEPOIS (CORRETO):
+      final urlRegex = RegExp(r'https?://\S+');
       final match = urlRegex.firstMatch(s);
       return match?.group(0);
     } catch (_) {
