@@ -49,6 +49,7 @@ dependencies:
   timeago: any
   url_launcher: any
   flutter_linkify: any
+  animations: any
 
 dev_dependencies:
   flutter_test:
