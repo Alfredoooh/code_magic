@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:animations/animations.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/document_service.dart';
@@ -56,17 +57,16 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
     final diff = now.difference(date);
 
     if (diff.inDays == 0) {
-      return 'Hoje ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      return 'Hoje às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (diff.inDays == 1) {
       return 'Ontem';
     } else if (diff.inDays < 7) {
-      return '${diff.inDays} dias atrás';
+      return 'Há ${diff.inDays} dias';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     }
   }
 
-  /// Tenta extrair um URL de uma mensagem de erro (por ex. link de criação de índice do Firebase)
   String? _extractUrlFromError(Object? error) {
     if (error == null) return null;
     try {
@@ -79,40 +79,46 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
     }
   }
 
-  /// Widget que mostra erro e, se houver, o link que permite criar índice no console
-  Widget _buildErrorWidget(BuildContext context, Object error, bool isDark, String textColorHex) {
+  Widget _buildErrorWidget(BuildContext context, Object error, bool isDark) {
     final url = _extractUrlFromError(error);
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Erro ao carregar pedidos',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+            SvgPicture.string(
+              CustomIcons.warning,
+              width: 64,
+              height: 64,
+              colorFilter: const ColorFilter.mode(
+                Colors.orange,
+                BlendMode.srcIn,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
             Text(
-              error.toString().length > 200 ? '${error.toString().substring(0, 200)}...' : error.toString(),
+              'Índice necessário',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'O Firestore precisa criar índices para esta consulta.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 13,
-                color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                fontSize: 15,
+                color: secondaryColor,
               ),
             ),
-            const SizedBox(height: 16),
             if (url != null) ...[
+              const SizedBox(height: 24),
               SelectableText(
                 url,
                 textAlign: TextAlign.center,
@@ -122,32 +128,47 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
                   decoration: TextDecoration.underline,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () async {
                   try {
                     await Clipboard.setData(ClipboardData(text: url));
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado para a área de transferência')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Link copiado!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
                     }
-                  } catch (_) {
-                    // sem ação adicional
-                  }
+                  } catch (_) {}
                 },
-                icon: const Icon(Icons.copy),
+                icon: SvgPicture.string(
+                  CustomIcons.copy,
+                  width: 18,
+                  height: 18,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.white,
+                    BlendMode.srcIn,
+                  ),
+                ),
                 label: const Text('Copiar link do índice'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1877F2),
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                'Cole esse link no navegador e crie o índice no Console do Firebase (Firestore → Indexes).',
+                'Cole no navegador e crie o índice no Console do Firebase.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
+                  fontSize: 13,
+                  color: secondaryColor,
                 ),
               ),
             ],
@@ -163,18 +184,12 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
     final auth = context.watch<AuthProvider>();
 
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
 
     if (auth.user == null) {
       return Scaffold(
         backgroundColor: bgColor,
-        body: Center(
-          child: Text(
-            'Faça login para ver seus pedidos',
-            style: TextStyle(color: textColor),
-          ),
-        ),
+        body: const SizedBox.shrink(),
       );
     }
 
@@ -192,230 +207,146 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
           }
 
           if (snapshot.hasError) {
-            return _buildErrorWidget(context, snapshot.error!, isDark, '');
+            return _buildErrorWidget(context, snapshot.error!, isDark);
           }
 
           final requests = snapshot.data ?? [];
 
           if (requests.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF1877F2).withOpacity(0.1),
-                    ),
-                    child: SvgPicture.string(
-                      CustomIcons.description,
-                      width: 80,
-                      height: 80,
-                      colorFilter: const ColorFilter.mode(
-                        Color(0xFF1877F2),
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Nenhum pedido ainda',
+            return const SizedBox.shrink();
+          }
+
+          return CustomScrollView(
+            slivers: [
+              // Header "Pedidos Recentes"
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  child: Text(
+                    'Pedidos Recentes',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: textColor,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 48),
-                    child: Text(
-                      'Crie seu primeiro pedido de documento tocando no botão abaixo',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            );
-          }
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.75,
-            ),
-            itemCount: requests.length,
-            itemBuilder: (context, index) {
-              final request = requests[index];
-              final statusColor = _getStatusColor(request.status);
-
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RequestDetailScreen(request: request),
-                    ),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark 
-                            ? Colors.black26 
-                            : Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Status badge no topo
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _getStatusLabel(request.status),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: statusColor,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
+              // Lista de pedidos estilo Google
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final request = requests[index];
+                      return _RequestCard(
+                        request: request,
+                        isDark: isDark,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RequestDetailScreen(request: request),
                             ),
-                          ],
-                        ),
-                      ),
-
-                      // Ícone da categoria
-                      Expanded(
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1877F2).withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: SvgPicture.string(
-                              _getCategoryIcon(request.category),
-                              width: 40,
-                              height: 40,
-                              colorFilter: const ColorFilter.mode(
-                                Color(0xFF1877F2),
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Informações
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              request.title,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                SvgPicture.string(
-                                  CustomIcons.accessTime,
-                                  width: 12,
-                                  height: 12,
-                                  colorFilter: ColorFilter.mode(
-                                    isDark 
-                                        ? const Color(0xFF8E8E93) 
-                                        : const Color(0xFF8E8E93),
-                                    BlendMode.srcIn,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    _formatDate(request.createdAt),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark 
-                                          ? const Color(0xFF8E8E93) 
-                                          : const Color(0xFF8E8E93),
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                          );
+                        },
+                      );
+                    },
+                    childCount: requests.length,
                   ),
                 ),
-              );
-            },
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const NewRequestScreen(),
+      floatingActionButton: OpenContainer(
+        transitionType: ContainerTransitionType.fade,
+        openBuilder: (context, _) => const NewRequestScreen(),
+        closedElevation: 6,
+        closedShape: const CircleBorder(),
+        closedColor: const Color(0xFF1877F2),
+        closedBuilder: (context, openContainer) => Container(
+          width: 56,
+          height: 56,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1877F2),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: SvgPicture.string(
+              CustomIcons.add,
+              width: 28,
+              height: 28,
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
+              ),
             ),
-          );
-        },
-        backgroundColor: const Color(0xFF1877F2),
-        elevation: 4,
-        child: SvgPicture.string(
-          CustomIcons.add,
-          width: 28,
-          height: 28,
-          colorFilter: const ColorFilter.mode(
-            Colors.white,
-            BlendMode.srcIn,
           ),
         ),
       ),
     );
+  }
+}
+
+class _RequestCard extends StatelessWidget {
+  final DocumentRequest request;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _RequestCard({
+    required this.request,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return const Color(0xFFFFA000);
+      case 'in_progress':
+        return const Color(0xFF2196F3);
+      case 'completed':
+        return const Color(0xFF4CAF50);
+      case 'cancelled':
+        return const Color(0xFFF44336);
+      default:
+        return const Color(0xFF8E8E93);
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendente';
+      case 'in_progress':
+        return 'Em andamento';
+      case 'completed':
+        return 'Concluído';
+      case 'cancelled':
+        return 'Cancelado';
+      default:
+        return status;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inDays == 0) {
+      return 'Hoje às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 1) {
+      return 'Ontem';
+    } else if (diff.inDays < 7) {
+      return 'Há ${diff.inDays} dias';
+    } else {
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    }
   }
 
   String _getCategoryIcon(DocumentCategory category) {
@@ -439,5 +370,154 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
       case DocumentCategory.other:
         return CustomIcons.folder;
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
+    final statusColor = _getStatusColor(request.status);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? const Color(0xFF3A3A3C)
+                : const Color(0xFFE5E5E5),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header com ícone, título e status
+            Row(
+              children: [
+                // Ícone da categoria
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1877F2).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SvgPicture.string(
+                    _getCategoryIcon(request.category),
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF1877F2),
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Título
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        request.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatDate(request.createdAt),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: secondaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _getStatusLabel(request.status),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // Descrição (se houver)
+            if (request.description.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                request.description,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: secondaryColor,
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+
+            // Rodapé com ícone de seta
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Ver detalhes',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1877F2),
+                    ),
+                  ),
+                ),
+                SvgPicture.string(
+                  CustomIcons.arrowRight,
+                  width: 16,
+                  height: 16,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFF1877F2),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
