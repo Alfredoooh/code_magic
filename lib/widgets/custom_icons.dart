@@ -10,6 +10,41 @@ class CustomIcons {
 </svg>
 ''';
 
+    // Ícone de pendente (pending) - com relógio e ponto de exclamação
+static const String pending = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10" />
+  <path d="M12 6v6" />
+  <circle cx="12" cy="16" r="0.5" fill="currentColor" />
+</svg>
+''';
+
+static IconData get pendingIcon => _buildIcon(pending);
+
+// Ícone de título (title) - documento com linhas
+static const String title = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+  <path d="M14 2v6h6" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+  <path d="M10 9H8" />
+</svg>
+''';
+
+static IconData get titleIcon => _buildIcon(title);
+
+// Ícone de agendado (scheduled) - calendário com check
+static const String scheduled = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+  <path d="M16 2v4" />
+  <path d="M8 2v4" />
+  <path d="M3 10h18" />
+  <path d="M9 16l2 2 4-4" />
+</svg>
+''';
+
     static const String add = '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
   <path fill-rule="evenodd" d="M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z" clip-rule="evenodd" />
