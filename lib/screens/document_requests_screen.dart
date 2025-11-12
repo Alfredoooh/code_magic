@@ -71,7 +71,7 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
     if (error == null) return null;
     try {
       final s = error.toString();
-      final urlRegex = RegExp(r'https?://[^\s\)\'\"]+');
+      final urlRegex = RegExp(r'https?://[^\s\)\'"]+');
       final match = urlRegex.firstMatch(s);
       return match?.group(0);
     } catch (_) {
