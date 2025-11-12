@@ -355,6 +355,7 @@ class _UsersScreenState extends State<UsersScreen> {
           ],
         ),
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(
               child: Text(
@@ -375,42 +376,51 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
           ],
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        subtitle: Row(
           children: [
-            Text(
-              userTypeLabel,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              isOnline ? 'Online agora' : _getLastActiveText(lastActive),
-              style: TextStyle(
-                fontSize: 13,
-                color: isOnline
-                    ? const Color(0xFF31A24C)
-                    : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    userTypeLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isOnline ? 'Online agora' : _getLastActiveText(lastActive),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isOnline
+                          ? const Color(0xFF31A24C)
+                          : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B)),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         trailing: chatId != null
-            ? StreamBuilder<QuerySnapshot>(
+            ? StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('chats')
                     .doc(chatId)
-                    .collection('messages')
-                    .where('recipientId', isEqualTo: currentUserId)
-                    .where('isRead', isEqualTo: false)
                     .snapshots(),
-                builder: (context, snapshot) {
-                  final unreadCount = snapshot.data?.docs.length ?? 0;
+                builder: (context, chatSnapshot) {
+                  if (!chatSnapshot.hasData) return const SizedBox.shrink();
                   
+                  final chatData = chatSnapshot.data?.data() as Map<String, dynamic>?;
+                  if (chatData == null) return const SizedBox.shrink();
+                  
+                  // Pega o unreadCount específico do usuário atual
+                  final unreadCount = chatData['unreadCount_$currentUserId'] as int? ?? 0;
+
                   if (unreadCount == 0) return const SizedBox.shrink();
-                  
+
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
