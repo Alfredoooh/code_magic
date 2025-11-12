@@ -1,12 +1,13 @@
 // lib/screens/new_request_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/theme_provider.dart';
 import '../services/document_service.dart';
 import '../models/document_template_model.dart';
+import '../widgets/custom_icons.dart';
 import 'templates_gallery_screen.dart';
 
 class NewRequestScreen extends StatefulWidget {
@@ -31,15 +32,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   final List<Map<String, dynamic>> _categories = [
-    {'name': 'Currículo', 'icon': Icons.person_outline, 'category': DocumentCategory.curriculum},
-    {'name': 'Certificado', 'icon': Icons.workspace_premium_outlined, 'category': DocumentCategory.certificate},
-    {'name': 'Carta', 'icon': Icons.mail_outline, 'category': DocumentCategory.letter},
-    {'name': 'Relatório', 'icon': Icons.description_outlined, 'category': DocumentCategory.report},
-    {'name': 'Contrato', 'icon': Icons.gavel_outlined, 'category': DocumentCategory.contract},
-    {'name': 'Fatura', 'icon': Icons.receipt_outlined, 'category': DocumentCategory.invoice},
-    {'name': 'Apresentação', 'icon': Icons.slideshow_outlined, 'category': DocumentCategory.presentation},
-    {'name': 'Trabalho', 'icon': Icons.school_outlined, 'category': DocumentCategory.essay},
-    {'name': 'Outro', 'icon': Icons.folder_outlined, 'category': DocumentCategory.other},
+    {'name': 'Currículo', 'icon': CustomIcons.person, 'category': DocumentCategory.curriculum},
+    {'name': 'Certificado', 'icon': CustomIcons.certificate, 'category': DocumentCategory.certificate},
+    {'name': 'Carta', 'icon': CustomIcons.envelope, 'category': DocumentCategory.letter},
+    {'name': 'Relatório', 'icon': CustomIcons.description, 'category': DocumentCategory.report},
+    {'name': 'Contrato', 'icon': CustomIcons.contract, 'category': DocumentCategory.contract},
+    {'name': 'Fatura', 'icon': CustomIcons.invoice, 'category': DocumentCategory.invoice},
+    {'name': 'Apresentação', 'icon': CustomIcons.presentation, 'category': DocumentCategory.presentation},
+    {'name': 'Trabalho', 'icon': CustomIcons.school, 'category': DocumentCategory.essay},
+    {'name': 'Outro', 'icon': CustomIcons.folder, 'category': DocumentCategory.other},
   ];
 
   Future<void> _pickImage() async {
@@ -60,7 +61,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao selecionar imagem: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -68,13 +74,20 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   Future<void> _openTemplates() async {
     if (_selectedCategory == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione uma categoria primeiro')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selecione uma categoria primeiro'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
       return;
     }
 
     final result = await Navigator.of(context).push<DocumentTemplate>(
-      MaterialPageRoute(builder: (_) => TemplatesGalleryScreen(category: _selectedCategory!)),
+      MaterialPageRoute(
+        builder: (_) => TemplatesGalleryScreen(category: _selectedCategory!),
+      ),
     );
 
     if (result != null && mounted) {
@@ -85,50 +98,77 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   void _send() {
     final text = _controller.text.trim();
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione uma categoria')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione uma categoria'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
     if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Descreva o que precisa')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Descreva o que precisa'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
-    // Envio simples (implementação real no DocumentService)
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido enviado!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pedido enviado com sucesso!'),
+        backgroundColor: Colors.green,
+      ),
+    );
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-
-    final bgColor = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final cardColor = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF5F5F5);
-    final textColor = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: textColor),
+          icon: SvgPicture.string(
+            CustomIcons.close,
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Novo Pedido',
-          style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: textColor,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
         ),
+        centerTitle: false,
       ),
       body: Column(
         children: [
-          SizedBox(
-            height: 50,
+          // Categorias horizontais
+          Container(
+            height: 100,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            color: cardColor,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
               itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 final cat = _categories[index];
                 final isSelected = _selectedCategory == cat['category'];
@@ -139,19 +179,42 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     _selectedTemplate = null;
                   }),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    width: 80,
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF1877F2) : cardColor,
-                      borderRadius: BorderRadius.circular(25),
+                      color: isSelected
+                          ? const Color(0xFF1877F2)
+                          : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF1877F2)
+                            : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(cat['icon'] as IconData, size: 18, color: isSelected ? Colors.white : textColor),
-                        const SizedBox(width: 6),
+                        SvgPicture.string(
+                          cat['icon'] as String,
+                          width: 28,
+                          height: 28,
+                          colorFilter: ColorFilter.mode(
+                            isSelected ? Colors.white : textColor,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           cat['name'] as String,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isSelected ? Colors.white : textColor),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? Colors.white : textColor,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -160,115 +223,333 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               },
             ),
           ),
-          const SizedBox(height: 16),
+
+          // Área de conteúdo
           Expanded(
-            child: _selectedCategory == null
-                ? Center(child: Text('Selecione uma categoria', style: TextStyle(color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93))))
-                : _selectedTemplate != null
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Align(
-                          alignment: Alignment.topRight,
-                          child: Container(
-                            constraints: const BoxConstraints(maxWidth: 200),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: _selectedTemplate!.imageUrl.startsWith('http')
-                                      ? Image.network(_selectedTemplate!.imageUrl, height: 200, fit: BoxFit.cover)
-                                      : Image.file(File(_selectedTemplate!.imageUrl), height: 200, fit: BoxFit.cover),
-                                ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _selectedTemplate = null),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                      child: const Icon(Icons.close, color: Colors.white, size: 16),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_selectedCategory == null)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48),
+                        child: Column(
+                          children: [
+                            SvgPicture.string(
+                              CustomIcons.folder,
+                              width: 64,
+                              height: 64,
+                              colorFilter: ColorFilter.mode(
+                                secondaryColor.withOpacity(0.5),
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Selecione uma categoria',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: secondaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else ...[
+                    // Template selecionado
+                    if (_selectedTemplate != null) ...[
+                      Text(
+                        'Template Selecionado',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(
+                                isDark ? 0.3 : 0.08,
+                              ),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: _selectedTemplate!.imageUrl.startsWith('http')
+                                  ? Image.network(
+                                      _selectedTemplate!.imageUrl,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.file(
+                                      File(_selectedTemplate!.imageUrl),
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                            ),
+                            Positioned(
+                              top: 12,
+                              right: 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedTemplate = null),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.7),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: SvgPicture.string(
+                                    CustomIcons.close,
+                                    width: 16,
+                                    height: 16,
+                                    colorFilter: const ColorFilter.mode(
+                                      Colors.white,
+                                      BlendMode.srcIn,
                                     ),
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      )
-                    : const SizedBox(),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Descrição
+                    Text(
+                      'Descreva seu pedido',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: 6,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Descreva detalhadamente o que você precisa...',
+                          hintStyle: TextStyle(
+                            color: secondaryColor,
+                            fontSize: 15,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
+
+          // Barra inferior
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: cardColor,
-              border: Border(top: BorderSide(color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5), width: 0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, -4),
+                ),
+              ],
             ),
             child: SafeArea(
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Color(0xFF1877F2)),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.transparent,
-                        builder: (ctx) => Container(
-                          decoration: BoxDecoration(color: cardColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
-                          child: SafeArea(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(height: 12),
-                                Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? const Color(0xFF3A3A3A) : const Color(0xFFD0D0D0), borderRadius: BorderRadius.circular(2))),
-                                const SizedBox(height: 20),
-                                ListTile(
-                                  leading: const Icon(Icons.image_outlined, color: Color(0xFF1877F2)),
-                                  title: const Text('Galeria'),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    _pickImage();
-                                  },
-                                ),
-                                ListTile(
-                                  leading: const Icon(Icons.folder_outlined, color: Color(0xFF1877F2)),
-                                  title: const Text('Templates'),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    _openTemplates();
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(color: isDark ? const Color(0xFF2C2C2C) : Colors.white, borderRadius: BorderRadius.circular(20)),
-                      child: TextField(
-                        controller: _controller,
-                        maxLines: null,
-                        style: TextStyle(color: textColor, fontSize: 15),
-                        decoration: InputDecoration(
-                          hintText: 'Descreva o que precisa...',
-                          hintStyle: TextStyle(color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93)),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  // Botão adicionar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: SvgPicture.string(
+                        CustomIcons.add,
+                        width: 24,
+                        height: 24,
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFF1877F2),
+                          BlendMode.srcIn,
                         ),
                       ),
+                      onPressed: _selectedCategory == null
+                          ? null
+                          : () {
+                              showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Colors.transparent,
+                                builder: (ctx) => Container(
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(24),
+                                    ),
+                                  ),
+                                  child: SafeArea(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: 40,
+                                          height: 4,
+                                          decoration: BoxDecoration(
+                                            color: secondaryColor.withOpacity(0.3),
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        ListTile(
+                                          leading: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1877F2).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: SvgPicture.string(
+                                              CustomIcons.image,
+                                              width: 24,
+                                              height: 24,
+                                              colorFilter: const ColorFilter.mode(
+                                                Color(0xFF1877F2),
+                                                BlendMode.srcIn,
+                                              ),
+                                            ),
+                                          ),
+                                          title: Text(
+                                            'Galeria',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            'Escolher da galeria',
+                                            style: TextStyle(color: secondaryColor),
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(ctx);
+                                            _pickImage();
+                                          },
+                                        ),
+                                        ListTile(
+                                          leading: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1877F2).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: SvgPicture.string(
+                                              CustomIcons.folder,
+                                              width: 24,
+                                              height: 24,
+                                              colorFilter: const ColorFilter.mode(
+                                                Color(0xFF1877F2),
+                                                BlendMode.srcIn,
+                                              ),
+                                            ),
+                                          ),
+                                          title: Text(
+                                            'Templates',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            'Escolher um template',
+                                            style: TextStyle(color: secondaryColor),
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(ctx);
+                                            _openTemplates();
+                                          },
+                                        ),
+                                        const SizedBox(height: 24),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _send,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(color: Color(0xFF1877F2), shape: BoxShape.circle),
-                      child: const Icon(Icons.send, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+
+                  // Botão enviar
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _send,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1877F2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Enviar Pedido',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SvgPicture.string(
+                            CustomIcons.send,
+                            width: 20,
+                            height: 20,
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
