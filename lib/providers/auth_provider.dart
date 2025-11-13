@@ -1,3 +1,4 @@
+// lib/providers/auth_provider.dart
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,6 +18,17 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
   bool get isInitialized => _isInitialized;
+  
+  // Verifica se o usuário precisa fazer verificação OTP
+  bool get needsOTPVerification {
+    if (_user == null || _userData == null) return false;
+    
+    // Se o email já foi verificado, não precisa de OTP
+    if (_userData!['emailVerified'] == true) return false;
+    
+    // Se o OTP está habilitado, precisa verificar
+    return _userData!['otpEnabled'] == true;
+  }
 
   AuthProvider() {
     _initializeAuth();
@@ -25,7 +37,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> _initializeAuth() async {
     try {
       _user = _auth.currentUser;
-      
+
       await _checkLastActivity();
 
       if (_user != null) {
@@ -243,8 +255,10 @@ class AuthProvider with ChangeNotifier {
     try {
       final storedOTP = _userData!['otpCode'];
       if (otp == storedOTP) {
+        // Marca o email como verificado e DESATIVA o OTP
         await _firestore.collection('users').doc(_user!.uid).update({
           'emailVerified': true,
+          'otpEnabled': false, // DESATIVA o OTP após verificação
           'otpCode': null,
         });
         await _user!.reload();
@@ -286,6 +300,26 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    if (_user != null) {
+      // REATIVA o OTP quando faz logout
+      try {
+        final newOTP = _generateOTP();
+        await _firestore.collection('users').doc(_user!.uid).update({
+          'otpEnabled': true, // REATIVA o OTP
+          'otpCode': newOTP,
+          'emailVerified': false, // Marca como não verificado
+          'isOnline': false,
+        });
+        
+        // Envia novo código por email
+        if (_userData != null && _userData!['email'] != null) {
+          await _sendOTPEmail(_userData!['email'], newOTP);
+        }
+      } catch (e) {
+        debugPrint('Erro ao reativar OTP no logout: $e');
+      }
+    }
+
     await _setOnlineStatus(false);
 
     final prefs = await SharedPreferences.getInstance();
