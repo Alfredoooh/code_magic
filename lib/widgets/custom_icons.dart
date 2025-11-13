@@ -10,6 +10,13 @@ class CustomIcons {
 </svg>
 ''';
 
+     static const String thumbUpOutlined = r'''
+<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
+  <path d="M0 0h24v24H0V0z" fill="none"/>
+  <path d="M13.11 5.72l-.57 2.89c-.12.59.04 1.2.42 1.66.38.46.94.73 1.54.73H20v1.08L17.43 18H9.34c-.18 0-.34-.16-.34-.34V9.82l4.11-4.1M14 3L7.32 9.68C7.11 9.89 7 10.18 7 10.5v7.13c0 .97.78 1.77 1.74 1.77h9.44l2.96-6.91c.19-.46.03-1-.42-1.19h-4.92c-1.18 0-2.2-.76-2.51-1.86l-.71-3.62c-.18-.86-1-1.43-1.87-1.23-.14.03-.27.08-.4.14zM3 11h3v7H3z"/>
+</svg>
+''';
+
      static const String phone = r'''
 <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
   <path d="M0 0h24v24H0V0z" fill="none"/>
