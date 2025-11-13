@@ -27,32 +27,81 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
   @override
   bool get wantKeepAlive => true;
 
-  // Cache da imagem base64 decodificada
+  // Cache local das imagens decodificadas
   Uint8List? _cachedImageBytes;
-  bool _isDecoding = false;
+  Uint8List? _cachedAvatarBytes;
+  bool _isDecodingImage = false;
+  bool _isDecodingAvatar = false;
+
+  // Estado local do like para feedback imediato
+  bool? _localIsLiked;
+  int? _localLikesCount;
 
   @override
   void initState() {
     super.initState();
-    _preDecodeBase64();
+    _preDecodeImages();
   }
 
-  // Decodifica base64 UMA ÚNICA VEZ no initState
-  void _preDecodeBase64() {
+  @override
+  void didUpdateWidget(PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Se o post mudou, redecodifica
+    if (oldWidget.post.id != widget.post.id) {
+      _cachedImageBytes = null;
+      _cachedAvatarBytes = null;
+      _localIsLiked = null;
+      _localLikesCount = null;
+      _preDecodeImages();
+    }
+  }
+
+  // Decodifica as imagens base64 de forma assíncrona e otimizada
+  Future<void> _preDecodeImages() async {
+    // Decodifica imagem principal
     if (widget.post.imageBase64 != null && 
         widget.post.imageBase64!.isNotEmpty &&
-        !widget.post.imageBase64!.startsWith('http')) {
-      if (_cachedImageBytes == null && !_isDecoding) {
-        _isDecoding = true;
-        try {
-          _cachedImageBytes = base64Decode(widget.post.imageBase64!);
-          if (mounted) setState(() {});
-        } catch (e) {
-          debugPrint('Erro ao decodificar base64: $e');
+        !widget.post.imageBase64!.startsWith('http') &&
+        _cachedImageBytes == null &&
+        !_isDecodingImage) {
+      _isDecodingImage = true;
+      try {
+        // Decodifica em background
+        final bytes = await _decodeBase64Async(widget.post.imageBase64!);
+        if (mounted) {
+          setState(() {
+            _cachedImageBytes = bytes;
+          });
         }
-        _isDecoding = false;
+      } catch (e) {
+        debugPrint('Erro ao decodificar imagem: $e');
       }
+      _isDecodingImage = false;
     }
+
+    // Decodifica avatar
+    if (widget.post.userAvatar != null &&
+        widget.post.userAvatar!.isNotEmpty &&
+        _cachedAvatarBytes == null &&
+        !_isDecodingAvatar) {
+      _isDecodingAvatar = true;
+      try {
+        final bytes = await _decodeBase64Async(widget.post.userAvatar!);
+        if (mounted) {
+          setState(() {
+            _cachedAvatarBytes = bytes;
+          });
+        }
+      } catch (e) {
+        debugPrint('Erro ao decodificar avatar: $e');
+      }
+      _isDecodingAvatar = false;
+    }
+  }
+
+  // Decodifica base64 de forma assíncrona para não bloquear a UI
+  Future<Uint8List> _decodeBase64Async(String base64String) async {
+    return await Future.microtask(() => base64Decode(base64String));
   }
 
   String _formatTimestamp(DateTime timestamp) {
@@ -75,6 +124,43 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     }
   }
 
+  // Like com feedback instantâneo
+  Future<void> _handleLike(String postId, String userId) async {
+    final postService = PostService();
+    final currentIsLiked = _localIsLiked ?? widget.post.isLikedBy(userId);
+    final currentLikes = _localLikesCount ?? widget.post.likes;
+
+    // Atualiza UI imediatamente (otimistic update)
+    setState(() {
+      _localIsLiked = !currentIsLiked;
+      _localLikesCount = currentIsLiked ? currentLikes - 1 : currentLikes + 1;
+    });
+
+    // Animação de feedback
+    if (!currentIsLiked) {
+      _showLikeAnimation();
+    }
+
+    // Executa a ação no backend
+    try {
+      await postService.toggleLike(postId, userId);
+    } catch (e) {
+      // Se falhar, reverte
+      if (mounted) {
+        setState(() {
+          _localIsLiked = currentIsLiked;
+          _localLikesCount = currentLikes;
+        });
+      }
+      debugPrint('Erro ao dar like: $e');
+    }
+  }
+
+  void _showLikeAnimation() {
+    // Animação de like (opcional - pode usar AnimatedScale, etc)
+    // Por enquanto, o feedback visual já está no botão
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -90,12 +176,14 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     final postService = PostService();
     final uid = auth.user?.uid;
     final canContribute = uid != null && isPro;
-    final isLiked = canContribute ? widget.post.isLikedBy(uid!) : false;
+    
+    // Usa estado local se existir, senão usa do post
+    final isLiked = _localIsLiked ?? (canContribute ? widget.post.isLikedBy(uid!) : false);
+    final likesCount = _localLikesCount ?? widget.post.likes;
 
     return GestureDetector(
       onTap: widget.post.isNews ? () => _openNewsDetail(context) : null,
       child: Container(
-        // BORDAS CURVAS E MARGENS LATERAIS
         margin: const EdgeInsets.fromLTRB(6, 0, 6, 8),
         decoration: BoxDecoration(
           color: cardColor,
@@ -105,13 +193,13 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // IMAGEM NO TOPO (se houver)
+            // IMAGEM NO TOPO
             _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
 
-            // HEADER COM AVATAR E FAVICON ABAIXO DA IMAGEM
+            // HEADER COM AVATAR
             _buildHeader(context, isDark, textColor, secondaryColor, postService),
 
-            // Content text (somente para posts normais)
+            // Content text
             if (widget.post.content.isNotEmpty && !widget.post.isNews)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -127,7 +215,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                 ),
               ),
 
-            // Summary para notícias (preview)
+            // Summary para notícias
             if (widget.post.summary != null && widget.post.summary!.isNotEmpty && widget.post.isNews)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -144,12 +232,12 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
               ),
 
             // Stats
-            if (widget.post.likes > 0 || widget.post.comments > 0 || widget.post.shares > 0)
+            if (likesCount > 0 || widget.post.comments > 0 || widget.post.shares > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    if (widget.post.likes > 0) ...[
+                    if (likesCount > 0) ...[
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
@@ -164,7 +252,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${widget.post.likes}',
+                        '$likesCount',
                         style: TextStyle(fontSize: 14, color: secondaryColor),
                       ),
                     ],
@@ -204,13 +292,13 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                     label: 'Curtir',
                     isActive: isLiked,
                     disabled: widget.post.isNews || !canContribute,
-                    onTap: () => postService.toggleLike(widget.post.id, uid!),
+                    onTap: () => _handleLike(widget.post.id, uid!),
                   ),
                   _buildActionButton(
                     context,
                     icon: CustomIcons.commentOutlined,
                     label: 'Comentar',
-                    disabled: false,  // Sempre habilitado para ver comentários
+                    disabled: false,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -325,60 +413,45 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
       );
     }
 
-    // Para usuários normais com avatar base64 OTIMIZADO
+    // Para usuários com avatar base64 - USA CACHE OTIMIZADO
     if (widget.post.userAvatar != null) {
-      Uint8List? avatarBytes;
-      try {
-        avatarBytes = base64Decode(widget.post.userAvatar!);
-      } catch (e) {
-        avatarBytes = null;
-      }
-
       return CircleAvatar(
         radius: 20,
         backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-        child: avatarBytes != null
+        child: _cachedAvatarBytes != null
             ? ClipOval(
-                child: Image.memory(
-                  avatarBytes,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  cacheWidth: 80,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Text(
-                      widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
-                      style: TextStyle(
-                        color: textColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    );
-                  },
+                child: RepaintBoundary(
+                  child: Image.memory(
+                    _cachedAvatarBytes!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    cacheWidth: 80,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildInitialAvatar(textColor);
+                    },
+                  ),
                 ),
               )
-            : Text(
-                widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
+            : _buildInitialAvatar(textColor),
       );
     }
 
     return CircleAvatar(
       radius: 20,
       backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-      child: Text(
-        widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
-        style: TextStyle(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-        ),
+      child: _buildInitialAvatar(textColor),
+    );
+  }
+
+  Widget _buildInitialAvatar(Color textColor) {
+    return Text(
+      widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
+      style: TextStyle(
+        color: textColor,
+        fontWeight: FontWeight.w600,
+        fontSize: 16,
       ),
     );
   }
@@ -437,7 +510,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
       );
     }
 
-    // PRIORIDADE 1: Se tem imageUrls, usa URL
+    // IMAGEM COM URL
     if (widget.post.imageUrls != null && widget.post.imageUrls!.isNotEmpty) {
       return RepaintBoundary(
         child: CachedNetworkImage(
@@ -447,20 +520,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
           maxHeightDiskCache: 800,
           memCacheHeight: 800,
           fadeInDuration: const Duration(milliseconds: 150),
-          placeholder: (context, url) => Container(
-            height: 200,
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                ),
-              ),
-            ),
-          ),
+          placeholder: (context, url) => _buildImagePlaceholder(isDark),
           errorWidget: (context, url, error) {
             return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
           },
@@ -468,7 +528,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
       );
     }
 
-    // PRIORIDADE 2: imageBase64 como URL ou Base64 OTIMIZADO
+    // IMAGEM BASE64
     if (widget.post.imageBase64 != null && widget.post.imageBase64!.isNotEmpty) {
       // Se é URL
       if (widget.post.imageBase64!.startsWith('http://') || widget.post.imageBase64!.startsWith('https://')) {
@@ -480,20 +540,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
             maxHeightDiskCache: 800,
             memCacheHeight: 800,
             fadeInDuration: const Duration(milliseconds: 150),
-            placeholder: (context, url) => Container(
-              height: 200,
-              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-              child: const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                  ),
-                ),
-              ),
-            ),
+            placeholder: (context, url) => _buildImagePlaceholder(isDark),
             errorWidget: (context, url, error) {
               return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
             },
@@ -501,7 +548,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         );
       }
 
-      // Se é Base64 - USA O CACHE QUE FOI DECODIFICADO UMA VEZ NO INITSATE
+      // Se é Base64 - USA CACHE OTIMIZADO
       if (_cachedImageBytes != null) {
         return RepaintBoundary(
           child: GestureDetector(
@@ -524,24 +571,28 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         );
       }
 
-      // Fallback: ainda carregando
-      return Container(
-        height: 200,
-        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-        child: const Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-            ),
-          ),
-        ),
-      );
+      // Ainda carregando
+      return _buildImagePlaceholder(isDark);
     }
 
     return const SizedBox.shrink();
+  }
+
+  Widget _buildImagePlaceholder(bool isDark) {
+    return Container(
+      height: 200,
+      color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildErrorImage(bool isDark, Color secondaryColor, String message) {
@@ -579,7 +630,8 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B));
 
     return Expanded(
-      child: Opacity(
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
         opacity: disabled ? 0.4 : 1.0,
         child: InkWell(
           onTap: disabled ? null : onTap,
@@ -588,10 +640,14 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SvgIcon(
-                  svgString: isActive && activeIcon != null ? activeIcon : icon,
-                  size: 20,
-                  color: color,
+                AnimatedScale(
+                  scale: isActive ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 150),
+                  child: SvgIcon(
+                    svgString: isActive && activeIcon != null ? activeIcon : icon,
+                    size: 20,
+                    color: color,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 Text(
