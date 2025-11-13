@@ -28,11 +28,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
-      child: Consumer2<ThemeProvider, AuthProvider>(
-        builder: (context, themeProvider, authProvider, _) {
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
           return MaterialApp(
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
@@ -66,12 +66,12 @@ class MyApp extends StatelessWidget {
               ),
             ),
             themeMode: themeProvider.themeMode,
-            home: _getInitialScreen(authProvider),
+            home: const AuthWrapper(),
             routes: {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
-              '/otp-verification': (context) => const OTPVerificationScreen(),
+              '/otp': (context) => const OTPVerificationScreen(),
               '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/messages': (context) => const MessagesScreen(),
@@ -82,28 +82,32 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _getInitialScreen(AuthProvider authProvider) {
-    // Enquanto está inicializando, mostra splash
+// Widget que decide qual tela mostrar baseado no estado de autenticação
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    // Aguarda a inicialização - mostra splash
     if (!authProvider.isInitialized) {
       return const SplashScreen();
     }
 
-    // Se está autenticado
-    if (authProvider.isAuthenticated) {
-      // Verifica se o email foi verificado
-      final isEmailVerified = authProvider.userData?['emailVerified'] == true;
-      
-      if (!isEmailVerified) {
-        // FORÇA a tela de OTP se o email não foi verificado
-        return const OTPVerificationScreen();
-      }
-      
-      // Se tudo ok, vai para home
-      return const HomeScreen();
+    // Se não está autenticado, vai para login
+    if (!authProvider.isAuthenticated) {
+      return const LoginScreen();
     }
 
-    // Se não está autenticado, vai para login
-    return const LoginScreen();
+    // Se está autenticado mas precisa verificar OTP, vai para OTP
+    if (authProvider.needsOTPVerification) {
+      return const OTPVerificationScreen();
+    }
+
+    // Se está tudo OK, vai para home
+    return const HomeScreen();
   }
 }
