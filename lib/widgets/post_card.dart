@@ -52,6 +52,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final auth = context.watch<AuthProvider>();
 
+    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
@@ -63,18 +64,31 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     return GestureDetector(
       onTap: widget.post.isNews ? () => _openNewsDetail(context) : null,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        color: cardColor,
+        margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             _buildHeader(context, isDark, textColor, secondaryColor, postService),
 
-            // Content text (somente para posts normais, não para notícias)
+            // Media content (IMAGEM NO TOPO)
+            _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
+
+            // Content text / Description (ABAIXO DA IMAGEM)
             if (widget.post.content.isNotEmpty && !widget.post.isNews)
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 child: Text(
                   widget.post.content,
                   style: TextStyle(
@@ -87,10 +101,10 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                 ),
               ),
 
-            // Summary para notícias (preview)
+            // Summary para notícias (preview) - ABAIXO DA IMAGEM
             if (widget.post.summary != null && widget.post.summary!.isNotEmpty && widget.post.isNews)
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 child: Text(
                   widget.post.summary!,
                   style: TextStyle(
@@ -102,9 +116,6 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-
-            // Media content
-            _buildMediaContent(context, isDark, textColor, secondaryColor, postService),
 
             // Stats
             if (widget.post.likes > 0 || widget.post.comments > 0 || widget.post.shares > 0)
@@ -221,7 +232,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                       ),
                     );
                   },
-            child: _buildAvatar(isDark, textColor),
+            child: _buildAvatar(isDark, textColor, secondaryColor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -257,182 +268,242 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildAvatar(bool isDark, Color textColor) {
-    // Para notícias, usa favicon
+  Widget _buildAvatar(bool isDark, Color textColor, Color secondaryColor) {
+    // NOTÍCIA: MOSTRA FAVICON GRANDE E VISÍVEL
     if (widget.post.isNews && widget.post.newsUrl != null) {
       final domain = Uri.parse(widget.post.newsUrl!).host.replaceAll('www.', '');
-      final faviconUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
       
+      // Múltiplos fallbacks para garantir que o favicon apareça
+      final faviconUrls = [
+        'https://www.google.com/s2/favicons?domain=$domain&sz=256',
+        'https://$domain/favicon.ico',
+        'https://www.google.com/s2/favicons?domain=$domain&sz=128',
+      ];
+
       return Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+          color: isDark ? const Color(0xFF3A3B3C) : Colors.white,
+          border: Border.all(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: ClipOval(
-          child: CachedNetworkImage(
-            imageUrl: faviconUrl,
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-            memCacheWidth: 80,
-            maxWidthDiskCache: 80,
-            placeholder: (context, url) => Container(
-              color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-              child: const Icon(Icons.language, size: 20),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-              child: const Icon(Icons.language, size: 20),
-            ),
+          child: _buildFaviconWithFallback(
+            faviconUrls,
+            0,
+            isDark,
+            secondaryColor,
           ),
         ),
       );
     }
 
-    // Para usuários normais com avatar
+    // USUÁRIO NORMAL: Avatar com foto ou inicial
     if (widget.post.userAvatar != null) {
-      return CircleAvatar(
-        radius: 20,
-        backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-        child: ClipOval(
-          child: Image.memory(
-            base64Decode(widget.post.userAvatar!),
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            cacheWidth: 80,
-            errorBuilder: (context, error, stackTrace) {
-              return Text(
-                widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              );
-            },
+      return Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+            width: 1,
+          ),
+        ),
+        child: CircleAvatar(
+          radius: 21,
+          backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+          child: ClipOval(
+            child: Image.memory(
+              base64Decode(widget.post.userAvatar!),
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              cacheWidth: 88,
+              errorBuilder: (context, error, stackTrace) {
+                return Center(
+                  child: Text(
+                    widget.post.userName.isNotEmpty 
+                        ? widget.post.userName[0].toUpperCase() 
+                        : 'U',
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 18,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       );
     }
 
-    return CircleAvatar(
-      radius: 20,
-      backgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-      child: Text(
-        widget.post.userName.isNotEmpty ? widget.post.userName[0].toUpperCase() : 'U',
-        style: TextStyle(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+          width: 1,
         ),
       ),
+      child: Center(
+        child: Text(
+          widget.post.userName.isNotEmpty 
+              ? widget.post.userName[0].toUpperCase() 
+              : 'U',
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget recursivo para tentar múltiplas URLs de favicon
+  Widget _buildFaviconWithFallback(
+    List<String> urls,
+    int index,
+    bool isDark,
+    Color secondaryColor,
+  ) {
+    if (index >= urls.length) {
+      // Último fallback: ícone genérico
+      return Container(
+        color: isDark ? const Color(0xFF3A3B3C) : Colors.white,
+        child: Center(
+          child: Icon(
+            Icons.article_outlined,
+            size: 24,
+            color: const Color(0xFF1877F2),
+          ),
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: urls[index],
+      width: 44,
+      height: 44,
+      fit: BoxFit.cover,
+      memCacheWidth: 88,
+      maxWidthDiskCache: 88,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (context, url) => Container(
+        color: isDark ? const Color(0xFF3A3B3C) : Colors.white,
+        child: const Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+            ),
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) {
+        // Tenta próxima URL
+        return _buildFaviconWithFallback(
+          urls,
+          index + 1,
+          isDark,
+          secondaryColor,
+        );
+      },
     );
   }
 
   Widget _buildMediaContent(BuildContext context, bool isDark, Color textColor, Color secondaryColor, PostService postService) {
     // Vídeo
     if (widget.post.videoUrl != null) {
-      return GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => VideoDetailScreen(
-                videoUrl: widget.post.videoUrl!,
-                post: widget.post,
-              ),
-            ),
-          );
-        },
-        child: Container(
-          width: double.infinity,
-          height: 300,
-          color: isDark ? const Color(0xFF000000) : const Color(0xFFF0F2F5),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SvgIcon(
-                svgString: CustomIcons.videoLibrary,
-                size: 64,
-                color: secondaryColor.withOpacity(0.3),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                    SizedBox(width: 8),
-                    Text(
-                      'Assistir vídeo',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => VideoDetailScreen(
+                  videoUrl: widget.post.videoUrl!,
+                  post: widget.post,
                 ),
               ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // PRIORIDADE 1: Se tem imageUrls, usa URL (notícias ou posts com URL)
-    if (widget.post.imageUrls != null && widget.post.imageUrls!.isNotEmpty) {
-      return RepaintBoundary(
-        child: CachedNetworkImage(
-          imageUrl: widget.post.imageUrls!.first,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          maxHeightDiskCache: 800,
-          memCacheHeight: 800,
-          fadeInDuration: const Duration(milliseconds: 200),
-          placeholder: (context, url) => Container(
-            height: 200,
-            color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                ),
-              ),
-            ),
-          ),
-          errorWidget: (context, url, error) {
-            return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
+            );
           },
+          child: Container(
+            width: double.infinity,
+            height: 300,
+            color: isDark ? const Color(0xFF000000) : const Color(0xFFF0F2F5),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SvgIcon(
+                  svgString: CustomIcons.videoLibrary,
+                  size: 64,
+                  color: secondaryColor.withOpacity(0.3),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                      SizedBox(width: 8),
+                      Text(
+                        'Assistir vídeo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
-    // PRIORIDADE 2: Checa se imageBase64 é URL ou Base64
-    if (widget.post.imageBase64 != null && widget.post.imageBase64!.isNotEmpty) {
-      // Verifica se é URL (começa com http:// ou https://)
-      if (widget.post.imageBase64!.startsWith('http://') || widget.post.imageBase64!.startsWith('https://')) {
-        return RepaintBoundary(
+    // PRIORIDADE 1: imageUrls (notícias ou posts com URL)
+    if (widget.post.imageUrls != null && widget.post.imageUrls!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+        child: RepaintBoundary(
           child: CachedNetworkImage(
-            imageUrl: widget.post.imageBase64!,
+            imageUrl: widget.post.imageUrls!.first,
             width: double.infinity,
             fit: BoxFit.cover,
             maxHeightDiskCache: 800,
             memCacheHeight: 800,
             fadeInDuration: const Duration(milliseconds: 200),
             placeholder: (context, url) => Container(
-              height: 200,
-              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+              height: 250,
+              color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
               child: const Center(
                 child: SizedBox(
                   width: 24,
@@ -448,39 +519,80 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
               return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
             },
           ),
-        );
-      }
-      
-      // Se não é URL, é Base64 - SUPER OTIMIZADO
-      return RepaintBoundary(
-        child: FutureBuilder<Image>(
-          future: _decodeBase64Image(widget.post.imageBase64!),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-              return GestureDetector(
-                onTap: () => postService.openImageViewer(
-                  context,
-                  [widget.post.imageBase64!],
-                  widget.post.imageBase64!,
-                ),
-                child: snapshot.data!,
-              );
-            }
-            return Container(
-              height: 200,
-              color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
-              child: const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+        ),
+      );
+    }
+
+    // PRIORIDADE 2: imageBase64 (URL ou Base64)
+    if (widget.post.imageBase64 != null && widget.post.imageBase64!.isNotEmpty) {
+      // Verifica se é URL
+      if (widget.post.imageBase64!.startsWith('http://') || 
+          widget.post.imageBase64!.startsWith('https://')) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+          child: RepaintBoundary(
+            child: CachedNetworkImage(
+              imageUrl: widget.post.imageBase64!,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              maxHeightDiskCache: 800,
+              memCacheHeight: 800,
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (context, url) => Container(
+                height: 250,
+                color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                child: const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                    ),
                   ),
                 ),
               ),
-            );
-          },
+              errorWidget: (context, url, error) {
+                return _buildErrorImage(isDark, secondaryColor, 'Imagem indisponível');
+              },
+            ),
+          ),
+        );
+      }
+
+      // Se é Base64
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+        child: RepaintBoundary(
+          child: FutureBuilder<Image>(
+            future: _decodeBase64Image(widget.post.imageBase64!),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                return GestureDetector(
+                  onTap: () => postService.openImageViewer(
+                    context,
+                    [widget.post.imageBase64!],
+                    widget.post.imageBase64!,
+                  ),
+                  child: snapshot.data!,
+                );
+              }
+              return Container(
+                height: 250,
+                color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                child: const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       );
     }
@@ -488,7 +600,6 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     return const SizedBox.shrink();
   }
 
-  // Decodifica base64 em isolate/async para não travar UI
   Future<Image> _decodeBase64Image(String base64String) async {
     final bytes = base64Decode(base64String);
     return Image.memory(
@@ -499,7 +610,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
       cacheWidth: 800,
       errorBuilder: (context, error, stackTrace) {
         return Container(
-          height: 200,
+          height: 250,
           color: Colors.grey[300],
           child: const Icon(Icons.broken_image, size: 48),
         );
@@ -509,8 +620,8 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
 
   Widget _buildErrorImage(bool isDark, Color secondaryColor, String message) {
     return Container(
-      height: 200,
-      color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
+      height: 250,
+      color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -546,6 +657,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         opacity: disabled ? 0.4 : 1.0,
         child: InkWell(
           onTap: disabled ? null : onTap,
+          borderRadius: BorderRadius.circular(8),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
