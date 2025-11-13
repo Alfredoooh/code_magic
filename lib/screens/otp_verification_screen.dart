@@ -364,6 +364,23 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           ),
                         ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // Login Button
+                  TextButton(
+                    onPressed: () {
+                      context.read<AuthProvider>().logout();
+                      Navigator.pushReplacementNamed(context, '/login');
+                    },
+                    child: const Text(
+                      'Voltar ao login',
+                      style: TextStyle(
+                        color: Color(0xFF1877F2),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
