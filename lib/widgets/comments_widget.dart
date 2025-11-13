@@ -39,6 +39,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
     final auth = context.watch<AuthProvider>();
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final uid = auth.user?.uid;
+    final isPro = auth.userData?['isPro'] ?? false;
 
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
@@ -53,7 +54,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: cardColor,
               border: Border(
@@ -64,15 +65,15 @@ class _CommentsWidgetState extends State<CommentsWidget> {
               children: [
                 SvgPicture.string(
                   CustomIcons.commentOutlined,
-                  width: 20,
-                  height: 20,
+                  width: 24,
+                  height: 24,
                   colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Text(
                   'Comentários',
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 20,
                     fontWeight: FontWeight.w600,
                     color: textColor,
                   ),
@@ -91,34 +92,34 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                 if (snapshot.hasError) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           SvgPicture.string(
                             CustomIcons.errorOutlined,
-                            width: 48,
-                            height: 48,
+                            width: 64,
+                            height: 64,
                             colorFilter: ColorFilter.mode(
                               const Color(0xFFFA383E).withOpacity(0.7),
                               BlendMode.srcIn,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           Text(
                             'Erro ao carregar comentários',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           Text(
                             snapshot.error.toString(),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               color: secondaryColor,
                             ),
                           ),
@@ -135,13 +136,13 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                       children: [
                         const CircularProgressIndicator(
                           color: Color(0xFF1877F2),
-                          strokeWidth: 2.5,
+                          strokeWidth: 3,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         Text(
                           'Carregando comentários...',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: secondaryColor,
                           ),
                         ),
@@ -155,13 +156,13 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                 if (docs.isEmpty) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(40),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            width: 80,
-                            height: 80,
+                            width: 100,
+                            height: 100,
                             decoration: BoxDecoration(
                               color: const Color(0xFF1877F2).withOpacity(0.1),
                               shape: BoxShape.circle,
@@ -169,8 +170,8 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                             child: Center(
                               child: SvgPicture.string(
                                 CustomIcons.commentOutlined,
-                                width: 36,
-                                height: 36,
+                                width: 48,
+                                height: 48,
                                 colorFilter: ColorFilter.mode(
                                   const Color(0xFF1877F2).withOpacity(0.7),
                                   BlendMode.srcIn,
@@ -178,23 +179,23 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                           Text(
                             'Nenhum comentário ainda',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 20,
                               fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           Text(
                             'Seja o primeiro a comentar!\nCompartilhe sua opinião.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               color: secondaryColor,
-                              height: 1.4,
+                              height: 1.5,
                             ),
                           ),
                         ],
@@ -204,7 +205,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final d = docs[index];
@@ -215,7 +216,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                     final comment = Comment.fromFirestore(d);
 
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 1),
+                      margin: const EdgeInsets.only(bottom: 2),
                       decoration: BoxDecoration(
                         color: cardColor,
                         border: Border(
@@ -228,14 +229,14 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 14,
+                          vertical: 16,
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Avatar
                             CircleAvatar(
-                              radius: 20,
+                              radius: 22,
                               backgroundColor: isDark 
                                   ? const Color(0xFF3A3B3C) 
                                   : const Color(0xFFE4E6EB),
@@ -250,12 +251,12 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                       style: TextStyle(
                                         color: textColor,
                                         fontWeight: FontWeight.w600,
-                                        fontSize: 16,
+                                        fontSize: 18,
                                       ),
                                     )
                                   : null,
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 16),
 
                             // Content
                             Expanded(
@@ -270,37 +271,37 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                           comment.userName,
                                           style: TextStyle(
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 15,
+                                            fontSize: 16,
                                             color: textColor,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 12),
                                       Text(
                                         _formatTimestamp(comment.timestamp),
                                         style: TextStyle(
-                                          fontSize: 13,
+                                          fontSize: 14,
                                           color: secondaryColor,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 8),
 
                                   // Comment text
                                   Text(
                                     comment.content,
                                     style: TextStyle(
-                                      fontSize: 15,
+                                      fontSize: 16,
                                       color: textColor,
-                                      height: 1.4,
+                                      height: 1.5,
                                     ),
                                   ),
 
                                   // Actions
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 12),
                                   Row(
                                     children: [
                                       InkWell(
@@ -309,22 +310,22 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                         },
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                            vertical: 4,
+                                            horizontal: 8,
+                                            vertical: 6,
                                           ),
                                           child: Row(
                                             children: [
                                               SvgPicture.string(
                                                 CustomIcons.thumbUpOutlined,
-                                                width: 16,
-                                                height: 16,
+                                                width: 20,
+                                                height: 20,
                                                 colorFilter: ColorFilter.mode(secondaryColor, BlendMode.srcIn),
                                               ),
-                                              const SizedBox(width: 6),
+                                              const SizedBox(width: 8),
                                               Text(
                                                 'Curtir',
                                                 style: TextStyle(
-                                                  fontSize: 13,
+                                                  fontSize: 14,
                                                   fontWeight: FontWeight.w600,
                                                   color: secondaryColor,
                                                 ),
@@ -333,20 +334,20 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      const SizedBox(width: 24),
                                       InkWell(
                                         onTap: () {
                                           // TODO: Implementar responder
                                         },
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                            vertical: 4,
+                                            horizontal: 8,
+                                            vertical: 6,
                                           ),
                                           child: Text(
                                             'Responder',
                                             style: TextStyle(
-                                              fontSize: 13,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.w600,
                                               color: secondaryColor,
                                             ),
@@ -368,7 +369,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
             ),
           ),
 
-          // Input de comentário
+          // Input de comentário ou mensagem de restrição
           Container(
             decoration: BoxDecoration(
               color: cardColor,
@@ -386,110 +387,123 @@ class _CommentsWidgetState extends State<CommentsWidget> {
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Avatar
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: isDark 
-                          ? const Color(0xFF3A3B3C) 
-                          : const Color(0xFFE4E6EB),
-                      backgroundImage: auth.userData?['photoBase64'] != null
-                          ? MemoryImage(base64Decode(auth.userData!['photoBase64']))
-                          : null,
-                      child: auth.userData?['photoBase64'] == null
-                          ? Text(
-                              auth.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Input field
-                    Expanded(
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          minHeight: 40,
-                          maxHeight: 120,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDark 
-                              ? const Color(0xFF3A3B3C) 
-                              : const Color(0xFFF0F2F5),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: TextField(
-                          controller: _ctrl,
-                          focusNode: _focusNode,
-                          decoration: InputDecoration(
-                            hintText: 'Escreva um comentário...',
-                            hintStyle: TextStyle(
-                              color: secondaryColor,
-                              fontSize: 15,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
+                padding: const EdgeInsets.all(16),
+                child: (uid != null && isPro)
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Avatar
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: isDark 
+                                ? const Color(0xFF3A3B3C) 
+                                : const Color(0xFFE4E6EB),
+                            backgroundImage: auth.userData?['photoBase64'] != null
+                                ? MemoryImage(base64Decode(auth.userData!['photoBase64']))
+                                : null,
+                            child: auth.userData?['photoBase64'] == null
+                                ? Text(
+                                    auth.userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                  )
+                                : null,
                           ),
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 15,
-                          ),
-                          maxLines: null,
-                          textCapitalization: TextCapitalization.sentences,
-                          enabled: !_isSending && uid != null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                          const SizedBox(width: 16),
 
-                    // Send button
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: (uid != null && _ctrl.text.trim().isNotEmpty && !_isSending)
-                            ? const Color(0xFF1877F2)
-                            : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
-                        shape: BoxShape.circle,
-                      ),
-                      child: _isSending
-                          ? const Padding(
-                              padding: EdgeInsets.all(10),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          // Input field
+                          Expanded(
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                minHeight: 50,
+                                maxHeight: 150,
                               ),
-                            )
-                          : IconButton(
-                              icon: SvgPicture.string(
-                                CustomIcons.sendRounded,
-                                width: 20,
-                                height: 20,
-                                colorFilter: ColorFilter.mode(
-                                  (uid != null && _ctrl.text.trim().isNotEmpty && !_isSending)
-                                      ? Colors.white
-                                      : secondaryColor,
-                                  BlendMode.srcIn,
+                              decoration: BoxDecoration(
+                                color: isDark 
+                                    ? const Color(0xFF3A3B3C) 
+                                    : const Color(0xFFF0F2F5),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: TextField(
+                                controller: _ctrl,
+                                focusNode: _focusNode,
+                                decoration: InputDecoration(
+                                  hintText: 'Escreva um comentário...',
+                                  hintStyle: TextStyle(
+                                    color: secondaryColor,
+                                    fontSize: 16,
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 14,
+                                  ),
                                 ),
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 16,
+                                ),
+                                maxLines: null,
+                                textCapitalization: TextCapitalization.sentences,
+                                enabled: !_isSending,
                               ),
-                              onPressed: (uid != null && _ctrl.text.trim().isNotEmpty && !_isSending)
-                                  ? _sendComment
-                                  : null,
-                              padding: EdgeInsets.zero,
                             ),
-                    ),
-                  ],
-                ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // Send button
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: (_ctrl.text.trim().isNotEmpty && !_isSending)
+                                  ? const Color(0xFF1877F2)
+                                  : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
+                              shape: BoxShape.circle,
+                            ),
+                            child: _isSending
+                                ? const Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: SvgPicture.string(
+                                      CustomIcons.sendRounded,
+                                      width: 24,
+                                      height: 24,
+                                      colorFilter: ColorFilter.mode(
+                                        (_ctrl.text.trim().isNotEmpty && !_isSending)
+                                            ? Colors.white
+                                            : secondaryColor,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                                    onPressed: (_ctrl.text.trim().isNotEmpty && !_isSending)
+                                        ? _sendComment
+                                        : null,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                          ),
+                        ],
+                      )
+                    : Center(
+                        child: Text(
+                          uid == null
+                              ? 'Faça login para comentar'
+                              : 'Apenas usuários Pro podem comentar',
+                          style: TextStyle(
+                            color: secondaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -518,13 +532,14 @@ class _CommentsWidgetState extends State<CommentsWidget> {
   Future<void> _sendComment() async {
     final auth = context.read<AuthProvider>();
     final uid = auth.user?.uid;
+    final isPro = auth.userData?['isPro'] ?? false;
 
-    if (uid == null) {
+    if (uid == null || !isPro) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Você precisa estar logado para comentar'),
-            backgroundColor: Color(0xFFFA383E),
+          SnackBar(
+            content: Text(uid == null ? 'Você precisa estar logado para comentar' : 'Apenas usuários Pro podem comentar'),
+            backgroundColor: const Color(0xFFFA383E),
           ),
         );
       }
