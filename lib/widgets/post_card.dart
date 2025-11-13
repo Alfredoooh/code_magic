@@ -9,10 +9,10 @@ import '../models/post_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/post_service.dart';
-import '../screens/post_detail_screen.dart';
 import '../screens/user_detail_screen.dart';
 import '../screens/video_detail_screen.dart';
 import '../screens/news_detail_screen.dart';
+import '../screens/comments_screen.dart';
 import '../widgets/custom_icons.dart';
 
 class PostCard extends StatefulWidget {
@@ -212,18 +212,14 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                     label: 'Comentar',
                     disabled: false,  // Sempre habilitado para ver comentários
                     onTap: () {
-                      if (widget.post.isNews) {
-                        _openNewsDetail(context);
-                      } else {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => PostDetailScreen(
-                              postId: widget.post.id,
-                              isNews: false,
-                            ),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => CommentsScreen(
+                            postId: widget.post.id,
+                            isNews: widget.post.isNews,
                           ),
-                        );
-                      }
+                        ),
+                      );
                     },
                   ),
                   _buildActionButton(
