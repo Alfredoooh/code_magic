@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import '../models/avatar_model.dart';
 import '../widgets/custom_icons.dart';
-import '../widgets/custom_snackbar.dart';
+import 'search_avatar_screen.dart';
 
 class AvatarGalleryScreen extends StatefulWidget {
   final String? currentAvatarUrl;
@@ -28,7 +28,6 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
   bool _hasMoreAvatars = true;
   final ScrollController _scrollController = ScrollController();
 
-  // NOVO ENDPOINT DO GITHUB
   static const _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
   @override
@@ -61,26 +60,14 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
       _avatars.clear();
     });
 
-    print('');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('🎭 CARREGANDO AVATARES DA API...');
-    print('🌐 API: $_apiBaseUrl');
-    print('♾️ Sistema infinito ativado');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     await _fetchAvatarsFromAPI();
-
     setState(() => _isLoading = false);
   }
 
   Future<void> _loadMoreAvatars() async {
     if (_isLoadingMore || !_hasMoreAvatars) return;
-
     setState(() => _isLoadingMore = true);
-
-    print('📥 Carregando mais avatares...');
     await _fetchAvatarsFromAPI();
-
     setState(() => _isLoadingMore = false);
   }
 
@@ -91,28 +78,18 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
     final List<AvatarImage> loadedAvatars = [];
 
     try {
-      // Carrega até encontrar 3 erros consecutivos
       while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < 5) {
         final url = '$_apiBaseUrl/avatars/avatar$_currentFile.json';
-        print('🔍 Tentando: avatar$_currentFile.json');
-        print('   URL: $url');
 
         try {
-          final response = await http
-              .get(Uri.parse(url))
-              .timeout(const Duration(seconds: 10));
-
-          print('   Status: ${response.statusCode}');
+          final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
           if (response.statusCode == 200) {
             try {
               final data = json.decode(response.body);
-              print('   ✅ JSON parseado com sucesso');
-
               final List? avatarsList = data['avatars'];
 
               if (avatarsList != null && avatarsList.isNotEmpty) {
-                print('   ✅ ${avatarsList.length} avatares encontrados');
                 filesLoaded++;
                 consecutiveErrors = 0;
 
@@ -120,33 +97,26 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                   try {
                     final avatar = AvatarImage.fromJson(avatarsList[i]);
                     loadedAvatars.add(avatar);
-                    print('      🎭 Avatar $i: ${avatar.name}');
                   } catch (e) {
-                    print('      ❌ Erro ao processar avatar $i: $e');
+                    debugPrint('Erro ao processar avatar: $e');
                   }
                 }
-
                 _currentFile++;
               } else {
-                print('   ⚠️ Array de avatares vazio');
                 consecutiveErrors++;
                 _currentFile++;
               }
             } catch (e) {
-              print('   ❌ Erro ao fazer parse do JSON: $e');
               consecutiveErrors++;
               _currentFile++;
             }
           } else if (response.statusCode == 404) {
-            print('   ⚠️ Arquivo não existe (404)');
             consecutiveErrors++;
           } else {
-            print('   ⚠️ Erro HTTP ${response.statusCode}');
             consecutiveErrors++;
             _currentFile++;
           }
         } catch (e) {
-          print('   ❌ Erro de rede: $e');
           consecutiveErrors++;
           if (consecutiveErrors < maxConsecutiveErrors) {
             _currentFile++;
@@ -157,36 +127,16 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
       }
 
       if (consecutiveErrors >= maxConsecutiveErrors) {
-        print('🛑 Limite de erros atingido - Fim dos avatares');
         _hasMoreAvatars = false;
       }
 
-      print('');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
       if (loadedAvatars.isNotEmpty) {
-        print('✅ ${loadedAvatars.length} NOVOS AVATARES CARREGADOS!');
-        print('📂 $filesLoaded arquivos processados');
-        print('📦 Total de avatares: ${_avatars.length + loadedAvatars.length}');
-        print('🔜 Próximo arquivo: avatar$_currentFile.json');
-
         setState(() {
           _avatars.addAll(loadedAvatars);
         });
-      } else {
-        print('⚠️ Nenhum avatar novo carregado');
-        if (_avatars.isEmpty) {
-          print('❌ Nenhum avatar disponível');
-        }
       }
-
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('');
-
     } catch (e) {
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('❌ ERRO CRÍTICO: $e');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('Erro crítico: $e');
     }
   }
 
@@ -201,13 +151,13 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: cardColor,
+        backgroundColor: bgColor,
         elevation: 0,
         leading: IconButton(
           icon: SvgPicture.string(
             CustomIcons.arrowLeft,
-            width: 20,
-            height: 20,
+            width: 24,
+            height: 24,
             colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
           ),
           onPressed: () => Navigator.pop(context),
@@ -215,8 +165,8 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
         title: Text(
           'Galeria de Avatares',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
             color: textColor,
           ),
         ),
@@ -230,138 +180,87 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                 'Confirmar',
                 style: TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF1877F2),
                 ),
               ),
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-            height: 0.5,
-          ),
-        ),
       ),
       body: _isLoading
           ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Carregando avatares...',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
               ),
             )
           : _avatars.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.photo_library_outlined,
-                        size: 64,
-                        color: isDark
-                            ? const Color(0xFF3A3B3C)
-                            : const Color(0xFFDADADA),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Nenhum avatar disponível',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: hintColor,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: _loadAvatars,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Tentar Novamente'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1877F2),
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
+              ? const SizedBox.shrink()
               : Column(
                   children: [
+                    // Search bar
                     Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF1877F2).withOpacity(0.1),
-                              const Color(0xFF9C27B0).withOpacity(0.1),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFF1877F2).withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1877F2).withOpacity(0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.info_outline,
-                                color: Color(0xFF1877F2),
-                                size: 20,
-                              ),
+                      child: GestureDetector(
+                        onTap: () async {
+                          final selected = await Navigator.push<String>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SearchAvatarScreen(avatars: _avatars),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                '${_avatars.length} avatares disponíveis. Role para carregar mais.',
+                          );
+                          if (selected != null) {
+                            setState(() => _selectedAvatarUrl = selected);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5E5),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              SvgPicture.string(
+                                CustomIcons.search,
+                                width: 20,
+                                height: 20,
+                                colorFilter: ColorFilter.mode(hintColor, BlendMode.srcIn),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Pesquisar avatares...',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: textColor,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                  color: hintColor,
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
+
+                    // Grid de avatares
                     Expanded(
                       child: GridView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 4,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
                         ),
                         itemCount: _avatars.length + (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
                           if (index == _avatars.length) {
                             return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF1877F2),
-                                  ),
-                                ),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                               ),
                             );
                           }
@@ -371,32 +270,29 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
 
                           return GestureDetector(
                             onTap: () {
-                              setState(() {
-                                _selectedAvatarUrl = avatar.imageUrl;
-                              });
+                              setState(() => _selectedAvatarUrl = avatar.imageUrl);
                             },
                             child: Container(
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: isSelected
                                       ? const Color(0xFF1877F2)
-                                      : (isDark
-                                          ? const Color(0xFF3E4042)
-                                          : const Color(0xFFDADADA)),
-                                  width: isSelected ? 3 : 2,
+                                      : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5E5)),
+                                  width: isSelected ? 3 : 1,
                                 ),
                                 boxShadow: [
-                                  BoxShadow(
-                                    color: isDark
-                                        ? Colors.black.withOpacity(0.3)
-                                        : Colors.black.withOpacity(0.08),
-                                    blurRadius: isSelected ? 12 : 6,
-                                    offset: const Offset(0, 2),
-                                  ),
+                                  if (isSelected)
+                                    BoxShadow(
+                                      color: const Color(0xFF1877F2).withOpacity(0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
                                 ],
                               ),
-                              child: ClipOval(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
@@ -406,46 +302,54 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                                       loadingBuilder: (context, child, loadingProgress) {
                                         if (loadingProgress == null) return child;
                                         return Container(
-                                          color: Color(
-                                            int.parse(
-                                              'FF${avatar.color.replaceAll('#', '')}',
-                                              radix: 16,
-                                            ),
-                                          ).withOpacity(0.3),
+                                          color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5),
                                           child: const Center(
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
-                                              valueColor: AlwaysStoppedAnimation<Color>(
-                                                Color(0xFF1877F2),
-                                              ),
+                                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                                             ),
                                           ),
                                         );
                                       },
                                       errorBuilder: (context, error, stackTrace) {
                                         return Container(
-                                          color: Color(
-                                            int.parse(
-                                              'FF${avatar.color.replaceAll('#', '')}',
-                                              radix: 16,
+                                          color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5),
+                                          child: Center(
+                                            child: SvgPicture.string(
+                                              CustomIcons.person,
+                                              width: 32,
+                                              height: 32,
+                                              colorFilter: ColorFilter.mode(
+                                                hintColor,
+                                                BlendMode.srcIn,
+                                              ),
                                             ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.person,
-                                            color: Colors.white,
-                                            size: 32,
                                           ),
                                         );
                                       },
                                     ),
                                     if (isSelected)
                                       Container(
-                                        color: const Color(0xFF1877F2).withOpacity(0.3),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.check_circle,
-                                            color: Colors.white,
-                                            size: 36,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF1877F2).withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: Center(
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF1877F2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: SvgPicture.string(
+                                              CustomIcons.check,
+                                              width: 20,
+                                              height: 20,
+                                              colorFilter: const ColorFilter.mode(
+                                                Colors.white,
+                                                BlendMode.srcIn,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
