@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/document_service.dart';
 import '../models/document_template_model.dart';
 import '../widgets/custom_icons.dart';
@@ -32,15 +33,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   final List<Map<String, dynamic>> _categories = [
-    {'name': 'Currículo', 'icon': CustomIcons.person, 'category': DocumentCategory.curriculum},
-    {'name': 'Certificado', 'icon': CustomIcons.certificate, 'category': DocumentCategory.certificate},
-    {'name': 'Carta', 'icon': CustomIcons.envelope, 'category': DocumentCategory.letter},
-    {'name': 'Relatório', 'icon': CustomIcons.description, 'category': DocumentCategory.report},
-    {'name': 'Contrato', 'icon': CustomIcons.contract, 'category': DocumentCategory.contract},
-    {'name': 'Fatura', 'icon': CustomIcons.invoice, 'category': DocumentCategory.invoice},
-    {'name': 'Apresentação', 'icon': CustomIcons.presentation, 'category': DocumentCategory.presentation},
-    {'name': 'Trabalho', 'icon': CustomIcons.school, 'category': DocumentCategory.essay},
-    {'name': 'Outro', 'icon': CustomIcons.folder, 'category': DocumentCategory.other},
+    {'name': 'Currículo', 'icon': CustomIcons.person, 'category': DocumentCategory.curriculum, 'color': Color(0xFF2196F3)},
+    {'name': 'Certificado', 'icon': CustomIcons.certificate, 'category': DocumentCategory.certificate, 'color': Color(0xFF4CAF50)},
+    {'name': 'Carta', 'icon': CustomIcons.envelope, 'category': DocumentCategory.letter, 'color': Color(0xFFFFC107)},
+    {'name': 'Relatório', 'icon': CustomIcons.description, 'category': DocumentCategory.report, 'color': Color(0xFFF44336)},
+    {'name': 'Contrato', 'icon': CustomIcons.contract, 'category': DocumentCategory.contract, 'color': Color(0xFF9C27B0)},
+    {'name': 'Fatura', 'icon': CustomIcons.invoice, 'category': DocumentCategory.invoice, 'color': Color(0xFF673AB7)},
+    {'name': 'Apresentação', 'icon': CustomIcons.presentation, 'category': DocumentCategory.presentation, 'color': Color(0xFF3F51B5)},
+    {'name': 'Trabalho', 'icon': CustomIcons.school, 'category': DocumentCategory.essay, 'color': Color(0xFF009688)},
+    {'name': 'Outro', 'icon': CustomIcons.folder, 'category': DocumentCategory.other, 'color': Color(0xFF607D8B)},
   ];
 
   Future<void> _pickImage() async {
@@ -95,7 +96,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     }
   }
 
-  void _send() {
+  void _send() async {
     final text = _controller.text.trim();
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,13 +117,34 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pedido enviado com sucesso!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.of(context).pop();
+    try {
+      final auth = context.read<AuthProvider>();
+      await _documentService.createRequest(
+        userId: auth.user!.uid,
+        category: _selectedCategory!,
+        description: text,
+        title: 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
+        template: _selectedTemplate,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pedido enviado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar pedido: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -172,6 +194,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               itemBuilder: (context, index) {
                 final cat = _categories[index];
                 final isSelected = _selectedCategory == cat['category'];
+                final catColor = cat['color'] as Color;
 
                 return GestureDetector(
                   onTap: () => setState(() {
@@ -182,12 +205,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     width: 80,
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF1877F2)
+                          ? catColor
                           : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isSelected
-                            ? const Color(0xFF1877F2)
+                            ? catColor
                             : Colors.transparent,
                         width: 2,
                       ),
@@ -525,7 +548,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(50),
                         ),
                       ),
                       child: Row(
