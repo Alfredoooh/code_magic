@@ -10,7 +10,7 @@ import '../widgets/custom_icons.dart';
 import '../widgets/diary_filter_modal.dart';
 import 'diary_editor_screen.dart';
 import 'diary_detail_screen.dart';
-import 'diary_entry_card.dart';
+import '../widgets/diary_entry_card.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
