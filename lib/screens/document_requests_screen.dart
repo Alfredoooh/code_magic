@@ -216,6 +216,8 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
             return const SizedBox.shrink();
           }
 
+          final recentRequests = requests.take(10).toList();
+
           return CustomScrollView(
             slivers: [
               // Header "Pedidos Recentes"
@@ -239,7 +241,7 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final request = requests[index];
+                      final request = recentRequests[index];
                       return _RequestCard(
                         request: request,
                         isDark: isDark,
@@ -253,7 +255,7 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen> {
                         },
                       );
                     },
-                    childCount: requests.length,
+                    childCount: recentRequests.length,
                   ),
                 ),
               ),
