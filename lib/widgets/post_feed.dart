@@ -35,6 +35,9 @@ class _PostFeedState extends State<PostFeed> {
   void _showFilterModal() {
     final isDark = context.read<ThemeProvider>().isDarkMode;
     final currentFilter = _postService.currentFilter;
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
 
     showModalBottomSheet(
       context: context,
@@ -45,69 +48,119 @@ class _PostFeedState extends State<PostFeed> {
           builder: (context, setModalState) {
             return Container(
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                color: cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
               ),
               child: SafeArea(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Handle visual
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: secondaryColor.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // Header
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(
                         children: [
-                          Text(
-                            'Filtros',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1877F2).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () {
-                              _postService.setFilter(FeedFilter.mixed);
-                              Navigator.pop(context);
-                            },
-                            child: Text(
-                              'Limpar',
-                              style: TextStyle(
-                                color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-                                fontWeight: FontWeight.w600,
+                            child: SvgPicture.string(
+                              CustomIcons.filterList,
+                              width: 24,
+                              height: 24,
+                              colorFilter: const ColorFilter.mode(
+                                Color(0xFF1877F2),
+                                BlendMode.srcIn,
                               ),
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Filtrar Feed',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: textColor,
+                                  ),
+                                ),
+                                Text(
+                                  'Escolha o tipo de conteúdo',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: secondaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (currentFilter != FeedFilter.mixed)
+                            TextButton(
+                              onPressed: () {
+                                setModalState(() {
+                                  _postService.setFilter(FeedFilter.mixed);
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                backgroundColor: isDark
+                                    ? const Color(0xFF3A3A3C)
+                                    : const Color(0xFFF0F2F5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              child: Text(
+                                'Limpar',
+                                style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF0A84FF)
+                                      : const Color(0xFF007AFF),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-
-                    // Seção de tipos de feed
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Tipo de Conteúdo',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF8E8E93),
-                          ),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 24),
 
                     // Opções de filtro
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         children: [
                           _FilterOptionTile(
-                            icon: CustomIcons.dashboard,
                             emoji: '🌐',
-                            title: 'Misto',
+                            title: 'Feed Misto',
                             subtitle: 'Posts e notícias intercalados',
                             isSelected: currentFilter == FeedFilter.mixed,
                             color: const Color(0xFF1877F2),
@@ -115,46 +168,50 @@ class _PostFeedState extends State<PostFeed> {
                               setModalState(() {
                                 _postService.setFilter(FeedFilter.mixed);
                               });
-                              Navigator.pop(context);
+                              Future.delayed(const Duration(milliseconds: 300), () {
+                                Navigator.pop(context);
+                              });
                             },
                             isDark: isDark,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _FilterOptionTile(
-                            icon: CustomIcons.person,
                             emoji: '👤',
                             title: 'Apenas Posts',
-                            subtitle: 'Exibir somente publicações de usuários',
+                            subtitle: 'Publicações de usuários',
                             isSelected: currentFilter == FeedFilter.postsOnly,
                             color: const Color(0xFF4CAF50),
                             onTap: () {
                               setModalState(() {
                                 _postService.setFilter(FeedFilter.postsOnly);
                               });
-                              Navigator.pop(context);
+                              Future.delayed(const Duration(milliseconds: 300), () {
+                                Navigator.pop(context);
+                              });
                             },
                             isDark: isDark,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _FilterOptionTile(
-                            icon: CustomIcons.newspaper,
                             emoji: '📰',
                             title: 'Apenas Notícias',
-                            subtitle: 'Exibir somente notícias em tempo real',
+                            subtitle: 'Conteúdo em tempo real',
                             isSelected: currentFilter == FeedFilter.newsOnly,
                             color: const Color(0xFFFF9800),
                             onTap: () {
                               setModalState(() {
                                 _postService.setFilter(FeedFilter.newsOnly);
                               });
-                              Navigator.pop(context);
+                              Future.delayed(const Duration(milliseconds: 300), () {
+                                Navigator.pop(context);
+                              });
                             },
                             isDark: isDark,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -230,9 +287,9 @@ class _PostFeedState extends State<PostFeed> {
                             color: isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
+                          child: const Text(
                             '1',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
@@ -405,7 +462,6 @@ class _PostFeedState extends State<PostFeed> {
 }
 
 class _FilterOptionTile extends StatelessWidget {
-  final String icon;
   final String emoji;
   final String title;
   final String subtitle;
@@ -415,7 +471,6 @@ class _FilterOptionTile extends StatelessWidget {
   final bool isDark;
 
   const _FilterOptionTile({
-    required this.icon,
     required this.emoji,
     required this.title,
     required this.subtitle,
@@ -427,63 +482,86 @@ class _FilterOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? color : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
-            width: 2,
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isSelected ? color : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            color: isSelected ? color.withOpacity(0.08) : Colors.transparent,
           ),
-          borderRadius: BorderRadius.circular(12),
-          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.15) : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 24),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? color : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
-                    ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? color.withOpacity(0.15)
+                      : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    emoji,
+                    style: const TextStyle(fontSize: 24),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected ? color : textColor,
+                      ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: secondaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedScale(
+                scale: isSelected ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
                   ),
-                ],
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
               ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: color,
-                size: 24,
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
