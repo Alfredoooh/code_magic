@@ -16,6 +16,7 @@ import 'marketplace/add_book_screen.dart';
 import 'diary_screen.dart';
 import 'diary_editor_screen.dart';
 import 'document_requests_screen.dart';
+import 'otp_verification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -195,6 +196,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.user != null && !(auth.userData?['isEmailVerified'] ?? false)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OTPVerificationScreen()),
+        );
+      }
+    });
   }
 
   @override
