@@ -1,5 +1,6 @@
 // lib/screens/chat_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -32,34 +33,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _chatId;
   bool _isInitializing = true;
-  bool _showQuickMessages = true;
-
-  final List<Map<String, String>> _quickMessages = [
-    {
-      'title': 'Quero saber dos vossos serviços',
-      'message': 'Olá! Gostaria de saber mais sobre os vossos serviços. Podem me dar mais informações?'
-    },
-    {
-      'title': 'Interesse em parceria',
-      'message': 'Tenho interesse em estabelecer uma parceria. Podemos conversar sobre isso?'
-    },
-    {
-      'title': 'Dúvida sobre produto',
-      'message': 'Olá! Tenho algumas dúvidas sobre os produtos disponíveis. Podem me ajudar?'
-    },
-    {
-      'title': 'Solicitar orçamento',
-      'message': 'Bom dia! Gostaria de solicitar um orçamento para os vossos serviços.'
-    },
-    {
-      'title': 'Marcar reunião',
-      'message': 'Olá! Gostaria de marcar uma reunião para conversarmos melhor. Qual a vossa disponibilidade?'
-    },
-    {
-      'title': 'Suporte técnico',
-      'message': 'Olá! Preciso de suporte técnico. Podem me ajudar com isso?'
-    },
-  ];
 
   @override
   void initState() {
@@ -74,9 +47,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final currentUserId = authProvider.user?.uid;
 
       if (currentUserId == null) {
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (mounted) Navigator.pop(context);
         return;
       }
 
@@ -110,25 +81,15 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _sendMessage({String? predefinedMessage}) async {
-    final messageText = predefinedMessage ?? _messageController.text.trim();
-
+  Future<void> _sendMessage() async {
+    final messageText = _messageController.text.trim();
     if (messageText.isEmpty || _chatId == null) return;
 
     final authProvider = context.read<AuthProvider>();
     final currentUserId = authProvider.user?.uid;
-
     if (currentUserId == null) return;
 
-    if (predefinedMessage == null) {
-      _messageController.clear();
-    }
-
-    if (_showQuickMessages) {
-      setState(() {
-        _showQuickMessages = false;
-      });
-    }
+    _messageController.clear();
 
     try {
       await FirebaseFirestore.instance
@@ -170,10 +131,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Renderiza texto formatado estilo WhatsApp
   List<TextSpan> _parseFormattedText(String text, Color textColor) {
     final List<TextSpan> spans = [];
-    final regex = RegExp(r'(\*[^*]+\*|_[^_]+_|~[^~]+~|`[^`]+`)');
+    final regex = RegExp(r'\*([^\*]+)\*|_([^_]+)_|~([^~]+)~|`([^`]+)`');
     int lastIndex = 0;
 
     for (final match in regex.allMatches(text)) {
@@ -184,36 +144,27 @@ class _ChatScreenState extends State<ChatScreen> {
         ));
       }
 
-      final matchedText = match.group(0)!;
-      final innerText = matchedText.substring(1, matchedText.length - 1);
-
-      if (matchedText.startsWith('*')) {
+      if (match.group(1) != null) {
         spans.add(TextSpan(
-          text: innerText,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
+          text: match.group(1),
+          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
         ));
-      } else if (matchedText.startsWith('_')) {
+      } else if (match.group(2) != null) {
         spans.add(TextSpan(
-          text: innerText,
-          style: TextStyle(
-            fontStyle: FontStyle.italic,
-            color: textColor,
-          ),
+          text: match.group(2),
+          style: TextStyle(fontStyle: FontStyle.italic, color: textColor),
         ));
-      } else if (matchedText.startsWith('~')) {
+      } else if (match.group(3) != null) {
         spans.add(TextSpan(
-          text: innerText,
+          text: match.group(3),
           style: TextStyle(
             decoration: TextDecoration.lineThrough,
             color: textColor,
           ),
         ));
-      } else if (matchedText.startsWith('`')) {
+      } else if (match.group(4) != null) {
         spans.add(TextSpan(
-          text: innerText,
+          text: match.group(4),
           style: TextStyle(
             fontFamily: 'monospace',
             backgroundColor: textColor.withOpacity(0.1),
@@ -232,8 +183,8 @@ class _ChatScreenState extends State<ChatScreen> {
       ));
     }
 
-    return spans.isEmpty 
-        ? [TextSpan(text: text, style: TextStyle(color: textColor))] 
+    return spans.isEmpty
+        ? [TextSpan(text: text, style: TextStyle(color: textColor))]
         : spans;
   }
 
@@ -244,118 +195,210 @@ class _ChatScreenState extends State<ChatScreen> {
     final activeTime = lastActive.toDate();
     final difference = now.difference(activeTime);
 
-    if (difference.inMinutes < 1) {
-      return 'Ativo agora';
-    } else if (difference.inMinutes < 60) {
-      return 'Ativo há ${difference.inMinutes}m';
-    } else if (difference.inHours < 24) {
-      return 'Ativo há ${difference.inHours}h';
-    } else if (difference.inDays < 7) {
-      return 'Ativo há ${difference.inDays}d';
-    } else {
-      return 'Offline';
-    }
+    if (difference.inMinutes < 1) return 'Ativo agora';
+    if (difference.inMinutes < 60) return 'Ativo há ${difference.inMinutes}m';
+    if (difference.inHours < 24) return 'Ativo há ${difference.inHours}h';
+    if (difference.inDays < 7) return 'Ativo há ${difference.inDays}d';
+    return 'Offline';
   }
 
-  Widget _buildQuickMessageButton(String title, String message, bool isDark) {
-    return InkWell(
-      onTap: () => _sendMessage(predefinedMessage: message),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF3A3B3C) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1877F2).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SvgIcon(
-                svgString: CustomIcons.chatBubble,
-                color: const Color(0xFF1877F2),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                ),
-              ),
-            ),
-            SvgIcon(
-              svgString: CustomIcons.chevronRight,
-              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  void _showChatOptions() {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
 
-  Widget _buildQuickMessagesSection(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              SvgIcon(
-                svgString: CustomIcons.lightning,
-                color: const Color(0xFF1877F2),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Mensagens rápidas',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
-                ),
-              ),
-            ],
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Escolha uma opção ou escreva sua própria mensagem',
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: secondaryColor.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1877F2).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SvgPicture.string(
+                      CustomIcons.search,
+                      width: 24,
+                      height: 24,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFF1877F2),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    'Pesquisar no chat',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidade em breve'),
+                        backgroundColor: Color(0xFF1877F2),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF9800).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SvgPicture.string(
+                      CustomIcons.volumeOff,
+                      width: 24,
+                      height: 24,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFFFF9800),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    'Silenciar notificações',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Chat silenciado'),
+                        backgroundColor: Color(0xFFFF9800),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF31A24C).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SvgPicture.string(
+                      CustomIcons.wallpaper,
+                      width: 24,
+                      height: 24,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFF31A24C),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    'Alterar papel de parede',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidade em breve'),
+                        backgroundColor: Color(0xFF31A24C),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFA383E).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SvgPicture.string(
+                      CustomIcons.block,
+                      width: 24,
+                      height: 24,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFFFA383E),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    'Bloquear usuário',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFFA383E),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: cardColor,
+                        title: Text('Bloquear usuário?', style: TextStyle(color: textColor)),
+                        content: Text(
+                          'Você não receberá mais mensagens desta pessoa.',
+                          style: TextStyle(color: secondaryColor),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancelar'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Usuário bloqueado'),
+                                  backgroundColor: Color(0xFFFA383E),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Bloquear',
+                              style: TextStyle(color: Color(0xFFFA383E)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _quickMessages.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final quickMsg = _quickMessages[index];
-              return _buildQuickMessageButton(
-                quickMsg['title']!,
-                quickMsg['message']!,
-                isDark,
-              );
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -368,6 +411,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -384,10 +428,11 @@ class _ChatScreenState extends State<ChatScreen> {
             backgroundColor: cardColor,
             elevation: 0,
             leading: IconButton(
-              icon: SvgIcon(
-                svgString: CustomIcons.arrowBack,
-                color: textColor,
-                size: 24,
+              icon: SvgPicture.string(
+                CustomIcons.arrowBack,
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
               ),
               onPressed: () => Navigator.pop(context),
             ),
@@ -421,10 +466,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF31A24C),
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: cardColor,
-                              width: 2,
-                            ),
+                            border: Border.all(color: cardColor, width: 2),
                           ),
                         ),
                       ),
@@ -449,7 +491,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           fontSize: 12,
                           color: isOnline
                               ? const Color(0xFF31A24C)
-                              : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B)),
+                              : secondaryColor,
                         ),
                       ),
                     ],
@@ -457,6 +499,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
+            actions: [
+              IconButton(
+                icon: SvgPicture.string(
+                  CustomIcons.moreVert,
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+                ),
+                onPressed: _showChatOptions,
+              ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(1),
               child: Container(
@@ -471,7 +524,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: _isInitializing
                     ? const Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF1877F2),
+                          ),
                         ),
                       )
                     : StreamBuilder<QuerySnapshot>(
@@ -482,10 +537,13 @@ class _ChatScreenState extends State<ChatScreen> {
                             .orderBy('createdAt', descending: false)
                             .snapshots(),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Center(
                               child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF1877F2),
+                                ),
                               ),
                             );
                           }
@@ -501,32 +559,35 @@ class _ChatScreenState extends State<ChatScreen> {
 
                           final messages = snapshot.data?.docs ?? [];
 
-                          if (messages.isEmpty && _showQuickMessages) {
-                            return SingleChildScrollView(
-                              child: _buildQuickMessagesSection(isDark),
-                            );
-                          }
-
                           if (messages.isEmpty) {
                             return Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  SvgIcon(
-                                    svgString: CustomIcons.chatBubble,
-                                    size: 64,
-                                    color: isDark
-                                        ? const Color(0xFF3A3B3C)
-                                        : const Color(0xFFDADADA),
+                                  SvgPicture.string(
+                                    CustomIcons.chatBubble,
+                                    width: 64,
+                                    height: 64,
+                                    colorFilter: ColorFilter.mode(
+                                      secondaryColor.withOpacity(0.3),
+                                      BlendMode.srcIn,
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Inicie a conversa',
+                                    'Nenhuma mensagem ainda',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: isDark
-                                          ? const Color(0xFFB0B3B8)
-                                          : const Color(0xFF65676B),
+                                      fontWeight: FontWeight.w600,
+                                      color: secondaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Envie uma mensagem para iniciar',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: secondaryColor,
                                     ),
                                   ),
                                 ],
@@ -540,12 +601,11 @@ class _ChatScreenState extends State<ChatScreen> {
                             itemCount: messages.length,
                             itemBuilder: (context, index) {
                               final messageDoc = messages[index];
-                              final data = messageDoc.data() as Map<String, dynamic>;
+                              final data =
+                                  messageDoc.data() as Map<String, dynamic>;
                               final isMe = data['senderId'] == currentUserId;
                               final createdAt = data['createdAt'] as Timestamp?;
-                              final messageColor = isMe
-                                  ? Colors.white
-                                  : textColor;
+                              final messageColor = isMe ? Colors.white : textColor;
 
                               return Align(
                                 alignment: isMe
@@ -558,7 +618,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     vertical: 10,
                                   ),
                                   constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width * 0.7,
                                   ),
                                   decoration: BoxDecoration(
                                     color: isMe
@@ -569,7 +630,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     borderRadius: BorderRadius.circular(18),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       RichText(
                                         text: TextSpan(
@@ -594,9 +656,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                             fontSize: 11,
                                             color: isMe
                                                 ? Colors.white70
-                                                : (isDark
-                                                    ? const Color(0xFFB0B3B8)
-                                                    : const Color(0xFF65676B)),
+                                                : secondaryColor,
                                           ),
                                         ),
                                       ],
@@ -615,7 +675,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   color: cardColor,
                   border: Border(
                     top: BorderSide(
-                      color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                      color: isDark
+                          ? const Color(0xFF3E4042)
+                          : const Color(0xFFDADADA),
                       width: 0.5,
                     ),
                   ),
@@ -637,12 +699,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             controller: _messageController,
                             style: TextStyle(color: textColor),
                             decoration: InputDecoration(
-                              hintText: 'Escrever mensagem...',
-                              hintStyle: TextStyle(
-                                color: isDark
-                                    ? const Color(0xFFB0B3B8)
-                                    : const Color(0xFF65676B),
-                              ),
+                              hintText: 'Mensagem...',
+                              hintStyle: TextStyle(color: secondaryColor),
                               border: InputBorder.none,
                             ),
                             maxLines: null,
@@ -655,12 +713,16 @@ class _ChatScreenState extends State<ChatScreen> {
                       CircleAvatar(
                         backgroundColor: const Color(0xFF1877F2),
                         child: IconButton(
-                          icon: SvgIcon(
-                            svgString: CustomIcons.send,
-                            color: Colors.white,
-                            size: 20,
+                          icon: SvgPicture.string(
+                            CustomIcons.send,
+                            width: 20,
+                            height: 20,
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            ),
                           ),
-                          onPressed: () => _sendMessage(),
+                          onPressed: _sendMessage,
                         ),
                       ),
                     ],
