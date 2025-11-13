@@ -1,3 +1,4 @@
+// lib/screens/comments_screen.dart
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -6,23 +7,23 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/post_model.dart';
-import 'custom_icons.dart';
+import '../widgets/custom_icons.dart';
 
-class CommentsWidget extends StatefulWidget {
+class CommentsScreen extends StatefulWidget {
   final String postId;
   final bool isNews;
 
-  const CommentsWidget({
+  const CommentsScreen({
     super.key,
     required this.postId,
     this.isNews = false,
   });
 
   @override
-  State<CommentsWidget> createState() => _CommentsWidgetState();
+  State<CommentsScreen> createState() => _CommentsScreenState();
 }
 
-class _CommentsWidgetState extends State<CommentsWidget> {
+class _CommentsScreenState extends State<CommentsScreen> {
   final TextEditingController _ctrl = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _isSending = false;
@@ -47,41 +48,36 @@ class _CommentsWidgetState extends State<CommentsWidget> {
     final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
     final dividerColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
-    return Container(
-      color: bgColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              border: Border(
-                bottom: BorderSide(color: dividerColor, width: 0.5),
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: cardColor,
+        elevation: 0,
+        shape: Border(
+          bottom: BorderSide(color: dividerColor, width: 0.5),
+        ),
+        title: Row(
+          children: [
+            SvgPicture.string(
+              CustomIcons.commentOutlined,
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Comentários',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: textColor,
               ),
             ),
-            child: Row(
-              children: [
-                SvgPicture.string(
-                  CustomIcons.commentOutlined,
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Comentários',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
           // Lista de comentários
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
