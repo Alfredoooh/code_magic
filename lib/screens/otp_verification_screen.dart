@@ -366,11 +366,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Login Button
+                  // Login Button - CORRIGIDO: logout() -> signOut()
                   TextButton(
-                    onPressed: () {
-                      context.read<AuthProvider>().logout();
-                      Navigator.pushReplacementNamed(context, '/login');
+                    onPressed: () async {
+                      await context.read<AuthProvider>().signOut();
+                      if (mounted) {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
                     },
                     child: const Text(
                       'Voltar ao login',
