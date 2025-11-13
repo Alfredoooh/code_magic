@@ -101,6 +101,111 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  void _showImageSourceBottomSheet(BuildContext context, Color cardColor, Color textColor) {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5E5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1877F2).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SvgPicture.string(
+                    CustomIcons.image,
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF1877F2),
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  'Galeria do App',
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Escolher um avatar',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
+                    fontSize: 13,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openAvatarGallery();
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1877F2).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SvgPicture.string(
+                    CustomIcons.folder,
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF1877F2),
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  'Galeria do Dispositivo',
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Escolher da galeria',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B),
+                    fontSize: 13,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImageFromGallery();
+                },
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveProfile() async {
     final authProvider = context.read<AuthProvider>();
     final isDark = context.read<ThemeProvider>().isDarkMode;
@@ -143,6 +248,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  String _getUserTypeIcon(String? userType) {
+    switch (userType) {
+      case 'student':
+        return CustomIcons.school;
+      case 'professional':
+        return CustomIcons.briefcase;
+      case 'company':
+        return CustomIcons.building;
+      default:
+        return CustomIcons.person;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -161,13 +279,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: cardColor,
+        backgroundColor: bgColor,
         elevation: 0,
         leading: IconButton(
           icon: SvgPicture.string(
             CustomIcons.arrowLeft,
-            width: 20,
-            height: 20,
+            width: 24,
+            height: 24,
             colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -175,8 +293,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         title: Text(
           'Meu Perfil',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
             color: textColor,
           ),
         ),
@@ -200,17 +318,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             )
           else
             IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFF1877F2)),
+              icon: SvgPicture.string(
+                CustomIcons.edit,
+                width: 22,
+                height: 22,
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF1877F2),
+                  BlendMode.srcIn,
+                ),
+              ),
               onPressed: () => setState(() => _isEditing = true),
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-            height: 0.5,
-          ),
-        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -226,16 +345,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: isDark
-                              ? Colors.black.withOpacity(0.3)
-                              : Colors.black.withOpacity(0.1),
-                          blurRadius: 16,
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                          blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: CircleAvatar(
-                      radius: 64,
+                      radius: 72,
                       backgroundColor: const Color(0xFF1877F2),
                       backgroundImage: _photoUrlController.text.isNotEmpty
                           ? (_photoUrlController.text.startsWith('data:image')
@@ -263,67 +380,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     Positioned(
                       bottom: 0,
                       right: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: cardColor,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: PopupMenuButton<String>(
-                          icon: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF1877F2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 20,
+                      child: GestureDetector(
+                        onTap: () => _showImageSourceBottomSheet(context, cardColor, textColor),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1877F2),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: SvgPicture.string(
+                            CustomIcons.camera,
+                            width: 20,
+                            height: 20,
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
                             ),
                           ),
-                          color: cardColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          onSelected: (value) {
-                            if (value == 'gallery_app') {
-                              _openAvatarGallery();
-                            } else if (value == 'gallery_device') {
-                              _pickImageFromGallery();
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'gallery_app',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.photo_library,
-                                      size: 20, color: textColor),
-                                  const SizedBox(width: 12),
-                                  Text('Galeria do App',
-                                      style: TextStyle(color: textColor)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'gallery_device',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.photo, size: 20, color: textColor),
-                                  const SizedBox(width: 12),
-                                  Text('Galeria do Dispositivo',
-                                      style: TextStyle(color: textColor)),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ),
@@ -331,50 +411,57 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Name and Type
             if (!_isEditing) ...[
               Text(
                 userData?['name'] ?? 'Usuário',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               if (userData?['nickname'] != null)
                 Text(
                   '@${userData?['nickname']}',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     color: hintColor,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1877F2).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFF1877F2).withOpacity(0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    SvgPicture.string(
                       _getUserTypeIcon(userData?['userType']),
-                      size: 16,
-                      color: const Color(0xFF1877F2),
+                      width: 18,
+                      height: 18,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFF1877F2),
+                        BlendMode.srcIn,
+                      ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Text(
                       _getUserTypeLabel(userData?['userType']),
                       style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: Color(0xFF1877F2),
                       ),
                     ),
@@ -383,7 +470,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ],
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
             // Info Cards
             Container(
@@ -391,12 +478,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5E5),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: isDark
-                        ? Colors.black.withOpacity(0.2)
-                        : Colors.black.withOpacity(0.04),
-                    blurRadius: 6,
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -410,7 +499,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       _buildEditField(
                         'Nome',
                         _nameController,
-                        Icons.person,
+                        CustomIcons.person,
                         textColor,
                         hintColor,
                         isDark,
@@ -419,7 +508,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       _buildEditField(
                         'Bio',
                         _bioController,
-                        Icons.info,
+                        CustomIcons.info,
                         textColor,
                         hintColor,
                         isDark,
@@ -429,7 +518,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       _buildEditField(
                         'Escola/Instituição',
                         _schoolController,
-                        Icons.school,
+                        CustomIcons.school,
                         textColor,
                         hintColor,
                         isDark,
@@ -438,49 +527,43 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       _buildEditField(
                         'Telefone',
                         _phoneController,
-                        Icons.phone,
+                        CustomIcons.phone,
                         textColor,
                         hintColor,
                         isDark,
                       ),
                     ] else ...[
                       _buildInfoTile(
-                        Icons.email,
+                        CustomIcons.email,
                         'Email',
                         userData?['email'] ?? '-',
                         textColor,
                         hintColor,
                       ),
-                      // ✅ CORREÇÃO: Verificação de bio com bool explícito
-                      if (userData?['bio'] != null &&
-                          (userData!['bio'] as String).isNotEmpty) ...[
+                      if (userData?['bio'] != null && (userData!['bio'] as String).isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
-                          Icons.info,
+                          CustomIcons.info,
                           'Bio',
                           userData['bio'] ?? '-',
                           textColor,
                           hintColor,
                         ),
                       ],
-                      // ✅ CORREÇÃO: Verificação de school com bool explícito
-                      if (userData?['school'] != null &&
-                          (userData!['school'] as String).isNotEmpty) ...[
+                      if (userData?['school'] != null && (userData!['school'] as String).isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
-                          Icons.school,
+                          CustomIcons.school,
                           'Escola/Instituição',
                           userData['school'] ?? '-',
                           textColor,
                           hintColor,
                         ),
                       ],
-                      // ✅ CORREÇÃO: Verificação de phoneNumber com bool explícito
-                      if (userData?['phoneNumber'] != null &&
-                          (userData!['phoneNumber'] as String).isNotEmpty) ...[
+                      if (userData?['phoneNumber'] != null && (userData!['phoneNumber'] as String).isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
-                          Icons.phone,
+                          CustomIcons.phone,
                           'Telefone',
                           userData['phoneNumber'] ?? '-',
                           textColor,
@@ -490,7 +573,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       if (userData?['birthDate'] != null) ...[
                         const SizedBox(height: 16),
                         _buildInfoTile(
-                          Icons.cake,
+                          CustomIcons.calendar,
                           'Data de Nascimento',
                           userData?['birthDate'] ?? '-',
                           textColor,
@@ -531,7 +614,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -551,21 +634,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
-  IconData _getUserTypeIcon(String? userType) {
-    switch (userType) {
-      case 'student':
-        return Icons.school;
-      case 'professional':
-        return Icons.work;
-      case 'company':
-        return Icons.business;
-      default:
-        return Icons.person;
-    }
-  }
-
   Widget _buildInfoTile(
-    IconData icon,
+    String icon,
     String label,
     String value,
     Color textColor,
@@ -575,15 +645,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: const Color(0xFF1877F2).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
+          child: SvgPicture.string(
             icon,
-            size: 20,
-            color: const Color(0xFF1877F2),
+            width: 20,
+            height: 20,
+            colorFilter: const ColorFilter.mode(
+              Color(0xFF1877F2),
+              BlendMode.srcIn,
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -618,7 +692,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildEditField(
     String label,
     TextEditingController controller,
-    IconData icon,
+    String icon,
     Color textColor,
     Color hintColor,
     bool isDark, {
@@ -629,7 +703,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: hintColor),
+            SvgPicture.string(
+              icon,
+              width: 16,
+              height: 16,
+              colorFilter: ColorFilter.mode(hintColor, BlendMode.srcIn),
+            ),
             const SizedBox(width: 8),
             Text(
               label,
@@ -648,15 +727,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           style: TextStyle(color: textColor, fontSize: 15),
           decoration: InputDecoration(
             filled: true,
-            fillColor: isDark
-                ? const Color(0xFF3A3B3C)
-                : const Color(0xFFF0F2F5),
+            fillColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
