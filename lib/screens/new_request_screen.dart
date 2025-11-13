@@ -119,20 +119,25 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
     try {
       final auth = context.read<AuthProvider>();
-      
-      // CORRIGIDO: Adicionado o mapa de dados completo como argumento
-      await _documentService.createRequest({
-        'userId': auth.user!.uid,
-        'category': _selectedCategory!.toString().split('.').last,
-        'description': text,
-        'title': 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
-        'templateId': _selectedTemplate?.id,
-        'templateName': _selectedTemplate?.name,
-        'templateImageUrl': _selectedTemplate?.imageUrl,
-        'status': 'pending',
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-      
+
+      // CORRIGIDO: Criar objeto DocumentRequest ao invés de passar Map
+      final request = DocumentRequest(
+        id: '', // Será preenchido pelo Firestore
+        userId: auth.user!.uid,
+        userName: auth.user!.displayName ?? '',
+        userEmail: auth.user!.email ?? '',
+        templateId: _selectedTemplate?.id ?? '',
+        templateName: _selectedTemplate?.name ?? '',
+        category: _selectedCategory!,
+        title: 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
+        description: text,
+        priority: 'normal',
+        status: 'pending',
+        createdAt: DateTime.now(),
+      );
+
+      await _documentService.createRequest(request);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
