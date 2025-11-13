@@ -10,6 +10,27 @@ class CustomIcons {
 </svg>
 ''';
 
+     static const String errorOutlined = r'''
+<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
+  <path d="M0 0h24v24H0V0z" fill="none"/>
+  <path d="M11 15h2v2h-2V15zm0-8h2v6h-2V7zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+</svg>
+''';
+
+  static const String thumbUpOutlined = r'''
+<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
+  <path d="M0 0h24v24H0V0z" fill="none"/>
+  <path d="M13.11 5.72l-.57 2.89c-.12.59.04 1.2.42 1.66.38.46.94.73 1.54.73H20v1.08L17.43 18H9.34c-.18 0-.34-.16-.34-.34V9.82l4.11-4.1M14 3L7.32 9.68C7.11 9.89 7 10.18 7 10.5v7.13c0 .97.78 1.77 1.74 1.77h9.44l2.96-6.91c.19-.46.03-1-.42-1.19h-4.92c-1.18 0-2.2-.76-2.51-1.86l-.71-3.62c-.18-.86-1-1.43-1.87-1.23-.14.03-.27.08-.4.14zM3 11h3v7H3z"/>
+</svg>
+''';
+
+  static const String sendRounded = r'''
+<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
+  <path d="M0 0h24v24H0V0z" fill="none"/>
+  <path d="M3.4 20.4l17.45-7.48c.81-.35.81-1.49 0-1.84L3.4 3.6c-.66-.29-1.39.2-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/>
+</svg>
+''';
+
     // Ícone de pendente (pending) - com relógio e ponto de exclamação
 static const String pending = '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
