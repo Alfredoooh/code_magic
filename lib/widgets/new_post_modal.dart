@@ -151,6 +151,7 @@ class _NewPostModalState extends State<NewPostModal> {
     final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final authProvider = context.watch<AuthProvider>();
+    final isPro = authProvider.userData?['isPro'] ?? false;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -195,7 +196,7 @@ class _NewPostModalState extends State<NewPostModal> {
                     Text('Criar publicação', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textColor)),
                     const Spacer(),
                     GestureDetector(
-                      onTap: _openFullscreenEditor,
+                      onTap: isPro ? _openFullscreenEditor : null,
                       child: Container(
                         width: 36,
                         height: 36,
@@ -242,6 +243,7 @@ class _NewPostModalState extends State<NewPostModal> {
                         hintStyle: TextStyle(fontSize: 16, color: isDark ? const Color(0xFF4E4F50) : const Color(0xFFBCC0C4)),
                         border: InputBorder.none,
                       ),
+                      readOnly: !isPro,
                       onChanged: (_) => setState(() {}),
                     ),
                     if (_videoUrl != null && _videoUrl!.isNotEmpty) ...[
@@ -289,7 +291,7 @@ class _NewPostModalState extends State<NewPostModal> {
                   Text('Adicionar à publicação', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
                   const Spacer(),
                   GestureDetector(
-                    onTap: _pickImage,
+                    onTap: isPro ? _pickImage : null,
                     child: Container(
                       width: 38,
                       height: 38,
@@ -309,7 +311,7 @@ class _NewPostModalState extends State<NewPostModal> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: _takePhoto,
+                    onTap: isPro ? _takePhoto : null,
                     child: Container(
                       width: 38,
                       height: 38,
@@ -329,7 +331,7 @@ class _NewPostModalState extends State<NewPostModal> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () async {
+                    onTap: isPro ? () async {
                       final url = await showDialog<String?>(
                         context: context,
                         builder: (ctx) {
@@ -353,7 +355,7 @@ class _NewPostModalState extends State<NewPostModal> {
                         },
                       );
                       if (url != null) _setVideoUrl(url);
-                    },
+                    } : null,
                     child: Container(
                       width: 38,
                       height: 38,
@@ -379,7 +381,7 @@ class _NewPostModalState extends State<NewPostModal> {
                   width: double.infinity,
                   height: 44,
                   child: ElevatedButton(
-                    onPressed: _isPosting || (_contentController.text.trim().isEmpty && _imageBase64 == null && (_videoUrl == null || _videoUrl!.isEmpty)) ? null : _createPost,
+                    onPressed: _isPosting || (_contentController.text.trim().isEmpty && _imageBase64 == null && (_videoUrl == null || _videoUrl!.isEmpty)) || !isPro ? null : _createPost,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1877F2),
                       foregroundColor: Colors.white,
