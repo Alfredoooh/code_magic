@@ -18,15 +18,15 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
   bool get isInitialized => _isInitialized;
-  
-  // Verifica se o usuário precisa fazer verificação OTP
+
+  // CORRIGIDO: Verifica se o usuário precisa fazer verificação OTP
   bool get needsOTPVerification {
     if (_user == null || _userData == null) return false;
-    
-    // Se o email já foi verificado, não precisa de OTP
-    if (_userData!['emailVerified'] == true) return false;
-    
-    // Se o OTP está habilitado, precisa verificar
+
+    // Se o email JÁ foi verificado PERMANENTEMENTE, não precisa de OTP NUNCA MAIS
+    if (_userData!['isEmailVerified'] == true) return false;
+
+    // Se o OTP está habilitado E não foi verificado, precisa verificar
     return _userData!['otpEnabled'] == true;
   }
 
@@ -195,6 +195,7 @@ class AuthProvider with ChangeNotifier {
 
       final otpCode = _generateOTP();
 
+      // CORRIGIDO: Usa isEmailVerified (consistente)
       await _firestore.collection('users').doc(credential.user!.uid).set({
         'uid': credential.user!.uid,
         'email': email,
@@ -215,7 +216,7 @@ class AuthProvider with ChangeNotifier {
         'isPremium': false,
         'otpEnabled': true,
         'otpCode': otpCode,
-        'emailVerified': false,
+        'isEmailVerified': false, // CORRIGIDO: Nome consistente
         'isOnline': true,
         'createdAt': FieldValue.serverTimestamp(),
         'lastActive': FieldValue.serverTimestamp(),
@@ -249,15 +250,16 @@ class AuthProvider with ChangeNotifier {
     debugPrint('OTP enviado para $email: $otp');
   }
 
+  // CORRIGIDO: Marca permanentemente como verificado
   Future<bool> verifyOTP(String otp) async {
     if (_user == null || _userData == null) return false;
 
     try {
       final storedOTP = _userData!['otpCode'];
       if (otp == storedOTP) {
-        // Marca o email como verificado e DESATIVA o OTP
+        // MARCA PERMANENTEMENTE como verificado e DESATIVA o OTP
         await _firestore.collection('users').doc(_user!.uid).update({
-          'emailVerified': true,
+          'isEmailVerified': true, // Campo permanente
           'otpEnabled': false, // DESATIVA o OTP após verificação
           'otpCode': null,
         });
@@ -299,24 +301,35 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // CORRIGIDO: NÃO reativa o OTP no logout se já foi verificado
   Future<void> signOut() async {
     if (_user != null) {
-      // REATIVA o OTP quando faz logout
       try {
-        final newOTP = _generateOTP();
-        await _firestore.collection('users').doc(_user!.uid).update({
-          'otpEnabled': true, // REATIVA o OTP
-          'otpCode': newOTP,
-          'emailVerified': false, // Marca como não verificado
-          'isOnline': false,
-        });
-        
-        // Envia novo código por email
-        if (_userData != null && _userData!['email'] != null) {
-          await _sendOTPEmail(_userData!['email'], newOTP);
+        // VERIFICA se o email foi verificado ANTES de reativar OTP
+        final doc = await _firestore.collection('users').doc(_user!.uid).get();
+        final isVerified = doc.data()?['isEmailVerified'] == true;
+
+        // SÓ reativa o OTP se o email NUNCA foi verificado
+        if (!isVerified) {
+          final newOTP = _generateOTP();
+          await _firestore.collection('users').doc(_user!.uid).update({
+            'otpEnabled': true,
+            'otpCode': newOTP,
+            'isOnline': false,
+          });
+
+          // Envia novo código por email
+          if (_userData != null && _userData!['email'] != null) {
+            await _sendOTPEmail(_userData!['email'], newOTP);
+          }
+        } else {
+          // Se já foi verificado, apenas atualiza o status online
+          await _firestore.collection('users').doc(_user!.uid).update({
+            'isOnline': false,
+          });
         }
       } catch (e) {
-        debugPrint('Erro ao reativar OTP no logout: $e');
+        debugPrint('Erro ao atualizar status no logout: $e');
       }
     }
 
