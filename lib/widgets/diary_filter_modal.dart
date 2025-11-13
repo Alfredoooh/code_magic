@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/diary_entry_model.dart';
+import 'custom_icons.dart';
 
 void showDiaryFilterModal({
   required BuildContext context,
@@ -13,6 +14,9 @@ void showDiaryFilterModal({
   required VoidCallback onClear,
 }) {
   final isDark = context.read<ThemeProvider>().isDarkMode;
+  final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+  final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+  final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
   showModalBottomSheet(
     context: context,
@@ -23,23 +27,49 @@ void showDiaryFilterModal({
         builder: (context, setModalState) {
           return Container(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              color: cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: SafeArea(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Handle bar
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: secondaryColor.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Header
                   Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1877F2).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: SvgIcon(
+                            svgString: CustomIcons.filter,
+                            size: 24,
+                            color: const Color(0xFF1877F2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Text(
                           'Filtros',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505),
+                            color: textColor,
                           ),
                         ),
                         const Spacer(),
@@ -48,128 +78,235 @@ void showDiaryFilterModal({
                             onClear();
                             Navigator.pop(context);
                           },
-                          child: Text(
-                            'Limpar',
-                            style: TextStyle(
-                              color: const Color(0xFFE91E63),
-                              fontWeight: FontWeight.w600,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            backgroundColor: Colors.red.withOpacity(0.1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgIcon(
+                                svgString: CustomIcons.close,
+                                size: 16,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'Limpar',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+
                   // Toggle de favoritos
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: InkWell(
                       onTap: () {
                         setModalState(() {
                           onFavoritesToggle(!showFavoritesOnly);
                         });
                       },
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
+                          color: showFavoritesOnly 
+                              ? Colors.red.withOpacity(0.1)
+                              : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: showFavoritesOnly 
-                                ? const Color(0xFFE91E63) 
-                                : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
+                                ? Colors.red 
+                                : Colors.transparent,
                             width: 2,
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                          color: showFavoritesOnly 
-                              ? const Color(0xFFE91E63).withOpacity(0.1)
-                              : Colors.transparent,
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-                              color: showFavoritesOnly 
-                                  ? const Color(0xFFE91E63) 
-                                  : (isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B)),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Apenas Favoritos',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
                                 color: showFavoritesOnly
-                                    ? const Color(0xFFE91E63)
-                                    : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                                    ? Colors.red
+                                    : (isDark ? const Color(0xFF242526) : Colors.white),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: SvgIcon(
+                                svgString: CustomIcons.heart,
+                                size: 20,
+                                color: showFavoritesOnly 
+                                    ? Colors.white 
+                                    : secondaryColor,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Apenas Favoritos',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: showFavoritesOnly
+                                          ? Colors.red
+                                          : textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Mostrar apenas entradas marcadas como favoritas',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: secondaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (showFavoritesOnly)
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: SvgIcon(
+                                  svgString: CustomIcons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Por Humor',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF8E8E93),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 24),
+
+                  // Separador
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: DiaryMood.values.map((mood) {
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFE4E6EB),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'Por Humor',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: secondaryColor,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: isDark ? const Color(0xFF3E4042) : const Color(0xFFE4E6EB),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Grid de humores
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 2.5,
+                      ),
+                      itemCount: DiaryMood.values.length,
+                      itemBuilder: (context, index) {
+                        final mood = DiaryMood.values[index];
                         final isSelected = selectedMood == mood;
                         final moodColor = _getMoodColor(mood);
-                        
+
                         return InkWell(
                           onTap: () {
                             setModalState(() {
                               onMoodSelected(isSelected ? null : mood);
                             });
                           },
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             decoration: BoxDecoration(
+                              color: isSelected 
+                                  ? moodColor.withOpacity(0.15) 
+                                  : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: isSelected ? moodColor : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
+                                color: isSelected ? moodColor : Colors.transparent,
                                 width: 2,
                               ),
-                              borderRadius: BorderRadius.circular(20),
-                              color: isSelected ? moodColor.withOpacity(0.15) : Colors.transparent,
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   _getMoodEmoji(mood),
-                                  style: const TextStyle(fontSize: 20),
+                                  style: const TextStyle(fontSize: 24),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _getMoodName(mood),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected 
-                                        ? moodColor 
-                                        : (isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _getMoodName(mood),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                      color: isSelected ? moodColor : textColor,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                if (isSelected) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: moodColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: SvgIcon(
+                                      svgString: CustomIcons.check,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
                         );
-                      }).toList(),
+                      },
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -228,20 +365,20 @@ String _getMoodName(DiaryMood mood) {
 Color _getMoodColor(DiaryMood mood) {
   switch (mood) {
     case DiaryMood.happy:
-      return const Color(0xFFFFC107); // Amarelo
+      return const Color(0xFFFFC107);
     case DiaryMood.sad:
-      return const Color(0xFF2196F3); // Azul
+      return const Color(0xFF2196F3);
     case DiaryMood.motivated:
-      return const Color(0xFFFF5722); // Laranja forte
+      return const Color(0xFFFF5722);
     case DiaryMood.calm:
-      return const Color(0xFF00BCD4); // Ciano
+      return const Color(0xFF00BCD4);
     case DiaryMood.stressed:
-      return const Color(0xFFFF9800); // Laranja
+      return const Color(0xFFFF9800);
     case DiaryMood.excited:
-      return const Color(0xFFE91E63); // Rosa
+      return const Color(0xFFE91E63);
     case DiaryMood.tired:
-      return const Color(0xFF9C27B0); // Roxo
+      return const Color(0xFF9C27B0);
     case DiaryMood.grateful:
-      return const Color(0xFF4CAF50); // Verde
+      return const Color(0xFF4CAF50);
   }
 }
