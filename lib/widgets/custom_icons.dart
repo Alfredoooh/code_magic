@@ -10,13 +10,6 @@ class CustomIcons {
 </svg>
 ''';
 
-     static const String thumbUpOutlined = r'''
-<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
-  <path d="M0 0h24v24H0V0z" fill="none"/>
-  <path d="M13.11 5.72l-.57 2.89c-.12.59.04 1.2.42 1.66.38.46.94.73 1.54.73H20v1.08L17.43 18H9.34c-.18 0-.34-.16-.34-.34V9.82l4.11-4.1M14 3L7.32 9.68C7.11 9.89 7 10.18 7 10.5v7.13c0 .97.78 1.77 1.74 1.77h9.44l2.96-6.91c.19-.46.03-1-.42-1.19h-4.92c-1.18 0-2.2-.76-2.51-1.86l-.71-3.62c-.18-.86-1-1.43-1.87-1.23-.14.03-.27.08-.4.14zM3 11h3v7H3z"/>
-</svg>
-''';
-
      static const String phone = r'''
 <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
   <path d="M0 0h24v24H0V0z" fill="none"/>
@@ -31,7 +24,7 @@ class CustomIcons {
 </svg>
 ''';
 
- 
+
      static const String calendar = r'''
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
   <path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM4 19V8h16v11H4z"/>
@@ -52,12 +45,6 @@ class CustomIcons {
 </svg>
 ''';
 
-  static const String thumbUpOutlined = r'''
-<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
-  <path d="M0 0h24v24H0V0z" fill="none"/>
-  <path d="M13.11 5.72l-.57 2.89c-.12.59.04 1.2.42 1.66.38.46.94.73 1.54.73H20v1.08L17.43 18H9.34c-.18 0-.34-.16-.34-.34V9.82l4.11-4.1M14 3L7.32 9.68C7.11 9.89 7 10.18 7 10.5v7.13c0 .97.78 1.77 1.74 1.77h9.44l2.96-6.91c.19-.46.03-1-.42-1.19h-4.92c-1.18 0-2.2-.76-2.51-1.86l-.71-3.62c-.18-.86-1-1.43-1.87-1.23-.14.03-.27.08-.4.14zM3 11h3v7H3z"/>
-</svg>
-''';
 
   static const String sendRounded = r'''
 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px">
@@ -248,7 +235,7 @@ static const String pending = '''
   <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
 </svg>
 ''';
-  
+
   static const String shield = '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
   <path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08zm3.094 8.016a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
