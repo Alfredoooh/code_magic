@@ -60,11 +60,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Email verificado com sucesso!'),
+              content: Text('Email verificado com sucesso! OTP desativado.'),
               backgroundColor: Color(0xFF31A24C),
             ),
           );
-          Navigator.pushReplacementNamed(context, '/home');
+          // Aguarda um pouco para mostrar a mensagem
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -107,6 +111,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             backgroundColor: Color(0xFF31A24C),
           ),
         );
+        // Limpa os campos para novo código
+        for (var controller in _controllers) {
+          controller.clear();
+        }
+        _focusNodes[0].requestFocus();
       }
     } catch (e) {
       if (mounted) {
@@ -120,6 +129,66 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     } finally {
       if (mounted) setState(() => _isResending = false);
     }
+  }
+
+  void _showLogoutConfirmation() {
+    final isDark = context.read<ThemeProvider>().isDarkMode;
+    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Sair sem verificar?',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: textColor,
+          ),
+        ),
+        content: Text(
+          'Se sair agora, precisará verificar seu email novamente no próximo login.',
+          style: TextStyle(
+            fontSize: 15,
+            color: secondaryColor,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: secondaryColor,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await context.read<AuthProvider>().signOut();
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+            child: const Text(
+              'Sair',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFFA383E),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -148,6 +217,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               color: textColor,
             ),
           ),
+          actions: [
+            // Botão de logout no canto superior direito
+            IconButton(
+              icon: Icon(
+                Icons.logout,
+                color: const Color(0xFFFA383E),
+              ),
+              onPressed: _showLogoutConfirmation,
+              tooltip: 'Sair',
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
             child: Container(
@@ -211,7 +291,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Você deve verificar seu email para continuar usando o aplicativo.',
+                            'Você deve verificar seu email para continuar usando o aplicativo. Após verificar, o OTP será desativado.',
                             style: TextStyle(
                               fontSize: 14,
                               color: textColor,
@@ -237,10 +317,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   Text(
                     authProvider.userData?['email'] ?? '',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1877F2),
+                      color: Color(0xFF1877F2),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -363,25 +443,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Login Button - CORRIGIDO: logout() -> signOut()
-                  TextButton(
-                    onPressed: () async {
-                      await context.read<AuthProvider>().signOut();
-                      if (mounted) {
-                        Navigator.pushReplacementNamed(context, '/login');
-                      }
-                    },
-                    child: const Text(
-                      'Voltar ao login',
-                      style: TextStyle(
-                        color: Color(0xFF1877F2),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ),
                 ],
               ),
