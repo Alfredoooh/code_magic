@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import '../models/avatar_model.dart';
 import '../widgets/custom_icons.dart';
-import 'search_avatar_screen.dart';
+import '../widgets/search_avatar_screen.dart';
 
 class AvatarGalleryScreen extends StatefulWidget {
   final String? currentAvatarUrl;
