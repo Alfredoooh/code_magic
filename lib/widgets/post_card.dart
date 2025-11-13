@@ -26,7 +26,7 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-  
+
   // Cache da imagem base64 decodificada
   Uint8List? _cachedImageBytes;
   bool _isDecoding = false;
@@ -80,6 +80,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     super.build(context);
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final auth = context.watch<AuthProvider>();
+    final isPro = auth.userData?['isPro'] ?? false;
 
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
@@ -87,7 +88,9 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     final dividerColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
 
     final postService = PostService();
-    final isLiked = auth.user != null ? widget.post.isLikedBy(auth.user!.uid) : false;
+    final uid = auth.user?.uid;
+    final canContribute = uid != null && isPro;
+    final isLiked = canContribute ? widget.post.isLikedBy(uid!) : false;
 
     return GestureDetector(
       onTap: widget.post.isNews ? () => _openNewsDetail(context) : null,
@@ -200,13 +203,14 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                     activeIcon: CustomIcons.thumbUp,
                     label: 'Curtir',
                     isActive: isLiked,
-                    disabled: widget.post.isNews,
-                    onTap: () => postService.toggleLike(widget.post.id, auth.user!.uid),
+                    disabled: widget.post.isNews || !canContribute,
+                    onTap: () => postService.toggleLike(widget.post.id, uid!),
                   ),
                   _buildActionButton(
                     context,
                     icon: CustomIcons.commentOutlined,
                     label: 'Comentar',
+                    disabled: false,  // Sempre habilitado para ver comentários
                     onTap: () {
                       if (widget.post.isNews) {
                         _openNewsDetail(context);
@@ -226,7 +230,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
                     context,
                     icon: CustomIcons.shareOutlined,
                     label: 'Compartilhar',
-                    disabled: widget.post.isNews,
+                    disabled: widget.post.isNews || !canContribute,
                     onTap: () => postService.sharePost(widget.post),
                   ),
                 ],
