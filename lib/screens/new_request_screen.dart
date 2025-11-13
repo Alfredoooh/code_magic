@@ -119,13 +119,20 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
     try {
       final auth = context.read<AuthProvider>();
-      await _documentService.createRequest(
-        userId: auth.user!.uid,
-        category: _selectedCategory!,
-        description: text,
-        title: 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
-        template: _selectedTemplate,
-      );
+      
+      // CORRIGIDO: Adicionado o mapa de dados completo como argumento
+      await _documentService.createRequest({
+        'userId': auth.user!.uid,
+        'category': _selectedCategory!.toString().split('.').last,
+        'description': text,
+        'title': 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
+        'templateId': _selectedTemplate?.id,
+        'templateName': _selectedTemplate?.name,
+        'templateImageUrl': _selectedTemplate?.imageUrl,
+        'status': 'pending',
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
