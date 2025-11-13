@@ -1,4 +1,3 @@
-// lib/widgets/comments_widget.dart
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -96,10 +95,14 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: const Color(0xFFFA383E).withOpacity(0.7),
+                          SvgPicture.string(
+                            CustomIcons.errorOutlined,
+                            width: 48,
+                            height: 48,
+                            colorFilter: ColorFilter.mode(
+                              const Color(0xFFFA383E).withOpacity(0.7),
+                              BlendMode.srcIn,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -206,7 +209,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                   itemBuilder: (context, index) {
                     final d = docs[index];
                     final data = d.data() as Map<String, dynamic>?;
-                    
+
                     if (data == null) return const SizedBox.shrink();
 
                     final comment = Comment.fromFirestore(d);
@@ -253,7 +256,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                   : null,
                             ),
                             const SizedBox(width: 12),
-                            
+
                             // Content
                             Expanded(
                               child: Column(
@@ -285,7 +288,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                     ],
                                   ),
                                   const SizedBox(height: 6),
-                                  
+
                                   // Comment text
                                   Text(
                                     comment.content,
@@ -295,7 +298,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                       height: 1.4,
                                     ),
                                   ),
-                                  
+
                                   // Actions
                                   const SizedBox(height: 8),
                                   Row(
@@ -311,10 +314,11 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                                           ),
                                           child: Row(
                                             children: [
-                                              Icon(
-                                                Icons.thumb_up_outlined,
-                                                size: 16,
-                                                color: secondaryColor,
+                                              SvgPicture.string(
+                                                CustomIcons.thumbUpOutlined,
+                                                width: 16,
+                                                height: 16,
+                                                colorFilter: ColorFilter.mode(secondaryColor, BlendMode.srcIn),
                                               ),
                                               const SizedBox(width: 6),
                                               Text(
@@ -407,7 +411,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                           : null,
                     ),
                     const SizedBox(width: 12),
-                    
+
                     // Input field
                     Expanded(
                       child: Container(
@@ -447,7 +451,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    
+
                     // Send button
                     Container(
                       width: 40,
@@ -467,12 +471,16 @@ class _CommentsWidgetState extends State<CommentsWidget> {
                               ),
                             )
                           : IconButton(
-                              icon: Icon(
-                                Icons.send_rounded,
-                                size: 20,
-                                color: (uid != null && _ctrl.text.trim().isNotEmpty && !_isSending)
-                                    ? Colors.white
-                                    : secondaryColor,
+                              icon: SvgPicture.string(
+                                CustomIcons.sendRounded,
+                                width: 20,
+                                height: 20,
+                                colorFilter: ColorFilter.mode(
+                                  (uid != null && _ctrl.text.trim().isNotEmpty && !_isSending)
+                                      ? Colors.white
+                                      : secondaryColor,
+                                  BlendMode.srcIn,
+                                ),
                               ),
                               onPressed: (uid != null && _ctrl.text.trim().isNotEmpty && !_isSending)
                                   ? _sendComment
@@ -548,14 +556,14 @@ class _CommentsWidgetState extends State<CommentsWidget> {
       } else {
         // Comentário em post normal
         final batch = FirebaseFirestore.instance.batch();
-        
+
         // Adiciona o comentário
         final commentRef = FirebaseFirestore.instance
             .collection('posts')
             .doc(widget.postId)
             .collection('comments')
             .doc();
-            
+
         batch.set(commentRef, {
           'postId': widget.postId,
           'userId': uid,
@@ -571,7 +579,7 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         final postRef = FirebaseFirestore.instance
             .collection('posts')
             .doc(widget.postId);
-            
+
         batch.update(postRef, {
           'comments': FieldValue.increment(1),
         });
@@ -618,17 +626,17 @@ class _CommentsWidgetState extends State<CommentsWidget> {
 
   String _formatTimestamp(DateTime? dt) {
     if (dt == null) return 'agora';
-    
+
     final now = DateTime.now();
     final diff = now.difference(dt);
-    
+
     if (diff.inSeconds < 10) return 'agora';
     if (diff.inSeconds < 60) return '${diff.inSeconds}s';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     if (diff.inHours < 24) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';
     if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}sem';
-    
+
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 }
