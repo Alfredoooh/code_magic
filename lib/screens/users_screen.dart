@@ -1,12 +1,10 @@
 // lib/screens/users_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/custom_icons.dart';
 import 'chat_screen.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -17,6 +15,32 @@ class UsersScreen extends StatefulWidget {
 }
 
 class _UsersScreenState extends State<UsersScreen> {
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) return 'Agora';
+    if (difference.inHours < 1) return '${difference.inMinutes}m';
+    if (difference.inDays < 1) return '${difference.inHours}h';
+    if (difference.inDays < 7) return '${difference.inDays}d';
+    
+    return '${dateTime.day}/${dateTime.month}';
+  }
+
+  String _getLastActiveText(Timestamp? lastActive) {
+    if (lastActive == null) return 'Offline';
+
+    final now = DateTime.now();
+    final activeTime = lastActive.toDate();
+    final difference = now.difference(activeTime);
+
+    if (difference.inMinutes < 1) return 'Ativo agora';
+    if (difference.inMinutes < 60) return 'Ativo há ${difference.inMinutes}m';
+    if (difference.inHours < 24) return 'Ativo há ${difference.inHours}h';
+    if (difference.inDays < 7) return 'Ativo há ${difference.inDays}d';
+    return 'Offline';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -26,7 +50,7 @@ class _UsersScreenState extends State<UsersScreen> {
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+    final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
     if (currentUserId == null) {
       return Scaffold(
@@ -35,12 +59,7 @@ class _UsersScreenState extends State<UsersScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.string(
-                CustomIcons.shield,
-                width: 64,
-                height: 64,
-                colorFilter: ColorFilter.mode(secondaryColor, BlendMode.srcIn),
-              ),
+              Icon(Icons.shield_outlined, size: 64, color: hintColor),
               const SizedBox(height: 16),
               Text(
                 'Faça login para ver suas conversas',
@@ -55,34 +74,49 @@ class _UsersScreenState extends State<UsersScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('chats')
-            .where('participants', arrayContains: currentUserId)
-            .orderBy('lastMessageTime', descending: true)
-            .snapshots(),
-        builder: (context, chatSnapshot) {
-          if (chatSnapshot.hasError) {
+        stream: currentUserId != null
+            ? FirebaseFirestore.instance
+                .collection('chats')
+                .where('participants', arrayContains: currentUserId)
+                .snapshots()
+            : const Stream.empty(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            debugPrint('❌ Erro no UsersScreen: ${snapshot.error}');
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SvgPicture.string(
-                    CustomIcons.error,
-                    width: 64,
-                    height: 64,
-                    colorFilter: ColorFilter.mode(secondaryColor, BlendMode.srcIn),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Erro ao carregar conversas',
-                    style: TextStyle(fontSize: 16, color: textColor),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Erro ao carregar conversas',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      '${snapshot.error}',
+                      style: TextStyle(fontSize: 12, color: hintColor),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => setState(() {}),
+                      child: const Text('Tentar novamente'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
 
-          if (chatSnapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
@@ -90,21 +124,17 @@ class _UsersScreenState extends State<UsersScreen> {
             );
           }
 
-          final chats = chatSnapshot.data?.docs ?? [];
+          final chats = snapshot.data?.docs ?? [];
 
           if (chats.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.string(
-                    CustomIcons.chatBubble,
-                    width: 64,
-                    height: 64,
-                    colorFilter: ColorFilter.mode(
-                      secondaryColor.withOpacity(0.3),
-                      BlendMode.srcIn,
-                    ),
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 64,
+                    color: hintColor.withOpacity(0.5),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -118,12 +148,30 @@ class _UsersScreenState extends State<UsersScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Use a pesquisa para encontrar pessoas',
-                    style: TextStyle(fontSize: 14, color: secondaryColor),
+                    style: TextStyle(fontSize: 14, color: hintColor),
                   ),
                 ],
               ),
             );
           }
+
+          // Ordenar chats por lastMessageTime
+          chats.sort((a, b) {
+            try {
+              final aData = a.data() as Map<String, dynamic>?;
+              final bData = b.data() as Map<String, dynamic>?;
+              final aTime = aData?['lastMessageTime'] as Timestamp?;
+              final bTime = bData?['lastMessageTime'] as Timestamp?;
+
+              if (aTime == null && bTime == null) return 0;
+              if (aTime == null) return 1;
+              if (bTime == null) return -1;
+
+              return bTime.compareTo(aTime);
+            } catch (e) {
+              return 0;
+            }
+          });
 
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -133,183 +181,183 @@ class _UsersScreenState extends State<UsersScreen> {
               color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
             ),
             itemBuilder: (context, index) {
-              final chatDoc = chats[index];
-              final chatData = chatDoc.data() as Map<String, dynamic>;
-              final participants = List<String>.from(chatData['participants'] ?? []);
-              final recipientId = participants.firstWhere(
-                (id) => id != currentUserId,
-                orElse: () => '',
-              );
+              try {
+                final chatDoc = chats[index];
+                final chatData = chatDoc.data() as Map<String, dynamic>?;
+                
+                if (chatData == null) return const SizedBox.shrink();
 
-              if (recipientId.isEmpty) return const SizedBox.shrink();
+                final participants = List<String>.from(chatData['participants'] ?? []);
+                final recipientId = participants.firstWhere(
+                  (id) => id != currentUserId,
+                  orElse: () => '',
+                );
 
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(recipientId)
-                    .snapshots(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) {
+                if (recipientId.isEmpty) return const SizedBox.shrink();
+
+                final lastMessage = chatData['lastMessage'] ?? '';
+                final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
+                final unreadCount = chatData['unreadCount_$currentUserId'] as int? ?? 0;
+
+                return StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(recipientId)
+                      .snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (!userSnapshot.hasData) {
+                      return Container(
+                        color: cardColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                    if (userData == null) return const SizedBox.shrink();
+
+                    final isOnline = userData['isOnline'] == true;
+                    final lastActive = userData['lastActive'] as Timestamp?;
+                    final photoBase64 = userData['photoBase64'];
+                    final photoURL = userData['photoURL'];
+                    final userName = userData['name'] ?? 'Usuário';
+
                     return Container(
                       color: cardColor,
-                      padding: const EdgeInsets.all(16),
-                      child: const Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
-                  if (userData == null) return const SizedBox.shrink();
-
-                  final isOnline = userData['isOnline'] == true;
-                  final lastActive = userData['lastActive'] as Timestamp?;
-                  final photoBase64 = userData['photoBase64'];
-                  final photoURL = userData['photoURL'];
-                  final userName = userData['name'] ?? 'Usuário';
-                  final lastMessage = chatData['lastMessage'] ?? '';
-                  final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
-                  final unreadCount = chatData['unreadCount_$currentUserId'] as int? ?? 0;
-
-                  return Container(
-                    color: cardColor,
-                    child: ListTile(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              recipientId: recipientId,
-                              recipientName: userName,
-                              recipientPhotoURL: photoURL,
-                              isOnline: isOnline,
-                              lastActive: lastActive,
-                            ),
-                          ),
-                        );
-                      },
-                      leading: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: const Color(0xFF1877F2),
-                            backgroundImage: photoBase64 != null
-                                ? MemoryImage(base64Decode(photoBase64 as String))
-                                    as ImageProvider
-                                : (photoURL != null
-                                    ? NetworkImage(photoURL as String) as ImageProvider
-                                    : null),
-                            child: photoBase64 == null && photoURL == null
-                                ? Text(
-                                    userName.substring(0, 1).toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 20,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          if (isOnline)
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF31A24C),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: cardColor, width: 3),
-                                ),
+                      child: ListTile(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                recipientId: recipientId,
+                                recipientName: userName,
+                                recipientPhotoURL: photoURL,
+                                isOnline: isOnline,
+                                lastActive: lastActive,
                               ),
                             ),
-                        ],
-                      ),
-                      title: Text(
-                        userName,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
-                          color: textColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              lastMessage.isEmpty ? 'Toque para conversar' : lastMessage,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
-                                color: unreadCount > 0
-                                    ? textColor
-                                    : secondaryColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          );
+                        },
+                        leading: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: const Color(0xFF1877F2),
+                              backgroundImage: photoBase64 != null
+                                  ? MemoryImage(base64Decode(photoBase64 as String))
+                                  : (photoURL != null
+                                      ? NetworkImage(photoURL as String)
+                                      : null),
+                              child: photoBase64 == null && photoURL == null
+                                  ? Text(
+                                      userName.substring(0, 1).toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                      ),
+                                    )
+                                  : null,
                             ),
-                          ),
-                          if (lastMessageTime != null) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatTime(lastMessageTime.toDate()),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: unreadCount > 0
-                                    ? const Color(0xFF1877F2)
-                                    : secondaryColor,
-                                fontWeight: unreadCount > 0
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      trailing: unreadCount > 0
-                          ? Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1877F2),
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 22,
-                                minHeight: 22,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  unreadCount > 99 ? '99+' : unreadCount.toString(),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                            if (isOnline)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF31A24C),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: cardColor, width: 3),
                                   ),
                                 ),
                               ),
-                            )
-                          : null,
-                    ),
-                  );
-                },
-              );
+                          ],
+                        ),
+                        title: Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
+                            color: textColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                lastMessage.isEmpty ? 'Toque para conversar' : lastMessage,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
+                                  color: unreadCount > 0 ? textColor : hintColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (lastMessageTime != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatTime(lastMessageTime.toDate()),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: unreadCount > 0
+                                      ? const Color(0xFF1877F2)
+                                      : hintColor,
+                                  fontWeight: unreadCount > 0
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        trailing: unreadCount > 0
+                            ? Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF1877F2),
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 22,
+                                  minHeight: 22,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                );
+              } catch (e) {
+                debugPrint('❌ Erro ao renderizar chat: $e');
+                return const SizedBox.shrink();
+              }
             },
           );
         },
       ),
     );
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 1) return 'Agora';
-    if (difference.inHours < 1) return '${difference.inMinutes}m';
-    if (difference.inDays < 1) return '${difference.inHours}h';
-    if (difference.inDays < 7) return '${difference.inDays}d';
-    
-    return '${dateTime.day}/${dateTime.month}';
   }
 }
