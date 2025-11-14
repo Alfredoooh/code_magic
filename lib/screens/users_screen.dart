@@ -27,20 +27,6 @@ class _UsersScreenState extends State<UsersScreen> {
     return '${dateTime.day}/${dateTime.month}';
   }
 
-  String _getLastActiveText(Timestamp? lastActive) {
-    if (lastActive == null) return 'Offline';
-
-    final now = DateTime.now();
-    final activeTime = lastActive.toDate();
-    final difference = now.difference(activeTime);
-
-    if (difference.inMinutes < 1) return 'Ativo agora';
-    if (difference.inMinutes < 60) return 'Ativo há ${difference.inMinutes}m';
-    if (difference.inHours < 24) return 'Ativo há ${difference.inHours}h';
-    if (difference.inDays < 7) return 'Ativo há ${difference.inDays}d';
-    return 'Offline';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
@@ -52,6 +38,7 @@ class _UsersScreenState extends State<UsersScreen> {
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
 
+    // Se não está logado
     if (currentUserId == null) {
       return Scaffold(
         backgroundColor: bgColor,
@@ -74,15 +61,13 @@ class _UsersScreenState extends State<UsersScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: StreamBuilder<QuerySnapshot>(
-        stream: currentUserId != null
-            ? FirebaseFirestore.instance
-                .collection('chats')
-                .where('participants', arrayContains: currentUserId)
-                .snapshots()
-            : const Stream.empty(),
+        stream: FirebaseFirestore.instance
+            .collection('chats')
+            .where('participants', arrayContains: currentUserId)
+            .snapshots(),
         builder: (context, snapshot) {
+          // Erro
           if (snapshot.hasError) {
-            debugPrint('❌ Erro no UsersScreen: ${snapshot.error}');
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -92,7 +77,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     Icon(Icons.error_outline, size: 64, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
-                      'Erro ao carregar conversas',
+                      'Erro ao carregar',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -100,15 +85,10 @@ class _UsersScreenState extends State<UsersScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SelectableText(
-                      '${snapshot.error}',
-                      style: TextStyle(fontSize: 12, color: hintColor),
+                    Text(
+                      'Verifique sua conexão',
+                      style: TextStyle(fontSize: 14, color: hintColor),
                       textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => setState(() {}),
-                      child: const Text('Tentar novamente'),
                     ),
                   ],
                 ),
@@ -116,6 +96,7 @@ class _UsersScreenState extends State<UsersScreen> {
             );
           }
 
+          // Loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
@@ -124,9 +105,25 @@ class _UsersScreenState extends State<UsersScreen> {
             );
           }
 
+          // Pegar os chats
           final chats = snapshot.data?.docs ?? [];
 
-          if (chats.isEmpty) {
+          // Ordenar por lastMessageTime
+          final sortedChats = List<QueryDocumentSnapshot>.from(chats);
+          sortedChats.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>?;
+            final bData = b.data() as Map<String, dynamic>?;
+            final aTime = aData?['lastMessageTime'] as Timestamp?;
+            final bTime = bData?['lastMessageTime'] as Timestamp?;
+
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
+          });
+
+          // Vazio
+          if (sortedChats.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -155,205 +152,184 @@ class _UsersScreenState extends State<UsersScreen> {
             );
           }
 
-          // Ordenar chats por lastMessageTime
-          chats.sort((a, b) {
-            try {
-              final aData = a.data() as Map<String, dynamic>?;
-              final bData = b.data() as Map<String, dynamic>?;
-              final aTime = aData?['lastMessageTime'] as Timestamp?;
-              final bTime = bData?['lastMessageTime'] as Timestamp?;
-
-              if (aTime == null && bTime == null) return 0;
-              if (aTime == null) return 1;
-              if (bTime == null) return -1;
-
-              return bTime.compareTo(aTime);
-            } catch (e) {
-              return 0;
-            }
-          });
-
+          // Lista
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: chats.length,
+            itemCount: sortedChats.length,
             separatorBuilder: (context, index) => Container(
               height: 1,
               color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
             ),
             itemBuilder: (context, index) {
-              try {
-                final chatDoc = chats[index];
-                final chatData = chatDoc.data() as Map<String, dynamic>?;
-                
-                if (chatData == null) return const SizedBox.shrink();
+              final chatDoc = sortedChats[index];
+              final chatData = chatDoc.data() as Map<String, dynamic>?;
+              
+              if (chatData == null) return const SizedBox.shrink();
 
-                final participants = List<String>.from(chatData['participants'] ?? []);
-                final recipientId = participants.firstWhere(
-                  (id) => id != currentUserId,
-                  orElse: () => '',
-                );
+              final participants = List<String>.from(chatData['participants'] ?? []);
+              final recipientId = participants.firstWhere(
+                (id) => id != currentUserId,
+                orElse: () => '',
+              );
 
-                if (recipientId.isEmpty) return const SizedBox.shrink();
+              if (recipientId.isEmpty) return const SizedBox.shrink();
 
-                final lastMessage = chatData['lastMessage'] ?? '';
-                final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
-                final unreadCount = chatData['unreadCount_$currentUserId'] as int? ?? 0;
+              final lastMessage = chatData['lastMessage'] ?? '';
+              final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
+              final unreadCount = chatData['unreadCount_$currentUserId'] as int? ?? 0;
 
-                return StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(recipientId)
-                      .snapshots(),
-                  builder: (context, userSnapshot) {
-                    if (!userSnapshot.hasData) {
-                      return Container(
-                        color: cardColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
-                    if (userData == null) return const SizedBox.shrink();
-
-                    final isOnline = userData['isOnline'] == true;
-                    final lastActive = userData['lastActive'] as Timestamp?;
-                    final photoBase64 = userData['photoBase64'];
-                    final photoURL = userData['photoURL'];
-                    final userName = userData['name'] ?? 'Usuário';
-
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(recipientId)
+                    .snapshots(),
+                builder: (context, userSnapshot) {
+                  // Loading do usuário
+                  if (!userSnapshot.hasData || userSnapshot.data?.data() == null) {
                     return Container(
                       color: cardColor,
-                      child: ListTile(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                recipientId: recipientId,
-                                recipientName: userName,
-                                recipientPhotoURL: photoURL,
-                                isOnline: isOnline,
-                                lastActive: lastActive,
-                              ),
-                            ),
-                          );
-                        },
-                        leading: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 28,
-                              backgroundColor: const Color(0xFF1877F2),
-                              backgroundImage: photoBase64 != null
-                                  ? MemoryImage(base64Decode(photoBase64 as String))
-                                  : (photoURL != null
-                                      ? NetworkImage(photoURL as String)
-                                      : null),
-                              child: photoBase64 == null && photoURL == null
-                                  ? Text(
-                                      userName.substring(0, 1).toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 20,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            if (isOnline)
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF31A24C),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: cardColor, width: 3),
-                                  ),
-                                ),
-                              ),
-                          ],
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                        title: Text(
-                          userName,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
-                            color: textColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                lastMessage.isEmpty ? 'Toque para conversar' : lastMessage,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
-                                  color: unreadCount > 0 ? textColor : hintColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (lastMessageTime != null) ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                _formatTime(lastMessageTime.toDate()),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: unreadCount > 0
-                                      ? const Color(0xFF1877F2)
-                                      : hintColor,
-                                  fontWeight: unreadCount > 0
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        trailing: unreadCount > 0
-                            ? Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF1877F2),
-                                  shape: BoxShape.circle,
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 22,
-                                  minHeight: 22,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    unreadCount > 99 ? '99+' : unreadCount.toString(),
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : null,
                       ),
                     );
-                  },
-                );
-              } catch (e) {
-                debugPrint('❌ Erro ao renderizar chat: $e');
-                return const SizedBox.shrink();
-              }
+                  }
+
+                  final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                  final isOnline = userData['isOnline'] == true;
+                  final lastActive = userData['lastActive'] as Timestamp?;
+                  final photoBase64 = userData['photoBase64'];
+                  final photoURL = userData['photoURL'];
+                  final userName = userData['name'] ?? 'Usuário';
+
+                  return Container(
+                    color: cardColor,
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              recipientId: recipientId,
+                              recipientName: userName,
+                              recipientPhotoURL: photoURL,
+                              isOnline: isOnline,
+                              lastActive: lastActive,
+                            ),
+                          ),
+                        );
+                      },
+                      leading: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: const Color(0xFF1877F2),
+                            backgroundImage: photoBase64 != null
+                                ? MemoryImage(base64Decode(photoBase64))
+                                : (photoURL != null
+                                    ? NetworkImage(photoURL)
+                                    : null),
+                            child: photoBase64 == null && photoURL == null
+                                ? Text(
+                                    userName.isNotEmpty 
+                                        ? userName.substring(0, 1).toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          if (isOnline)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF31A24C),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: cardColor, width: 3),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      title: Text(
+                        userName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
+                          color: textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              lastMessage.isEmpty ? 'Toque para conversar' : lastMessage,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
+                                color: unreadCount > 0 ? textColor : hintColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (lastMessageTime != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatTime(lastMessageTime.toDate()),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: unreadCount > 0
+                                    ? const Color(0xFF1877F2)
+                                    : hintColor,
+                                fontWeight: unreadCount > 0
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      trailing: unreadCount > 0
+                          ? Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1877F2),
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 22,
+                                minHeight: 22,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              );
             },
           );
         },
