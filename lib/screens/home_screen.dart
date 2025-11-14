@@ -203,11 +203,15 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      if (auth.user != null && !(auth.userData?['isEmailVerified'] ?? false)) {
+      // CORRIGIDO: Só redireciona se REALMENTE precisar verificar OTP
+      if (auth.needsOTPVerification) {
+        debugPrint('🔐 Redirecionando para verificação OTP');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const OTPVerificationScreen()),
         );
+      } else {
+        debugPrint('✅ Verificação não necessária - permanece no home');
       }
     });
   }
