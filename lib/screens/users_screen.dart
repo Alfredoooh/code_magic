@@ -23,7 +23,7 @@ class _UsersScreenState extends State<UsersScreen> {
     if (difference.inHours < 1) return '${difference.inMinutes}m';
     if (difference.inDays < 1) return '${difference.inHours}h';
     if (difference.inDays < 7) return '${difference.inDays}d';
-    
+
     return '${dateTime.day}/${dateTime.month}';
   }
 
@@ -68,16 +68,17 @@ class _UsersScreenState extends State<UsersScreen> {
         builder: (context, snapshot) {
           // Erro
           if (snapshot.hasError) {
+            print('Erro no UsersScreen: ${snapshot.error}');
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    Icon(Icons.error_outline, size: 64, color: Colors.red.withOpacity(0.6)),
                     const SizedBox(height: 16),
                     Text(
-                      'Erro ao carregar',
+                      'Erro ao carregar conversas',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -86,7 +87,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Verifique sua conexão',
+                      'Tente novamente mais tarde',
                       style: TextStyle(fontSize: 14, color: hintColor),
                       textAlign: TextAlign.center,
                     ),
@@ -108,13 +109,29 @@ class _UsersScreenState extends State<UsersScreen> {
           // Pegar os chats
           final chats = snapshot.data?.docs ?? [];
 
-          // Ordenar por lastMessageTime
-          final sortedChats = List<QueryDocumentSnapshot>.from(chats);
-          sortedChats.sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>?;
-            final bData = b.data() as Map<String, dynamic>?;
-            final aTime = aData?['lastMessageTime'] as Timestamp?;
-            final bTime = bData?['lastMessageTime'] as Timestamp?;
+          // Filtrar chats válidos e ordenar por lastMessageTime
+          final validChats = <Map<String, dynamic>>[];
+          
+          for (var chatDoc in chats) {
+            try {
+              final chatData = chatDoc.data() as Map<String, dynamic>?;
+              if (chatData == null) continue;
+              
+              validChats.add({
+                'doc': chatDoc,
+                'data': chatData,
+                'time': chatData['lastMessageTime'] as Timestamp?,
+              });
+            } catch (e) {
+              print('Erro ao processar chat: $e');
+              continue;
+            }
+          }
+
+          // Ordenar
+          validChats.sort((a, b) {
+            final aTime = a['time'] as Timestamp?;
+            final bTime = b['time'] as Timestamp?;
 
             if (aTime == null && bTime == null) return 0;
             if (aTime == null) return 1;
@@ -123,7 +140,7 @@ class _UsersScreenState extends State<UsersScreen> {
           });
 
           // Vazio
-          if (sortedChats.isEmpty) {
+          if (validChats.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -155,16 +172,15 @@ class _UsersScreenState extends State<UsersScreen> {
           // Lista
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: sortedChats.length,
+            itemCount: validChats.length,
             separatorBuilder: (context, index) => Container(
               height: 1,
               color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
             ),
             itemBuilder: (context, index) {
-              final chatDoc = sortedChats[index];
-              final chatData = chatDoc.data() as Map<String, dynamic>?;
-              
-              if (chatData == null) return const SizedBox.shrink();
+              final chatItem = validChats[index];
+              final chatDoc = chatItem['doc'] as QueryDocumentSnapshot;
+              final chatData = chatItem['data'] as Map<String, dynamic>;
 
               final participants = List<String>.from(chatData['participants'] ?? []);
               final recipientId = participants.firstWhere(
@@ -174,7 +190,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
               if (recipientId.isEmpty) return const SizedBox.shrink();
 
-              final lastMessage = chatData['lastMessage'] ?? '';
+              final lastMessage = chatData['lastMessage'] as String? ?? '';
               final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
               final unreadCount = chatData['unreadCount_$currentUserId'] as int? ?? 0;
 
@@ -185,7 +201,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     .snapshots(),
                 builder: (context, userSnapshot) {
                   // Loading do usuário
-                  if (!userSnapshot.hasData || userSnapshot.data?.data() == null) {
+                  if (!userSnapshot.hasData) {
                     return Container(
                       color: cardColor,
                       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -199,12 +215,17 @@ class _UsersScreenState extends State<UsersScreen> {
                     );
                   }
 
-                  final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                  final userDoc = userSnapshot.data;
+                  if (userDoc == null || !userDoc.exists) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final userData = userDoc.data() as Map<String, dynamic>? ?? {};
                   final isOnline = userData['isOnline'] == true;
                   final lastActive = userData['lastActive'] as Timestamp?;
                   final photoBase64 = userData['photoBase64'];
                   final photoURL = userData['photoURL'];
-                  final userName = userData['name'] ?? 'Usuário';
+                  final userName = userData['name'] as String? ?? 'Usuário';
 
                   return Container(
                     color: cardColor,
@@ -228,9 +249,9 @@ class _UsersScreenState extends State<UsersScreen> {
                           CircleAvatar(
                             radius: 28,
                             backgroundColor: const Color(0xFF1877F2),
-                            backgroundImage: photoBase64 != null
+                            backgroundImage: photoBase64 != null && photoBase64 is String
                                 ? MemoryImage(base64Decode(photoBase64))
-                                : (photoURL != null
+                                : (photoURL != null && photoURL is String
                                     ? NetworkImage(photoURL)
                                     : null),
                             child: photoBase64 == null && photoURL == null
