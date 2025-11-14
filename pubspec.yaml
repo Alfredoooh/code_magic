@@ -33,6 +33,10 @@ dependencies:
   image: any
   flutter_cache_manager: any
   http: any
+  
+  # permissions
+
+  permission_handler: any
 
   # Video players
   youtube_player_flutter: any
