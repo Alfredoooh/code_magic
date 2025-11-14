@@ -5,12 +5,17 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/diary_service.dart';
+import '../services/task_service.dart';
+import '../services/note_service.dart';
 import '../models/diary_entry_model.dart';
+import '../models/task_model.dart';
+import '../models/note_model.dart';
 import '../widgets/custom_icons.dart';
 import '../widgets/diary_filter_modal.dart';
-import 'diary_editor_screen.dart';
+import 'unified_editor_screen.dart';
 import 'diary_detail_screen.dart';
-import '../widgets/diary_entry_card.dart';
+import 'task_detail_screen.dart';
+import 'note_detail_screen.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
@@ -21,6 +26,9 @@ class DiaryScreen extends StatefulWidget {
 
 class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStateMixin {
   final DiaryService _diaryService = DiaryService();
+  final TaskService _taskService = TaskService();
+  final NoteService _noteService = NoteService();
+  
   DiaryMood? _selectedMood;
   bool _showFavoritesOnly = false;
   late TabController _tabController;
@@ -29,6 +37,9 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Atualizar UI quando mudar de tab
+    });
   }
 
   @override
@@ -37,14 +48,17 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
-  void _createNewEntry() {
+  void _createNewEntry(EditorType type) {
     final auth = context.read<AuthProvider>();
     if (auth.user == null) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => DiaryEditorScreen(userId: auth.user!.uid),
+        builder: (context) => UnifiedEditorScreen(
+          userId: auth.user!.uid,
+          editorType: type,
+        ),
       ),
     );
   }
@@ -231,7 +245,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
             ),
             const SizedBox(height: 16),
             Text(
-              'Faça login para acessar seu diário',
+              'Faça login para acessar seu conteúdo',
               style: TextStyle(fontSize: 16, color: textColor),
             ),
           ],
@@ -365,12 +379,35 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
               controller: _tabController,
               children: [
                 _buildDiaryTab(auth, isDark, textColor, secondaryColor, cardColor),
-                _buildTasksTab(isDark, textColor, secondaryColor, cardColor),
-                _buildNotesTab(isDark, textColor, secondaryColor, cardColor),
+                _buildTasksTab(auth, isDark, textColor, secondaryColor, cardColor),
+                _buildNotesTab(auth, isDark, textColor, secondaryColor, cardColor),
               ],
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          final type = _tabController.index == 0 
+              ? EditorType.diary 
+              : _tabController.index == 1 
+                  ? EditorType.task 
+                  : EditorType.note;
+          _createNewEntry(type);
+        },
+        backgroundColor: const Color(0xFF1877F2),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text(
+          _tabController.index == 0 
+              ? 'Nova Entrada' 
+              : _tabController.index == 1 
+                  ? 'Nova Tarefa' 
+                  : 'Nova Anotação',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -428,7 +465,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
           itemCount: entries.length,
           itemBuilder: (context, index) {
             final entry = entries[index];
@@ -550,91 +587,348 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildTasksTab(bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+  Widget _buildTasksTab(AuthProvider auth, bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
+    return StreamBuilder<List<Task>>(
+      stream: _taskService.getPendingTasks(auth.user!.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF1877F2)));
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorWidgetWithLink(snapshot.error!, secondaryColor);
+        }
+
+        final tasks = snapshot.data ?? [];
+
+        if (tasks.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: SvgIcon(
+                    svgString: CustomIcons.checkCircle,
+                    size: 64,
+                    color: const Color(0xFF4CAF50),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Nenhuma tarefa pendente',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'Você está em dia! Crie uma nova tarefa quando precisar',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: secondaryColor,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: SvgIcon(
-              svgString: CustomIcons.checkCircle,
-              size: 64,
-              color: const Color(0xFF4CAF50),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Tarefas',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              'Gerencie suas tarefas, defina lembretes e acompanhe seu progresso',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: secondaryColor,
-                height: 1.4,
-              ),
-            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            final task = tasks[index];
+            return _buildTaskCard(task, isDark, textColor, secondaryColor, cardColor);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskCard(Task task, bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
+    final priorityColor = _getPriorityColor(task.priority);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: priorityColor.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Navegar para detalhes da tarefa
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    await _taskService.toggleTaskCompletion(task.id, !task.isCompleted);
+                  },
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: priorityColor,
+                        width: 2.5,
+                      ),
+                    ),
+                    child: task.isCompleted
+                        ? Icon(Icons.check, size: 18, color: priorityColor)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                          decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      if (task.dueDate != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 14, color: secondaryColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDate(task.dueDate!),
+                              style: TextStyle(fontSize: 12, color: secondaryColor),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (task.hasReminder)
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF9800).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.notifications_active, size: 16, color: Color(0xFFFF9800)),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildNotesTab(bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF9800).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+  Widget _buildNotesTab(AuthProvider auth, bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
+    return StreamBuilder<List<Note>>(
+      stream: _noteService.getUserNotes(auth.user!.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF1877F2)));
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorWidgetWithLink(snapshot.error!, secondaryColor);
+        }
+
+        final notes = snapshot.data ?? [];
+
+        if (notes.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF9800).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    '📝',
+                    style: TextStyle(fontSize: 64),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Nenhuma anotação',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'Comece a anotar suas ideias e pensamentos importantes',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: secondaryColor,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: const Text(
-              '📝',
-              style: TextStyle(fontSize: 64),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Anotações',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              'Anote ideias importantes, anotações de aula e muito mais',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: secondaryColor,
-                height: 1.4,
-              ),
-            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+          itemCount: notes.length,
+          itemBuilder: (context, index) {
+            final note = notes[index];
+            return _buildNoteCard(note, isDark, textColor, secondaryColor, cardColor);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNoteCard(Note note, bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Navegar para detalhes da anotação
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (note.isPinned)
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF9800).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.push_pin, size: 16, color: Color(0xFFFF9800)),
+                      ),
+                    if (note.isPinned) const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        note.title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9800).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        note.category,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF9800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (note.content.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    note.content,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: secondaryColor,
+                      height: 1.4,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  _formatDate(note.updatedAt),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: secondaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
+  }
+
+  Color _getPriorityColor(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.low:
+        return const Color(0xFF4CAF50);
+      case TaskPriority.medium:
+        return const Color(0xFFFFC107);
+      case TaskPriority.high:
+        return const Color(0xFFFF5722);
+    }
   }
 
   String _formatDate(DateTime date) {
