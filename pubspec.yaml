@@ -37,6 +37,7 @@ dependencies:
   # permissions
 
   permission_handler: any
+  flutter_local_notifications: any
 
   # Video players
   youtube_player_flutter: any
