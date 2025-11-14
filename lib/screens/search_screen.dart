@@ -114,7 +114,8 @@ class _SearchScreenState extends State<SearchScreen>
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _buildErrorState(isDark, hintColor, 'Erro ao carregar');
+          print('Erro ao carregar usuários: ${snapshot.error}');
+          return _buildErrorState(isDark, hintColor, 'Erro ao carregar usuários');
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -126,19 +127,28 @@ class _SearchScreenState extends State<SearchScreen>
         }
 
         final allUsers = snapshot.data?.docs ?? [];
+        
+        // Filtrar usuários válidos
         final filteredUsers = allUsers.where((doc) {
-          if (doc.id == currentUserId) return false;
+          try {
+            if (doc.id == currentUserId) return false;
 
-          final data = doc.data() as Map<String, dynamic>;
-          final name = (data['name'] ?? '').toLowerCase();
-          final nickname = (data['nickname'] ?? '').toLowerCase();
-          final email = (data['email'] ?? '').toLowerCase();
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) return false;
 
-          if (_searchQuery.isEmpty) return true;
+            final name = (data['name'] as String? ?? '').toLowerCase();
+            final nickname = (data['nickname'] as String? ?? '').toLowerCase();
+            final email = (data['email'] as String? ?? '').toLowerCase();
 
-          return name.contains(_searchQuery) ||
-              nickname.contains(_searchQuery) ||
-              email.contains(_searchQuery);
+            if (_searchQuery.isEmpty) return true;
+
+            return name.contains(_searchQuery) ||
+                nickname.contains(_searchQuery) ||
+                email.contains(_searchQuery);
+          } catch (e) {
+            print('Erro ao filtrar usuário: $e');
+            return false;
+          }
         }).toList();
 
         if (filteredUsers.isEmpty && _isSearching) {
@@ -150,6 +160,15 @@ class _SearchScreenState extends State<SearchScreen>
           );
         }
 
+        if (filteredUsers.isEmpty && !_isSearching) {
+          return _buildEmptyState(
+            isDark,
+            hintColor,
+            CustomIcons.userCircle,
+            'Nenhum usuário disponível',
+          );
+        }
+
         return ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: filteredUsers.length,
@@ -158,131 +177,136 @@ class _SearchScreenState extends State<SearchScreen>
             color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
           ),
           itemBuilder: (context, index) {
-            final userDoc = filteredUsers[index];
-            final userData = userDoc.data() as Map<String, dynamic>;
-            final isOnline = userData['isOnline'] == true;
-            final userType = userData['userType'] ?? 'person';
-            final photoBase64 = userData['photoBase64'];
-            final photoURL = userData['photoURL'];
+            try {
+              final userDoc = filteredUsers[index];
+              final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+              final isOnline = userData['isOnline'] == true;
+              final userType = userData['userType'] as String? ?? 'person';
+              final photoBase64 = userData['photoBase64'];
+              final photoURL = userData['photoURL'];
+              final userName = userData['name'] as String? ?? 'Usuário';
+              final nickname = userData['nickname'] as String?;
 
-            String userTypeLabel = '';
-            String userTypeIcon = '';
+              String userTypeLabel = '';
+              String userTypeIcon = '';
 
-            switch (userType) {
-              case 'student':
-                userTypeLabel = 'Estudante';
-                userTypeIcon = CustomIcons.academicCap;
-                break;
-              case 'professional':
-                userTypeLabel = 'Profissional';
-                userTypeIcon = CustomIcons.briefcase;
-                break;
-              case 'company':
-                userTypeLabel = 'Empresa';
-                userTypeIcon = CustomIcons.buildingLibrary;
-                break;
-              default:
-                userTypeLabel = 'Pessoa';
-                userTypeIcon = CustomIcons.userCircle;
-            }
+              switch (userType) {
+                case 'student':
+                  userTypeLabel = 'Estudante';
+                  userTypeIcon = CustomIcons.academicCap;
+                  break;
+                case 'professional':
+                  userTypeLabel = 'Profissional';
+                  userTypeIcon = CustomIcons.briefcase;
+                  break;
+                case 'company':
+                  userTypeLabel = 'Empresa';
+                  userTypeIcon = CustomIcons.buildingLibrary;
+                  break;
+                default:
+                  userTypeLabel = 'Pessoa';
+                  userTypeIcon = CustomIcons.userCircle;
+              }
 
-            return Container(
-              color: cardColor,
-              child: ListTile(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        recipientId: userDoc.id,
-                        recipientName: userData['name'] ?? 'Usuário',
-                        recipientPhotoURL: photoURL,
-                        isOnline: isOnline,
+              return Container(
+                color: cardColor,
+                child: ListTile(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          recipientId: userDoc.id,
+                          recipientName: userName,
+                          recipientPhotoURL: photoURL,
+                          isOnline: isOnline,
+                        ),
                       ),
-                    ),
-                  );
-                },
-                leading: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: const Color(0xFF1877F2),
-                      backgroundImage: photoBase64 != null
-                          ? MemoryImage(base64Decode(photoBase64 as String))
-                              as ImageProvider
-                          : (photoURL != null
-                              ? NetworkImage(photoURL as String) as ImageProvider
-                              : null),
-                      child: photoBase64 == null && photoURL == null
-                          ? Text(
-                              userData['name']
-                                      ?.substring(0, 1)
-                                      .toUpperCase() ??
-                                  'U',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 20,
-                              ),
-                            )
-                          : null,
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF31A24C),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: cardColor, width: 3),
+                    );
+                  },
+                  leading: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: const Color(0xFF1877F2),
+                        backgroundImage: photoBase64 != null && photoBase64 is String
+                            ? MemoryImage(base64Decode(photoBase64))
+                            : (photoURL != null && photoURL is String
+                                ? NetworkImage(photoURL)
+                                : null),
+                        child: photoBase64 == null && photoURL == null
+                            ? Text(
+                                userName.isNotEmpty
+                                    ? userName.substring(0, 1).toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 20,
+                                ),
+                              )
+                            : null,
+                      ),
+                      if (isOnline)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF31A24C),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: cardColor, width: 3),
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                title: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        userData['name'] ?? 'Usuário',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
+                    ],
+                  ),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    SvgPicture.string(
-                      userTypeIcon,
-                      width: 14,
-                      height: 14,
-                      colorFilter: ColorFilter.mode(
-                        hintColor,
-                        BlendMode.srcIn,
+                      const SizedBox(width: 6),
+                      SvgPicture.string(
+                        userTypeIcon,
+                        width: 14,
+                        height: 14,
+                        colorFilter: ColorFilter.mode(
+                          hintColor,
+                          BlendMode.srcIn,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userTypeLabel,
-                      style: TextStyle(fontSize: 12, color: hintColor),
-                    ),
-                    if (userData['nickname'] != null)
+                    ],
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        '@${userData['nickname']}',
-                        style: TextStyle(fontSize: 13, color: hintColor),
+                        userTypeLabel,
+                        style: TextStyle(fontSize: 12, color: hintColor),
                       ),
-                  ],
+                      if (nickname != null && nickname.isNotEmpty)
+                        Text(
+                          '@$nickname',
+                          style: TextStyle(fontSize: 13, color: hintColor),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
+            } catch (e) {
+              print('Erro ao construir item do usuário: $e');
+              return const SizedBox.shrink();
+            }
           },
         );
       },
@@ -304,11 +328,11 @@ class _SearchScreenState extends State<SearchScreen>
       stream: FirebaseFirestore.instance
           .collection('chats')
           .where('participants', arrayContains: currentUserId)
-          .orderBy('lastMessageTime', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _buildErrorState(isDark, hintColor, 'Erro ao carregar');
+          print('Erro ao carregar conversas: ${snapshot.error}');
+          return _buildErrorState(isDark, hintColor, 'Erro ao carregar conversas');
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -320,15 +344,44 @@ class _SearchScreenState extends State<SearchScreen>
         }
 
         final allChats = snapshot.data?.docs ?? [];
-        final filteredChats = allChats.where((doc) {
-          if (!_isSearching) return true;
+        
+        // Filtrar e ordenar chats válidos
+        final validChats = <Map<String, dynamic>>[];
+        
+        for (var doc in allChats) {
+          try {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
 
-          final data = doc.data() as Map<String, dynamic>;
-          final lastMessage = (data['lastMessage'] ?? '').toLowerCase();
-          return lastMessage.contains(_searchQuery);
-        }).toList();
+            final lastMessage = (data['lastMessage'] as String? ?? '').toLowerCase();
+            
+            if (_isSearching && !lastMessage.contains(_searchQuery)) {
+              continue;
+            }
 
-        if (filteredChats.isEmpty) {
+            validChats.add({
+              'doc': doc,
+              'data': data,
+              'time': data['lastMessageTime'] as Timestamp?,
+            });
+          } catch (e) {
+            print('Erro ao processar chat: $e');
+            continue;
+          }
+        }
+
+        // Ordenar por tempo
+        validChats.sort((a, b) {
+          final aTime = a['time'] as Timestamp?;
+          final bTime = b['time'] as Timestamp?;
+
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
+
+        if (validChats.isEmpty) {
           return _buildEmptyState(
             isDark,
             hintColor,
@@ -341,134 +394,137 @@ class _SearchScreenState extends State<SearchScreen>
 
         return ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: filteredChats.length,
+          itemCount: validChats.length,
           separatorBuilder: (context, index) => Container(
             height: 1,
             color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
           ),
           itemBuilder: (context, index) {
-            final chatDoc = filteredChats[index];
-            final chatData = chatDoc.data() as Map<String, dynamic>;
-            final participants =
-                List<String>.from(chatData['participants'] ?? []);
-            final recipientId = participants.firstWhere(
-              (id) => id != currentUserId,
-              orElse: () => '',
-            );
+            try {
+              final chatItem = validChats[index];
+              final chatDoc = chatItem['doc'] as QueryDocumentSnapshot;
+              final chatData = chatItem['data'] as Map<String, dynamic>;
+              
+              final participants = List<String>.from(chatData['participants'] ?? []);
+              final recipientId = participants.firstWhere(
+                (id) => id != currentUserId,
+                orElse: () => '',
+              );
 
-            if (recipientId.isEmpty) return const SizedBox.shrink();
+              if (recipientId.isEmpty) return const SizedBox.shrink();
 
-            return StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(recipientId)
-                  .snapshots(),
-              builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) return const SizedBox.shrink();
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(recipientId)
+                    .snapshots(),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                    return const SizedBox.shrink();
+                  }
 
-                final userData =
-                    userSnapshot.data?.data() as Map<String, dynamic>?;
-                if (userData == null) return const SizedBox.shrink();
+                  final userData = userSnapshot.data?.data() as Map<String, dynamic>? ?? {};
+                  final isOnline = userData['isOnline'] == true;
+                  final photoURL = userData['photoURL'];
+                  final photoBase64 = userData['photoBase64'];
+                  final userName = userData['name'] as String? ?? 'Usuário';
+                  final lastMessage = chatData['lastMessage'] as String? ?? '';
+                  final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
 
-                final isOnline = userData['isOnline'] == true;
-                final photoURL = userData['photoURL'];
-                final photoBase64 = userData['photoBase64'];
-                final userName = userData['name'] ?? 'Usuário';
-                final lastMessage = chatData['lastMessage'] ?? '';
-                final lastMessageTime =
-                    chatData['lastMessageTime'] as Timestamp?;
-
-                return Container(
-                  color: cardColor,
-                  child: ListTile(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            recipientId: recipientId,
-                            recipientName: userName,
-                            recipientPhotoURL: photoURL,
-                            isOnline: isOnline,
-                          ),
-                        ),
-                      );
-                    },
-                    leading: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: const Color(0xFF1877F2),
-                          backgroundImage: photoBase64 != null
-                              ? MemoryImage(
-                                      base64Decode(photoBase64 as String))
-                                  as ImageProvider
-                              : (photoURL != null
-                                  ? NetworkImage(photoURL as String)
-                                      as ImageProvider
-                                  : null),
-                          child: photoBase64 == null && photoURL == null
-                              ? Text(
-                                  userName.substring(0, 1).toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 20,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        if (isOnline)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF31A24C),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: cardColor, width: 3),
-                              ),
+                  return Container(
+                    color: cardColor,
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              recipientId: recipientId,
+                              recipientName: userName,
+                              recipientPhotoURL: photoURL,
+                              isOnline: isOnline,
                             ),
                           ),
-                      ],
-                    ),
-                    title: Text(
-                      userName,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            lastMessage.isEmpty
-                                ? 'Toque para conversar'
-                                : lastMessage,
-                            style: TextStyle(fontSize: 14, color: hintColor),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                      leading: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: const Color(0xFF1877F2),
+                            backgroundImage: photoBase64 != null && photoBase64 is String
+                                ? MemoryImage(base64Decode(photoBase64))
+                                : (photoURL != null && photoURL is String
+                                    ? NetworkImage(photoURL)
+                                    : null),
+                            child: photoBase64 == null && photoURL == null
+                                ? Text(
+                                    userName.isNotEmpty
+                                        ? userName.substring(0, 1).toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  )
+                                : null,
                           ),
-                        ),
-                        if (lastMessageTime != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatTime(lastMessageTime.toDate()),
-                            style: TextStyle(fontSize: 12, color: hintColor),
-                          ),
+                          if (isOnline)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF31A24C),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: cardColor, width: 3),
+                                ),
+                              ),
+                            ),
                         ],
-                      ],
+                      ),
+                      title: Text(
+                        userName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              lastMessage.isEmpty
+                                  ? 'Toque para conversar'
+                                  : lastMessage,
+                              style: TextStyle(fontSize: 14, color: hintColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (lastMessageTime != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatTime(lastMessageTime.toDate()),
+                              style: TextStyle(fontSize: 12, color: hintColor),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            );
+                  );
+                },
+              );
+            } catch (e) {
+              print('Erro ao construir item de conversa: $e');
+              return const SizedBox.shrink();
+            }
           },
         );
       },
@@ -494,13 +550,16 @@ class _SearchScreenState extends State<SearchScreen>
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          print('Erro ao pesquisar diário: ${snapshot.error}');
           return _buildErrorState(isDark, hintColor, 'Erro ao pesquisar');
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE91E63)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? const Color(0xFF1877F2) : const Color(0xFF1877F2),
+              ),
             ),
           );
         }
@@ -509,15 +568,22 @@ class _SearchScreenState extends State<SearchScreen>
         final filteredEntries = allEntries.where((doc) {
           if (!_isSearching) return false;
 
-          final data = doc.data() as Map<String, dynamic>;
-          final title = (data['title'] ?? '').toLowerCase();
-          final content = (data['content'] ?? '').toLowerCase();
-          final tags = List<String>.from(data['tags'] ?? []);
-          final tagsString = tags.join(' ').toLowerCase();
+          try {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) return false;
 
-          return title.contains(_searchQuery) ||
-              content.contains(_searchQuery) ||
-              tagsString.contains(_searchQuery);
+            final title = (data['title'] as String? ?? '').toLowerCase();
+            final content = (data['content'] as String? ?? '').toLowerCase();
+            final tags = List<String>.from(data['tags'] ?? []);
+            final tagsString = tags.join(' ').toLowerCase();
+
+            return title.contains(_searchQuery) ||
+                content.contains(_searchQuery) ||
+                tagsString.contains(_searchQuery);
+          } catch (e) {
+            print('Erro ao filtrar entrada: $e');
+            return false;
+          }
         }).toList();
 
         if (filteredEntries.isEmpty) {
@@ -536,135 +602,147 @@ class _SearchScreenState extends State<SearchScreen>
           itemCount: filteredEntries.length,
           separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
-            final entryDoc = filteredEntries[index];
-            final data = entryDoc.data() as Map<String, dynamic>;
+            try {
+              final entryDoc = filteredEntries[index];
+              final data = entryDoc.data() as Map<String, dynamic>;
 
-            final entry = DiaryEntry(
-              id: entryDoc.id,
-              userId: data['userId'] ?? '',
-              title: data['title'] ?? '',
-              content: data['content'] ?? '',
-              date: (data['date'] as Timestamp).toDate(),
-              mood: DiaryMood.values.firstWhere(
-                (m) => m.toString() == 'DiaryMood.${data['mood']}',
-                orElse: () => DiaryMood.calm,
-              ),
-              tags: List<String>.from(data['tags'] ?? []),
-              isFavorite: data['isFavorite'] ?? false,
-              createdAt: (data['createdAt'] as Timestamp).toDate(),
-              updatedAt: data['updatedAt'] != null
-                  ? (data['updatedAt'] as Timestamp).toDate()
-                  : null,
-            );
-
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DiaryDetailScreen(entry: entry),
-                  ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark
-                          ? Colors.black26
-                          : Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              final entry = DiaryEntry(
+                id: entryDoc.id,
+                userId: data['userId'] ?? '',
+                title: data['title'] ?? '',
+                content: data['content'] ?? '',
+                date: (data['date'] as Timestamp).toDate(),
+                mood: DiaryMood.values.firstWhere(
+                  (m) => m.toString() == 'DiaryMood.${data['mood']}',
+                  orElse: () => DiaryMood.calm,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            _getMoodEmoji(entry.mood),
-                            style: const TextStyle(fontSize: 28),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  entry.title,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _formatDate(entry.date),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: hintColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (entry.isFavorite)
-                            const Icon(Icons.favorite,
-                                color: Color(0xFFE91E63), size: 20),
-                        ],
+                tags: List<String>.from(data['tags'] ?? []),
+                isFavorite: data['isFavorite'] ?? false,
+                createdAt: (data['createdAt'] as Timestamp).toDate(),
+                updatedAt: data['updatedAt'] != null
+                    ? (data['updatedAt'] as Timestamp).toDate()
+                    : null,
+              );
+
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DiaryDetailScreen(entry: entry),
+                    ),
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black26
+                            : Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        entry.content,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: hintColor,
-                          height: 1.5,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (entry.tags.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: entry.tags.take(3).map((tag) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF2C2C2E)
-                                    : const Color(0xFFF0F2F5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '#$tag',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFFE91E63),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
                     ],
                   ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              _getMoodEmoji(entry.mood),
+                              style: const TextStyle(fontSize: 28),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.title,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: textColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatDate(entry.date),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: hintColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (entry.isFavorite)
+                              Icon(
+                                Icons.favorite,
+                                color: isDark
+                                    ? const Color(0xFF1877F2)
+                                    : const Color(0xFF1877F2),
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          entry.content,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: hintColor,
+                            height: 1.5,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (entry.tags.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: entry.tags.take(3).map((tag) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF2C2C2E)
+                                      : const Color(0xFFF0F2F5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '#$tag',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? const Color(0xFF1877F2)
+                                        : const Color(0xFF1877F2),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            );
+              );
+            } catch (e) {
+              print('Erro ao construir entrada do diário: $e');
+              return const SizedBox.shrink();
+            }
           },
         );
       },
@@ -775,7 +853,6 @@ class _SearchScreenState extends State<SearchScreen>
           preferredSize: const Size.fromHeight(57),
           child: Column(
             children: [
-              // Tabs estilo Diary
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: const EdgeInsets.all(4),
