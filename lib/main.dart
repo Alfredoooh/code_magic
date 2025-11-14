@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:timezone/data/latest.dart' as tz;
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -11,13 +12,21 @@ import 'screens/search_screen.dart';
 import 'screens/otp_verification_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
+import 'services/push_notification_service.dart';
+import 'services/reminder_scheduler_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Inicializar timezone para notificações locais
+  tz.initializeTimeZones();
+  
   runApp(const MyApp());
 }
 
@@ -31,8 +40,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+      child: Consumer2<ThemeProvider, AuthProvider>(
+        builder: (context, themeProvider, authProvider, _) {
+          // Inicializar serviços quando usuário faz login
+          if (authProvider.isAuthenticated && authProvider.user != null) {
+            _initializeUserServices(authProvider.user!.uid);
+          }
+          
           return MaterialApp(
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
@@ -81,6 +95,16 @@ class MyApp extends StatelessWidget {
         },
       ),
     );
+  }
+
+  void _initializeUserServices(String userId) {
+    // Inicializar push notifications
+    PushNotificationService().initialize(userId);
+    
+    // Inicializar scheduler de lembretes
+    ReminderSchedulerService().initialize(userId);
+    
+    print('✅ Serviços de notificações e lembretes inicializados para o usuário: $userId');
   }
 }
 
