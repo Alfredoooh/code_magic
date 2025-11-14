@@ -151,7 +151,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
           icon: SvgPicture.string(
@@ -216,7 +216,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
                             color: cardColor,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5E5),
                               width: 1,
@@ -244,15 +244,16 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                       ),
                     ),
 
-                    // Grid de avatares
+                    // Grid de avatares - 2x2 com cards maiores
                     Expanded(
                       child: GridView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 1,
                         ),
                         itemCount: _avatars.length + (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
@@ -275,24 +276,25 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: cardColor,
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isSelected
                                       ? const Color(0xFF1877F2)
                                       : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5E5)),
-                                  width: isSelected ? 3 : 1,
+                                  width: isSelected ? 3 : 1.5,
                                 ),
-                                boxShadow: [
-                                  if (isSelected)
-                                    BoxShadow(
-                                      color: const Color(0xFF1877F2).withOpacity(0.3),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                ],
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFF1877F2).withOpacity(0.4),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ]
+                                    : [],
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(18),
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
@@ -302,10 +304,10 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                                       loadingBuilder: (context, child, loadingProgress) {
                                         if (loadingProgress == null) return child;
                                         return Container(
-                                          color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5),
+                                          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE8E8E8),
                                           child: const Center(
                                             child: CircularProgressIndicator(
-                                              strokeWidth: 2,
+                                              strokeWidth: 3,
                                               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                                             ),
                                           ),
@@ -313,12 +315,12 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                                       },
                                       errorBuilder: (context, error, stackTrace) {
                                         return Container(
-                                          color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5),
+                                          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE8E8E8),
                                           child: Center(
                                             child: SvgPicture.string(
                                               CustomIcons.person,
-                                              width: 32,
-                                              height: 32,
+                                              width: 48,
+                                              height: 48,
                                               colorFilter: ColorFilter.mode(
                                                 hintColor,
                                                 BlendMode.srcIn,
@@ -331,23 +333,26 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                                     if (isSelected)
                                       Container(
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF1877F2).withOpacity(0.3),
-                                          borderRadius: BorderRadius.circular(14),
+                                          color: const Color(0xFF1877F2).withOpacity(0.25),
+                                          borderRadius: BorderRadius.circular(18),
                                         ),
                                         child: Center(
                                           child: Container(
-                                            padding: const EdgeInsets.all(8),
+                                            width: 56,
+                                            height: 56,
                                             decoration: const BoxDecoration(
                                               color: Color(0xFF1877F2),
                                               shape: BoxShape.circle,
                                             ),
-                                            child: SvgPicture.string(
-                                              CustomIcons.check,
-                                              width: 20,
-                                              height: 20,
-                                              colorFilter: const ColorFilter.mode(
-                                                Colors.white,
-                                                BlendMode.srcIn,
+                                            child: Center(
+                                              child: SvgPicture.string(
+                                                CustomIcons.check,
+                                                width: 28,
+                                                height: 28,
+                                                colorFilter: const ColorFilter.mode(
+                                                  Colors.white,
+                                                  BlendMode.srcIn,
+                                                ),
                                               ),
                                             ),
                                           ),
