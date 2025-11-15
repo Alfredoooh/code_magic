@@ -16,8 +16,8 @@ import 'providers/theme_provider.dart';
 import 'firebase_options.dart';
 
 // Imports condicionais - só carrega no mobile
-import 'services/push_notification_service.dart' if (dart.library.html) 'services/push_notification_service_web.dart';
-import 'services/reminder_scheduler_service.dart' if (dart.library.html) 'services/reminder_scheduler_service_web.dart';
+import 'services/push_notification_service.dart' if (dart.library.html) 'services/push_notification_service.dart';
+import 'services/reminder_scheduler_service.dart' if (dart.library.html) 'services/reminder_scheduler_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
