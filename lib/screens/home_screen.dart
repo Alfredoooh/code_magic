@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(
             builder: (context) => UnifiedEditorScreen(
               userId: authProvider.user!.uid,
-              editorType: 'default', // adicionado para satisfazer o construtor
+              editorType: EditorType.note, // adicionado para satisfazer o construtor
             ),
           ),
         );
