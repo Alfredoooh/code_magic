@@ -68,10 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = context.read<AuthProvider>();
 
     if (_currentIndex == 0) {
-      // Feed - criar novo post
       _showNewPostModal(context);
     } else if (_currentIndex == 2) {
-      // Marketplace - adicionar livro
       final bool canAddBook = authProvider.userData?['isPro'] == true ||
           authProvider.userData?['isPremium'] == true;
 
@@ -86,14 +84,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _showProRequiredDialog(context);
       }
     } else if (_currentIndex == 3) {
-      // Diário - criar nova entrada
       if (authProvider.user != null) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => UnifiedEditorScreen(
               userId: authProvider.user!.uid,
-              editorType: EditorType.note, // adicionado para satisfazer o construtor
+              editorType: EditorType.note,
             ),
           ),
         );
@@ -205,7 +202,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      // CORRIGIDO: Só redireciona se REALMENTE precisar verificar OTP
       if (auth.needsOTPVerification) {
         debugPrint('🔐 Redirecionando para verificação OTP');
         Navigator.pushReplacement(
@@ -230,10 +226,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = context.watch<AuthProvider>();
     final currentUid = authProvider.user?.uid;
 
-    // Botão + aparece em: Feed (0), Marketplace (2) e Diário (3)
     final bool showPlusButton = _currentIndex == 0 || _currentIndex == 2 || _currentIndex == 3;
     final bool showSearchButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2 || _currentIndex == 3;
     final bool showInboxButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2;
+    final bool showLayoutMenu = _currentIndex == 4;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -270,6 +266,74 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               const Spacer(),
+                              if (showLayoutMenu)
+                                PopupMenuButton<String>(
+                                  icon: SvgIcon(
+                                    svgString: CustomIcons.moreVert,
+                                    color: iconColor,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  color: isDark ? const Color(0xFF242526) : Colors.white,
+                                  offset: const Offset(0, 50),
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: 'list',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.view_list,
+                                            size: 20,
+                                            color: iconColor,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Lista',
+                                            style: TextStyle(color: iconColor),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'grid',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.grid_view,
+                                            size: 20,
+                                            color: iconColor,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Grade',
+                                            style: TextStyle(color: iconColor),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'compact',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.view_compact,
+                                            size: 20,
+                                            color: iconColor,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Compacto',
+                                            style: TextStyle(color: iconColor),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  onSelected: (value) {
+                                    // A funcionalidade será implementada no DocumentRequestsScreen
+                                  },
+                                ),
                               if (showPlusButton)
                                 IconButton(
                                   icon: SvgIcon(
