@@ -20,7 +20,8 @@ class NewRequestScreen extends StatefulWidget {
 
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final DocumentService _documentService = DocumentService();
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final Map<String, TextEditingController> _fieldControllers = {};
   final ImagePicker _picker = ImagePicker();
 
   DocumentCategory? _selectedCategory;
@@ -28,21 +29,47 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _descriptionController.dispose();
+    for (var controller in _fieldControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   final List<Map<String, dynamic>> _categories = [
-    {'name': 'Currículo', 'icon': CustomIcons.person, 'category': DocumentCategory.curriculum, 'color': Color(0xFF2196F3)},
+    {'name': 'Currículo', 'icon': CustomIcons.person, 'category': DocumentCategory.curriculum, 'color': Color(0xFF1877F2)},
     {'name': 'Certificado', 'icon': CustomIcons.certificate, 'category': DocumentCategory.certificate, 'color': Color(0xFF4CAF50)},
-    {'name': 'Carta', 'icon': CustomIcons.envelope, 'category': DocumentCategory.letter, 'color': Color(0xFFFFC107)},
-    {'name': 'Relatório', 'icon': CustomIcons.description, 'category': DocumentCategory.report, 'color': Color(0xFFF44336)},
-    {'name': 'Contrato', 'icon': CustomIcons.contract, 'category': DocumentCategory.contract, 'color': Color(0xFF9C27B0)},
-    {'name': 'Fatura', 'icon': CustomIcons.invoice, 'category': DocumentCategory.invoice, 'color': Color(0xFF673AB7)},
-    {'name': 'Apresentação', 'icon': CustomIcons.presentation, 'category': DocumentCategory.presentation, 'color': Color(0xFF3F51B5)},
-    {'name': 'Trabalho', 'icon': CustomIcons.school, 'category': DocumentCategory.essay, 'color': Color(0xFF009688)},
+    {'name': 'Carta', 'icon': CustomIcons.envelope, 'category': DocumentCategory.letter, 'color': Color(0xFF9C27B0)},
+    {'name': 'Relatório', 'icon': CustomIcons.description, 'category': DocumentCategory.report, 'color': Color(0xFF2196F3)},
+    {'name': 'Contrato', 'icon': CustomIcons.contract, 'category': DocumentCategory.contract, 'color': Color(0xFFFF5722)},
+    {'name': 'Fatura', 'icon': CustomIcons.invoice, 'category': DocumentCategory.invoice, 'color': Color(0xFF009688)},
+    {'name': 'Apresentação', 'icon': CustomIcons.presentation, 'category': DocumentCategory.presentation, 'color': Color(0xFFFF9800)},
+    {'name': 'Trabalho', 'icon': CustomIcons.school, 'category': DocumentCategory.essay, 'color': Color(0xFF673AB7)},
     {'name': 'Outro', 'icon': CustomIcons.folder, 'category': DocumentCategory.other, 'color': Color(0xFF607D8B)},
   ];
+
+  List<String> _getCategoryFields(DocumentCategory category) {
+    switch (category) {
+      case DocumentCategory.curriculum:
+        return ['Nome Completo', 'Email', 'Telefone', 'Formação Acadêmica', 'Experiência Profissional', 'Habilidades'];
+      case DocumentCategory.certificate:
+        return ['Nome do Participante', 'Nome do Curso/Evento', 'Carga Horária', 'Data de Conclusão', 'Instituição'];
+      case DocumentCategory.letter:
+        return ['Destinatário', 'Remetente', 'Assunto', 'Saudação', 'Conteúdo Principal'];
+      case DocumentCategory.report:
+        return ['Título do Relatório', 'Autor', 'Departamento', 'Período Analisado', 'Resumo Executivo'];
+      case DocumentCategory.contract:
+        return ['Contratante', 'Contratado', 'Objeto do Contrato', 'Valor', 'Prazo', 'Cláusulas Específicas'];
+      case DocumentCategory.invoice:
+        return ['Número da Fatura', 'Cliente', 'Data de Emissão', 'Itens/Serviços', 'Valor Total', 'Forma de Pagamento'];
+      case DocumentCategory.presentation:
+        return ['Título da Apresentação', 'Autor', 'Data', 'Público-Alvo', 'Número de Slides', 'Tópicos Principais'];
+      case DocumentCategory.essay:
+        return ['Título do Trabalho', 'Autor', 'Curso/Disciplina', 'Professor Orientador', 'Instituição', 'Tema Central'];
+      case DocumentCategory.other:
+        return ['Título', 'Descrição Geral'];
+    }
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -51,8 +78,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         setState(() {
           _selectedTemplate = DocumentTemplate(
             id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-            name: 'Imagem',
-            description: 'Da galeria',
+            name: 'Imagem da Galeria',
+            description: 'Imagem selecionada do dispositivo',
             imageUrl: file.path,
             usageCount: 0,
             category: _selectedCategory ?? DocumentCategory.other,
@@ -97,7 +124,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   void _send() async {
-    final text = _controller.text.trim();
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -107,10 +133,22 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       );
       return;
     }
-    if (text.isEmpty) {
+
+    // Valida campos obrigatórios
+    final fields = _getCategoryFields(_selectedCategory!);
+    final missingFields = <String>[];
+    
+    for (var field in fields) {
+      final controller = _fieldControllers[field];
+      if (controller == null || controller.text.trim().isEmpty) {
+        missingFields.add(field);
+      }
+    }
+
+    if (missingFields.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Descreva o que precisa'),
+        SnackBar(
+          content: Text('Preencha os campos: ${missingFields.join(', ')}'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -120,9 +158,14 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     try {
       final auth = context.read<AuthProvider>();
 
-      // CORRIGIDO: Criar objeto DocumentRequest ao invés de passar Map
+      // Cria mapa com os dados dos campos
+      final fieldsData = <String, String>{};
+      for (var field in fields) {
+        fieldsData[field] = _fieldControllers[field]!.text.trim();
+      }
+
       final request = DocumentRequest(
-        id: '', // Será preenchido pelo Firestore
+        id: '',
         userId: auth.user!.uid,
         userName: auth.user!.displayName ?? '',
         userEmail: auth.user!.email ?? '',
@@ -130,10 +173,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         templateName: _selectedTemplate?.name ?? '',
         category: _selectedCategory!,
         title: 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
-        description: text,
+        description: _descriptionController.text.trim(),
         priority: 'normal',
         status: 'pending',
         createdAt: DateTime.now(),
+        customFields: fieldsData,
       );
 
       await _documentService.createRequest(request);
@@ -167,6 +211,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
 
+    final categoryFields = _selectedCategory != null ? _getCategoryFields(_selectedCategory!) : [];
+
+    // Garante que controllers existam para todos os campos
+    for (var field in categoryFields) {
+      if (!_fieldControllers.containsKey(field)) {
+        _fieldControllers[field] = TextEditingController();
+      }
+    }
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -174,7 +227,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         elevation: 0,
         leading: IconButton(
           icon: SvgPicture.string(
-            CustomIcons.close,
+            CustomIcons.arrowLeft,
             width: 24,
             height: 24,
             colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
@@ -189,7 +242,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        centerTitle: false,
       ),
       body: Column(
         children: [
@@ -216,16 +268,17 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                   child: Container(
                     width: 80,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? catColor
-                          : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                      color: isSelected ? catColor : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected
-                            ? catColor
-                            : Colors.transparent,
-                        width: 2,
-                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: catColor.withOpacity(0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              )
+                            ]
+                          : null,
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -261,157 +314,195 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
           // Área de conteúdo
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_selectedCategory == null)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 48),
-                        child: Column(
-                          children: [
-                            SvgPicture.string(
-                              CustomIcons.folder,
-                              width: 64,
-                              height: 64,
-                              colorFilter: ColorFilter.mode(
-                                secondaryColor.withOpacity(0.5),
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Selecione uma categoria',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: secondaryColor,
-                              ),
-                            ),
-                          ],
+            child: _selectedCategory == null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.string(
+                          CustomIcons.folder,
+                          width: 64,
+                          height: 64,
+                          colorFilter: ColorFilter.mode(
+                            secondaryColor.withOpacity(0.5),
+                            BlendMode.srcIn,
+                          ),
                         ),
-                      ),
-                    )
-                  else ...[
-                    // Template selecionado
-                    if (_selectedTemplate != null) ...[
-                      Text(
-                        'Template Selecionado',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
+                        const SizedBox(height: 16),
+                        Text(
+                          'Selecione uma categoria acima',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: secondaryColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                isDark ? 0.3 : 0.08,
-                              ),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                      ],
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Template selecionado
+                        if (_selectedTemplate != null) ...[
+                          Text(
+                            'Template Selecionado',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
                             ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: cardColor,
                               borderRadius: BorderRadius.circular(16),
-                              child: _selectedTemplate!.imageUrl.startsWith('http')
-                                  ? Image.network(
-                                      _selectedTemplate!.imageUrl,
-                                      height: 200,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.file(
-                                      File(_selectedTemplate!.imageUrl),
-                                      height: 200,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            Positioned(
-                              top: 12,
-                              right: 12,
-                              child: GestureDetector(
-                                onTap: () => setState(() => _selectedTemplate = null),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.7),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: SvgPicture.string(
-                                    CustomIcons.close,
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: const ColorFilter.mode(
-                                      Colors.white,
-                                      BlendMode.srcIn,
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: _selectedTemplate!.imageUrl.startsWith('http')
+                                      ? Image.network(
+                                          _selectedTemplate!.imageUrl,
+                                          height: 200,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.file(
+                                          File(_selectedTemplate!.imageUrl),
+                                          height: 200,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _selectedTemplate = null),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.7),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: SvgPicture.string(
+                                        CustomIcons.close,
+                                        width: 16,
+                                        height: 16,
+                                        colorFilter: const ColorFilter.mode(
+                                          Colors.white,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Descrição
-                    Text(
-                      'Descreva seu pedido',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
                           ),
+                          const SizedBox(height: 24),
                         ],
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        maxLines: 6,
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 15,
-                          height: 1.5,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Descreva detalhadamente o que você precisa...',
-                          hintStyle: TextStyle(
-                            color: secondaryColor,
-                            fontSize: 15,
+
+                        // Campos dinâmicos baseados na categoria
+                        ...categoryFields.map((field) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  field,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextField(
+                                    controller: _fieldControllers[field],
+                                    style: TextStyle(color: textColor),
+                                    maxLines: field.contains('Experiência') || 
+                                             field.contains('Conteúdo') || 
+                                             field.contains('Cláusulas') ||
+                                             field.contains('Resumo') ||
+                                             field.contains('Tópicos')
+                                        ? 4
+                                        : 1,
+                                    decoration: InputDecoration(
+                                      hintText: 'Digite $field',
+                                      hintStyle: TextStyle(color: secondaryColor),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.all(16),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+
+                        // Descrição adicional (opcional)
+                        Text(
+                          'Informações Adicionais (Opcional)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
                           ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(16),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _descriptionController,
+                            maxLines: 4,
+                            style: TextStyle(color: textColor),
+                            decoration: InputDecoration(
+                              hintText: 'Adicione qualquer informação extra aqui...',
+                              hintStyle: TextStyle(color: secondaryColor),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
           ),
 
           // Barra inferior
@@ -430,7 +521,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             child: SafeArea(
               child: Row(
                 children: [
-                  // Botão adicionar
+                  // Botão adicionar template
                   Container(
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5),
@@ -566,9 +657,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
+                          const Text(
                             'Enviar Pedido',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
