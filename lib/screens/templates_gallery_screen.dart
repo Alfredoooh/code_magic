@@ -1,17 +1,94 @@
 // lib/screens/templates_gallery_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../services/document_service.dart';
+import 'package:http/http.dart' as http;
 import '../models/document_template_model.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
 
-class TemplatesGalleryScreen extends StatelessWidget {
+class TemplatesGalleryScreen extends StatefulWidget {
   final DocumentCategory category;
   const TemplatesGalleryScreen({super.key, required this.category});
+
+  @override
+  State<TemplatesGalleryScreen> createState() => _TemplatesGalleryScreenState();
+}
+
+class _TemplatesGalleryScreenState extends State<TemplatesGalleryScreen> {
+  List<Map<String, dynamic>> _templates = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTemplates();
+  }
+
+  Future<void> _loadTemplates() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final allTemplates = <Map<String, dynamic>>[];
+      int fileIndex = 1;
+      int consecutiveErrors = 0;
+      const maxConsecutiveErrors = 3;
+
+      // Tenta carregar templates.json, templates1.json, templates2.json, etc
+      while (consecutiveErrors < maxConsecutiveErrors) {
+        final fileName = fileIndex == 1 ? 'templates.json' : 'templates$fileIndex.json';
+        final url = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public/$fileName';
+
+        try {
+          final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final templates = (data['templates'] as List).cast<Map<String, dynamic>>();
+            
+            if (templates.isNotEmpty) {
+              allTemplates.addAll(templates);
+              consecutiveErrors = 0; // Reset contador de erros
+              print('✅ Carregado: $fileName (${templates.length} templates)');
+            }
+          } else if (response.statusCode == 404) {
+            consecutiveErrors++;
+            print('⚠️ Não encontrado: $fileName');
+          } else {
+            consecutiveErrors++;
+            print('❌ Erro ${response.statusCode}: $fileName');
+          }
+        } catch (e) {
+          consecutiveErrors++;
+          print('❌ Erro ao carregar $fileName: $e');
+        }
+
+        fileIndex++;
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
+      print('📊 Total de templates carregados: ${allTemplates.length}');
+
+      setState(() {
+        _templates = allTemplates
+            .where((t) => t['category'] == widget.category.name)
+            .toList();
+        _isLoading = false;
+        
+        print('🎯 Templates da categoria ${widget.category.name}: ${_templates.length}');
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Erro de conexão: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   String _categoryName(DocumentCategory c) {
     switch (c) {
@@ -36,225 +113,16 @@ class TemplatesGalleryScreen extends StatelessWidget {
     }
   }
 
-  void _showIndexInfo(BuildContext context, bool isDark) {
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
-    final codeColor = isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+  void _showTemplatePreview(BuildContext context, Map<String, dynamic> template) {
+    final images = (template['images'] as List).cast<String>();
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _TemplatePreviewScreen(
+          templateName: template['name'],
+          images: images,
         ),
-        title: Row(
-          children: [
-            const Icon(
-              Icons.info_outline,
-              color: Color(0xFF1877F2),
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Índice Necessário',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Para consultar templates por categoria, você precisa criar este índice composto no Firebase:',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: codeColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDark 
-                      ? const Color(0xFF3E4042) 
-                      : const Color(0xFFDADADA),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Coleção: document_templates',
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.copy, size: 18),
-                          color: const Color(0xFF1877F2),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            Clipboard.setData(
-                              const ClipboardData(text: 'document_templates'),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Coleção copiada!'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Divider(height: 1),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Campos indexados:',
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildIndexField('category', 'Ascending', textColor, context),
-                    const SizedBox(height: 4),
-                    _buildIndexField('createdAt', 'Descending', textColor, context),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Link do Console Firebase:',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () {
-                  Clipboard.setData(
-                    const ClipboardData(
-                      text: 'https://console.firebase.google.com/project/_/firestore/indexes',
-                    ),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Link copiado!'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1877F2).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFF1877F2).withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'https://console.firebase.google.com/project/_/firestore/indexes',
-                          style: TextStyle(
-                            color: const Color(0xFF1877F2),
-                            fontSize: 12,
-                            fontFamily: 'monospace',
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.copy,
-                        size: 16,
-                        color: Color(0xFF1877F2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Entendi',
-              style: TextStyle(
-                color: Color(0xFF1877F2),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIndexField(String field, String order, Color textColor, BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1877F2).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '$field: $order',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: field));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Campo "$field" copiado!'),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            },
-            child: const Icon(
-              Icons.copy,
-              size: 14,
-              color: Color(0xFF1877F2),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -262,7 +130,6 @@ class TemplatesGalleryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
@@ -273,6 +140,7 @@ class TemplatesGalleryScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: cardColor,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: SvgPicture.string(
             CustomIcons.arrowLeft,
@@ -283,335 +151,380 @@ class TemplatesGalleryScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          _categoryName(category),
+          _categoryName(widget.category),
           style: TextStyle(
             color: textColor,
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            color: const Color(0xFF1877F2),
-            onPressed: () => _showIndexInfo(context, isDark),
-            tooltip: 'Informações do Índice',
-          ),
-        ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('document_templates')
-            .where('category', isEqualTo: category.name)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+      body: _isLoading
+          ? const Center(
               child: CircularProgressIndicator(
                 color: Color(0xFF1877F2),
               ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            final errorMessage = snapshot.error.toString();
-            final needsIndex = errorMessage.contains('index') || 
-                              errorMessage.contains('FAILED_PRECONDITION');
-
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: needsIndex 
-                          ? const Color(0xFFFF9800).withOpacity(0.1)
-                          : const Color(0xFFFA383E).withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        needsIndex ? Icons.list_alt : Icons.error_outline,
-                        size: 50,
-                        color: needsIndex 
-                          ? const Color(0xFFFF9800)
-                          : const Color(0xFFFA383E),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      needsIndex ? 'Índice Necessário' : 'Erro ao carregar',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      needsIndex
-                          ? 'É necessário criar um índice no Firebase para esta consulta.'
-                          : 'Ocorreu um erro ao carregar os templates.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: secondaryColor,
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () => _showIndexInfo(context, isDark),
-                      icon: const Icon(Icons.info_outline, size: 20),
-                      label: Text(
-                        needsIndex ? 'Ver Instruções' : 'Ver Detalhes',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+            )
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1877F2),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 14,
+                        const SizedBox(height: 16),
+                        Text(
+                          _error!,
+                          style: TextStyle(color: textColor),
+                          textAlign: TextAlign.center,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _loadTemplates,
+                          child: const Text('Tentar novamente'),
                         ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1877F2).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.folder_open_outlined,
-                      size: 50,
-                      color: const Color(0xFF1877F2),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Nenhum template disponível',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Esta categoria ainda não possui templates',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: secondaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.7,
-            ),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-
-              final name = data['name'] ?? 'Sem nome';
-              final description = data['description'] ?? '';
-              final imageUrl = data['imageUrl'] ?? '';
-              final createdBy = data['createdBy'] ?? 'Desconhecido';
-              final usageCount = data['usageCount'] ?? 0;
-
-              return GestureDetector(
-                onTap: () {
-                  // Retorna o template selecionado
-                  Navigator.of(context).pop(DocumentTemplate(
-                    id: doc.id,
-                    name: name,
-                    description: description,
-                    imageUrl: imageUrl,
-                    category: category,
-                    usageCount: usageCount,
-                    createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                  ));
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Imagem
-                      Expanded(
-                        flex: 3,
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
+                )
+              : _templates.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.folder_open_outlined,
+                            size: 64,
+                            color: secondaryColor,
                           ),
-                          child: imageUrl.isNotEmpty
-                              ? Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      color: isDark 
-                                        ? const Color(0xFF3A3B3C) 
-                                        : const Color(0xFFF0F2F5),
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded /
-                                                  loadingProgress.expectedTotalBytes!
-                                              : null,
-                                          strokeWidth: 2,
-                                          color: const Color(0xFF1877F2),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum template disponível',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.65,
+                      ),
+                      itemCount: _templates.length,
+                      itemBuilder: (context, index) {
+                        final template = _templates[index];
+                        final images = (template['images'] as List).cast<String>();
+                        final hasMultiplePages = images.length > 1;
+
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop(DocumentTemplate(
+                              id: template['id'],
+                              name: template['name'],
+                              description: template['description'],
+                              imageUrl: images.first,
+                              category: widget.category,
+                              usageCount: template['usageCount'] ?? 0,
+                              createdAt: DateTime.parse(template['createdAt']),
+                            ));
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(12),
+                                        ),
+                                        child: Image.network(
+                                          images.first,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
                                         ),
                                       ),
-                                    );
-                                  },
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: isDark 
-                                      ? const Color(0xFF3A3B3C) 
-                                      : const Color(0xFFF0F2F5),
-                                    child: Icon(
-                                      Icons.broken_image_outlined,
-                                      size: 48,
-                                      color: secondaryColor.withOpacity(0.5),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: isDark 
-                                    ? const Color(0xFF3A3B3C) 
-                                    : const Color(0xFFF0F2F5),
-                                  child: Icon(
-                                    Icons.image_outlined,
-                                    size: 48,
-                                    color: secondaryColor.withOpacity(0.5),
-                                  ),
-                                ),
-                        ),
-                      ),
-
-                      // Info
-                      Expanded(
-                        flex: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Nome
-                              Text(
-                                name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: textColor,
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-
-                              // Criado por
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.person_outline,
-                                    size: 12,
-                                    color: secondaryColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      createdBy,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: secondaryColor,
+                                      if (hasMultiplePages)
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.7),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.collections,
+                                                  color: Colors.white,
+                                                  size: 14,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '${images.length}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      Positioned(
+                                        bottom: 8,
+                                        right: 8,
+                                        child: GestureDetector(
+                                          onTap: () => _showTemplatePreview(context, template),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1877F2),
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withOpacity(0.2),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.visibility,
+                                              color: Colors.white,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-
-                              const Spacer(),
-
-                              // Usos
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.file_copy_outlined,
-                                    size: 12,
-                                    color: const Color(0xFF1877F2),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        template['name'],
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: textColor,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person_outline,
+                                            size: 12,
+                                            color: secondaryColor,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              template['createdBy'],
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: secondaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.file_copy_outlined,
+                                            size: 12,
+                                            color: Color(0xFF1877F2),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${template['usageCount']} usos',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF1877F2),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '$usageCount usos',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: const Color(0xFF1877F2),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
+    );
+  }
+}
+
+class _TemplatePreviewScreen extends StatefulWidget {
+  final String templateName;
+  final List<String> images;
+
+  const _TemplatePreviewScreen({
+    required this.templateName,
+    required this.images,
+  });
+
+  @override
+  State<_TemplatePreviewScreen> createState() => _TemplatePreviewScreenState();
+}
+
+class _TemplatePreviewScreenState extends State<_TemplatePreviewScreen> {
+  late PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+    final bgColor = isDark ? const Color(0xFF000000) : const Color(0xFF000000);
+    final textColor = Colors.white;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: Colors.black87,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          widget.templateName,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemCount: widget.images.length,
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.network(
+                    widget.images[index],
+                    fit: BoxFit.contain,
                   ),
                 ),
               );
             },
-          );
-        },
+          ),
+          if (widget.images.length > 1)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.images.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentPage == index ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentPage == index
+                          ? const Color(0xFF1877F2)
+                          : Colors.white.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (widget.images.length > 1)
+            Positioned(
+              top: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${_currentPage + 1}/${widget.images.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
