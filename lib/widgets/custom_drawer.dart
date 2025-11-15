@@ -13,6 +13,7 @@ class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
 
   static const Color _activeBlue = Color(0xFF1877F2);
+  static const String _appVersion = '1.0.0'; // Atualize conforme necessário
 
   void _navigateHorizontally(BuildContext context, Widget screen) {
     Navigator.pop(context);
@@ -41,6 +42,7 @@ class CustomDrawer extends StatelessWidget {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
 
     return Drawer(
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
@@ -125,13 +127,6 @@ class CustomDrawer extends StatelessWidget {
                   },
                   isDark,
                 ),
-                const SizedBox(height: 8),
-                Divider(
-                  height: 1,
-                  thickness: 8,
-                  color: isDark ? const Color(0xFF3E4042) : const Color(0xFFF0F2F5),
-                ),
-                const SizedBox(height: 8),
                 _buildDrawerItem(
                   context,
                   CustomIcons.settings,
@@ -140,6 +135,19 @@ class CustomDrawer extends StatelessWidget {
                   isDark,
                 ),
               ],
+            ),
+          ),
+          // Versão do app
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'V$_appVersion',
+              style: TextStyle(
+                fontSize: 13,
+                color: secondaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
