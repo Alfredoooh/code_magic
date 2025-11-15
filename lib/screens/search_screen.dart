@@ -1,4 +1,3 @@
-// lib/screens/search_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -127,7 +126,7 @@ class _SearchScreenState extends State<SearchScreen>
         }
 
         final allUsers = snapshot.data?.docs ?? [];
-        
+
         // Filtrar usuários válidos
         final filteredUsers = allUsers.where((doc) {
           try {
@@ -208,6 +207,20 @@ class _SearchScreenState extends State<SearchScreen>
                   userTypeIcon = CustomIcons.userCircle;
               }
 
+              // --- Corrige tipagem do backgroundImage para evitar erro na web ---
+              ImageProvider<Object>? avatarImage;
+              try {
+                if (photoBase64 != null && photoBase64 is String && photoBase64.isNotEmpty) {
+                  avatarImage = MemoryImage(base64Decode(photoBase64));
+                } else if (photoURL != null && photoURL is String && photoURL.isNotEmpty) {
+                  avatarImage = NetworkImage(photoURL);
+                } else {
+                  avatarImage = null;
+                }
+              } catch (e) {
+                avatarImage = null;
+              }
+
               return Container(
                 color: cardColor,
                 child: ListTile(
@@ -228,12 +241,8 @@ class _SearchScreenState extends State<SearchScreen>
                       CircleAvatar(
                         radius: 28,
                         backgroundColor: const Color(0xFF1877F2),
-                        backgroundImage: photoBase64 != null && photoBase64 is String
-                            ? MemoryImage(base64Decode(photoBase64))
-                            : (photoURL != null && photoURL is String
-                                ? NetworkImage(photoURL)
-                                : null),
-                        child: photoBase64 == null && photoURL == null
+                        backgroundImage: avatarImage,
+                        child: avatarImage == null
                             ? Text(
                                 userName.isNotEmpty
                                     ? userName.substring(0, 1).toUpperCase()
@@ -344,17 +353,17 @@ class _SearchScreenState extends State<SearchScreen>
         }
 
         final allChats = snapshot.data?.docs ?? [];
-        
+
         // Filtrar e ordenar chats válidos
         final validChats = <Map<String, dynamic>>[];
-        
+
         for (var doc in allChats) {
           try {
             final data = doc.data() as Map<String, dynamic>?;
             if (data == null) continue;
 
             final lastMessage = (data['lastMessage'] as String? ?? '').toLowerCase();
-            
+
             if (_isSearching && !lastMessage.contains(_searchQuery)) {
               continue;
             }
@@ -404,7 +413,7 @@ class _SearchScreenState extends State<SearchScreen>
               final chatItem = validChats[index];
               final chatDoc = chatItem['doc'] as QueryDocumentSnapshot;
               final chatData = chatItem['data'] as Map<String, dynamic>;
-              
+
               final participants = List<String>.from(chatData['participants'] ?? []);
               final recipientId = participants.firstWhere(
                 (id) => id != currentUserId,
@@ -431,6 +440,20 @@ class _SearchScreenState extends State<SearchScreen>
                   final lastMessage = chatData['lastMessage'] as String? ?? '';
                   final lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
 
+                  // --- Corrige tipagem do backgroundImage para evitar erro na web ---
+                  ImageProvider<Object>? avatarImage;
+                  try {
+                    if (photoBase64 != null && photoBase64 is String && photoBase64.isNotEmpty) {
+                      avatarImage = MemoryImage(base64Decode(photoBase64));
+                    } else if (photoURL != null && photoURL is String && photoURL.isNotEmpty) {
+                      avatarImage = NetworkImage(photoURL);
+                    } else {
+                      avatarImage = null;
+                    }
+                  } catch (e) {
+                    avatarImage = null;
+                  }
+
                   return Container(
                     color: cardColor,
                     child: ListTile(
@@ -452,12 +475,8 @@ class _SearchScreenState extends State<SearchScreen>
                           CircleAvatar(
                             radius: 28,
                             backgroundColor: const Color(0xFF1877F2),
-                            backgroundImage: photoBase64 != null && photoBase64 is String
-                                ? MemoryImage(base64Decode(photoBase64))
-                                : (photoURL != null && photoURL is String
-                                    ? NetworkImage(photoURL)
-                                    : null),
-                            child: photoBase64 == null && photoURL == null
+                            backgroundImage: avatarImage,
+                            child: avatarImage == null
                                 ? Text(
                                     userName.isNotEmpty
                                         ? userName.substring(0, 1).toUpperCase()
