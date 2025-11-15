@@ -28,7 +28,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
   final DiaryService _diaryService = DiaryService();
   final TaskService _taskService = TaskService();
   final NoteService _noteService = NoteService();
-  
+
   DiaryMood? _selectedMood;
   bool _showFavoritesOnly = false;
   late TabController _tabController;
@@ -38,7 +38,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
-      setState(() {}); // Atualizar UI quando mudar de tab
+      setState(() {});
     });
   }
 
@@ -46,21 +46,6 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  void _createNewEntry(EditorType type) {
-    final auth = context.read<AuthProvider>();
-    if (auth.user == null) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => UnifiedEditorScreen(
-          userId: auth.user!.uid,
-          editorType: type,
-        ),
-      ),
-    );
   }
 
   void _showFilters() {
@@ -386,29 +371,6 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          final type = _tabController.index == 0 
-              ? EditorType.diary 
-              : _tabController.index == 1 
-                  ? EditorType.task 
-                  : EditorType.note;
-          _createNewEntry(type);
-        },
-        backgroundColor: const Color(0xFF1877F2),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          _tabController.index == 0 
-              ? 'Nova Entrada' 
-              : _tabController.index == 1 
-                  ? 'Nova Tarefa' 
-                  : 'Nova Anotação',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
     );
   }
 
@@ -659,7 +621,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
 
   Widget _buildTaskCard(Task task, bool isDark, Color textColor, Color secondaryColor, Color cardColor) {
     final priorityColor = _getPriorityColor(task.priority);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -681,7 +643,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Navegar para detalhes da tarefa
+            // Navegar para detalhes da tarefa se necessário
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -841,7 +803,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Navegar para detalhes da anotação
+            // Navegar para detalhes da anotação se necessário
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
