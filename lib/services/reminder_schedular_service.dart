@@ -1,4 +1,4 @@
-// lib/services/reminder_scheduler_service.dart
+// lib/services/reminder_scheduler_service.dart (sem alterações necessárias, mas completo para referência)
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
