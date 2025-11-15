@@ -1,4 +1,4 @@
-// lib/services/notification_service.dart
+// lib/services/notification_service.dart (versão corrigida, sem const em expressões não-const)
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Imports condicionais
@@ -23,14 +23,14 @@ class NotificationService {
       _notifications = FlutterLocalNotificationsPlugin();
       tz.initializeTimeZones();
 
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings(
+      final androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher'); // Removido const
+      final iosSettings = DarwinInitializationSettings( // Removido const
         requestAlertPermission: true,
         requestBadgePermission: true,
         requestSoundPermission: true,
       );
 
-      const initSettings = InitializationSettings(
+      final initSettings = InitializationSettings( // Removido const
         android: androidSettings,
         iOS: iosSettings,
       );
@@ -72,7 +72,7 @@ class NotificationService {
     }
 
     try {
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails( // Removido const
         'task_reminders',
         'Lembretes de Tarefas',
         channelDescription: 'Notificações para lembretes de tarefas',
@@ -86,13 +86,13 @@ class NotificationService {
         ledOffMs: 500,
       );
 
-      const iosDetails = DarwinNotificationDetails(
+      final iosDetails = DarwinNotificationDetails( // Removido const
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
       );
 
-      const notificationDetails = NotificationDetails(
+      final notificationDetails = NotificationDetails( // Removido const
         android: androidDetails,
         iOS: iosDetails,
       );
@@ -151,7 +151,7 @@ class NotificationService {
     }
 
     try {
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails( // Removido const
         'immediate_notifications',
         'Notificações Imediatas',
         channelDescription: 'Notificações que aparecem imediatamente',
@@ -160,13 +160,13 @@ class NotificationService {
         icon: '@mipmap/ic_launcher',
       );
 
-      const iosDetails = DarwinNotificationDetails(
+      final iosDetails = DarwinNotificationDetails( // Removido const
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
       );
 
-      const notificationDetails = NotificationDetails(
+      final notificationDetails = NotificationDetails( // Removido const
         android: androidDetails,
         iOS: iosDetails,
       );
