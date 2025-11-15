@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:timezone/data/latest.dart' as tz; // Adicionado import estático
+import 'package:timezone/data/latest.dart' as tz;
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -17,8 +17,8 @@ import 'providers/theme_provider.dart';
 import 'firebase_options.dart';
 
 // Imports condicionais - só carrega no mobile
-import 'services/push_notification_service.dart' if (dart.library.html) 'services/push_notification_service.dart';
-import 'services/reminder_scheduler_service.dart' if (dart.library.html) 'services/reminder_scheduler_service.dart';
+import 'services/push_notification_service.dart' if (dart.library.html) 'services/push_notification_service_stub.dart';
+import 'services/reminder_scheduler_service.dart' if (dart.library.html) 'services/reminder_scheduler_service_stub.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +31,7 @@ void main() async {
   // Inicializar timezone apenas no mobile
   if (!kIsWeb) {
     try {
-      tz.initializeTimeZones(); // Corrigido para chamada estática
+      tz.initializeTimeZones();
     } catch (e) {
       print('⚠️ Timezone não disponível na web');
     }
@@ -111,7 +111,9 @@ class MyApp extends StatelessWidget {
     // Só inicializa notificações no mobile
     if (!kIsWeb) {
       try {
-        PushNotificationService().initialize(userId);
+        // CORRIGIDO: initialize() não aceita parâmetros
+        PushNotificationService().initialize();
+        // CORRIGIDO: initialize() aceita userId
         ReminderSchedulerService().initialize(userId);
         print('✅ Serviços de notificações inicializados');
       } catch (e) {
