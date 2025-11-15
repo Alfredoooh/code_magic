@@ -1,4 +1,4 @@
-// lib/services/push_notification_service.dart
+// lib/services/push_notification_service.dart (versão corrigida, sem const em expressões não-const)
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
@@ -53,14 +53,14 @@ class PushNotificationService {
       }
 
       // Configurar notificações locais
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings(
+      final androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher'); // Removido const
+      final iosSettings = DarwinInitializationSettings( // Removido const
         requestAlertPermission: false,
         requestBadgePermission: false,
         requestSoundPermission: false,
       );
 
-      const initSettings = InitializationSettings(
+      final initSettings = InitializationSettings( // Removido const
         android: androidSettings,
         iOS: iosSettings,
       );
@@ -119,7 +119,7 @@ class PushNotificationService {
 
   void _handleForegroundMessage(dynamic message) {
     if (kIsWeb) return;
-    
+
     print('📩 Mensagem recebida em foreground: ${message.messageId}');
     final notification = message.notification;
 
@@ -135,7 +135,7 @@ class PushNotificationService {
 
   void _handleMessageOpenedApp(dynamic message) {
     if (kIsWeb) return;
-    
+
     print('🔔 App aberto via notificação: ${message.messageId}');
     final data = message.data;
     if (data.containsKey('reminderId')) {
@@ -155,7 +155,7 @@ class PushNotificationService {
     }
 
     try {
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails( // Removido const
         'reminders_channel',
         'Lembretes',
         channelDescription: 'Canal para lembretes e tarefas',
@@ -171,13 +171,13 @@ class PushNotificationService {
         enableVibration: true,
       );
 
-      const iosDetails = DarwinNotificationDetails(
+      final iosDetails = DarwinNotificationDetails( // Removido const
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
       );
 
-      const details = NotificationDetails(
+      final details = NotificationDetails( // Removido const
         android: androidDetails,
         iOS: iosDetails,
       );
@@ -190,7 +190,7 @@ class PushNotificationService {
 
   void _onNotificationTapped(dynamic response) {
     if (kIsWeb) return;
-    
+
     print('🔔 Notificação tocada: ${response.payload}');
     if (response.payload != null) {
       try {
@@ -207,7 +207,7 @@ class PushNotificationService {
       print('⚠️ subscribeToTopic não disponível na web: $topic');
       return;
     }
-    
+
     try {
       await _messaging.subscribeToTopic(topic);
       print('✅ Inscrito no tópico: $topic');
@@ -221,7 +221,7 @@ class PushNotificationService {
       print('⚠️ unsubscribeFromTopic não disponível na web: $topic');
       return;
     }
-    
+
     try {
       await _messaging.unsubscribeFromTopic(topic);
       print('✅ Desinscrito do tópico: $topic');
