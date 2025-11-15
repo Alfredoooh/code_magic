@@ -1,13 +1,18 @@
 // lib/services/push_notification_service.dart
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 
-// Handler para mensagens em background
+// Imports condicionais - só carrega no mobile
+import 'package:firebase_messaging/firebase_messaging.dart' if (dart.library.html) 'push_notification_service_stub.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' if (dart.library.html) 'push_notification_service_stub.dart';
+
+// Handler para mensagens em background (só no mobile)
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('📩 Mensagem em background: ${message.messageId}');
+Future<void> _firebaseMessagingBackgroundHandler(dynamic message) async {
+  if (!kIsWeb) {
+    print('📩 Mensagem em background: ${message.messageId}');
+  }
 }
 
 class PushNotificationService {
@@ -15,73 +20,85 @@ class PushNotificationService {
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = 
-      FlutterLocalNotificationsPlugin();
-
+  dynamic _messaging;
+  dynamic _localNotifications;
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
 
   Future<void> initialize(String userId) async {
-    // Solicitar permissões
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✅ Permissão de notificações concedida');
-    } else {
-      print('❌ Permissão de notificações negada');
+    if (kIsWeb) {
+      print('⚠️ Push notifications não disponíveis na web');
+      print('💡 Use a versão mobile para receber notificações push');
       return;
     }
 
-    // Configurar notificações locais
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
+    try {
+      // Inicializar FirebaseMessaging (só no mobile)
+      _messaging = FirebaseMessaging.instance;
+      _localNotifications = FlutterLocalNotificationsPlugin();
 
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+      // Solicitar permissões
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-    await _localNotifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('✅ Permissão de notificações concedida');
+      } else {
+        print('❌ Permissão de notificações negada');
+        return;
+      }
 
-    // Obter token FCM
-    _fcmToken = await _messaging.getToken();
-    if (_fcmToken != null) {
-      print('📱 FCM Token: $_fcmToken');
-      await _saveFCMToken(userId, _fcmToken!);
-    }
+      // Configurar notificações locais
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
 
-    // Listener para atualização de token
-    _messaging.onTokenRefresh.listen((newToken) {
-      _fcmToken = newToken;
-      _saveFCMToken(userId, newToken);
-    });
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
 
-    // Configurar handler de background
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      await _localNotifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
 
-    // Listener para mensagens em foreground
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // Obter token FCM
+      _fcmToken = await _messaging.getToken();
+      if (_fcmToken != null) {
+        print('📱 FCM Token: $_fcmToken');
+        await _saveFCMToken(userId, _fcmToken!);
+      }
 
-    // Listener para quando o app é aberto via notificação
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      // Listener para atualização de token
+      _messaging.onTokenRefresh.listen((newToken) {
+        _fcmToken = newToken;
+        _saveFCMToken(userId, newToken);
+      });
 
-    // Verificar se o app foi aberto via notificação
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleMessageOpenedApp(initialMessage);
+      // Configurar handler de background
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+      // Listener para mensagens em foreground
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+      // Listener para quando o app é aberto via notificação
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+
+      // Verificar se o app foi aberto via notificação
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleMessageOpenedApp(initialMessage);
+      }
+    } catch (e) {
+      print('❌ Erro ao inicializar push notifications: $e');
     }
   }
 
@@ -100,11 +117,11 @@ class PushNotificationService {
     }
   }
 
-  void _handleForegroundMessage(RemoteMessage message) {
-    print('📩 Mensagem recebida em foreground: ${message.messageId}');
+  void _handleForegroundMessage(dynamic message) {
+    if (kIsWeb) return;
     
+    print('📩 Mensagem recebida em foreground: ${message.messageId}');
     final notification = message.notification;
-    final android = message.notification?.android;
 
     if (notification != null) {
       _showLocalNotification(
@@ -116,12 +133,12 @@ class PushNotificationService {
     }
   }
 
-  void _handleMessageOpenedApp(RemoteMessage message) {
+  void _handleMessageOpenedApp(dynamic message) {
+    if (kIsWeb) return;
+    
     print('🔔 App aberto via notificação: ${message.messageId}');
-    // Implementar navegação específica baseada nos dados
     final data = message.data;
     if (data.containsKey('reminderId')) {
-      // Navegar para a tela do lembrete
       print('Navegar para lembrete: ${data['reminderId']}');
     }
   }
@@ -132,52 +149,84 @@ class PushNotificationService {
     required String body,
     String? payload,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'reminders_channel',
-      'Lembretes',
-      channelDescription: 'Canal para lembretes e tarefas',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      color: Color(0xFF1877F2),
-      enableLights: true,
-      ledColor: Color(0xFF1877F2),
-      ledOnMs: 1000,
-      ledOffMs: 500,
-      playSound: true,
-      enableVibration: true,
-    );
+    if (kIsWeb) {
+      print('⚠️ Notificação local não disponível na web: $title');
+      return;
+    }
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'reminders_channel',
+        'Lembretes',
+        channelDescription: 'Canal para lembretes e tarefas',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+        color: Color(0xFF1877F2),
+        enableLights: true,
+        ledColor: Color(0xFF1877F2),
+        ledOnMs: 1000,
+        ledOffMs: 500,
+        playSound: true,
+        enableVibration: true,
+      );
 
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
 
-    await _localNotifications.show(id, title, body, details, payload: payload);
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _localNotifications.show(id, title, body, details, payload: payload);
+    } catch (e) {
+      print('❌ Erro ao mostrar notificação: $e');
+    }
   }
 
-  void _onNotificationTapped(NotificationResponse response) {
+  void _onNotificationTapped(dynamic response) {
+    if (kIsWeb) return;
+    
     print('🔔 Notificação tocada: ${response.payload}');
     if (response.payload != null) {
-      final data = jsonDecode(response.payload!);
-      // Implementar navegação
-      print('Dados da notificação: $data');
+      try {
+        final data = jsonDecode(response.payload!);
+        print('Dados da notificação: $data');
+      } catch (e) {
+        print('Erro ao decodificar payload: $e');
+      }
     }
   }
 
   Future<void> subscribeToTopic(String topic) async {
-    await _messaging.subscribeToTopic(topic);
-    print('✅ Inscrito no tópico: $topic');
+    if (kIsWeb) {
+      print('⚠️ subscribeToTopic não disponível na web: $topic');
+      return;
+    }
+    
+    try {
+      await _messaging.subscribeToTopic(topic);
+      print('✅ Inscrito no tópico: $topic');
+    } catch (e) {
+      print('❌ Erro ao inscrever no tópico: $e');
+    }
   }
 
   Future<void> unsubscribeFromTopic(String topic) async {
-    await _messaging.unsubscribeFromTopic(topic);
-    print('✅ Desinscrito do tópico: $topic');
+    if (kIsWeb) {
+      print('⚠️ unsubscribeFromTopic não disponível na web: $topic');
+      return;
+    }
+    
+    try {
+      await _messaging.unsubscribeFromTopic(topic);
+      print('✅ Desinscrito do tópico: $topic');
+    } catch (e) {
+      print('❌ Erro ao desinscrever do tópico: $e');
+    }
   }
 }
