@@ -1,12 +1,15 @@
 // lib/screens/unified_editor_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/diary_service.dart';
 import '../services/task_service.dart';
 import '../services/note_service.dart';
-import '../services/notification_service.dart';
+// Conditional import: use stub on web to avoid flutter_local_notifications / platform issues
+import '../services/notification_service.dart'
+    if (dart.library.html) '../services/notification_service_stub.dart';
 import '../models/diary_entry_model.dart';
 import '../models/task_model.dart';
 import '../models/note_model.dart';
@@ -38,9 +41,10 @@ class UnifiedEditorScreen extends StatefulWidget {
 class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTickerProviderStateMixin {
   final DiaryService _diaryService = DiaryService();
   final TaskService _taskService = TaskService();
-  final NoteService _noteService = NoteService();
+  final NoteService _note_service = NoteService();
   final NotificationService _notificationService = NotificationService();
-  
+
+  // Controllers & keys
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _tagController = TextEditingController();
@@ -48,11 +52,11 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
   final GlobalKey<RichTextFieldState> _richTextKey = GlobalKey();
 
   late TabController _tabController;
-  
+
   // Diary
   DiaryMood _selectedMood = DiaryMood.happy;
   List<String> _tags = [];
-  
+
   // Task
   DateTime? _dueDate;
   TimeOfDay? _dueTime;
@@ -60,11 +64,11 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
   DateTime? _reminderDateTime;
   TaskPriority _priority = TaskPriority.medium;
   bool _isCompleted = false;
-  
+
   // Note
   String _noteCategory = 'Geral';
   bool _isPinned = false;
-  
+
   bool _isSaving = false;
   String _selectedFont = 'System';
 
@@ -76,7 +80,18 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     super.initState();
     _tabController = TabController(length: 1, vsync: this);
     _loadExistingData();
-    _notificationService.initialize();
+
+    // Initialize notification service only on mobile (avoid web runtime errors)
+    if (!kIsWeb) {
+      try {
+        _notificationService.initialize();
+      } catch (e) {
+        // Guard just in case the implementation throws on some platforms
+        debugPrint('⚠️ Falha ao inicializar NotificationService: $e');
+      }
+    } else {
+      debugPrint('ℹ️ NotificationService não inicializado no web (stub em uso).');
+    }
   }
 
   void _loadExistingData() {
@@ -464,9 +479,9 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     );
 
     if (widget.task == null) {
-      await _taskService.createTask(task);
+      await _task_service.createTask(task);
     } else {
-      await _taskService.updateTask(task);
+      await _task_service.updateTask(task);
     }
 
     if (_hasReminder && _reminderDateTime != null) {
@@ -488,9 +503,9 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     );
 
     if (widget.note == null) {
-      await _noteService.createNote(note);
+      await _note_service.createNote(note);
     } else {
-      await _noteService.updateNote(note);
+      await _note_service.updateNote(note);
     }
   }
 
@@ -498,7 +513,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     final isNew = (widget.editorType == EditorType.diary && widget.diaryEntry == null) ||
                   (widget.editorType == EditorType.task && widget.task == null) ||
                   (widget.editorType == EditorType.note && widget.note == null);
-    
+
     switch (widget.editorType) {
       case EditorType.diary:
         return isNew ? 'Entrada criada!' : 'Entrada atualizada!';
@@ -513,7 +528,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     final isNew = (widget.editorType == EditorType.diary && widget.diaryEntry == null) ||
                   (widget.editorType == EditorType.task && widget.task == null) ||
                   (widget.editorType == EditorType.note && widget.note == null);
-    
+
     switch (widget.editorType) {
       case EditorType.diary:
         return isNew ? 'Nova Entrada' : 'Editar Entrada';
@@ -616,21 +631,21 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
           children: [
             _buildTitleField(cardColor, textColor, secondaryColor, isDark),
             const SizedBox(height: 16),
-            
+
             if (widget.editorType == EditorType.diary)
               _buildMoodSelector(cardColor, textColor, secondaryColor, isDark),
-            
+
             if (widget.editorType == EditorType.task) ...[
               _buildTaskFields(cardColor, textColor, secondaryColor, isDark),
               const SizedBox(height: 16),
             ],
-            
+
             if (widget.editorType == EditorType.note)
               _buildNoteFields(cardColor, textColor, secondaryColor, isDark),
-            
+
             _buildContentField(cardColor, textColor, secondaryColor, isDark),
             const SizedBox(height: 16),
-            
+
             _buildTagsField(cardColor, textColor, secondaryColor, isDark),
           ],
         ),
@@ -790,7 +805,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
           ),
         ),
         const SizedBox(height: 16),
-        
+
         // Prioridade
         Container(
           padding: const EdgeInsets.all(20),
