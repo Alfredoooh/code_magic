@@ -1,4 +1,4 @@
-// lib/screens/unified_editor_screen.dart
+// lib/screens/unified_editor_screen.dart (versão corrigida, corrigido _task_service para _taskService)
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -41,7 +41,7 @@ class UnifiedEditorScreen extends StatefulWidget {
 class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTickerProviderStateMixin {
   final DiaryService _diaryService = DiaryService();
   final TaskService _taskService = TaskService();
-  final NoteService _note_service = NoteService();
+  final NoteService _noteService = NoteService(); // Corrigido para _noteService (padronizado)
   final NotificationService _notificationService = NotificationService();
 
   // Controllers & keys
@@ -479,9 +479,9 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     );
 
     if (widget.task == null) {
-      await _task_service.createTask(task);
+      await _taskService.createTask(task); // Corrigido _task_service para _taskService
     } else {
-      await _task_service.updateTask(task);
+      await _taskService.updateTask(task); // Corrigido
     }
 
     if (_hasReminder && _reminderDateTime != null) {
@@ -503,9 +503,9 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
     );
 
     if (widget.note == null) {
-      await _note_service.createNote(note);
+      await _noteService.createNote(note); // Corrigido para _noteService
     } else {
-      await _note_service.updateNote(note);
+      await _noteService.updateNote(note); // Corrigido
     }
   }
 
