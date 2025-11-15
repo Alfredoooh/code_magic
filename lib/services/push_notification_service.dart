@@ -84,7 +84,9 @@ class PushNotificationService {
       });
 
       // Configurar handler de background
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage((message) async {
+  await _firebaseMessagingBackgroundHandler(message);
+});
 
       // Listener para mensagens em foreground
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
