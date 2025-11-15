@@ -14,7 +14,7 @@ import 'users_screen.dart';
 import 'marketplace_screen.dart';
 import 'marketplace/add_book_screen.dart';
 import 'diary_screen.dart';
-import 'diary_editor_screen.dart';
+import 'unified_editor_screen.dart';
 import 'document_requests_screen.dart';
 import 'otp_verification_screen.dart';
 
@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DiaryEditorScreen(userId: authProvider.user!.uid),
+            builder: (context) => UnifiedEditorScreen(userId: authProvider.user!.uid),
           ),
         );
       }
