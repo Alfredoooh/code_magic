@@ -1,7 +1,10 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_icons.dart';
@@ -576,7 +579,7 @@ class SettingsScreen extends StatelessWidget {
           backgroundColor: cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Terminar sessão?',
+            'Terminar sessão e fechar app?',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -584,7 +587,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           content: Text(
-            'Tem certeza que deseja sair da sua conta?',
+            'Deseja sair da sua conta e fechar o aplicativo?',
             style: TextStyle(
               fontSize: 15,
               color: secondaryColor,
@@ -605,16 +608,31 @@ class SettingsScreen extends StatelessWidget {
             TextButton(
               onPressed: () async {
                 Navigator.pop(dialogContext);
+                
+                // Faz logout
                 await authProvider.signOut();
+                
                 if (context.mounted) {
+                  // Redireciona para login
                   Navigator.of(context).pushNamedAndRemoveUntil(
                     '/login',
                     (route) => false,
                   );
+                  
+                  // Aguarda um momento e fecha o app
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (kIsWeb) {
+                      // Na web, não podemos fechar a aba, mas podemos redirecionar
+                      // ou mostrar uma mensagem
+                    } else {
+                      // Em mobile, fecha o app
+                      SystemNavigator.pop();
+                    }
+                  });
                 }
               },
               child: const Text(
-                'Sair',
+                'OK',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
