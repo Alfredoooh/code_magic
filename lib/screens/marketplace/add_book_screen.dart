@@ -1,5 +1,6 @@
 // lib/screens/marketplace/add_book_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,10 +18,12 @@ class AddBookScreen extends StatefulWidget {
 
 class _AddBookScreenState extends State<AddBookScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
 
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _previewController = TextEditingController();
   final _digitalPriceController = TextEditingController();
   final _physicalPriceController = TextEditingController();
   final _pagesController = TextEditingController();
@@ -29,6 +32,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final _yearController = TextEditingController();
   final _isbnController = TextEditingController();
   final _languageController = TextEditingController(text: 'Português');
+  final _readLinkController = TextEditingController();
 
   String? _selectedCategory;
   String? _selectedFormat;
@@ -38,6 +42,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
   File? _coverImageFile;
   bool _useImageUrl = false;
   final _coverImageUrlController = TextEditingController();
+  double _rating = 0;
 
   final List<Map<String, String>> categories = [
     {'name': 'Investimentos', 'icon': CustomIcons.trendingUp},
@@ -51,21 +56,25 @@ class _AddBookScreenState extends State<AddBookScreen> {
     {'name': 'Biografias', 'icon': CustomIcons.userCircle},
     {'name': 'Estratégias', 'icon': CustomIcons.puzzle},
     {'name': 'Educação Financeira', 'icon': CustomIcons.academicCap},
+    {'name': 'Produtividade', 'icon': CustomIcons.chartBar},
+    {'name': 'Desenvolvimento Pessoal', 'icon': CustomIcons.userCircle},
+    {'name': 'Psicologia', 'icon': CustomIcons.lightBulb},
+    {'name': 'História', 'icon': CustomIcons.buildingLibrary},
+    {'name': 'Liderança', 'icon': CustomIcons.userCircle},
+    {'name': 'Educação', 'icon': CustomIcons.academicCap},
+    {'name': 'Tecnologia', 'icon': CustomIcons.chartLine},
+    {'name': 'Bem-estar', 'icon': CustomIcons.lightBulb},
+    {'name': 'Arte', 'icon': CustomIcons.lightBulb},
   ];
 
-  final List<String> formats = [
-    'PDF',
-    'EPUB',
-    'MOBI',
-    'Word (DOCX)',
-    'Texto (TXT)',
-  ];
+  final List<String> formats = ['PDF', 'EPUB', 'MOBI', 'Word (DOCX)', 'Texto (TXT)'];
 
   @override
   void dispose() {
     _titleController.dispose();
     _authorController.dispose();
     _descriptionController.dispose();
+    _previewController.dispose();
     _digitalPriceController.dispose();
     _physicalPriceController.dispose();
     _pagesController.dispose();
@@ -75,6 +84,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
     _isbnController.dispose();
     _languageController.dispose();
     _coverImageUrlController.dispose();
+    _readLinkController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -104,7 +115,15 @@ class _AddBookScreenState extends State<AddBookScreen> {
   }
 
   Future<void> _saveBook() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Scroll para o primeiro erro
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
 
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,20 +145,18 @@ class _AddBookScreenState extends State<AddBookScreen> {
       final authProvider = context.read<AuthProvider>();
       final userData = authProvider.userData;
 
-      // Preparar URL da imagem
       String? coverImageUrl;
       if (_useImageUrl && _coverImageUrlController.text.trim().isNotEmpty) {
         coverImageUrl = _coverImageUrlController.text.trim();
       } else if (_coverImageFile != null) {
-        // Aqui você pode implementar upload para Firebase Storage
-        // Por enquanto, vamos apenas indicar que tem imagem
-        coverImageUrl = 'pending_upload'; // Placeholder
+        coverImageUrl = 'pending_upload';
       }
 
       final bookData = {
         'title': _titleController.text.trim(),
         'author': _authorController.text.trim(),
         'description': _descriptionController.text.trim(),
+        'preview': _previewController.text.trim(),
         'category': _selectedCategory,
         'digitalFormat': _selectedFormat,
         'digitalPrice': _isFree ? 0 : (double.tryParse(_digitalPriceController.text.trim()) ?? 0),
@@ -149,34 +166,42 @@ class _AddBookScreenState extends State<AddBookScreen> {
         'pages': int.tryParse(_pagesController.text.trim()),
         'weight': _weightController.text.trim(),
         'publisher': _publisherController.text.trim(),
-        'publicationYear': _yearController.text.trim(),
+        'publishedDate': _yearController.text.trim(),
         'isbn': _isbnController.text.trim(),
         'language': _languageController.text.trim(),
         'coverImageURL': coverImageUrl,
+        'readLink': _readLinkController.text.trim(),
+        'rating': _rating > 0 ? _rating : null,
         'sellerId': authProvider.user?.uid,
         'sellerName': userData?['name'] ?? 'Vendedor',
         'sellerEmail': userData?['email'],
+        'format': [_selectedFormat, if (_hasPhysicalVersion) 'Físico'],
+        'inStock': _hasPhysicalVersion,
         'createdAt': FieldValue.serverTimestamp(),
         'status': 'pending',
         'views': 0,
         'favorites': 0,
       };
 
-      await FirebaseFirestore.instance.collection('marketplace_books').add(bookData);
+      await FirebaseFirestore.instance.collection('books').add(bookData);
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Livro adicionado com sucesso!'),
+            content: Text('✅ Livro adicionado com sucesso!'),
             backgroundColor: Color(0xFF31A24C),
+            duration: Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao adicionar livro: $e')),
+          SnackBar(
+            content: Text('Erro ao adicionar livro: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -199,46 +224,55 @@ class _AddBookScreenState extends State<AddBookScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header customizado
+            // Header
             Container(
               color: cardColor,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               child: Row(
                 children: [
                   IconButton(
-                    icon: SvgIcon(
-                      svgString: CustomIcons.arrowLeft,
-                      color: textColor,
-                      size: 24,
+                    icon: SvgPicture.string(
+                      CustomIcons.arrowLeft,
+                      width: 24,
+                      height: 24,
+                      colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  Text(
-                    'Adicionar Livro',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _isLoading ? null : _saveBook,
+                  Expanded(
                     child: Text(
-                      'Publicar',
+                      'Adicionar Livro',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _isLoading ? hintColor : const Color(0xFF1877F2),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
                       ),
                     ),
                   ),
+                  if (_isLoading)
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    TextButton(
+                      onPressed: _saveBook,
+                      child: const Text(
+                        'Publicar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1877F2),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
             Container(
-              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-              height: 0.5,
+              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFE5E5E5),
+              height: 1,
             ),
 
             // Conteúdo
@@ -246,40 +280,36 @@ class _AddBookScreenState extends State<AddBookScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // Capa do livro
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    // Capa
+                    _buildSection(
+                      'Capa do Livro',
+                      cardColor,
+                      textColor,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Capa do Livro',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
                           Center(
                             child: GestureDetector(
                               onTap: _pickCoverImage,
                               child: Container(
-                                width: 150,
-                                height: 220,
+                                width: 160,
+                                height: 240,
                                 decoration: BoxDecoration(
                                   color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: const Color(0xFF1877F2).withOpacity(0.3),
                                     width: 2,
                                   ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                   image: _coverImageFile != null
                                       ? DecorationImage(
                                           image: FileImage(_coverImageFile!),
@@ -296,16 +326,20 @@ class _AddBookScreenState extends State<AddBookScreen> {
                                     ? Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          SvgIcon(
-                                            svgString: CustomIcons.photo,
-                                            color: const Color(0xFF1877F2),
-                                            size: 48,
+                                          SvgPicture.string(
+                                            CustomIcons.photo,
+                                            width: 48,
+                                            height: 48,
+                                            colorFilter: const ColorFilter.mode(
+                                              Color(0xFF1877F2),
+                                              BlendMode.srcIn,
+                                            ),
                                           ),
                                           const SizedBox(height: 12),
                                           Text(
                                             'Adicionar Capa',
                                             style: TextStyle(
-                                              fontSize: 14,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.w600,
                                               color: textColor,
                                             ),
@@ -314,7 +348,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                                           Text(
                                             'Toque para selecionar',
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 13,
                                               color: hintColor,
                                             ),
                                           ),
@@ -324,194 +358,145 @@ class _AddBookScreenState extends State<AddBookScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           Row(
                             children: [
-                              Expanded(
-                                child: Container(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
-                              ),
+                              Expanded(child: Divider(color: hintColor.withOpacity(0.3))),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Text(
-                                  'ou',
-                                  style: TextStyle(fontSize: 12, color: hintColor),
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text('ou', style: TextStyle(fontSize: 13, color: hintColor)),
                               ),
-                              Expanded(
-                                child: Container(height: 1, color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
-                              ),
+                              Expanded(child: Divider(color: hintColor.withOpacity(0.3))),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _coverImageUrlController,
-                                  style: TextStyle(color: textColor, fontSize: 14),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _useImageUrl = value.isNotEmpty;
-                                      if (value.isNotEmpty) _coverImageFile = null;
-                                    });
-                                  },
-                                  decoration: InputDecoration(
-                                    hintText: 'Cole URL da imagem',
-                                    hintStyle: TextStyle(color: hintColor, fontSize: 13),
-                                    filled: true,
-                                    fillColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                    prefixIcon: Icon(Icons.link, size: 20, color: hintColor),
-                                  ),
-                                ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _coverImageUrlController,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            onChanged: (value) {
+                              setState(() {
+                                _useImageUrl = value.isNotEmpty;
+                                if (value.isNotEmpty) _coverImageFile = null;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Cole URL da capa',
+                              hintStyle: TextStyle(color: hintColor, fontSize: 14),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
                               ),
-                            ],
+                              prefixIcon: Icon(Icons.link, color: hintColor, size: 20),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Informações básicas
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    // Informações Básicas
+                    _buildSection(
+                      'Informações Básicas',
+                      cardColor,
+                      textColor,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Informações Básicas',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
+                          _buildTextField('Título do Livro *', _titleController, textColor, hintColor, isDark, required: true),
                           const SizedBox(height: 16),
-                          _buildTextField('Título do Livro', _titleController, textColor, hintColor, isDark, required: true),
+                          _buildTextField('Autor *', _authorController, textColor, hintColor, isDark, required: true),
                           const SizedBox(height: 16),
-                          _buildTextField('Autor', _authorController, textColor, hintColor, isDark, required: true),
+                          _buildTextField('Descrição *', _descriptionController, textColor, hintColor, isDark, maxLines: 4, required: true),
                           const SizedBox(height: 16),
-                          _buildTextField('Descrição', _descriptionController, textColor, hintColor, isDark, maxLines: 4, required: true),
+                          _buildTextField('Prévia do Livro', _previewController, textColor, hintColor, isDark, maxLines: 6, 
+                            hint: 'Adicione um trecho do livro para despertar interesse...'),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     // Categoria
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Categoria',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: categories.map((category) {
-                              final isSelected = _selectedCategory == category['name'];
-                              return GestureDetector(
-                                onTap: () => setState(() => _selectedCategory = category['name']),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: isSelected 
-                                        ? const Color(0xFF1877F2) 
-                                        : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isSelected 
-                                          ? const Color(0xFF1877F2) 
-                                          : (isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA)),
-                                      width: 1.5,
+                    _buildSection(
+                      'Categoria *',
+                      cardColor,
+                      textColor,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: categories.map((category) {
+                          final isSelected = _selectedCategory == category['name'];
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedCategory = category['name']),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected 
+                                    ? const Color(0xFF1877F2) 
+                                    : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5)),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isSelected 
+                                      ? const Color(0xFF1877F2) 
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SvgPicture.string(
+                                    category['icon']!,
+                                    width: 16,
+                                    height: 16,
+                                    colorFilter: ColorFilter.mode(
+                                      isSelected ? Colors.white : const Color(0xFF1877F2),
+                                      BlendMode.srcIn,
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      SvgIcon(
-                                        svgString: category['icon']!,
-                                        color: isSelected ? Colors.white : const Color(0xFF1877F2),
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        category['name']!,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: isSelected ? Colors.white : textColor,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    category['name']!,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected ? Colors.white : textColor,
+                                    ),
                                   ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     // Formato e Preço
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    _buildSection(
+                      'Formato e Preço',
+                      cardColor,
+                      textColor,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Formato e Preço',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
                             value: _selectedFormat,
                             dropdownColor: cardColor,
                             style: TextStyle(color: textColor, fontSize: 15),
                             decoration: InputDecoration(
-                              labelText: 'Formato Digital',
+                              labelText: 'Formato Digital *',
                               labelStyle: TextStyle(color: hintColor),
                               filled: true,
                               fillColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide.none,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
                             items: formats.map((format) {
-                              return DropdownMenuItem(
-                                value: format,
-                                child: Text(format),
-                              );
+                              return DropdownMenuItem(value: format, child: Text(format));
                             }).toList(),
                             onChanged: (value) => setState(() => _selectedFormat = value),
                           ),
@@ -519,19 +504,9 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           SwitchListTile(
                             title: Row(
                               children: [
-                                SvgIcon(
-                                  svgString: CustomIcons.gift,
-                                  color: _isFree ? const Color(0xFF31A24C) : hintColor,
-                                  size: 20,
-                                ),
+                                Icon(Icons.card_giftcard, color: _isFree ? const Color(0xFF31A24C) : hintColor, size: 20),
                                 const SizedBox(width: 12),
-                                Text(
-                                  'Livro Grátis',
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                Text('Livro Grátis', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
                               ],
                             ),
                             value: _isFree,
@@ -541,32 +516,23 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           ),
                           if (!_isFree) ...[
                             const SizedBox(height: 16),
-                            _buildTextField('Preço Digital (Kz)', _digitalPriceController, textColor, hintColor, isDark, 
-                              keyboardType: TextInputType.number, required: true, prefix: 'Kz'),
+                            _buildTextField('Preço Digital (Kz) *', _digitalPriceController, textColor, hintColor, isDark, 
+                              keyboardType: TextInputType.number, required: true, prefix: 'Kz '),
                           ],
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Versão física
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    // Versão Física
+                    _buildSection(
+                      'Versão Física',
+                      cardColor,
+                      textColor,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SwitchListTile(
-                            title: Text(
-                              'Possui versão física',
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            title: Text('Possui versão física', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
                             value: _hasPhysicalVersion,
                             activeColor: const Color(0xFF1877F2),
                             contentPadding: EdgeInsets.zero,
@@ -575,7 +541,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           if (_hasPhysicalVersion) ...[
                             const SizedBox(height: 16),
                             _buildTextField('Preço Físico (Kz)', _physicalPriceController, textColor, hintColor, isDark, 
-                              keyboardType: TextInputType.number, prefix: 'Kz'),
+                              keyboardType: TextInputType.number, prefix: 'Kz '),
                             const SizedBox(height: 16),
                             _buildTextField('Peso (ex: 500g)', _weightController, textColor, hintColor, isDark),
                           ],
@@ -584,36 +550,51 @@ class _AddBookScreenState extends State<AddBookScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Detalhes adicionais
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    // Avaliação
+                    _buildSection(
+                      'Avaliação do Livro',
+                      cardColor,
+                      textColor,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Detalhes Adicionais',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(5, (index) {
+                              return GestureDetector(
+                                onTap: () => setState(() => _rating = index + 1.0),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Icon(
+                                    index < _rating ? Icons.star : Icons.star_border,
+                                    color: const Color(0xFFFFB800),
+                                    size: 36,
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
+                          Text(
+                            _rating > 0 ? '${_rating.toStringAsFixed(1)} estrelas' : 'Toque para avaliar',
+                            style: TextStyle(fontSize: 14, color: hintColor, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Detalhes Adicionais
+                    _buildSection(
+                      'Detalhes Adicionais',
+                      cardColor,
+                      textColor,
+                      child: Column(
+                        children: [
                           Row(
                             children: [
-                              Expanded(
-                                child: _buildTextField('Páginas', _pagesController, textColor, hintColor, isDark, 
-                                  keyboardType: TextInputType.number),
-                              ),
+                              Expanded(child: _buildTextField('Páginas', _pagesController, textColor, hintColor, isDark, keyboardType: TextInputType.number)),
                               const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildTextField('Ano', _yearController, textColor, hintColor, isDark, 
-                                  keyboardType: TextInputType.number),
-                              ),
+                              Expanded(child: _buildTextField('Ano', _yearController, textColor, hintColor, isDark, keyboardType: TextInputType.number)),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -622,20 +603,23 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           _buildTextField('ISBN', _isbnController, textColor, hintColor, isDark),
                           const SizedBox(height: 16),
                           _buildTextField('Idioma', _languageController, textColor, hintColor, isDark),
+                          const SizedBox(height: 16),
+                          _buildTextField('Link de Leitura', _readLinkController, textColor, hintColor, isDark, 
+                            hint: 'URL para ler o livro online (opcional)'),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Info sobre WhatsApp
+                    // Info
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1877F2).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: const Color(0xFF1877F2).withOpacity(0.3),
-                          width: 1,
+                          width: 1.5,
                         ),
                       ),
                       child: Row(
@@ -645,23 +629,51 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           Expanded(
                             child: Text(
                               'Após publicar, envie o arquivo do livro para nosso WhatsApp e receberá o link de download automaticamente.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: textColor,
-                                height: 1.4,
-                              ),
+                              style: TextStyle(fontSize: 13, color: textColor, height: 1.5),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, Color cardColor, Color textColor, {required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }
@@ -676,6 +688,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
     TextInputType? keyboardType,
     bool required = false,
     String? prefix,
+    String? hint,
   }) {
     return TextFormField(
       controller: controller,
@@ -685,23 +698,25 @@ class _AddBookScreenState extends State<AddBookScreen> {
       validator: required
           ? (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Este campo é obrigatório';
+                return 'Campo obrigatório';
               }
               return null;
             }
           : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: hintColor),
+        labelStyle: TextStyle(color: hintColor, fontSize: 14),
+        hintText: hint,
+        hintStyle: TextStyle(color: hintColor.withOpacity(0.7), fontSize: 13),
         prefixText: prefix,
         prefixStyle: TextStyle(color: textColor, fontWeight: FontWeight.w600),
         filled: true,
         fillColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
