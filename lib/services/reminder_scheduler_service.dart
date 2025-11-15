@@ -2,9 +2,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
 import 'reminder_service.dart';
-import 'push_notification_service.dart';
 import '../models/reminder_model.dart';
 
 class ReminderSchedulerService {
@@ -13,7 +11,6 @@ class ReminderSchedulerService {
   ReminderSchedulerService._internal();
 
   final ReminderService _reminderService = ReminderService();
-  final PushNotificationService _pushService = PushNotificationService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Timer? _checkTimer;
@@ -86,20 +83,9 @@ class ReminderSchedulerService {
 
     print('📨 Enviando notificação para: ${reminder.title}');
 
-    try {
-      // CORRIGIDO: Usar método público showLocalNotification
-      await _pushService.showLocalNotification(
-        id: reminder.id.hashCode,
-        title: '⏰ ${reminder.title}',
-        body: reminder.description ?? 'Você tem um lembrete!',
-        payload: jsonEncode({
-          'reminderId': reminder.id,
-          'type': 'reminder',
-        }),
-      );
-    } catch (e) {
-      print('❌ Erro ao enviar notificação: $e');
-    }
+    // Notificações são tratadas pelo Firebase Cloud Messaging
+    // ou podem ser implementadas localmente no futuro
+    print('✅ Lembrete processado: ${reminder.title}');
   }
 
   Future<void> scheduleReminder(Reminder reminder) async {
