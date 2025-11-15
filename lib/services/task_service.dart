@@ -1,4 +1,4 @@
-// lib/services/task_service.dart - VERSÃO ATUALIZADA COM LEMBRETES
+// lib/services/task_service.dart (versão corrigida)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import '../models/reminder_model.dart';
@@ -76,7 +76,7 @@ class TaskService {
     // Atualizar ou criar lembrete
     if (task.hasReminder && task.reminderDateTime != null) {
       final existingReminder = await _reminderService.getReminderByTaskId(task.id);
-      
+
       if (existingReminder != null) {
         // Atualizar lembrete existente
         final updatedReminder = existingReminder.copyWith(
@@ -98,7 +98,7 @@ class TaskService {
   Future<void> deleteTask(String taskId) async {
     // Deletar lembrete associado
     await _reminderService.deleteReminderByTaskId(taskId);
-    
+
     // Deletar tarefa
     await _firestore.collection('tasks').doc(taskId).delete();
     print('✅ Tarefa deletada: $taskId');
@@ -135,10 +135,22 @@ class TaskService {
     );
 
     final reminderId = await _reminderService.createReminder(reminder);
-    
-    // Agendar notificação
+
+    // Agendar notificação (corrigido sem copyWith para id)
     await _schedulerService.scheduleReminder(
-      reminder.copyWith(id: reminderId) as Reminder,
+      Reminder(
+        id: reminderId,
+        userId: reminder.userId,
+        title: reminder.title,
+        description: reminder.description,
+        scheduledDateTime: reminder.scheduledDateTime,
+        type: reminder.type,
+        linkedTaskId: reminder.linkedTaskId,
+        createdAt: reminder.createdAt,
+        updatedAt: reminder.updatedAt,
+        isCompleted: false, // Assumindo default
+        notificationSent: false, // Assumindo default
+      ),
     );
   }
 }
