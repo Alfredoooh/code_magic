@@ -1,8 +1,9 @@
-// lib/main.dart
+// lib/main.dart (versão corrigida)
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:timezone/data/latest.dart' as tz; // Adicionado import estático
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -30,9 +31,7 @@ void main() async {
   // Inicializar timezone apenas no mobile
   if (!kIsWeb) {
     try {
-      // Import dinâmico para evitar erro no web
-      final tz = await import('package:timezone/data/latest.dart');
-      tz.initializeTimeZones();
+      tz.initializeTimeZones(); // Corrigido para chamada estática
     } catch (e) {
       print('⚠️ Timezone não disponível na web');
     }
