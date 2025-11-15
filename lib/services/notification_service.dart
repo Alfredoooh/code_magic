@@ -1,5 +1,8 @@
 // lib/services/notification_service.dart
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+// Imports condicionais
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' if (dart.library.html) 'notification_service_stub.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -8,42 +11,51 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = 
-      FlutterLocalNotificationsPlugin();
+  dynamic _notifications;
 
   Future<void> initialize() async {
-    tz.initializeTimeZones();
+    if (kIsWeb) {
+      print('⚠️ Notificações locais não disponíveis na web');
+      return;
+    }
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    try {
+      _notifications = FlutterLocalNotificationsPlugin();
+      tz.initializeTimeZones();
 
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
-    await _notifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
 
-    // Solicitar permissões no iOS
-    await _notifications
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+      await _notifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+
+      // Solicitar permissões no iOS
+      await _notifications
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    } catch (e) {
+      print('❌ Erro ao inicializar notificações: $e');
+    }
   }
 
-  void _onNotificationTapped(NotificationResponse response) {
-    // Implementar navegação quando a notificação for tocada
+  void _onNotificationTapped(dynamic response) {
+    if (kIsWeb) return;
     print('Notificação tocada: ${response.payload}');
   }
 
@@ -54,50 +66,77 @@ class NotificationService {
     required DateTime scheduledDate,
     String? payload,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'task_reminders',
-      'Lembretes de Tarefas',
-      channelDescription: 'Notificações para lembretes de tarefas',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      color: Color(0xFF1877F2),
-      enableLights: true,
-      ledColor: Color(0xFF1877F2),
-      ledOnMs: 1000,
-      ledOffMs: 500,
-    );
+    if (kIsWeb) {
+      print('⚠️ scheduleNotification não disponível na web: $title');
+      return;
+    }
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'task_reminders',
+        'Lembretes de Tarefas',
+        channelDescription: 'Notificações para lembretes de tarefas',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+        color: Color(0xFF1877F2),
+        enableLights: true,
+        ledColor: Color(0xFF1877F2),
+        ledOnMs: 1000,
+        ledOffMs: 500,
+      );
 
-    const notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
 
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload,
-    );
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledDate, tz.local),
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+    } catch (e) {
+      print('❌ Erro ao agendar notificação: $e');
+    }
   }
 
   Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
+    if (kIsWeb) {
+      print('⚠️ cancelNotification não disponível na web: $id');
+      return;
+    }
+
+    try {
+      await _notifications.cancel(id);
+    } catch (e) {
+      print('❌ Erro ao cancelar notificação: $e');
+    }
   }
 
   Future<void> cancelAllNotifications() async {
-    await _notifications.cancelAll();
+    if (kIsWeb) {
+      print('⚠️ cancelAllNotifications não disponível na web');
+      return;
+    }
+
+    try {
+      await _notifications.cancelAll();
+    } catch (e) {
+      print('❌ Erro ao cancelar todas notificações: $e');
+    }
   }
 
   Future<void> showImmediateNotification({
@@ -106,32 +145,41 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'immediate_notifications',
-      'Notificações Imediatas',
-      channelDescription: 'Notificações que aparecem imediatamente',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
+    if (kIsWeb) {
+      print('⚠️ showImmediateNotification não disponível na web: $title');
+      return;
+    }
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'immediate_notifications',
+        'Notificações Imediatas',
+        channelDescription: 'Notificações que aparecem imediatamente',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
 
-    const notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
 
-    await _notifications.show(
-      id,
-      title,
-      body,
-      notificationDetails,
-      payload: payload,
-    );
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.show(
+        id,
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+    } catch (e) {
+      print('❌ Erro ao mostrar notificação imediata: $e');
+    }
   }
 }
