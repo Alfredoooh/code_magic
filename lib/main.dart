@@ -1,7 +1,8 @@
+// lib/main.dart
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:timezone/data/latest.dart' as tz;
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -12,21 +13,31 @@ import 'screens/search_screen.dart';
 import 'screens/otp_verification_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'services/push_notification_service.dart';
-import 'services/reminder_scheduler_service.dart';
 import 'firebase_options.dart';
+
+// Imports condicionais - só carrega no mobile
+import 'services/push_notification_service.dart' if (dart.library.html) 'services/push_notification_service_web.dart';
+import 'services/reminder_scheduler_service.dart' if (dart.library.html) 'services/reminder_scheduler_service_web.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Inicializar Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
-  // Inicializar timezone para notificações locais
-  tz.initializeTimeZones();
-  
+
+  // Inicializar timezone apenas no mobile
+  if (!kIsWeb) {
+    try {
+      // Import dinâmico para evitar erro no web
+      final tz = await import('package:timezone/data/latest.dart');
+      tz.initializeTimeZones();
+    } catch (e) {
+      print('⚠️ Timezone não disponível na web');
+    }
+  }
+
   runApp(const MyApp());
 }
 
@@ -42,11 +53,11 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
-          // Inicializar serviços quando usuário faz login
-          if (authProvider.isAuthenticated && authProvider.user != null) {
+          // Inicializar serviços apenas no mobile
+          if (!kIsWeb && authProvider.isAuthenticated && authProvider.user != null) {
             _initializeUserServices(authProvider.user!.uid);
           }
-          
+
           return MaterialApp(
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
@@ -98,17 +109,19 @@ class MyApp extends StatelessWidget {
   }
 
   void _initializeUserServices(String userId) {
-    // Inicializar push notifications
-    PushNotificationService().initialize(userId);
-    
-    // Inicializar scheduler de lembretes
-    ReminderSchedulerService().initialize(userId);
-    
-    print('✅ Serviços de notificações e lembretes inicializados para o usuário: $userId');
+    // Só inicializa notificações no mobile
+    if (!kIsWeb) {
+      try {
+        PushNotificationService().initialize(userId);
+        ReminderSchedulerService().initialize(userId);
+        print('✅ Serviços de notificações inicializados');
+      } catch (e) {
+        print('⚠️ Erro ao inicializar serviços: $e');
+      }
+    }
   }
 }
 
-// Widget que decide qual tela mostrar baseado no estado de autenticação
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -116,22 +129,18 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    // Aguarda a inicialização - mostra splash
     if (!authProvider.isInitialized) {
       return const SplashScreen();
     }
 
-    // Se não está autenticado, vai para login
     if (!authProvider.isAuthenticated) {
       return const LoginScreen();
     }
 
-    // Se está autenticado mas precisa verificar OTP, vai para OTP
     if (authProvider.needsOTPVerification) {
       return const OTPVerificationScreen();
     }
 
-    // Se está tudo OK, vai para home
     return const HomeScreen();
   }
 }
