@@ -111,12 +111,12 @@ class _UsersScreenState extends State<UsersScreen> {
 
           // Filtrar chats válidos e ordenar por lastMessageTime
           final validChats = <Map<String, dynamic>>[];
-          
+
           for (var chatDoc in chats) {
             try {
               final chatData = chatDoc.data() as Map<String, dynamic>?;
               if (chatData == null) continue;
-              
+
               validChats.add({
                 'doc': chatDoc,
                 'data': chatData,
@@ -250,7 +250,7 @@ class _UsersScreenState extends State<UsersScreen> {
                             radius: 28,
                             backgroundColor: const Color(0xFF1877F2),
                             backgroundImage: photoBase64 != null && photoBase64 is String
-                                ? MemoryImage(base64Decode(photoBase64))
+                               ? MemoryImage(base64Decode(photoBase64)) as ImageProvider
                                 : (photoURL != null && photoURL is String
                                     ? NetworkImage(photoURL)
                                     : null),
