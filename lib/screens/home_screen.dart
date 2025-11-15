@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -73,8 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _showNewPostModal(context);
     } else if (_currentIndex == 2) {
       // Marketplace - adicionar livro
-      final bool canAddBook = authProvider.userData?['isPro'] == true || 
-                              authProvider.userData?['isPremium'] == true;
+      final bool canAddBook = authProvider.userData?['isPro'] == true ||
+          authProvider.userData?['isPremium'] == true;
 
       if (canAddBook) {
         Navigator.push(
@@ -92,7 +91,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => UnifiedEditorScreen(userId: authProvider.user!.uid),
+            builder: (context) => UnifiedEditorScreen(
+              userId: authProvider.user!.uid,
+              editorType: 'default', // adicionado para satisfazer o construtor
+            ),
           ),
         );
       }
@@ -420,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   border: Border.all(color: topBorderColor, width: 0.5),
                   boxShadow: [
                     BoxShadow(
-                      color: isDark 
+                      color: isDark
                           ? Colors.black.withOpacity(0.3)
                           : Colors.black.withOpacity(0.08),
                       blurRadius: 12,
