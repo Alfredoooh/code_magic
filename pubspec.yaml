@@ -23,6 +23,7 @@ dependencies:
   cloud_firestore: any
   firebase_database: any
   cloud_functions: any
+  firebase_messaging: any
 
   # State Management
   provider: any
