@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:timezone/data/latest.dart' as tz;
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -16,10 +15,6 @@ import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'firebase_options.dart';
 
-// Imports condicionais - só carrega no mobile
-import 'services/push_notification_service.dart' if (dart.library.html) 'services/push_notification_service_stub.dart';
-import 'services/reminder_scheduler_service.dart' if (dart.library.html) 'services/reminder_scheduler_service_stub.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -27,15 +22,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Inicializar timezone apenas no mobile
-  if (!kIsWeb) {
-    try {
-      tz.initializeTimeZones();
-    } catch (e) {
-      print('⚠️ Timezone não disponível na web');
-    }
-  }
 
   runApp(const MyApp());
 }
@@ -52,10 +38,8 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
-          // Inicializar serviços apenas no mobile
-          if (!kIsWeb && authProvider.isAuthenticated && authProvider.user != null) {
-            _initializeUserServices(authProvider.user!.uid);
-          }
+          // Serviços são inicializados dentro dos próprios serviços quando necessário
+          // Não precisa inicializar aqui no main
 
           return MaterialApp(
             title: 'PrinterLite',
@@ -105,21 +89,6 @@ class MyApp extends StatelessWidget {
         },
       ),
     );
-  }
-
-  void _initializeUserServices(String userId) {
-    // Só inicializa notificações no mobile
-    if (!kIsWeb) {
-      try {
-        // CORRIGIDO: initialize() não aceita parâmetros
-        PushNotificationService().initialize();
-        // CORRIGIDO: initialize() aceita userId
-        ReminderSchedulerService().initialize(userId);
-        print('✅ Serviços de notificações inicializados');
-      } catch (e) {
-        print('⚠️ Erro ao inicializar serviços: $e');
-      }
-    }
   }
 }
 
