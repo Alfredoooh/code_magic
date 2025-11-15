@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/custom_icons.dart';
 import 'marketplace/book_details_screen.dart';
+import 'marketplace/all_books_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -13,15 +16,17 @@ class MarketplaceScreen extends StatefulWidget {
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
 
-class _MarketplaceScreenState extends State<MarketplaceScreen> {
+class _MarketplaceScreenState extends State<MarketplaceScreen> with AutomaticKeepAliveClientMixin {
   String selectedCategory = 'Todos';
   List<Map<String, dynamic>> allBooks = [];
   bool isLoading = true;
-  bool isLoadingMore = false;
   String? error;
   int _currentFile = 1;
   bool _hasMoreBooks = true;
   final ScrollController _scrollController = ScrollController();
+
+  // Seed para randomização baseado no usuário
+  int _userSeed = 0;
 
   static const String _apiBaseUrl = 'https://raw.githubusercontent.com/Alfredoooh/data-server/main/public';
 
@@ -45,7 +50,32 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     'Educação': CustomIcons.academicCap,
     'Tecnologia': CustomIcons.chartLine,
     'Bem-estar': CustomIcons.lightBulb,
+    'Arte': CustomIcons.lightBulb,
   };
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSeed();
+    _fetchAllBooks();
+  }
+
+  void _initializeSeed() {
+    final auth = context.read<AuthProvider>();
+    final userId = auth.user?.uid ?? '';
+    // Seed único por usuário + dia do ano (muda diariamente)
+    final dayOfYear = DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays;
+    _userSeed = userId.hashCode + dayOfYear;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   List<Map<String, dynamic>> get dynamicCategories {
     final Map<String, int> categoryCount = {};
@@ -56,11 +86,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
 
     List<Map<String, dynamic>> categories = [
-      {
-        'name': 'Todos',
-        'icon': CustomIcons.globe,
-        'count': allBooks.length
-      }
+      {'name': 'Todos', 'icon': CustomIcons.globe, 'count': allBooks.length}
     ];
 
     final sortedCategories = categoryCount.entries.toList()
@@ -75,37 +101,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
 
     return categories;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchAllBooks();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 500) {
-      if (!isLoadingMore && _hasMoreBooks) {
-        _loadMoreBooks();
-      }
-    }
-  }
-
-  Future<void> _loadMoreBooks() async {
-    if (isLoadingMore || !_hasMoreBooks) return;
-
-    setState(() => isLoadingMore = true);
-
-    await _fetchBooksFromAPI();
-
-    setState(() => isLoadingMore = false);
   }
 
   Future<void> _fetchAllBooks() async {
@@ -134,22 +129,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         final url = '$_apiBaseUrl/books/book$_currentFile.json';
 
         try {
-          final response = await http
-              .get(Uri.parse(url))
-              .timeout(const Duration(seconds: 15));
+          final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
 
           if (response.statusCode == 200) {
             try {
               final data = jsonDecode(response.body);
-
               List? books;
 
               if (data['books'] != null) {
                 books = data['books'] as List?;
               } else if (data is List) {
                 books = data;
-              } else if (data['data'] != null) {
-                books = data['data'] as List?;
               }
 
               if (books != null && books.isNotEmpty) {
@@ -158,56 +148,51 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
                 for (var i = 0; i < books.length; i++) {
                   final book = books[i];
-
                   try {
-                    final title = book['title'] ?? book['name'] ?? 'Sem título';
-
                     final normalizedBook = {
-                      'id': book['id'] ?? book['isbn'] ?? 'book_${_currentFile}_$i',
-                      'title': title,
-                      'author': book['author'] ?? book['authors'] ?? 'Autor desconhecido',
-                      'category': book['category'] ?? book['genre'] ?? 'Outros',
-                      'coverImageURL': book['coverImageURL'] ?? book['coverImage'] ?? book['image'] ?? book['imageUrl'],
-                      'description': book['description'] ?? book['summary'] ?? '',
-                      'digitalPrice': book['digitalPrice'] ?? book['price'] ?? book['priceDigital'],
-                      'physicalPrice': book['physicalPrice'] ?? book['pricePhysical'],
-                      'rating': book['rating'] ?? book['averageRating'],
-                      'pages': book['pages'] ?? book['pageCount'],
+                      'id': book['id'] ?? 'book_${_currentFile}_$i',
+                      'title': book['title'] ?? 'Sem título',
+                      'author': book['author'] ?? 'Autor desconhecido',
+                      'category': book['category'] ?? 'Outros',
+                      'coverImageURL': book['coverImageURL'],
+                      'description': book['description'] ?? '',
+                      'preview': book['preview'],
+                      'readLink': book['readLink'],
+                      'digitalPrice': book['digitalPrice'],
+                      'physicalPrice': book['physicalPrice'],
+                      'rating': book['rating'],
+                      'pages': book['pages'],
                       'publisher': book['publisher'],
-                      'publishedDate': book['publishedDate'] ?? book['publicationDate'],
+                      'publishedDate': book['publishedDate'],
                       'language': book['language'] ?? 'pt',
                       'isbn': book['isbn'],
                       'format': book['format'] ?? ['Digital'],
                       'inStock': book['inStock'] ?? true,
+                      'hasPhysicalVersion': book['physicalPrice'] != null,
                     };
 
                     if (normalizedBook['title'] != 'Sem título') {
                       loadedBooks.add(normalizedBook);
                     }
-
                   } catch (e) {
-                    // Skip invalid book
+                    // Skip
                   }
                 }
-
                 _currentFile++;
               } else {
                 consecutiveErrors++;
                 _currentFile++;
               }
-
             } catch (e) {
               consecutiveErrors++;
               _currentFile++;
             }
-
           } else if (response.statusCode == 404) {
             consecutiveErrors++;
           } else {
             consecutiveErrors++;
             _currentFile++;
           }
-
         } catch (e) {
           consecutiveErrors++;
           if (consecutiveErrors < maxConsecutiveErrors) {
@@ -222,22 +207,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         _hasMoreBooks = false;
       }
 
-      if (loadedBooks.isEmpty) {
-        if (allBooks.isEmpty) {
-          if (mounted) {
-            setState(() {
-              error = 'Nenhum livro disponível no momento.\nVerifique sua conexão e tente novamente.';
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            allBooks.addAll(loadedBooks);
-          });
-        }
+      if (loadedBooks.isNotEmpty && mounted) {
+        setState(() {
+          allBooks.addAll(loadedBooks);
+        });
+      } else if (allBooks.isEmpty && mounted) {
+        setState(() {
+          error = 'Nenhum livro disponível no momento.';
+        });
       }
-
     } catch (e) {
       if (mounted && allBooks.isEmpty) {
         setState(() {
@@ -249,55 +227,80 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   List<Map<String, dynamic>> get filteredBooks {
     if (selectedCategory == 'Todos') return allBooks;
-    return allBooks.where((book) {
-      final bookCategory = book['category'] as String?;
-      return bookCategory == selectedCategory;
-    }).toList();
+    return allBooks.where((book) => book['category'] == selectedCategory).toList();
   }
 
-  List<List<Map<String, dynamic>>> _getBooksInGroups() {
+  // Randomiza livros baseado no seed do usuário
+  List<Map<String, dynamic>> _shuffleBooks(List<Map<String, dynamic>> books, int seed) {
+    final random = Random(seed);
+    final shuffled = List<Map<String, dynamic>>.from(books);
+    for (int i = shuffled.length - 1; i > 0; i--) {
+      final j = random.nextInt(i + 1);
+      final temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+    return shuffled;
+  }
+
+  // Organiza livros em seções
+  Map<String, List<Map<String, dynamic>>> _organizeBooks() {
     final books = filteredBooks;
-    List<List<Map<String, dynamic>>> groups = [];
+    final organized = <String, List<Map<String, dynamic>>>{};
 
     if (selectedCategory == 'Todos') {
-      final categoryMap = <String, List<Map<String, dynamic>>>{};
+      // Seção "Em Destaque" - livros com rating alto
+      final featured = books.where((b) => b['rating'] != null && b['rating'] >= 4.0).toList();
+      if (featured.isNotEmpty) {
+        organized['⭐ Em Destaque'] = _shuffleBooks(featured, _userSeed).take(10).toList();
+      }
 
+      // Seção "Lançamentos" - livros mais recentes
+      final recent = books.where((b) => b['publishedDate'] != null).toList()
+        ..sort((a, b) {
+          final dateA = a['publishedDate'] ?? '';
+          final dateB = b['publishedDate'] ?? '';
+          return dateB.compareTo(dateA);
+        });
+      if (recent.isNotEmpty) {
+        organized['🆕 Lançamentos'] = recent.take(10).toList();
+      }
+
+      // Seção "Mais Populares" - shuffled para variar
+      final popular = _shuffleBooks(books, _userSeed + 100).take(10).toList();
+      if (popular.isNotEmpty) {
+        organized['🔥 Mais Populares'] = popular;
+      }
+
+      // Seções por categoria (as top 3 categorias)
+      final categoryMap = <String, List<Map<String, dynamic>>>{};
       for (var book in books) {
         final cat = book['category'] ?? 'Outros';
         categoryMap.putIfAbsent(cat, () => []);
         categoryMap[cat]!.add(book);
       }
 
-      categoryMap.forEach((category, booksInCat) {
-        if (booksInCat.length >= 3) {
-          groups.add(booksInCat);
-        }
-      });
+      final sortedCategories = categoryMap.entries.toList()
+        ..sort((a, b) => b.value.length.compareTo(a.value.length));
 
-      if (groups.isEmpty && books.isNotEmpty) {
-        groups.add(books);
+      for (var i = 0; i < sortedCategories.length && i < 5; i++) {
+        final entry = sortedCategories[i];
+        if (entry.value.length >= 3) {
+          organized['📚 ${entry.key}'] = _shuffleBooks(entry.value, _userSeed + i).take(10).toList();
+        }
       }
     } else {
-      for (var i = 0; i < books.length; i += 6) {
-        final end = (i + 6 < books.length) ? i + 6 : books.length;
-        groups.add(books.sublist(i, end));
-      }
+      // Categoria específica
+      organized['📚 $selectedCategory'] = _shuffleBooks(books, _userSeed).toList();
     }
 
-    return groups;
-  }
-
-  String _getGroupTitle(List<Map<String, dynamic>> group, int index) {
-    if (selectedCategory == 'Todos' && group.isNotEmpty) {
-      return group[0]['category'] ?? 'Outros';
-    }
-    return 'Grupo ${index + 1}';
+    return organized;
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
@@ -308,6 +311,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
+          // Filtros de categoria
           if (!isLoading && allBooks.isNotEmpty)
             SliverToBoxAdapter(
               child: Container(
@@ -320,7 +324,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     children: dynamicCategories.map((category) {
                       final bool isSelected = selectedCategory == category['name'];
                       final int count = category['count'] ?? 0;
-
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: _buildCategoryChip(
@@ -339,6 +342,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
 
+          // Loading
           if (isLoading)
             const SliverFillRemaining(
               child: Center(
@@ -349,14 +353,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                     ),
                     SizedBox(height: 16),
-                    Text(
-                      'Carregando livros...',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
+                    Text('Carregando livros...', style: TextStyle(fontSize: 14, color: Colors.grey)),
                   ],
                 ),
               ),
             )
+          // Erro
           else if (error != null && allBooks.isEmpty)
             SliverFillRemaining(
               child: Center(
@@ -367,20 +369,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     children: [
                       Icon(Icons.error_outline, size: 64, color: hintColor),
                       const SizedBox(height: 16),
-                      Text(
-                        'Erro ao carregar livros',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text('Erro ao carregar', style: TextStyle(fontSize: 18, color: textColor, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
-                      Text(
-                        error!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: hintColor),
-                      ),
+                      Text(error!, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: hintColor)),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
                         onPressed: _fetchAllBooks,
@@ -389,10 +380,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1877F2),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         ),
                       ),
                     ],
@@ -400,6 +388,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
               ),
             )
+          // Vazio
           else if (filteredBooks.isEmpty)
             SliverFillRemaining(
               child: Center(
@@ -408,39 +397,31 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   children: [
                     Icon(Icons.menu_book_outlined, size: 80, color: hintColor),
                     const SizedBox(height: 16),
-                    Text(
-                      'Nenhum livro nesta categoria',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
+                    Text('Nenhum livro nesta categoria', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: textColor)),
                     const SizedBox(height: 8),
-                    Text(
-                      'Tente selecionar outra categoria',
-                      style: TextStyle(fontSize: 14, color: hintColor),
-                    ),
+                    Text('Tente selecionar outra categoria', style: TextStyle(fontSize: 14, color: hintColor)),
                     const SizedBox(height: 24),
                     TextButton(
-                      onPressed: () {
-                        setState(() => selectedCategory = 'Todos');
-                      },
+                      onPressed: () => setState(() => selectedCategory = 'Todos'),
                       child: const Text('Ver todos os livros'),
                     ),
                   ],
                 ),
               ),
             )
+          // Conteúdo organizado
           else
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, groupIndex) {
-                  final groups = _getBooksInGroups();
-                  if (groupIndex >= groups.length) return null;
+                (context, sectionIndex) {
+                  final organized = _organizeBooks();
+                  final sections = organized.entries.toList();
+                  
+                  if (sectionIndex >= sections.length) return null;
 
-                  final group = groups[groupIndex];
-                  final groupTitle = _getGroupTitle(group, groupIndex);
+                  final section = sections[sectionIndex];
+                  final sectionTitle = section.key;
+                  final sectionBooks = section.value;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,100 +429,63 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              groupTitle,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1877F2).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                            Expanded(
                               child: Text(
-                                '${group.length}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1877F2),
+                                sectionTitle,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
                                 ),
                               ),
                             ),
+                            if (sectionBooks.length > 5)
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AllBooksScreen(
+                                        title: sectionTitle,
+                                        books: sectionBooks,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  'Ver mais',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1877F2),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
-
                       SizedBox(
                         height: 280,
-                        child: TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeOut,
-                          builder: (context, value, child) {
-                            return Transform.translate(
-                              offset: Offset(50 * (1 - value), 0),
-                              child: Opacity(
-                                opacity: value,
-                                child: child,
-                              ),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: sectionBooks.length > 10 ? 10 : sectionBooks.length,
+                          itemBuilder: (context, index) {
+                            final book = sectionBooks[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: _buildBookCard(book, isDark, cardColor, textColor, hintColor),
                             );
                           },
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: group.length,
-                            itemBuilder: (context, index) {
-                              final book = group[index];
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: _buildBookCard(
-                                  book,
-                                  isDark,
-                                  cardColor,
-                                  textColor,
-                                  hintColor,
-                                ),
-                              );
-                            },
-                          ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
                     ],
                   );
                 },
-                childCount: _getBooksInGroups().length,
-              ),
-            ),
-
-          if (isLoadingMore)
-            SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                alignment: Alignment.center,
-                child: const Column(
-                  children: [
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Carregando mais livros...',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
+                childCount: _organizeBooks().length,
               ),
             ),
         ],
@@ -558,7 +502,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   ) {
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).push(
+        Navigator.push(
+          context,
           MaterialPageRoute(
             builder: (_) => BookDetailsScreen(
               bookId: book['id'] ?? '',
@@ -584,9 +529,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: SizedBox(
                 height: 180,
                 width: double.infinity,
@@ -597,85 +540,26 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Container(
-                            color: isDark
-                                ? const Color(0xFF3A3B3C)
-                                : const Color(0xFFF0F2F5),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                strokeWidth: 2,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF1877F2),
-                                ),
-                              ),
-                            ),
+                            color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                           );
                         },
                         errorBuilder: (ctx, err, st) {
                           return Container(
-                            color: isDark
-                                ? const Color(0xFF3A3B3C)
-                                : const Color(0xFFF0F2F5),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.broken_image,
-                                  color: hintColor,
-                                  size: 32,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Capa\nindisponível',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: hintColor,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                            child: Icon(Icons.broken_image, color: hintColor, size: 48),
                           );
                         },
                       )
                     : Container(
-                        color: isDark
-                            ? const Color(0xFF3A3B3C)
-                            : const Color(0xFFF0F2F5),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.menu_book,
-                              size: 48,
-                              color: hintColor,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Sem capa',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: hintColor,
-                              ),
-                            ),
-                          ],
-                        ),
+                        color: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
+                        child: Icon(Icons.menu_book, size: 48, color: hintColor),
                       ),
               ),
             ),
-
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(16),
-                  ),
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -685,23 +569,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Text(
                           book['title'] ?? 'Sem título',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                            height: 1.2,
-                          ),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor, height: 1.2),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           book['author'] ?? 'Autor desconhecido',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: hintColor,
-                            height: 1.2,
-                          ),
+                          style: TextStyle(fontSize: 11, color: hintColor, height: 1.2),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -713,38 +588,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         if (book['digitalPrice'] != null)
                           Text(
                             '${book['digitalPrice']} Kz',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1877F2),
-                            ),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1877F2)),
                           )
                         else
-                          Text(
-                            'Consultar',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: hintColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          Text('Consultar', style: TextStyle(fontSize: 11, color: hintColor, fontWeight: FontWeight.w600)),
                         if (book['rating'] != null)
                           Row(
                             children: [
-                              const Icon(
-                                Icons.star,
-                                size: 12,
-                                color: Color(0xFFFFB800),
-                              ),
+                              const Icon(Icons.star, size: 12, color: Color(0xFFFFB800)),
                               const SizedBox(width: 2),
-                              Text(
-                                book['rating'].toString(),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: textColor,
-                                ),
-                              ),
+                              Text(book['rating'].toString(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor)),
                             ],
                           ),
                       ],
@@ -759,71 +612,31 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildCategoryChip(
-    String name,
-    String iconSvg,
-    int count,
-    bool isSelected,
-    bool isDark,
-    Color textColor,
-    Color hintColor,
-  ) {
+  Widget _buildCategoryChip(String name, String iconSvg, int count, bool isSelected, bool isDark, Color textColor, Color hintColor) {
     const blueColor = Color(0xFF1877F2);
-
     return GestureDetector(
-      onTap: () {
-        setState(() => selectedCategory = name);
-      },
+      onTap: () => setState(() => selectedCategory = name),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? blueColor
-              : (isDark 
-                  ? const Color(0xFF3A3B3C) 
-                  : const Color(0xFFE4E6EB)),
+          color: isSelected ? blueColor : (isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB)),
           borderRadius: BorderRadius.circular(20),
-          border: !isSelected && !isDark
-              ? Border.all(color: const Color(0xFFCED0D4), width: 1)
-              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgIcon(
-              svgString: iconSvg,
-              color: isSelected ? Colors.white : blueColor,
-              size: 16,
-            ),
+            SvgIcon(svgString: iconSvg, color: isSelected ? Colors.white : blueColor, size: 16),
             const SizedBox(width: 8),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected 
-                    ? Colors.white 
-                    : (isDark ? textColor : const Color(0xFF050505)),
-              ),
-            ),
+            Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : textColor)),
             if (count > 0) ...[
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withOpacity(0.3)
-                      : blueColor.withOpacity(0.1),
+                  color: isSelected ? Colors.white.withOpacity(0.3) : blueColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  count.toString(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : blueColor,
-                  ),
-                ),
+                child: Text(count.toString(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isSelected ? Colors.white : blueColor)),
               ),
             ],
           ],
