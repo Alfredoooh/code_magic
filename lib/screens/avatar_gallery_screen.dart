@@ -61,14 +61,24 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
     });
 
     await _fetchAvatarsFromAPI();
-    setState(() => _isLoading = false);
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadMoreAvatars() async {
     if (_isLoadingMore || !_hasMoreAvatars) return;
-    setState(() => _isLoadingMore = true);
+    
+    if (mounted) {
+      setState(() => _isLoadingMore = true);
+    }
+    
     await _fetchAvatarsFromAPI();
-    setState(() => _isLoadingMore = false);
+    
+    if (mounted) {
+      setState(() => _isLoadingMore = false);
+    }
   }
 
   Future<void> _fetchAvatarsFromAPI() async {
@@ -80,9 +90,13 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
     try {
       while (consecutiveErrors < maxConsecutiveErrors && filesLoaded < 5) {
         final url = '$_apiBaseUrl/avatars/avatar$_currentFile.json';
+        
+        debugPrint('🔍 Tentando carregar: $url');
 
         try {
-          final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+          final response = await http.get(Uri.parse(url)).timeout(
+            const Duration(seconds: 10),
+          );
 
           if (response.statusCode == 200) {
             try {
@@ -93,30 +107,38 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                 filesLoaded++;
                 consecutiveErrors = 0;
 
+                debugPrint('✅ Carregado arquivo $_currentFile com ${avatarsList.length} avatares');
+
                 for (var i = 0; i < avatarsList.length; i++) {
                   try {
                     final avatar = AvatarImage.fromJson(avatarsList[i]);
                     loadedAvatars.add(avatar);
                   } catch (e) {
-                    debugPrint('Erro ao processar avatar: $e');
+                    debugPrint('❌ Erro ao processar avatar $i: $e');
                   }
                 }
                 _currentFile++;
               } else {
+                debugPrint('⚠️ Arquivo $_currentFile vazio');
                 consecutiveErrors++;
                 _currentFile++;
               }
             } catch (e) {
+              debugPrint('❌ Erro ao parsear JSON do arquivo $_currentFile: $e');
               consecutiveErrors++;
               _currentFile++;
             }
           } else if (response.statusCode == 404) {
+            debugPrint('⚠️ Arquivo $_currentFile não encontrado (404)');
             consecutiveErrors++;
+            _currentFile++;
           } else {
+            debugPrint('⚠️ Status ${response.statusCode} para arquivo $_currentFile');
             consecutiveErrors++;
             _currentFile++;
           }
         } catch (e) {
+          debugPrint('❌ Erro de rede ao carregar arquivo $_currentFile: $e');
           consecutiveErrors++;
           if (consecutiveErrors < maxConsecutiveErrors) {
             _currentFile++;
@@ -127,16 +149,27 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
       }
 
       if (consecutiveErrors >= maxConsecutiveErrors) {
+        debugPrint('🛑 Limite de erros consecutivos atingido. Parando carregamento.');
         _hasMoreAvatars = false;
       }
 
-      if (loadedAvatars.isNotEmpty) {
+      if (loadedAvatars.isNotEmpty && mounted) {
         setState(() {
           _avatars.addAll(loadedAvatars);
+          debugPrint('📊 Total de avatares carregados: ${_avatars.length}');
         });
       }
     } catch (e) {
-      debugPrint('Erro crítico: $e');
+      debugPrint('❌ Erro crítico ao carregar avatares: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao carregar avatares: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 
@@ -174,6 +207,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
           if (_selectedAvatarUrl != null && _selectedAvatarUrl != widget.currentAvatarUrl)
             TextButton(
               onPressed: () {
+                debugPrint('✅ Avatar selecionado: $_selectedAvatarUrl');
                 Navigator.pop(context, _selectedAvatarUrl);
               },
               child: const Text(
@@ -188,13 +222,64 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Carregando avatares...',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: hintColor,
+                    ),
+                  ),
+                ],
               ),
             )
           : _avatars.isEmpty
-              ? const SizedBox.shrink()
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.cloud_off, size: 64, color: hintColor),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nenhum avatar disponível',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Verifique sua conexão e tente novamente',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: hintColor,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _loadAvatars,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Tentar novamente'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1877F2),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
               : Column(
                   children: [
                     // Search bar
@@ -208,7 +293,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                               builder: (context) => SearchAvatarScreen(avatars: _avatars),
                             ),
                           );
-                          if (selected != null) {
+                          if (selected != null && mounted) {
                             setState(() => _selectedAvatarUrl = selected);
                           }
                         },
@@ -244,7 +329,7 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                       ),
                     ),
 
-                    // Grid de avatares - 2x2 com cards maiores
+                    // Grid de avatares
                     Expanded(
                       child: GridView.builder(
                         controller: _scrollController,
@@ -271,7 +356,10 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
 
                           return GestureDetector(
                             onTap: () {
-                              setState(() => _selectedAvatarUrl = avatar.imageUrl);
+                              debugPrint('🖼️ Avatar selecionado: ${avatar.imageUrl}');
+                              if (mounted) {
+                                setState(() => _selectedAvatarUrl = avatar.imageUrl);
+                              }
                             },
                             child: Container(
                               decoration: BoxDecoration(
@@ -305,26 +393,47 @@ class _AvatarGalleryScreenState extends State<AvatarGalleryScreen> {
                                         if (loadingProgress == null) return child;
                                         return Container(
                                           color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE8E8E8),
-                                          child: const Center(
+                                          child: Center(
                                             child: CircularProgressIndicator(
                                               strokeWidth: 3,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                                Color(0xFF1877F2),
+                                              ),
                                             ),
                                           ),
                                         );
                                       },
                                       errorBuilder: (context, error, stackTrace) {
+                                        debugPrint('❌ Erro ao carregar imagem: ${avatar.imageUrl}');
+                                        debugPrint('Erro: $error');
                                         return Container(
                                           color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE8E8E8),
                                           child: Center(
-                                            child: SvgPicture.string(
-                                              CustomIcons.person,
-                                              width: 48,
-                                              height: 48,
-                                              colorFilter: ColorFilter.mode(
-                                                hintColor,
-                                                BlendMode.srcIn,
-                                              ),
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                SvgPicture.string(
+                                                  CustomIcons.person,
+                                                  width: 48,
+                                                  height: 48,
+                                                  colorFilter: ColorFilter.mode(
+                                                    hintColor,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Erro ao carregar',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: hintColor,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         );
