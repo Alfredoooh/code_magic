@@ -1,4 +1,4 @@
-// lib/services/reminder_scheduler_service.dart (sem alterações necessárias, mas completo para referência)
+// lib/services/reminder_scheduler_service.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,19 +28,16 @@ class ReminderSchedulerService {
 
     print('🔔 Inicializando ReminderScheduler para user: $userId');
 
-    // Verificar lembretes a cada 30 segundos
     _checkTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _checkPendingReminders(userId);
     });
 
-    // Listener em tempo real para novos lembretes
     _reminderSubscription = _reminderService
         .getPendingReminders(userId)
         .listen((reminders) {
       _processReminders(reminders);
     });
 
-    // Verificação inicial
     _checkPendingReminders(userId);
   }
 
@@ -90,7 +87,8 @@ class ReminderSchedulerService {
     print('📨 Enviando notificação para: ${reminder.title}');
 
     try {
-      await _pushService._showLocalNotification(
+      // CORRIGIDO: Usar método público showLocalNotification
+      await _pushService.showLocalNotification(
         id: reminder.id.hashCode,
         title: '⏰ ${reminder.title}',
         body: reminder.description ?? 'Você tem um lembrete!',
