@@ -162,7 +162,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
         return Container(
           height: 300,
           color: context.read<ThemeProvider>().isDarkMode 
-              ? const Color(0xFF242526) 
+              ? Color(0xFF242526) 
               : Colors.white,
           child: Column(
             children: [
@@ -205,7 +205,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
         return Container(
           height: 300,
           color: context.read<ThemeProvider>().isDarkMode 
-              ? const Color(0xFF242526) 
+              ? Color(0xFF242526) 
               : Colors.white,
           child: Column(
             children: [
@@ -250,7 +250,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
         return Container(
           height: 300,
           color: context.read<ThemeProvider>().isDarkMode 
-              ? const Color(0xFF242526) 
+              ? Color(0xFF242526) 
               : Colors.white,
           child: Column(
             children: [
@@ -303,8 +303,8 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
 
   void _showFontPicker() {
     final isDark = context.read<ThemeProvider>().isDarkMode;
-    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final cardColor = isDark ? Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? Color(0xFFE4E6EB) : Color(0xFF050505);
 
     showModalBottomSheet(
       context: context,
@@ -349,7 +349,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                         fontSize: 24,
                         fontFamily: _getFontFamily(font),
                         color: _selectedFont == font
-                            ? const Color(0xFF1877F2)
+                            ? Color(0xFF1877F2)
                             : textColor,
                         fontWeight: FontWeight.w600,
                       ),
@@ -362,7 +362,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                       ),
                     ),
                     trailing: _selectedFont == font
-                        ? const Icon(Icons.check_circle, color: Color(0xFF1877F2))
+                        ? Icon(Icons.check_circle, color: Color(0xFF1877F2))
                         : null,
                     onTap: () {
                       setState(() => _selectedFont = font);
@@ -422,7 +422,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getSuccessMessage()),
-            backgroundColor: const Color(0xFF4CAF50),
+            backgroundColor: Color(0xFF4CAF50),
           ),
         );
       }
@@ -542,11 +542,11 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
   Color _getPriorityColor(TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
-        return const Color(0xFF4CAF50);
+        return Color(0xFF4CAF50);
       case TaskPriority.medium:
-        return const Color(0xFFFFC107);
+        return Color(0xFFFFC107);
       case TaskPriority.high:
-        return const Color(0xFFFF5722);
+        return Color(0xFFFF5722);
     }
   }
 
@@ -564,10 +564,10 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
-    final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-    final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+    final bgColor = isDark ? Color(0xFF18191A) : Color(0xFFF0F2F5);
+    final cardColor = isDark ? Color(0xFF242526) : Colors.white;
+    final textColor = isDark ? Color(0xFFE4E6EB) : Color(0xFF050505);
+    final secondaryColor = isDark ? Color(0xFFB0B3B8) : Color(0xFF65676B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -593,7 +593,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
               child: ElevatedButton(
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1877F2),
+                  backgroundColor: Color(0xFF1877F2),
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -722,8 +722,8 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFF1877F2)
-                        : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                        ? Color(0xFF1877F2)
+                        : (isDark ? Color(0xFF3A3A3C) : Color(0xFFF0F2F5)),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(
@@ -844,7 +844,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                         decoration: BoxDecoration(
                           color: isSelected
                               ? _getPriorityColor(priority)
-                              : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                              : (isDark ? Color(0xFF3A3A3C) : Color(0xFFF0F2F5)),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -884,10 +884,10 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF1877F2).withOpacity(0.1),
+              color: Color(0xFF1877F2).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFF1877F2), size: 24),
+            child: Icon(icon, color: Color(0xFF1877F2), size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -957,8 +957,8 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFFFF9800)
-                        : (isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF0F2F5)),
+                        ? Color(0xFFFF9800)
+                        : (isDark ? Color(0xFF3A3A3C) : Color(0xFFF0F2F5)),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Text(
@@ -978,7 +978,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
             children: [
               Icon(
                 _isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                color: _isPinned ? const Color(0xFFFF9800) : secondaryColor,
+                color: _isPinned ? Color(0xFFFF9800) : secondaryColor,
                 size: 24,
               ),
               const SizedBox(width: 12),
@@ -993,7 +993,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
               const Spacer(),
               CupertinoSwitch(
                 value: _isPinned,
-                activeColor: const Color(0xFFFF9800),
+                activeColor: Color(0xFFFF9800),
                 onChanged: (value) => setState(() => _isPinned = value),
               ),
             ],
@@ -1030,7 +1030,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5),
+              color: isDark ? Color(0xFF18191A) : Color(0xFFF0F2F5),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(16),
                 bottomRight: Radius.circular(16),
@@ -1108,7 +1108,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                     hintText: 'Adicionar tag...',
                     hintStyle: TextStyle(color: secondaryColor),
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5),
+                    fillColor: isDark ? Color(0xFF18191A) : Color(0xFFF0F2F5),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -1121,12 +1121,12 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
               const SizedBox(width: 10),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1877F2),
+                  color: Color(0xFF1877F2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
                   onPressed: _addTag,
-                  icon: const Icon(Icons.add, color: Colors.white, size: 24),
+                  icon: Icon(Icons.add, color: Colors.white, size: 24),
                 ),
               ),
             ],
@@ -1140,10 +1140,10 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1877F2).withOpacity(0.15),
+                    color: Color(0xFF1877F2).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFF1877F2),
+                      color: Color(0xFF1877F2),
                       width: 1.5,
                     ),
                   ),
@@ -1161,7 +1161,7 @@ class _UnifiedEditorScreenState extends State<UnifiedEditorScreen> with SingleTi
                       const SizedBox(width: 6),
                       GestureDetector(
                         onTap: () => _removeTag(tag),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           size: 16,
                           color: Color(0xFF1877F2),
