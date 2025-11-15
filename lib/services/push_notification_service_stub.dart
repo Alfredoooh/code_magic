@@ -1,79 +1,34 @@
 // lib/services/push_notification_service_stub.dart
-// Stub for web platform where Firebase Messaging and Local Notifications are not available
+// Stub para web - PushNotificationService não funciona no web
 
-class FirebaseMessaging {
-  static FirebaseMessaging get instance => FirebaseMessaging();
-  Future<dynamic> requestPermission({bool alert = true, bool badge = true, bool sound = true, bool provisional = false}) async {}
-  Future<String?> getToken() async => null;
-  Stream<String> get onTokenRefresh => Stream.empty();
-  static Stream<dynamic> get onBackgroundMessage => Stream.empty();
-  static Stream<dynamic> get onMessage => Stream.empty();
-  static Stream<dynamic> get onMessageOpenedApp => Stream.empty();
-  Future<dynamic> getInitialMessage() async => null;
-  Future<void> subscribeToTopic(String topic) async {}
-  Future<void> unsubscribeFromTopic(String topic) async {}
-}
+class PushNotificationService {
+  static final PushNotificationService _instance = PushNotificationService._internal();
+  factory PushNotificationService() => _instance;
+  PushNotificationService._internal();
 
-class FlutterLocalNotificationsPlugin {
-  Future<bool?> initialize(dynamic settings, {dynamic onDidReceiveNotificationResponse}) async => null;
-  Future<void> show(int id, String? title, String? body, dynamic details, {String? payload}) async {}
-}
+  Future<void> initialize() async {
+    print('⚠️ PushNotificationService stub - não disponível na web');
+  }
 
-class AndroidInitializationSettings {
-  AndroidInitializationSettings(String icon);
-}
+  Future<void> showLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    print('⚠️ showLocalNotification não disponível na web: $title');
+  }
 
-class DarwinInitializationSettings {
-  DarwinInitializationSettings({
-    bool requestAlertPermission = false,
-    bool requestBadgePermission = false,
-    bool requestSoundPermission = false,
-  });
-}
+  Future<String?> getToken() async {
+    print('⚠️ getToken não disponível na web');
+    return null;
+  }
 
-class InitializationSettings {
-  InitializationSettings({
-    dynamic android,
-    dynamic iOS,
-  });
-}
+  Future<void> subscribeToTopic(String topic) async {
+    print('⚠️ subscribeToTopic não disponível na web: $topic');
+  }
 
-class AndroidNotificationDetails {
-  AndroidNotificationDetails(
-    String channelId,
-    String channelName, {
-    String? channelDescription,
-    Importance? importance,
-    Priority? priority,
-    String? icon,
-    dynamic color,
-    bool? enableLights,
-    dynamic ledColor,
-    int? ledOnMs,
-    int? ledOffMs,
-    bool? playSound,
-    bool? enableVibration,
-  });
-}
-
-class DarwinNotificationDetails {
-  DarwinNotificationDetails({
-    bool presentAlert = true,
-    bool presentBadge = true,
-    bool presentSound = true,
-  });
-}
-
-class NotificationDetails {
-  NotificationDetails({dynamic android, dynamic iOS});
-}
-
-enum AuthorizationStatus { authorized, denied, notDetermined, provisional }
-
-enum Importance { high }
-
-enum Priority { high }
-
-class Color {
-  Color(int value);
+  Future<void> unsubscribeFromTopic(String topic) async {
+    print('⚠️ unsubscribeFromTopic não disponível na web: $topic');
+  }
 }
