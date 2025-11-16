@@ -9,7 +9,8 @@ import '../services/document_service.dart';
 import '../models/document_template_model.dart';
 import '../widgets/custom_icons.dart';
 
-enum TextStyle { normal, bold, italic, underline }
+// REMOVIDO: enum TextStyle - estava causando conflito
+enum TextStyleFormat { normal, bold, italic, underline }
 
 class EditRequestScreen extends StatefulWidget {
   final DocumentRequest request;
@@ -26,11 +27,11 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
   final TextEditingController _additionalNotesController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final List<File> _attachedImages = [];
-  
+
   bool _isUpdating = false;
   int _currentFieldIndex = 0;
   String _searchQuery = '';
-  final Set<TextStyle> _activeStyles = {};
+  final Set<TextStyleFormat> _activeStyles = {};
 
   @override
   void initState() {
@@ -41,7 +42,7 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
   void _initializeControllers() {
     if (widget.request.customFields != null) {
       for (var entry in widget.request.customFields!.entries) {
-        _fieldControllers[entry.key] = TextEditingController(text: entry.value);
+        _fieldControllers[entry.key] = TextEditingController(text: entry.value.toString());
       }
     }
   }
@@ -104,7 +105,7 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
     });
   }
 
-  void _toggleTextStyle(TextStyle style) {
+  void _toggleTextStyle(TextStyleFormat style) {
     setState(() {
       if (_activeStyles.contains(style)) {
         _activeStyles.remove(style);
@@ -115,9 +116,9 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
   }
 
   TextStyle _getTextStyleDecoration() {
-    FontWeight weight = _activeStyles.contains(TextStyle.bold) ? FontWeight.bold : FontWeight.normal;
-    FontStyle style = _activeStyles.contains(TextStyle.italic) ? FontStyle.italic : FontStyle.normal;
-    TextDecoration decoration = _activeStyles.contains(TextStyle.underline) 
+    FontWeight weight = _activeStyles.contains(TextStyleFormat.bold) ? FontWeight.bold : FontWeight.normal;
+    FontStyle style = _activeStyles.contains(TextStyleFormat.italic) ? FontStyle.italic : FontStyle.normal;
+    TextDecoration decoration = _activeStyles.contains(TextStyleFormat.underline) 
         ? TextDecoration.underline 
         : TextDecoration.none;
 
@@ -131,7 +132,7 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
   Future<void> _update() async {
     final fields = _getCategoryFields(widget.request.category);
     final missingFields = <String>[];
-    
+
     for (var field in fields) {
       final controller = _fieldControllers[field];
       if (controller == null || controller.text.trim().isEmpty) {
@@ -152,7 +153,7 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
     setState(() => _isUpdating = true);
 
     try {
-      final fieldsData = <String, String>{};
+      final fieldsData = <String, dynamic>{};
       for (var field in fields) {
         fieldsData[field] = _fieldControllers[field]!.text.trim();
       }
@@ -217,9 +218,9 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final secondaryColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF65676B);
-    
+
     final fields = _getFilteredFields();
-    
+
     // Garante que os controllers existam
     for (var field in _getCategoryFields(widget.request.category)) {
       if (!_fieldControllers.containsKey(field)) {
@@ -389,22 +390,22 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
                   // Formatação de texto
                   _ToolbarButton(
                     icon: Icons.format_bold,
-                    isActive: _activeStyles.contains(TextStyle.bold),
-                    onPressed: () => _toggleTextStyle(TextStyle.bold),
+                    isActive: _activeStyles.contains(TextStyleFormat.bold),
+                    onPressed: () => _toggleTextStyle(TextStyleFormat.bold),
                     isDark: isDark,
                   ),
                   const SizedBox(width: 8),
                   _ToolbarButton(
                     icon: Icons.format_italic,
-                    isActive: _activeStyles.contains(TextStyle.italic),
-                    onPressed: () => _toggleTextStyle(TextStyle.italic),
+                    isActive: _activeStyles.contains(TextStyleFormat.italic),
+                    onPressed: () => _toggleTextStyle(TextStyleFormat.italic),
                     isDark: isDark,
                   ),
                   const SizedBox(width: 8),
                   _ToolbarButton(
                     icon: Icons.format_underline,
-                    isActive: _activeStyles.contains(TextStyle.underline),
-                    onPressed: () => _toggleTextStyle(TextStyle.underline),
+                    isActive: _activeStyles.contains(TextStyleFormat.underline),
+                    onPressed: () => _toggleTextStyle(TextStyleFormat.underline),
                     isDark: isDark,
                   ),
                   const SizedBox(width: 12),
