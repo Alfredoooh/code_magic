@@ -3,12 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:share_plus/share_plus.dart';
-import '../services/image_service.dart';
 import '../widgets/custom_icons.dart';
 
 enum ImageType { url, base64, file, bytes }
@@ -33,8 +28,6 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
   late int _currentIndex;
   late AnimationController _animationController;
   bool _showControls = true;
-  bool _isDownloading = false;
-  double _downloadProgress = 0.0;
 
   @override
   void initState() {
@@ -176,192 +169,6 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
     );
   }
 
-  Future<void> _downloadImage() async {
-    if (_isDownloading) return;
-
-    setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0.0;
-    });
-
-    try {
-      final imageData = widget.imageUrls[_currentIndex];
-      final imageType = _detectImageType(imageData);
-      Uint8List? bytes;
-      String fileName = 'image_${DateTime.now().millisecondsSinceEpoch}';
-
-      switch (imageType) {
-        case ImageType.url:
-          final response = await http.get(
-            Uri.parse(imageData),
-            headers: {'Accept': 'image/*'},
-          );
-          
-          if (response.statusCode == 200) {
-            bytes = response.bodyBytes;
-            // Tenta extrair extensão da URL
-            final uri = Uri.parse(imageData);
-            final extension = uri.path.split('.').last.toLowerCase();
-            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) {
-              fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.$extension';
-            } else {
-              fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            }
-          }
-          break;
-
-        case ImageType.base64:
-          if (imageData.startsWith('data:image')) {
-            final base64String = imageData.split(',').last;
-            final mimeType = imageData.split(';').first.split(':').last;
-            final extension = mimeType.split('/').last;
-            bytes = base64Decode(base64String);
-            fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.$extension';
-          } else {
-            bytes = base64Decode(imageData);
-            fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          }
-          break;
-
-        case ImageType.file:
-          final filePath = imageData.replaceFirst('file://', '');
-          final file = File(filePath);
-          bytes = await file.readAsBytes();
-          fileName = filePath.split('/').last;
-          break;
-
-        case ImageType.bytes:
-          break;
-      }
-
-      if (bytes != null && mounted) {
-        setState(() => _downloadProgress = 0.5);
-
-        // Salva no diretório de downloads
-        final directory = Platform.isAndroid
-            ? Directory('/storage/emulated/0/Download')
-            : await getApplicationDocumentsDirectory();
-
-        final filePath = '${directory.path}/$fileName';
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-
-        setState(() => _downloadProgress = 1.0);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Imagem salva com sucesso!',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          filePath,
-                          style: const TextStyle(fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'Compartilhar',
-                textColor: Colors.white,
-                onPressed: () async {
-                  await Share.shareXFiles([XFile(filePath)]);
-                },
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Erro ao baixar: $e'),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isDownloading = false;
-          _downloadProgress = 0.0;
-        });
-      }
-    }
-  }
-
-  Future<void> _shareImage() async {
-    try {
-      final imageData = widget.imageUrls[_currentIndex];
-      final imageType = _detectImageType(imageData);
-
-      if (imageType == ImageType.url) {
-        await Share.share(imageData, subject: 'Compartilhar imagem');
-      } else {
-        // Para outros tipos, primeiro salva temporariamente
-        Uint8List? bytes;
-
-        if (imageType == ImageType.base64) {
-          if (imageData.startsWith('data:image')) {
-            final base64String = imageData.split(',').last;
-            bytes = base64Decode(base64String);
-          } else {
-            bytes = base64Decode(imageData);
-          }
-        } else if (imageType == ImageType.file) {
-          final filePath = imageData.replaceFirst('file://', '');
-          final file = File(filePath);
-          bytes = await file.readAsBytes();
-        }
-
-        if (bytes != null) {
-          final tempDir = await getTemporaryDirectory();
-          final tempFile = File(
-            '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          );
-          await tempFile.writeAsBytes(bytes);
-          await Share.shareXFiles([XFile(tempFile.path)]);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao compartilhar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _toggleControls() {
     setState(() {
       _showControls = !_showControls;
@@ -401,28 +208,6 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.share, color: Colors.white),
-                  onPressed: _shareImage,
-                ),
-                IconButton(
-                  icon: _isDownloading
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            value: _downloadProgress > 0 ? _downloadProgress : null,
-                            strokeWidth: 2,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : const Icon(Icons.download, color: Colors.white),
-                  onPressed: _isDownloading ? null : _downloadImage,
-                ),
-              ],
             )
           : null,
       body: GestureDetector(
@@ -446,7 +231,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                   child: Center(
                     child: _buildImageWidget(widget.imageUrls[index]),
                   ),
-                );
+                ),
               },
             ),
 
