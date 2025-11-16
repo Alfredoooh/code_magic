@@ -1,8 +1,11 @@
 // lib/screens/otp_verification_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/custom_icons.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   const OTPVerificationScreen({super.key});
@@ -12,85 +15,59 @@ class OTPVerificationScreen extends StatefulWidget {
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final List<TextEditingController> _controllers = List.generate(
-    6,
-    (index) => TextEditingController(),
-  );
-  final List<FocusNode> _focusNodes = List.generate(
-    6,
-    (index) => FocusNode(),
-  );
-
+  final TextEditingController _otpController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   bool _isVerifying = false;
   bool _isResending = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-foca no campo ao abrir a tela
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+  }
+
+  @override
   void dispose() {
-    for (var controller in _controllers) {
-      controller.dispose();
-    }
-    for (var node in _focusNodes) {
-      node.dispose();
-    }
+    _otpController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  String get _otpCode {
-    return _controllers.map((c) => c.text).join();
-  }
-
   Future<void> _verifyOTP() async {
-    if (_otpCode.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Digite o código completo'),
-          backgroundColor: Color(0xFFFA383E),
-        ),
-      );
+    final code = _otpController.text.trim();
+    
+    if (code.length != 6) {
+      _showSnackBar('Digite o código de 6 dígitos', isError: true);
       return;
     }
 
+    // Remove foco do teclado
+    _focusNode.unfocus();
     setState(() => _isVerifying = true);
 
     try {
       final authProvider = context.read<AuthProvider>();
-      final success = await authProvider.verifyOTP(_otpCode);
+      final success = await authProvider.verifyOTP(code);
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email verificado com sucesso! OTP desativado.'),
-              backgroundColor: Color(0xFF31A24C),
-            ),
-          );
-          // Aguarda um pouco para mostrar a mensagem
+          _showSnackBar('Email verificado com sucesso!', isError: false);
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/home');
           }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Código inválido. Tente novamente.'),
-              backgroundColor: Color(0xFFFA383E),
-            ),
-          );
-          // Limpa os campos
-          for (var controller in _controllers) {
-            controller.clear();
-          }
-          _focusNodes[0].requestFocus();
+          _showSnackBar('Código inválido', isError: true);
+          _otpController.clear();
+          _focusNode.requestFocus();
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao verificar código: $e'),
-            backgroundColor: const Color(0xFFFA383E),
-          ),
-        );
+        _showSnackBar('Erro ao verificar código', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -105,33 +82,20 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       await authProvider.resendOTP();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Novo código enviado para seu email'),
-            backgroundColor: Color(0xFF31A24C),
-          ),
-        );
-        // Limpa os campos para novo código
-        for (var controller in _controllers) {
-          controller.clear();
-        }
-        _focusNodes[0].requestFocus();
+        _showSnackBar('Novo código enviado!', isError: false);
+        _otpController.clear();
+        _focusNode.requestFocus();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao reenviar código: $e'),
-            backgroundColor: const Color(0xFFFA383E),
-          ),
-        );
+        _showSnackBar('Erro ao reenviar código', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isResending = false);
     }
   }
 
-  void _showLogoutConfirmation() {
+  void _showLogoutDialog() {
     final isDark = context.read<ThemeProvider>().isDarkMode;
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
@@ -139,27 +103,24 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Sair sem verificar?',
           style: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: textColor,
           ),
         ),
         content: Text(
-          'Se sair agora, precisará verificar seu email novamente no próximo login.',
-          style: TextStyle(
-            fontSize: 15,
-            color: secondaryColor,
-          ),
+          'Você precisará verificar seu email novamente no próximo login.',
+          style: TextStyle(fontSize: 15, color: secondaryColor),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(ctx),
             child: Text(
               'Cancelar',
               style: TextStyle(
@@ -171,7 +132,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(dialogContext);
+              Navigator.pop(ctx);
               await context.read<AuthProvider>().signOut();
               if (mounted) {
                 Navigator.pushReplacementNamed(context, '/login');
@@ -191,260 +152,282 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     );
   }
 
+  void _showSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? const Color(0xFFFA383E) : const Color(0xFF42B72A),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final cardColor = isDark ? const Color(0xFF242526) : Colors.white;
     final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+    final secondaryColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
     final authProvider = context.watch<AuthProvider>();
 
     return WillPopScope(
-      // BLOQUEIA O BOTÃO DE VOLTAR
       onWillPop: () async => false,
-      child: Scaffold(
-        backgroundColor: bgColor,
-        appBar: AppBar(
-          backgroundColor: cardColor,
-          elevation: 0,
-          // Remove o botão de voltar
-          automaticallyImplyLeading: false,
-          title: Text(
-            'Verificação Obrigatória',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-          actions: [
-            // Botão de logout no canto superior direito
-            IconButton(
-              icon: Icon(
-                Icons.logout,
-                color: const Color(0xFFFA383E),
+      child: GestureDetector(
+        // Fecha teclado ao tocar fora
+        onTap: () {
+          _focusNode.unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: bgColor,
+          resizeToAvoidBottomInset: true, // Importante para o teclado
+          appBar: AppBar(
+            backgroundColor: cardColor,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            title: Text(
+              'Verificação',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: textColor,
               ),
-              onPressed: _showLogoutConfirmation,
-              tooltip: 'Sair',
             ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
-              height: 0.5,
+            actions: [
+              IconButton(
+                icon: SvgPicture.string(
+                  CustomIcons.logout,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFFA383E),
+                    BlendMode.srcIn,
+                  ),
+                ),
+                onPressed: _showLogoutDialog,
+                tooltip: 'Sair',
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(
+                height: 1,
+                color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+              ),
             ),
           ),
-        ),
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Icon
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFA383E).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.lock_outline,
-                      size: 40,
-                      color: Color(0xFFFA383E),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Title
-                  Text(
-                    'Verificação Obrigatória',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Warning message
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFA383E).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFFA383E).withOpacity(0.3),
-                        width: 1,
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Ícone
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1877F2).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.mail_outline,
+                        size: 40,
+                        color: const Color(0xFF1877F2),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          color: Color(0xFFFA383E),
-                          size: 24,
+                    const SizedBox(height: 24),
+
+                    // Título
+                    Text(
+                      'Verificação de Email',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Subtítulo
+                    Text(
+                      'Código enviado para',
+                      style: TextStyle(fontSize: 15, color: secondaryColor),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      authProvider.userData?['email'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1877F2),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Campo de entrada único
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: TextField(
+                        controller: _otpController,
+                        focusNode: _focusNode,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        maxLength: 6,
+                        enabled: !_isVerifying,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                          letterSpacing: 16,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Você deve verificar seu email para continuar usando o aplicativo. Após verificar, o OTP será desativado.',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: InputDecoration(
+                          counterText: '',
+                          hintText: '000000',
+                          hintStyle: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: secondaryColor.withOpacity(0.3),
+                            letterSpacing: 16,
+                          ),
+                          filled: true,
+                          fillColor: isDark 
+                              ? const Color(0xFF3A3B3C) 
+                              : const Color(0xFFF0F2F5),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: isDark 
+                                  ? const Color(0xFF3E4042) 
+                                  : const Color(0xFFDADADA),
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF1877F2),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 20,
+                            horizontal: 24,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          // Auto-verifica quando completa 6 dígitos
+                          if (value.length == 6) {
+                            _verifyOTP();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Info sobre auto-verificação
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1877F2).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: const Color(0xFF1877F2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'O código será verificado automaticamente',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: textColor,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                              color: secondaryColor,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
-                  // Subtitle
-                  Text(
-                    'Código enviado para',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    authProvider.userData?['email'] ?? '',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1877F2),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // OTP Fields
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(6, (index) {
-                      return Container(
-                        width: 48,
-                        height: 56,
-                        margin: EdgeInsets.only(
-                          right: index < 5 ? 8 : 0,
-                        ),
-                        child: TextField(
-                          controller: _controllers[index],
-                          focusNode: _focusNodes[index],
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          maxLength: 1,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
+                    // Botão de verificar
+                    SizedBox(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: ElevatedButton(
+                        onPressed: _isVerifying ? null : _verifyOTP,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1877F2),
+                          disabledBackgroundColor: isDark 
+                              ? const Color(0xFF3A3B3C) 
+                              : const Color(0xFFE4E6EB),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFF0F2F5),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                        ),
+                        child: _isVerifying
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text(
+                                'Verificar',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Botão reenviar
+                    TextButton(
+                      onPressed: _isResending ? null : _resendOTP,
+                      child: _isResending
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF1877F2),
+                                ),
                               ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
+                            )
+                          : const Text(
+                              'Reenviar código',
+                              style: TextStyle(
                                 color: Color(0xFF1877F2),
-                                width: 2,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                          onChanged: (value) {
-                            if (value.isNotEmpty && index < 5) {
-                              _focusNodes[index + 1].requestFocus();
-                            } else if (value.isEmpty && index > 0) {
-                              _focusNodes[index - 1].requestFocus();
-                            }
-
-                            // Auto-verify quando completar
-                            if (index == 5 && value.isNotEmpty) {
-                              _verifyOTP();
-                            }
-                          },
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Verify Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _isVerifying ? null : _verifyOTP,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1877F2),
-                        disabledBackgroundColor: isDark ? const Color(0xFF3A3B3C) : const Color(0xFFE4E6EB),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isVerifying
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Verificar',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Resend Button
-                  TextButton(
-                    onPressed: _isResending ? null : _resendOTP,
-                    child: _isResending
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
-                          ),
-                        )
-                      : const Text(
-                          'Não recebeu o código? Reenviar',
-                          style: TextStyle(
-                            color: Color(0xFF1877F2),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
