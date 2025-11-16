@@ -1,6 +1,7 @@
-// lib/main.dart (versão corrigida)
+// lib/main.dart
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
@@ -17,6 +18,23 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configurações de sistema UI (correção do teclado)
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  // Configurações de orientação
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // Inicializar Firebase
   await Firebase.initializeApp(
@@ -38,12 +56,31 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
-          // Serviços são inicializados dentro dos próprios serviços quando necessário
-          // Não precisa inicializar aqui no main
-
           return MaterialApp(
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
+            
+            // Configurações para melhor comportamento do teclado
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  // Remove padding extra do teclado
+                  viewInsets: EdgeInsets.zero,
+                ),
+                child: GestureDetector(
+                  // Fecha o teclado ao tocar fora de campos de texto
+                  onTap: () {
+                    FocusScopeNode currentFocus = FocusScope.of(context);
+                    if (!currentFocus.hasPrimaryFocus && 
+                        currentFocus.focusedChild != null) {
+                      currentFocus.focusedChild!.unfocus();
+                    }
+                  },
+                  child: child!,
+                ),
+              );
+            },
+            
             theme: ThemeData(
               brightness: Brightness.light,
               scaffoldBackgroundColor: const Color(0xFFF0F2F5),
@@ -56,8 +93,19 @@ class MyApp extends StatelessWidget {
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
                 elevation: 0,
+                systemOverlayStyle: SystemUiOverlayStyle.dark,
+              ),
+              // Configuração do input para evitar problemas com teclado
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                fillColor: const Color(0xFFF0F2F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
+            
             darkTheme: ThemeData(
               brightness: Brightness.dark,
               scaffoldBackgroundColor: const Color(0xFF18191A),
@@ -71,10 +119,22 @@ class MyApp extends StatelessWidget {
                 backgroundColor: Color(0xFF242526),
                 foregroundColor: Colors.white,
                 elevation: 0,
+                systemOverlayStyle: SystemUiOverlayStyle.light,
+              ),
+              // Configuração do input para dark mode
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                fillColor: const Color(0xFF3A3B3C),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
+            
             themeMode: themeProvider.themeMode,
             home: const AuthWrapper(),
+            
             routes: {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
