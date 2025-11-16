@@ -137,7 +137,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     // Valida campos obrigatórios
     final fields = _getCategoryFields(_selectedCategory!);
     final missingFields = <String>[];
-    
+
     for (var field in fields) {
       final controller = _fieldControllers[field];
       if (controller == null || controller.text.trim().isEmpty) {
@@ -159,7 +159,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       final auth = context.read<AuthProvider>();
 
       // Cria mapa com os dados dos campos
-      final fieldsData = <String, String>{};
+      final fieldsData = <String, dynamic>{};
       for (var field in fields) {
         fieldsData[field] = _fieldControllers[field]!.text.trim();
       }
@@ -170,7 +170,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         userName: auth.user!.displayName ?? '',
         userEmail: auth.user!.email ?? '',
         templateId: _selectedTemplate?.id ?? '',
-        templateName: _selectedTemplate?.name ?? '',
+        templateName: _selectedTemplate?.name ?? 'Sem template',
         category: _selectedCategory!,
         title: 'Pedido de ${_categories.firstWhere((c) => c['category'] == _selectedCategory)['name']}',
         description: _descriptionController.text.trim(),
