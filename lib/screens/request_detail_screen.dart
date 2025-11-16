@@ -1,5 +1,4 @@
 // lib/screens/request_detail_screen.dart
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -90,14 +89,6 @@ class RequestDetailScreen extends StatelessWidget {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
-  String _formatTime(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
   String _formatFullDate(DateTime date) {
     final weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     final months = [
@@ -105,7 +96,11 @@ class RequestDetailScreen extends StatelessWidget {
       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
     ];
 
-    return '${weekDays[date.weekday % 7]}, ${date.day} ${months[date.month - 1]} ${date.year} às ${_formatTime(date)}';
+    String formatTime(DateTime d) {
+      return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    }
+
+    return '${weekDays[date.weekday % 7]}, ${date.day} ${months[date.month - 1]} ${date.year} às ${formatTime(date)}';
   }
 
   @override
@@ -218,13 +213,13 @@ class RequestDetailScreen extends StatelessWidget {
                 }
               },
               itemBuilder: (context) => [
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
-                      const Icon(Icons.delete, color: Colors.red, size: 20),
-                      const SizedBox(width: 12),
-                      const Text(
+                      Icon(Icons.delete, color: Colors.red, size: 20),
+                      SizedBox(width: 12),
+                      Text(
                         'Excluir pedido',
                         style: TextStyle(color: Colors.red),
                       ),
@@ -516,15 +511,15 @@ class RequestDetailScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   entry.key,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF1877F2),
+                                    color: Color(0xFF1877F2),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  entry.value,
+                                  entry.value.toString(),
                                   style: TextStyle(
                                     fontSize: 15,
                                     color: textColor,
