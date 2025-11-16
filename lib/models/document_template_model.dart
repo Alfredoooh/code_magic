@@ -79,6 +79,7 @@ class DocumentRequest {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? adminNotes;
+  final Map<String, dynamic>? customFields; // ADICIONADO
 
   DocumentRequest({
     required this.id,
@@ -95,6 +96,7 @@ class DocumentRequest {
     required this.createdAt,
     this.updatedAt,
     this.adminNotes,
+    this.customFields, // ADICIONADO
   });
 
   factory DocumentRequest.fromFirestore(DocumentSnapshot doc) {
@@ -119,6 +121,7 @@ class DocumentRequest {
           ? (data['updatedAt'] as Timestamp).toDate() 
           : null,
       adminNotes: data['adminNotes'],
+      customFields: data['customFields'] as Map<String, dynamic>?, // ADICIONADO
     );
   }
 
@@ -137,6 +140,7 @@ class DocumentRequest {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       'adminNotes': adminNotes,
+      'customFields': customFields, // ADICIONADO
     };
   }
 }
