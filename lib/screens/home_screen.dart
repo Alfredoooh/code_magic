@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handlePlusButton(BuildContext context) async {
     final authProvider = context.read<AuthProvider>();
     _hideKeyboard();
-    await Future.delayed(const Duration(milliseconds: 150));
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (!mounted) return;
 
@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
         key: _scaffoldKey,
         backgroundColor: bgColor,
         drawer: const CustomDrawer(),
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false, // MUDANÇA CRÍTICA: false em vez de true
         body: Row(
           children: [
             Expanded(
@@ -394,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showNewPostModal(BuildContext context) async {
     _hideKeyboard();
-    await Future.delayed(const Duration(milliseconds: 150));
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (!mounted) return;
 
