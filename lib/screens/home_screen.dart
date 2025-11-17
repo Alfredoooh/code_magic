@@ -138,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProv = context.watch<ThemeProvider>();
     final isDark = themeProv.isDarkMode;
     final bgColor = isDark ? const Color(0xFF242526) : Colors.white;
+    final scaffoldBgColor = isDark ? const Color(0xFF18191A) : const Color(0xFFF0F2F5);
     final iconColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
     final unselectedColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
     final topBorderColor = isDark ? const Color(0xFF3E4042) : const Color(0xFFDADADA);
@@ -154,9 +155,9 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: _hideKeyboard,
       child: Scaffold(
         key: _scaffoldKey,
-        backgroundColor: bgColor,
+        backgroundColor: scaffoldBgColor,
         drawer: const CustomDrawer(),
-        resizeToAvoidBottomInset: false, // MUDANÇA CRÍTICA: false em vez de true
+        resizeToAvoidBottomInset: true
         body: Row(
           children: [
             Expanded(
