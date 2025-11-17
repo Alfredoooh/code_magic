@@ -1,4 +1,3 @@
-// lib/screens/image_viewer_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -231,7 +230,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                   child: Center(
                     child: _buildImageWidget(widget.imageUrls[index]),
                   ),
-                ),
+                );
               },
             ),
 
