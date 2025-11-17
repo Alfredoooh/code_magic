@@ -59,27 +59,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return _pages[index]!;
   }
 
-  // função segura para fechar teclado (NÃO usar SystemChannels)
   void _hideKeyboard() {
     FocusScope.of(context).unfocus();
   }
 
   void _onTap(int index) {
     if (_currentIndex == index) return;
-
-    // fechar teclado de forma suave
     _hideKeyboard();
-
     setState(() => _currentIndex = index);
   }
 
-  // tornar async para garantir pequeno delay antes de abrir modais/rotas
   Future<void> _handlePlusButton(BuildContext context) async {
     final authProvider = context.read<AuthProvider>();
-
     _hideKeyboard();
-    // delay curto para garantir teclado fechado (resolve "teclado preso")
-    await Future.delayed(const Duration(milliseconds: 120));
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    if (!mounted) return;
 
     if (_currentIndex == 0) {
       _showNewPostModal(context);
@@ -93,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
               editorType: EditorType.note,
             ),
           ),
-        ).then((_) => _hideKeyboard());
+        );
       }
     }
   }
@@ -156,7 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool showLayoutMenu = _currentIndex == 4;
 
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
       onTap: _hideKeyboard,
       child: Scaffold(
         key: _scaffoldKey,
@@ -240,7 +234,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
                                     onPressed: () {
                                       _hideKeyboard();
-                                      Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen())).then((_) => _hideKeyboard());
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const SearchScreen()),
+                                      );
                                     },
                                   ),
                                 if (showInboxButton && currentUid != null)
@@ -258,7 +255,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
                                             onPressed: () {
                                               _hideKeyboard();
-                                              Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen())).then((_) => _hideKeyboard());
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(builder: (context) => const MessagesScreen()),
+                                              );
                                             },
                                           ),
                                           _buildNotificationBadge(unreadCount),
@@ -275,8 +275,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Expanded(
-                    child: FocusScope(
-                      child: IndexedStack(index: _currentIndex, children: List.generate(5, (i) => _getPage(i))),
+                    child: IndexedStack(
+                      index: _currentIndex,
+                      children: List.generate(5, (i) => _getPage(i)),
                     ),
                   ),
                 ],
@@ -324,34 +325,35 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
-        // Restaurei bottomNavigationBar original para evitar qualquer quebra
         bottomNavigationBar: !isWideScreen
-            ? Container(
-                color: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ? SafeArea(
                 child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: topBorderColor, width: 0.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 2, svg: CustomIcons.apps, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                      _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
-                    ],
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: topBorderColor, width: 0.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+                        _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+                        _buildTabItem(index: 2, svg: CustomIcons.apps, unselectedColor: unselectedColor),
+                        _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
+                        _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                      ],
+                    ),
                   ),
                 ),
               )
@@ -389,19 +391,18 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-void _showNewPostModal(BuildContext context) async {
-  // fecha teclado e aguarda um pouquinho antes de abrir modal
-  FocusScope.of(context).unfocus();
-  await Future.delayed(const Duration(milliseconds: 120));
+  void _showNewPostModal(BuildContext context) async {
+    _hideKeyboard();
+    await Future.delayed(const Duration(milliseconds: 150));
 
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => const NewPostModal(),
-  ).then((_) {
-    FocusScope.of(context).unfocus();
-  });
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const NewPostModal(),
+    );
+  }
 }
