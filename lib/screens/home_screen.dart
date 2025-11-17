@@ -59,28 +59,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return _pages[index]!;
   }
 
-  // --- SOLUÇÃO SEGURA: usar apenas unfocus (NÃO usar SystemChannels)
+  // função segura para fechar teclado (NÃO usar SystemChannels)
   void _hideKeyboard() {
-    // desfoca de forma suave - isso esconde o teclado sem corromper TextField
     FocusScope.of(context).unfocus();
   }
 
   void _onTap(int index) {
     if (_currentIndex == index) return;
 
-    // Fecha teclado de forma segura
+    // fechar teclado de forma suave
     _hideKeyboard();
 
     setState(() => _currentIndex = index);
   }
 
-  // tornar async para garantir delay antes de abrir modais/editor
+  // tornar async para garantir pequeno delay antes de abrir modais/rotas
   Future<void> _handlePlusButton(BuildContext context) async {
     final authProvider = context.read<AuthProvider>();
 
-    // desfoca (fecha teclado)
     _hideKeyboard();
-    // pequeno delay para garantir que o teclado foi fechado antes de abrir modal/navegar
+    // delay curto para garantir teclado fechado (resolve "teclado preso")
     await Future.delayed(const Duration(milliseconds: 120));
 
     if (_currentIndex == 0) {
@@ -102,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNotificationBadge(int count) {
     if (count == 0) return const SizedBox.shrink();
+
     return Positioned(
       right: 8,
       top: 8,
@@ -114,7 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
         constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
         child: Text(
           count > 9 ? '9+' : count.toString(),
-          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
           textAlign: TextAlign.center,
         ),
       ),
@@ -154,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: _hideKeyboard, // fecha teclado ao tocar fora
+      onTap: _hideKeyboard,
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: bgColor,
@@ -196,15 +199,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                     itemBuilder: (context) => [
                                       PopupMenuItem(
                                         value: 'list',
-                                        child: Row(children: [Icon(Icons.view_list, size: 20, color: iconColor), const SizedBox(width: 12), Text('Lista', style: TextStyle(color: iconColor))]),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.view_list, size: 20, color: iconColor),
+                                            const SizedBox(width: 12),
+                                            Text('Lista', style: TextStyle(color: iconColor)),
+                                          ],
+                                        ),
                                       ),
                                       PopupMenuItem(
                                         value: 'grid',
-                                        child: Row(children: [Icon(Icons.grid_view, size: 20, color: iconColor), const SizedBox(width: 12), Text('Grade', style: TextStyle(color: iconColor))]),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.grid_view, size: 20, color: iconColor),
+                                            const SizedBox(width: 12),
+                                            Text('Grade', style: TextStyle(color: iconColor)),
+                                          ],
+                                        ),
                                       ),
                                       PopupMenuItem(
                                         value: 'compact',
-                                        child: Row(children: [Icon(Icons.view_compact, size: 20, color: iconColor), const SizedBox(width: 12), Text('Compacto', style: TextStyle(color: iconColor))]),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.view_compact, size: 20, color: iconColor),
+                                            const SizedBox(width: 12),
+                                            Text('Compacto', style: TextStyle(color: iconColor)),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                     onSelected: (value) {},
@@ -276,7 +297,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: bgColor,
                             borderRadius: BorderRadius.circular(100),
                             border: Border.all(color: topBorderColor, width: 0.5),
-                            boxShadow: [BoxShadow(color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(-4, 0))],
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+                                blurRadius: 12,
+                                offset: const Offset(-4, 0),
+                              ),
+                            ],
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -297,7 +324,38 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
-        bottomNavigationBar: nullIfWide(context: context, isWideScreen: isWideScreen, bgColor: bgColor, topBorderColor: topBorderColor, unselectedColor: unselectedColor, isDark: isDark),
+        // Restaurei bottomNavigationBar original para evitar qualquer quebra
+        bottomNavigationBar: !isWideScreen
+            ? Container(
+                color: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: topBorderColor, width: 0.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 2, svg: CustomIcons.apps, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
+                      _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                    ],
+                  ),
+                ),
+              )
+            : null,
       ),
     );
   }
@@ -305,11 +363,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTabItem({required int index, required String svg, required Color unselectedColor}) {
     final bool active = _currentIndex == index;
     final Color iconColor = active ? _activeBlue : unselectedColor;
+
     return Expanded(
       child: InkWell(
         onTap: () => _onTap(index),
         borderRadius: BorderRadius.circular(100),
-        child: Center(child: SvgIcon(svgString: svg, size: 24, color: iconColor)),
+        child: Center(
+          child: SvgIcon(svgString: svg, size: 24, color: iconColor),
+        ),
       ),
     );
   }
@@ -317,53 +378,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildVerticalTabItem({required int index, required String svg, required Color unselectedColor}) {
     final bool active = _currentIndex == index;
     final Color iconColor = active ? _activeBlue : unselectedColor;
+
     return Expanded(
       child: InkWell(
         onTap: () => _onTap(index),
         borderRadius: BorderRadius.circular(100),
-        child: Center(child: SvgIcon(svgString: svg, size: 24, color: iconColor)),
-      ),
-    );
-  }
-}
-
-Widget nullIfWide({required BuildContext context, required bool isWideScreen, required Color bgColor, required Color topBorderColor, required Color unselectedColor, required bool isDark}) {
-  if (!isWideScreen) {
-    return Container(
-      color: Colors.transparent,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: topBorderColor, width: 0.5),
-          boxShadow: [BoxShadow(color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            // Estes métodos existem acima no mesmo arquivo
-            _tabItemWrapper(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-            _tabItemWrapper(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-            _tabItemWrapper(index: 2, svg: CustomIcons.apps, unselectedColor: unselectedColor),
-            _tabItemWrapper(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-            _tabItemWrapper(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
-          ],
+        child: Center(
+          child: SvgIcon(svgString: svg, size: 24, color: iconColor),
         ),
       ),
     );
   }
-  return const SizedBox.shrink();
-}
-
-// pequenos wrappers para não duplicar
-Widget _tabItemWrapper({required int index, required String svg, required Color unselectedColor}) {
-  return Expanded(child: Center(child: SvgIcon(svgString: svg, size: 24, color: unselectedColor)));
 }
 
 void _showNewPostModal(BuildContext context) async {
-  // desfoca teclado e aguarda um pouco antes de abrir modal
+  // fecha teclado e aguarda um pouquinho antes de abrir modal
   FocusScope.of(context).unfocus();
   await Future.delayed(const Duration(milliseconds: 120));
 
