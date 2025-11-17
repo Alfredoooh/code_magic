@@ -1,4 +1,3 @@
-// lib/screens/otp_verification_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -38,7 +37,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   Future<void> _verifyOTP() async {
     final code = _otpController.text.trim();
-    
+
     if (code.length != 6) {
       _showSnackBar('Digite o código de 6 dígitos', isError: true);
       return;
@@ -364,7 +363,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     const SizedBox(height: 32),
 
                     // Botão de verificar
-                    SizedBox(
+                    Container(
                       width: double.infinity,
                       constraints: const BoxConstraints(maxWidth: 400),
                       child: ElevatedButton(
