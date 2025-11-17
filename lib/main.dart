@@ -59,7 +59,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
-            
+
             // Configurações para melhor comportamento do teclado
             builder: (context, child) {
               return MediaQuery(
@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
                 ),
               );
             },
-            
+
             theme: ThemeData(
               brightness: Brightness.light,
               scaffoldBackgroundColor: const Color(0xFFF0F2F5),
@@ -105,7 +105,7 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             darkTheme: ThemeData(
               brightness: Brightness.dark,
               scaffoldBackgroundColor: const Color(0xFF18191A),
@@ -131,16 +131,16 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             themeMode: themeProvider.themeMode,
             home: const AuthWrapper(),
-            
+
             routes: {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
-              '/otp': (context) => const OTPVerificationScreen(),
-              '/home': (context) => const HomeScreen(),
+              '/otp': (context) => OTPVerificationScreen(),
+              '/home': (context) => HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/messages': (context) => const MessagesScreen(),
               '/search': (context) => const SearchScreen(),
@@ -168,9 +168,9 @@ class AuthWrapper extends StatelessWidget {
     }
 
     if (authProvider.needsOTPVerification) {
-      return const OTPVerificationScreen();
+      return OTPVerificationScreen();
     }
 
-    return const HomeScreen();
+    return HomeScreen();
   }
 }
