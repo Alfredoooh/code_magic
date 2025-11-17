@@ -19,7 +19,6 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configurações de sistema UI
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -30,13 +29,11 @@ void main() async {
     ),
   );
 
-  // Configurações de orientação
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Inicializar Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -60,9 +57,6 @@ class MyApp extends StatelessWidget {
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
 
-            // REMOVIDO O BUILDER QUE ESTAVA QUEBRANDO O TECLADO
-            // O GestureDetector para fechar teclado deve estar em cada tela individual
-
             theme: ThemeData(
               brightness: Brightness.light,
               scaffoldBackgroundColor: const Color(0xFFF0F2F5),
@@ -70,6 +64,7 @@ class MyApp extends StatelessWidget {
               colorScheme: const ColorScheme.light(
                 primary: Color(0xFF1877F2),
                 secondary: Color(0xFF42B72A),
+                surface: Colors.white,
               ),
               appBarTheme: const AppBarTheme(
                 backgroundColor: Colors.white,
@@ -80,10 +75,31 @@ class MyApp extends StatelessWidget {
               inputDecorationTheme: InputDecorationTheme(
                 filled: true,
                 fillColor: const Color(0xFFF0F2F5),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1877F2), width: 2),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.red, width: 1),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.red, width: 2),
+                ),
+              ),
+              textTheme: const TextTheme(
+                bodyLarge: TextStyle(color: Colors.black87),
+                bodyMedium: TextStyle(color: Colors.black87),
               ),
             ),
 
@@ -105,10 +121,31 @@ class MyApp extends StatelessWidget {
               inputDecorationTheme: InputDecorationTheme(
                 filled: true,
                 fillColor: const Color(0xFF3A3B3C),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1877F2), width: 2),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.red, width: 1),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.red, width: 2),
+                ),
+              ),
+              textTheme: const TextTheme(
+                bodyLarge: TextStyle(color: Colors.white),
+                bodyMedium: TextStyle(color: Colors.white),
               ),
             ),
 
