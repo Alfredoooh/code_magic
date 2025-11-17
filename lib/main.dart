@@ -19,7 +19,7 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configurações de sistema UI (correção do teclado)
+  // Configurações de sistema UI
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -60,26 +60,8 @@ class MyApp extends StatelessWidget {
             title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
 
-            // Configurações para melhor comportamento do teclado
-            builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  // Remove padding extra do teclado
-                  viewInsets: EdgeInsets.zero,
-                ),
-                child: GestureDetector(
-                  // Fecha o teclado ao tocar fora de campos de texto
-                  onTap: () {
-                    FocusScopeNode currentFocus = FocusScope.of(context);
-                    if (!currentFocus.hasPrimaryFocus && 
-                        currentFocus.focusedChild != null) {
-                      currentFocus.focusedChild!.unfocus();
-                    }
-                  },
-                  child: child!,
-                ),
-              );
-            },
+            // REMOVIDO O BUILDER QUE ESTAVA QUEBRANDO O TECLADO
+            // O GestureDetector para fechar teclado deve estar em cada tela individual
 
             theme: ThemeData(
               brightness: Brightness.light,
@@ -95,7 +77,6 @@ class MyApp extends StatelessWidget {
                 elevation: 0,
                 systemOverlayStyle: SystemUiOverlayStyle.dark,
               ),
-              // Configuração do input para evitar problemas com teclado
               inputDecorationTheme: InputDecorationTheme(
                 filled: true,
                 fillColor: const Color(0xFFF0F2F5),
@@ -121,7 +102,6 @@ class MyApp extends StatelessWidget {
                 elevation: 0,
                 systemOverlayStyle: SystemUiOverlayStyle.light,
               ),
-              // Configuração do input para dark mode
               inputDecorationTheme: InputDecorationTheme(
                 filled: true,
                 fillColor: const Color(0xFF3A3B3C),
@@ -140,7 +120,7 @@ class MyApp extends StatelessWidget {
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
               '/otp': (context) => const OTPVerificationScreen(),
-              '/home': (context) => HomeScreen(),
+              '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/messages': (context) => const MessagesScreen(),
               '/search': (context) => const SearchScreen(),
@@ -171,6 +151,6 @@ class AuthWrapper extends StatelessWidget {
       return const OTPVerificationScreen();
     }
 
-    return HomeScreen();
+    return const HomeScreen();
   }
 }
