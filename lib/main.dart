@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
-import 'screens/home_screen.dart' hide OTPVerificationScreen;
 import 'screens/settings_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/search_screen.dart';
-import 'screens/otp_verification_screen.dart' as otp;
+import 'screens/otp_verification_screen.dart';
+import 'screens/home_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'firebase_options.dart';
@@ -139,7 +139,7 @@ class MyApp extends StatelessWidget {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
-              '/otp': (context) => const otp.OTPVerificationScreen(),
+              '/otp': (context) => const OTPVerificationScreen(),
               '/home': (context) => HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/messages': (context) => const MessagesScreen(),
@@ -168,7 +168,7 @@ class AuthWrapper extends StatelessWidget {
     }
 
     if (authProvider.needsOTPVerification) {
-      return const otp.OTPVerificationScreen();
+      return const OTPVerificationScreen();
     }
 
     return HomeScreen();
