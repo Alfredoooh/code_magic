@@ -157,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
         key: _scaffoldKey,
         backgroundColor: scaffoldBgColor,
         drawer: const CustomDrawer(),
-        resizeToAvoidBottomInset: true
+        resizeToAvoidBottomInset: true,
         body: Row(
           children: [
             Expanded(
