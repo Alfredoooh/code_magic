@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
           return MaterialApp(
-            title: 'Simplicity',
+            title: 'PrinterLite',
             debugShowCheckedModeBanner: false,
 
             // Configurações para melhor comportamento do teclado
@@ -140,7 +140,7 @@ class MyApp extends StatelessWidget {
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
               '/otp': (context) => const otp.OTPVerificationScreen(),
-              '/home': (context) => const HomeScreen(),
+              '/home': (context) => HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/messages': (context) => const MessagesScreen(),
               '/search': (context) => const SearchScreen(),
@@ -171,6 +171,6 @@ class AuthWrapper extends StatelessWidget {
       return const otp.OTPVerificationScreen();
     }
 
-    return const HomeScreen();
+    return HomeScreen();
   }
 }
