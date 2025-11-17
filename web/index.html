@@ -19,201 +19,88 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-  <!-- PWA Settings -->
-  <meta name="theme-color" content="#1877F2">
+  <!-- Dark theme color -->
+  <meta name="theme-color" content="#121212">
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    /* Reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      padding: 0;
-      background: #18191A;
+    html, body {
+      height: 100%;
+      background: #121212; /* tema escuro simples */
+      color: #E4E6EB;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
+    /* Fullscreen centered container */
     .loading {
-      position: fixed;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
-      flex-direction: column;
-      background: #18191A;
-      z-index: 9999;
-    }
-
-    .logo {
-      font-size: 56px;
-      font-weight: 700;
-      color: #1877F2;
-      letter-spacing: -1px;
-      margin-bottom: 48px;
-      animation: fadeInDown 0.8s ease-out;
-    }
-
-    @keyframes fadeInDown {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .spinner-container {
-      position: relative;
-      width: 60px;
-      height: 60px;
-      margin-bottom: 24px;
-    }
-
-    .spinner {
-      width: 60px;
-      height: 60px;
-      border: 4px solid rgba(24, 119, 242, 0.1);
-      border-top-color: #1877F2;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-      font-size: 15px;
-      color: #E4E6EB;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-      }
-      50% {
-        opacity: 0.5;
-      }
-    }
-
-    .loading-info {
-      margin-top: 16px;
-      font-size: 13px;
-      color: #8E8E93;
       text-align: center;
-      max-width: 300px;
-      line-height: 1.5;
-      animation: fadeIn 1s ease-out 0.5s both;
+      padding: 24px;
+      background: #121212; /* sem gradiente */
     }
 
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
+    .message {
+      font-size: 20px;
+      font-weight: 500;
+      color: #E4E6EB;
+      line-height: 1.4;
+      letter-spacing: 0.2px;
     }
 
-    /* Fade out animation */
-    .loading.fade-out {
-      animation: fadeOut 0.4s ease-out forwards;
+    /* Small footer text (optional, discreto) */
+    .footer {
+      position: fixed;
+      bottom: 12px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 12px;
+      color: #8E8E93;
+      pointer-events: none;
     }
 
-    @keyframes fadeOut {
-      to {
-        opacity: 0;
-        visibility: hidden;
-      }
-    }
-
-    /* Decorative elements */
-    .loading::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 400px;
-      height: 400px;
-      background: radial-gradient(circle, rgba(24, 119, 242, 0.1) 0%, transparent 70%);
-      border-radius: 50%;
-      animation: glow 3s ease-in-out infinite;
-    }
-
-    @keyframes glow {
-      0%, 100% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.3;
-      }
-      50% {
-        transform: translate(-50%, -50%) scale(1.1);
-        opacity: 0.5;
-      }
-    }
-
-    .content {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+    /* Make sure loading is visible until flutter-first-frame */
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <div class="loading" id="loading">
-    <div class="content">
-      <div class="logo">simplicity</div>
-      <div class="spinner-container">
-        <div class="spinner"></div>
-      </div>
-      <div class="loading-text">Carregando...</div>
-      <div class="loading-info">
-        Isto pode levar algum tempo.<br>Por favor, aguarde.
-      </div>
+    <div>
+      <div class="message">Aguarde um pouquinho</div>
     </div>
   </div>
 
+  <div class="footer" id="footer"> </div>
+
   <script>
-    // Service Worker registration
+    // Mantém registro do service worker como antes
     if ('serviceWorker' in navigator) {
       window.addEventListener('flutter-first-frame', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js');
+        navigator.serviceWorker.register('flutter_service_worker.js').catch(()=>{});
       });
     }
 
-    // Remove loading screen
+    // Remove loading screen quando o Flutter renderizar o primeiro frame
     window.addEventListener('flutter-first-frame', function () {
       const loading = document.getElementById('loading');
       if (loading) {
-        loading.classList.add('fade-out');
-        setTimeout(() => {
-          loading.style.display = 'none';
-        }, 400);
+        loading.classList.add('hidden');
       }
     });
 
-    // Fallback: remove loading after 30 seconds
+    // Fallback: remove loading após 30s caso flutter-first-frame não dispare
     setTimeout(() => {
       const loading = document.getElementById('loading');
       if (loading && loading.style.display !== 'none') {
-        loading.classList.add('fade-out');
-        setTimeout(() => {
-          loading.style.display = 'none';
-        }, 400);
+        loading.classList.add('hidden');
       }
     }, 30000);
   </script>
