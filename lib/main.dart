@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/home_screen.dart' hide OTPVerificationScreen;
 import 'screens/settings_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/search_screen.dart';
-import 'screens/otp_verification_screen.dart';
+import 'screens/otp_verification_screen.dart' as otp;
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'firebase_options.dart';
@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
           return MaterialApp(
-            title: 'PrinterLite',
+            title: 'Simplicity',
             debugShowCheckedModeBanner: false,
 
             // Configurações para melhor comportamento do teclado
@@ -139,8 +139,8 @@ class MyApp extends StatelessWidget {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignUpScreen(),
-              '/otp': (context) => OTPVerificationScreen(),
-              '/home': (context) => HomeScreen(),
+              '/otp': (context) => const otp.OTPVerificationScreen(),
+              '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/messages': (context) => const MessagesScreen(),
               '/search': (context) => const SearchScreen(),
@@ -168,9 +168,9 @@ class AuthWrapper extends StatelessWidget {
     }
 
     if (authProvider.needsOTPVerification) {
-      return OTPVerificationScreen();
+      return const otp.OTPVerificationScreen();
     }
 
-    return HomeScreen();
+    return const HomeScreen();
   }
 }
