@@ -1,4 +1,6 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
@@ -30,12 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final List<Widget?> _pages = [const PostFeed(), null, null, null, null];
   static const Color _activeBlue = Color(0xFF1877F2);
-  final FocusNode _dummyFocusNode = FocusNode(); // Para corrigir problema do teclado
 
   final List<String> _tabTitles = [
     'Início',
-    'Ativos', // ALTERADO - Era "Usuários", agora "Ativos"
-    'Apps', // ALTERADO - Era "Marketplace", agora "Apps"
+    'Ativos',
+    'Apps',
     'Diário',
     'Novo Pedido',
   ];
@@ -47,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _pages[1] = const UsersScreen();
         break;
       case 2:
-        _pages[2] = const AppsScreen(); // ALTERADO - Era MarketplaceScreen, agora AppsScreen
+        _pages[2] = const AppsScreen();
         break;
       case 3:
         _pages[3] = const DiaryScreen();
@@ -61,39 +62,34 @@ class _HomeScreenState extends State<HomeScreen> {
     return _pages[index]!;
   }
 
+  void _hideKeyboard() {
+    // Primeiro tenta desfocar o foco principal
+    FocusManager.instance.primaryFocus?.unfocus();
+    // Fallback: força o hide do TextInput (útil em alguns dispositivos/bugs)
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  }
+
   void _onTap(int index) {
     if (_currentIndex == index) return;
-    
-    // Remove o foco do teclado ao trocar de aba (correção do problema do teclado)
-    _dummyFocusNode.unfocus();
-    FocusScope.of(context).unfocus();
-    
+
+    // Remove o foco do teclado ao trocar de aba
+    _hideKeyboard();
+
+    // Peça ao FocusScope para focar um FocusNode temporário (garante que nenhum TextField mantenha foco)
+    FocusScope.of(context).requestFocus(FocusNode());
+
     setState(() => _currentIndex = index);
   }
 
   void _handlePlusButton(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
 
+    // Sempre garantir que o teclado esteja fechado antes de abrir algo novo
+    _hideKeyboard();
+
     if (_currentIndex == 0) {
       _showNewPostModal(context);
-    } 
-    // COMENTADO - Funcionalidade de adicionar livros (Books descontinuado)
-    // else if (_currentIndex == 2) {
-    //   final bool canAddBook = authProvider.userData?['isPro'] == true ||
-    //       authProvider.userData?['isPremium'] == true;
-    //
-    //   if (canAddBook) {
-    //     Navigator.push(
-    //       context,
-    //       MaterialPageRoute(
-    //         builder: (context) => const AddBookScreen(),
-    //       ),
-    //     );
-    //   } else {
-    //     _showProRequiredDialog(context);
-    //   }
-    // } 
-    else if (_currentIndex == 3) {
+    } else if (_currentIndex == 3) {
       if (authProvider.user != null) {
         Navigator.push(
           context,
@@ -103,81 +99,10 @@ class _HomeScreenState extends State<HomeScreen> {
               editorType: EditorType.note,
             ),
           ),
-        );
+        ).then((_) => _hideKeyboard());
       }
     }
   }
-
-  // COMENTADO - Não é mais necessário para Apps
-  // void _showProRequiredDialog(BuildContext context) {
-  //   final themeProv = context.read<ThemeProvider>();
-  //   final isDark = themeProv.isDarkMode;
-  //   final textColor = isDark ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
-  //   final hintColor = isDark ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
-  //
-  //   showDialog(
-  //     context: context,
-  //     builder: (ctx) => AlertDialog(
-  //       backgroundColor: isDark ? const Color(0xFF242526) : Colors.white,
-  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  //       title: Row(
-  //         children: [
-  //           Container(
-  //             padding: const EdgeInsets.all(8),
-  //             decoration: BoxDecoration(
-  //               color: const Color(0xFF1877F2).withOpacity(0.1),
-  //               borderRadius: BorderRadius.circular(8),
-  //             ),
-  //             child: const Icon(
-  //               Icons.workspace_premium,
-  //               color: Color(0xFF1877F2),
-  //               size: 24,
-  //             ),
-  //           ),
-  //           const SizedBox(width: 12),
-  //           Expanded(
-  //             child: Text(
-  //               'Recurso Pro',
-  //               style: TextStyle(
-  //                 color: textColor,
-  //                 fontSize: 20,
-  //                 fontWeight: FontWeight.w600,
-  //               ),
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //       content: Text(
-  //         'Apenas usuários Pro ou Premium podem adicionar livros ao Marketplace.',
-  //         style: TextStyle(color: hintColor, fontSize: 15),
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(ctx),
-  //           child: Text(
-  //             'Entendi',
-  //             style: TextStyle(
-  //               color: hintColor,
-  //               fontWeight: FontWeight.w600,
-  //             ),
-  //           ),
-  //         ),
-  //         ElevatedButton(
-  //           onPressed: () => Navigator.pop(ctx),
-  //           style: ElevatedButton.styleFrom(
-  //             backgroundColor: const Color(0xFF1877F2),
-  //             foregroundColor: Colors.white,
-  //             elevation: 0,
-  //             shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.circular(8),
-  //             ),
-  //           ),
-  //           child: const Text('Ver Planos'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 
   Widget _buildNotificationBadge(int count) {
     if (count == 0) return const SizedBox.shrink();
@@ -226,12 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void dispose() {
-    _dummyFocusNode.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final themeProv = context.watch<ThemeProvider>();
     final isDark = themeProv.isDarkMode;
@@ -243,17 +162,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = context.watch<AuthProvider>();
     final currentUid = authProvider.user?.uid;
 
-    // ALTERADO - Removido botão plus do index 2 (Apps)
     final bool showPlusButton = _currentIndex == 0 || _currentIndex == 3;
     final bool showSearchButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2 || _currentIndex == 3;
     final bool showInboxButton = _currentIndex == 0 || _currentIndex == 1 || _currentIndex == 2;
     final bool showLayoutMenu = _currentIndex == 4;
 
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
       // Corrige problema do teclado - fecha quando toca fora
       onTap: () {
-        _dummyFocusNode.unfocus();
-        FocusScope.of(context).unfocus();
+        _hideKeyboard();
       },
       child: Scaffold(
         key: _scaffoldKey,
@@ -281,7 +199,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     svgString: CustomIcons.menu,
                                     color: iconColor,
                                   ),
-                                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                                  onPressed: () {
+                                    _hideKeyboard();
+                                    _scaffoldKey.currentState?.openDrawer();
+                                  },
                                 ),
                                 Text(
                                   _tabTitles[_currentIndex],
@@ -356,9 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                     ],
-                                    onSelected: (value) {
-                                      // A funcionalidade será implementada no DocumentRequestsScreen
-                                    },
+                                    onSelected: (value) {},
                                   ),
                                 if (showPlusButton)
                                   IconButton(
@@ -375,12 +294,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: iconColor,
                                     ),
                                     onPressed: () {
+                                      _hideKeyboard();
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) => const SearchScreen(),
                                         ),
-                                      );
+                                      ).then((_) => _hideKeyboard());
                                     },
                                   ),
                                 if (showInboxButton && currentUid != null)
@@ -400,12 +320,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                               color: iconColor,
                                             ),
                                             onPressed: () {
+                                              _hideKeyboard();
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) => const MessagesScreen(),
                                                 ),
-                                              );
+                                              ).then((_) => _hideKeyboard());
                                             },
                                           ),
                                           _buildNotificationBadge(unreadCount),
@@ -422,9 +343,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Expanded(
-                    child: IndexedStack(
-                      index: _currentIndex,
-                      children: List.generate(5, (i) => _getPage(i)),
+                    child: FocusScope(
+                      // Isola foco dentro do corpo para facilitar desfocar ao trocar abas
+                      child: IndexedStack(
+                        index: _currentIndex,
+                        children: List.generate(5, (i) => _getPage(i)),
+                      ),
                     ),
                   ),
                 ],
@@ -476,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               _buildVerticalTabItem(
                                 index: 2,
-                                svg: CustomIcons.apps, // ALTERADO - Era marketplace, agora apps
+                                svg: CustomIcons.apps,
                                 unselectedColor: unselectedColor,
                               ),
                               _buildVerticalTabItem(
@@ -535,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       _buildTabItem(
                         index: 2,
-                        svg: CustomIcons.apps, // ALTERADO - Era marketplace, agora apps
+                        svg: CustomIcons.apps,
                         unselectedColor: unselectedColor,
                       ),
                       _buildTabItem(
@@ -597,10 +521,18 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 void _showNewPostModal(BuildContext context) {
+  // Antes de abrir o modal, fechar teclado
+  FocusManager.instance.primaryFocus?.unfocus();
+  SystemChannels.textInput.invokeMethod('TextInput.hide');
+
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (context) => const NewPostModal(),
-  );
+  ).then((_) {
+    // Ao fechar, garantir que teclado foi escondido
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  });
 }
