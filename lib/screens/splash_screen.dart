@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -64,31 +64,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    // Mantive uma cor de fundo simples — se quiseres outra cor diz.
+    const backgroundColor = Color(0xFF18191A);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF18191A),
+      backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          // Efeito de brilho de fundo
-          Positioned.fill(
-            child: Center(
-              child: Container(
-                width: 400,
-                height: 400,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF1877F2).withOpacity(0.1),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.7],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Conteúdo principal
+          // Conteúdo principal (sem efeitos / sem gradientes)
           Center(
             child: AnimatedBuilder(
               animation: _controller,
@@ -100,27 +84,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Logo
+                        // Título simples
                         const Text(
-                          'printerNet',
+                          'simplicity',
                           style: TextStyle(
                             fontSize: 56,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1877F2),
+                            color: Color(0xFFE4E6EB), // cor simples, sem gradiente
                             letterSpacing: -1,
                             height: 1,
                           ),
                         ),
                         const SizedBox(height: 48),
 
-                        // Spinner
-                        SizedBox(
+                        // Spinner simples
+                        const SizedBox(
                           width: 60,
                           height: 60,
                           child: CircularProgressIndicator(
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF1877F2),
-                            ),
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1877F2)),
                             strokeWidth: 4,
                           ),
                         ),
@@ -138,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                         const SizedBox(height: 16),
 
-                        // Mensagem de informação
+                        // Mensagem de informação simples
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 48),
                           child: Text(
@@ -159,20 +141,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             ),
           ),
 
-          // Versão no rodapé
+          // Texto da empresa lá no fundo (simples, pequeno, discreto)
           Positioned(
-            bottom: 32,
+            bottom: 14,
             left: 0,
             right: 0,
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: const Text(
-                'V1.0.0',
-                textAlign: TextAlign.center,
+            child: Center(
+              child: Text(
+                'nexa',
                 style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF8E8E93),
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFFB0B3B8) : const Color(0xFF8E8E93),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
                 ),
               ),
             ),
