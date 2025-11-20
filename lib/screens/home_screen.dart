@@ -157,130 +157,164 @@ class _HomeScreenState extends State<HomeScreen> {
         key: _scaffoldKey,
         backgroundColor: scaffoldBgColor,
         drawer: const CustomDrawer(),
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false, // Alterado para false para evitar vestígios do teclado ao desaparecer
         body: Row(
           children: [
             Expanded(
-              child: Column(
+              child: Stack(
                 children: [
-                  Container(
-                    color: bgColor,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            height: 56,
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
-                                  onPressed: () {
-                                    _hideKeyboard();
-                                    _scaffoldKey.currentState?.openDrawer();
-                                  },
-                                ),
-                                Text(
-                                  _tabTitles[_currentIndex],
-                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: iconColor),
-                                ),
-                                const Spacer(),
-                                if (showLayoutMenu)
-                                  PopupMenuButton<String>(
-                                    icon: SvgIcon(svgString: CustomIcons.moreVert, color: iconColor),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    color: isDark ? const Color(0xFF242526) : Colors.white,
-                                    offset: const Offset(0, 50),
-                                    itemBuilder: (context) => [
-                                      PopupMenuItem(
-                                        value: 'list',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.view_list, size: 20, color: iconColor),
-                                            const SizedBox(width: 12),
-                                            Text('Lista', style: TextStyle(color: iconColor)),
-                                          ],
-                                        ),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'grid',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.grid_view, size: 20, color: iconColor),
-                                            const SizedBox(width: 12),
-                                            Text('Grade', style: TextStyle(color: iconColor)),
-                                          ],
-                                        ),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'compact',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.view_compact, size: 20, color: iconColor),
-                                            const SizedBox(width: 12),
-                                            Text('Compacto', style: TextStyle(color: iconColor)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    onSelected: (value) {},
-                                  ),
-                                if (showPlusButton)
-                                  IconButton(
-                                    icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
-                                    onPressed: () => _handlePlusButton(context),
-                                  ),
-                                if (showSearchButton)
-                                  IconButton(
-                                    icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
-                                    onPressed: () {
-                                      _hideKeyboard();
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const SearchScreen()),
-                                      );
-                                    },
-                                  ),
-                                if (showInboxButton && currentUid != null)
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('document_requests')
-                                        .where('userId', isEqualTo: currentUid)
-                                        .where('status', whereIn: ['in_progress', 'completed'])
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      final unreadCount = snapshot.data?.docs.length ?? 0;
-                                      return Stack(
-                                        children: [
-                                          IconButton(
-                                            icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
-                                            onPressed: () {
-                                              _hideKeyboard();
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(builder: (context) => const MessagesScreen()),
-                                              );
-                                            },
+                  Column(
+                    children: [
+                      Container(
+                        color: bgColor,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                height: 56,
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
+                                      onPressed: () {
+                                        _hideKeyboard();
+                                        _scaffoldKey.currentState?.openDrawer();
+                                      },
+                                    ),
+                                    Text(
+                                      _tabTitles[_currentIndex],
+                                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: iconColor),
+                                    ),
+                                    const Spacer(),
+                                    if (showLayoutMenu)
+                                      PopupMenuButton<String>(
+                                        icon: SvgIcon(svgString: CustomIcons.moreVert, color: iconColor),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        color: isDark ? const Color(0xFF242526) : Colors.white,
+                                        offset: const Offset(0, 50),
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            value: 'list',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.view_list, size: 20, color: iconColor),
+                                                const SizedBox(width: 12),
+                                                Text('Lista', style: TextStyle(color: iconColor)),
+                                              ],
+                                            ),
                                           ),
-                                          _buildNotificationBadge(unreadCount),
+                                          PopupMenuItem(
+                                            value: 'grid',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.grid_view, size: 20, color: iconColor),
+                                                const SizedBox(width: 12),
+                                                Text('Grade', style: TextStyle(color: iconColor)),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'compact',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.view_compact, size: 20, color: iconColor),
+                                                const SizedBox(width: 12),
+                                                Text('Compacto', style: TextStyle(color: iconColor)),
+                                              ],
+                                            ),
+                                          ),
                                         ],
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
+                                        onSelected: (value) {},
+                                      ),
+                                    if (showPlusButton)
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
+                                        onPressed: () => _handlePlusButton(context),
+                                      ),
+                                    if (showSearchButton)
+                                      IconButton(
+                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                        onPressed: () {
+                                          _hideKeyboard();
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(builder: (context) => const SearchScreen()),
+                                          );
+                                        },
+                                      ),
+                                    if (showInboxButton && currentUid != null)
+                                      StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('document_requests')
+                                            .where('userId', isEqualTo: currentUid)
+                                            .where('status', whereIn: ['in_progress', 'completed'])
+                                            .snapshots(),
+                                        builder: (context, snapshot) {
+                                          final unreadCount = snapshot.data?.docs.length ?? 0;
+                                          return Stack(
+                                            children: [
+                                              IconButton(
+                                                icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                                onPressed: () {
+                                                  _hideKeyboard();
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (context) => const MessagesScreen()),
+                                                  );
+                                                },
+                                              ),
+                                              _buildNotificationBadge(unreadCount),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Container(color: topBorderColor, height: 0.5),
+                            ],
                           ),
-                          Container(color: topBorderColor, height: 0.5),
-                        ],
+                        ),
+                      ),
+                      Expanded(
+                        child: IndexedStack(
+                          index: _currentIndex,
+                          children: List.generate(5, (i) => _getPage(i)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!isWideScreen)
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 20,
+                      child: Container(
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: themeProv.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildTabItem(index: 0, outlinedSvg: CustomIcons.home, filledSvg: CustomIcons.homeFilled ?? CustomIcons.home, unselectedColor: unselectedColor, label: 'Início'),
+                            _buildTabItem(index: 1, outlinedSvg: CustomIcons.users, filledSvg: CustomIcons.usersFilled ?? CustomIcons.users, unselectedColor: unselectedColor, label: 'Ativos'),
+                            _buildTabItem(index: 2, outlinedSvg: CustomIcons.apps, filledSvg: CustomIcons.appsFilled ?? CustomIcons.apps, unselectedColor: unselectedColor, label: 'Apps'),
+                            _buildTabItem(index: 3, outlinedSvg: CustomIcons.book, filledSvg: CustomIcons.bookFilled ?? CustomIcons.book, unselectedColor: unselectedColor, label: 'Diário'),
+                            _buildTabItem(index: 4, outlinedSvg: CustomIcons.addCircle, filledSvg: CustomIcons.addCircleFilled ?? CustomIcons.addCircle, unselectedColor: unselectedColor, label: 'Novo Pedido'),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: IndexedStack(
-                      index: _currentIndex,
-                      children: List.generate(5, (i) => _getPage(i)),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -310,11 +344,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _buildVerticalTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 2, svg: CustomIcons.apps, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
+                              _buildVerticalTabItem(index: 0, outlinedSvg: CustomIcons.home, filledSvg: CustomIcons.homeFilled ?? CustomIcons.home, unselectedColor: unselectedColor),
+                              _buildVerticalTabItem(index: 1, outlinedSvg: CustomIcons.users, filledSvg: CustomIcons.usersFilled ?? CustomIcons.users, unselectedColor: unselectedColor),
+                              _buildVerticalTabItem(index: 2, outlinedSvg: CustomIcons.apps, filledSvg: CustomIcons.appsFilled ?? CustomIcons.apps, unselectedColor: unselectedColor),
+                              _buildVerticalTabItem(index: 3, outlinedSvg: CustomIcons.book, filledSvg: CustomIcons.bookFilled ?? CustomIcons.book, unselectedColor: unselectedColor),
+                              _buildVerticalTabItem(index: 4, outlinedSvg: CustomIcons.addCircle, filledSvg: CustomIcons.addCircleFilled ?? CustomIcons.addCircle, unselectedColor: unselectedColor),
                             ],
                           ),
                         ),
@@ -326,68 +360,59 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
-        bottomNavigationBar: !isWideScreen
-            ? SafeArea(
-                child: Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(color: topBorderColor, width: 0.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildTabItem(index: 0, svg: CustomIcons.home, unselectedColor: unselectedColor),
-                        _buildTabItem(index: 1, svg: CustomIcons.users, unselectedColor: unselectedColor),
-                        _buildTabItem(index: 2, svg: CustomIcons.apps, unselectedColor: unselectedColor),
-                        _buildTabItem(index: 3, svg: CustomIcons.book, unselectedColor: unselectedColor),
-                        _buildTabItem(index: 4, svg: CustomIcons.addCircle, unselectedColor: unselectedColor),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            : null,
       ),
     );
   }
 
-  Widget _buildTabItem({required int index, required String svg, required Color unselectedColor}) {
+  Widget _buildTabItem({
+    required int index,
+    required String outlinedSvg,
+    required String filledSvg,
+    required Color unselectedColor,
+    required String label,
+  }) {
     final bool active = _currentIndex == index;
     final Color iconColor = active ? _activeBlue : unselectedColor;
+    final String svg = active ? filledSvg : outlinedSvg;
 
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
         onTap: () => _onTap(index),
-        borderRadius: BorderRadius.circular(100),
-        child: Center(
-          child: SvgIcon(svgString: svg, size: 24, color: iconColor),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgIcon(svgString: svg, size: 19.2, color: iconColor), // Reduzido em 20% de 24 para 19.2
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.9,
+                color: iconColor,
+                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildVerticalTabItem({required int index, required String svg, required Color unselectedColor}) {
+  Widget _buildVerticalTabItem({
+    required int index,
+    required String outlinedSvg,
+    required String filledSvg,
+    required Color unselectedColor,
+  }) {
     final bool active = _currentIndex == index;
     final Color iconColor = active ? _activeBlue : unselectedColor;
+    final String svg = active ? filledSvg : outlinedSvg;
 
     return Expanded(
       child: InkWell(
         onTap: () => _onTap(index),
         borderRadius: BorderRadius.circular(100),
         child: Center(
-          child: SvgIcon(svgString: svg, size: 24, color: iconColor),
+          child: SvgIcon(svgString: svg, size: 19.2, color: iconColor), // Reduzido em 20%
         ),
       ),
     );
