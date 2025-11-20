@@ -58,7 +58,6 @@ dependencies:
   animations: any
   path_provider: any
   share_plus: any
-  provider: any
   file_picker: any
   
 dev_dependencies:
