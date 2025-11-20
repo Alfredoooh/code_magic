@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/custom_icons.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/post_feed.dart';
 import '../widgets/new_post_modal.dart';
@@ -157,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
         key: _scaffoldKey,
         backgroundColor: scaffoldBgColor,
         drawer: const CustomDrawer(),
-        resizeToAvoidBottomInset: false, // Alterado para false para evitar vestígios do teclado ao desaparecer
+        resizeToAvoidBottomInset: false,
         body: Row(
           children: [
             Expanded(
@@ -176,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Row(
                                   children: [
                                     IconButton(
-                                      icon: SvgIcon(svgString: CustomIcons.menu, color: iconColor),
+                                      icon: Icon(Icons.menu, color: iconColor),
                                       onPressed: () {
                                         _hideKeyboard();
                                         _scaffoldKey.currentState?.openDrawer();
@@ -189,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     const Spacer(),
                                     if (showLayoutMenu)
                                       PopupMenuButton<String>(
-                                        icon: SvgIcon(svgString: CustomIcons.moreVert, color: iconColor),
+                                        icon: Icon(Icons.more_vert, color: iconColor),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                         color: isDark ? const Color(0xFF242526) : Colors.white,
                                         offset: const Offset(0, 50),
@@ -229,12 +228,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     if (showPlusButton)
                                       IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.plus, color: iconColor),
+                                        icon: Icon(Icons.add, color: iconColor),
                                         onPressed: () => _handlePlusButton(context),
                                       ),
                                     if (showSearchButton)
                                       IconButton(
-                                        icon: SvgIcon(svgString: CustomIcons.search, color: iconColor),
+                                        icon: Icon(Icons.search, color: iconColor),
                                         onPressed: () {
                                           _hideKeyboard();
                                           Navigator.push(
@@ -255,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           return Stack(
                                             children: [
                                               IconButton(
-                                                icon: SvgIcon(svgString: CustomIcons.inbox, color: iconColor),
+                                                icon: Icon(Icons.inbox, color: iconColor),
                                                 onPressed: () {
                                                   _hideKeyboard();
                                                   Navigator.push(
@@ -293,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         height: 54,
                         decoration: BoxDecoration(
-                          color: themeProv.colorScheme.surface,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(30),
                           boxShadow: [
                             BoxShadow(
@@ -306,11 +305,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildTabItem(index: 0, outlinedSvg: CustomIcons.home, filledSvg: CustomIcons.homeFilled ?? CustomIcons.home, unselectedColor: unselectedColor, label: 'Início'),
-                            _buildTabItem(index: 1, outlinedSvg: CustomIcons.users, filledSvg: CustomIcons.usersFilled ?? CustomIcons.users, unselectedColor: unselectedColor, label: 'Ativos'),
-                            _buildTabItem(index: 2, outlinedSvg: CustomIcons.apps, filledSvg: CustomIcons.appsFilled ?? CustomIcons.apps, unselectedColor: unselectedColor, label: 'Apps'),
-                            _buildTabItem(index: 3, outlinedSvg: CustomIcons.book, filledSvg: CustomIcons.bookFilled ?? CustomIcons.book, unselectedColor: unselectedColor, label: 'Diário'),
-                            _buildTabItem(index: 4, outlinedSvg: CustomIcons.addCircle, filledSvg: CustomIcons.addCircleFilled ?? CustomIcons.addCircle, unselectedColor: unselectedColor, label: 'Novo Pedido'),
+                            _buildTabItem(
+                              index: 0,
+                              outlinedIcon: Icons.home_outlined,
+                              filledIcon: Icons.home,
+                              unselectedColor: unselectedColor,
+                              label: 'Início',
+                            ),
+                            _buildTabItem(
+                              index: 1,
+                              outlinedIcon: Icons.people_alt_outlined,
+                              filledIcon: Icons.people_alt,
+                              unselectedColor: unselectedColor,
+                              label: 'Ativos',
+                            ),
+                            _buildTabItem(
+                              index: 2,
+                              outlinedIcon: Icons.apps_outlined,
+                              filledIcon: Icons.apps,
+                              unselectedColor: unselectedColor,
+                              label: 'Apps',
+                            ),
+                            _buildTabItem(
+                              index: 3,
+                              outlinedIcon: Icons.book_outlined,
+                              filledIcon: Icons.book,
+                              unselectedColor: unselectedColor,
+                              label: 'Diário',
+                            ),
+                            _buildTabItem(
+                              index: 4,
+                              outlinedIcon: Icons.add_circle_outline,
+                              filledIcon: Icons.add_circle,
+                              unselectedColor: unselectedColor,
+                              label: 'Novo Pedido',
+                            ),
                           ],
                         ),
                       ),
@@ -344,11 +373,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _buildVerticalTabItem(index: 0, outlinedSvg: CustomIcons.home, filledSvg: CustomIcons.homeFilled ?? CustomIcons.home, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 1, outlinedSvg: CustomIcons.users, filledSvg: CustomIcons.usersFilled ?? CustomIcons.users, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 2, outlinedSvg: CustomIcons.apps, filledSvg: CustomIcons.appsFilled ?? CustomIcons.apps, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 3, outlinedSvg: CustomIcons.book, filledSvg: CustomIcons.bookFilled ?? CustomIcons.book, unselectedColor: unselectedColor),
-                              _buildVerticalTabItem(index: 4, outlinedSvg: CustomIcons.addCircle, filledSvg: CustomIcons.addCircleFilled ?? CustomIcons.addCircle, unselectedColor: unselectedColor),
+                              _buildVerticalTabItem(
+                                index: 0,
+                                outlinedIcon: Icons.home_outlined,
+                                filledIcon: Icons.home,
+                                unselectedColor: unselectedColor,
+                              ),
+                              _buildVerticalTabItem(
+                                index: 1,
+                                outlinedIcon: Icons.people_alt_outlined,
+                                filledIcon: Icons.people_alt,
+                                unselectedColor: unselectedColor,
+                              ),
+                              _buildVerticalTabItem(
+                                index: 2,
+                                outlinedIcon: Icons.apps_outlined,
+                                filledIcon: Icons.apps,
+                                unselectedColor: unselectedColor,
+                              ),
+                              _buildVerticalTabItem(
+                                index: 3,
+                                outlinedIcon: Icons.book_outlined,
+                                filledIcon: Icons.book,
+                                unselectedColor: unselectedColor,
+                              ),
+                              _buildVerticalTabItem(
+                                index: 4,
+                                outlinedIcon: Icons.add_circle_outline,
+                                filledIcon: Icons.add_circle,
+                                unselectedColor: unselectedColor,
+                              ),
                             ],
                           ),
                         ),
@@ -366,14 +420,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTabItem({
     required int index,
-    required String outlinedSvg,
-    required String filledSvg,
+    required IconData outlinedIcon,
+    required IconData filledIcon,
     required Color unselectedColor,
     required String label,
   }) {
     final bool active = _currentIndex == index;
     final Color iconColor = active ? _activeBlue : unselectedColor;
-    final String svg = active ? filledSvg : outlinedSvg;
 
     return Expanded(
       child: GestureDetector(
@@ -381,7 +434,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgIcon(svgString: svg, size: 19.2, color: iconColor), // Reduzido em 20% de 24 para 19.2
+            Icon(
+              active ? filledIcon : outlinedIcon,
+              size: 19.2,
+              color: iconColor,
+            ),
             const SizedBox(height: 4),
             Text(
               label,
@@ -399,20 +456,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildVerticalTabItem({
     required int index,
-    required String outlinedSvg,
-    required String filledSvg,
+    required IconData outlinedIcon,
+    required IconData filledIcon,
     required Color unselectedColor,
   }) {
     final bool active = _currentIndex == index;
     final Color iconColor = active ? _activeBlue : unselectedColor;
-    final String svg = active ? filledSvg : outlinedSvg;
 
     return Expanded(
       child: InkWell(
         onTap: () => _onTap(index),
         borderRadius: BorderRadius.circular(100),
         child: Center(
-          child: SvgIcon(svgString: svg, size: 19.2, color: iconColor), // Reduzido em 20%
+          child: Icon(
+            active ? filledIcon : outlinedIcon,
+            size: 19.2,
+            color: iconColor,
+          ),
         ),
       ),
     );
