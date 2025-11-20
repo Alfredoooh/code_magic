@@ -1,7 +1,7 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // <-- ADICIONAR ISTO
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_icons.dart';
