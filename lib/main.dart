@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:animations/animations.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 
 void main() {
   runApp(const SocialFeedApp());
@@ -125,7 +126,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                 _buildIOSButton(
                   onTap: () {},
                   child: Icon(
-                    Icons.more_vert,
+                    Symbols.more_vert,
                     color: Colors.grey.shade900,
                     size: 24,
                   ),
@@ -276,7 +277,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.people_outline,
+            Symbols.people_outline,
             size: 64,
             color: Colors.grey.shade300,
           ),
@@ -307,7 +308,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           ),
           child: Row(
             children: [
-              Icon(Icons.search, color: Colors.grey.shade500),
+              Icon(Symbols.search, color: Colors.grey.shade500, size: 24),
               const SizedBox(width: 12),
               Text(
                 'Buscar',
@@ -377,7 +378,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                 ),
               ],
             ),
-            Icon(Icons.more_vert, color: Colors.grey.shade400, size: 20),
+            Icon(Symbols.more_vert, color: Colors.grey.shade400, size: 20),
           ],
         ),
       ),
@@ -390,28 +391,28 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
       children: [
         _buildNotificationItem(
           avatar: 'https://i.pravatar.cc/150?img=5',
-          icon: Icons.favorite,
+          icon: Symbols.favorite,
           iconColor: Colors.red,
           text: 'Maria Silva curtiu sua publicação',
           time: '5m',
         ),
         _buildNotificationItem(
           avatar: 'https://i.pravatar.cc/150?img=8',
-          icon: Icons.repeat,
+          icon: Symbols.repeat,
           iconColor: Colors.green,
           text: 'Carlos Mendes compartilhou sua publicação',
           time: '1h',
         ),
         _buildNotificationItem(
           avatar: 'https://i.pravatar.cc/150?img=15',
-          icon: Icons.person_add,
+          icon: Symbols.person_add,
           iconColor: Colors.blue,
           text: 'Ana Costa começou a seguir você',
           time: '3h',
         ),
         _buildNotificationItem(
           avatar: 'https://i.pravatar.cc/150?img=20',
-          icon: Icons.chat_bubble,
+          icon: Symbols.chat_bubble,
           iconColor: Colors.blue,
           text: 'Pedro Alves comentou: "Muito bom!"',
           time: '5h',
@@ -750,7 +751,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.verified, color: Colors.blue, size: 18),
+                      Icon(Symbols.verified, color: Colors.blue, size: 18, fill: 1),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -790,7 +791,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                       ),
                       child: Center(
                         child: Icon(
-                          Icons.play_circle_outline,
+                          Symbols.play_circle,
                           size: 64,
                           color: Colors.grey.shade400,
                         ),
@@ -828,19 +829,19 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildActionButton(
-                        Icons.chat_bubble_outline,
+                        Symbols.chat_bubble,
                         comments,
                       ),
                       _buildActionButton(
-                        Icons.repeat,
+                        Symbols.repeat,
                         retweets,
                       ),
                       _buildActionButton(
-                        Icons.favorite_border,
+                        Symbols.favorite,
                         likes,
                       ),
-                      _buildActionButton(Icons.share_outlined, ''),
-                      _buildActionButton(Icons.bookmark_border, ''),
+                      _buildActionButton(Symbols.share, ''),
+                      _buildActionButton(Symbols.bookmark, ''),
                     ],
                   ),
                 ],
@@ -891,10 +892,10 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildBottomNavItem(Icons.home, Icons.home_outlined, 'Início', 0),
-              _buildBottomNavItem(Icons.search, Icons.search, 'Buscar', 1),
-              _buildBottomNavItem(Icons.notifications, Icons.notifications_outlined, 'Alertas', 2),
-              _buildBottomNavItem(Icons.mail, Icons.mail_outline, 'Mensagens', 3),
+              _buildBottomNavItem(Symbols.home, Symbols.home, 'Início', 0),
+              _buildBottomNavItem(Symbols.search, Symbols.search, 'Buscar', 1),
+              _buildBottomNavItem(Symbols.notifications, Symbols.notifications, 'Alertas', 2),
+              _buildBottomNavItem(Symbols.mail, Symbols.mail, 'Mensagens', 3),
             ],
           ),
         ),
@@ -926,6 +927,8 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             isSelected ? filledIcon : outlinedIcon,
             color: isSelected ? Colors.blue : Colors.grey.shade500,
             size: 24,
+            fill: isSelected ? 1 : 0,
+            weight: isSelected ? 400 : 300,
           ),
           const SizedBox(height: 2),
           Text(
