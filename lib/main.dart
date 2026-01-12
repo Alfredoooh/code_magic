@@ -16,9 +16,12 @@ class SocialFeedApp extends StatelessWidget {
     return MaterialApp(
       title: 'Feed Social',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         fontFamily: '-apple-system',
         useMaterial3: true,
+        colorScheme: ColorScheme.light(
+          primary: Colors.black,
+          secondary: Colors.black,
+        ),
       ),
       home: const SocialFeedScreen(),
       debugShowCheckedModeBanner: false,
@@ -91,19 +94,16 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   }
 
   Widget _buildHeader() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.grey.shade200.withOpacity(0.5),
-                width: 0.5,
-              ),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey.shade200.withOpacity(0.5),
+            width: 0.5,
           ),
+        ),
+      ),
           child: Column(
             children: [
               Padding(
@@ -118,10 +118,13 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                         backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=50'),
                       ),
                     ),
-                    Icon(
-                      Symbols.close,
-                      color: Colors.black,
-                      size: 24,
+                    Text(
+                      '𝕏',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
                     _buildIOSButton(
                       onTap: () {},
@@ -141,8 +144,6 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                 ),
             ],
           ),
-        ),
-      ),
     );
   }
 
@@ -425,7 +426,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Symbols.verified, color: Colors.blue, size: 18, fill: 1),
+                      Icon(Symbols.verified, color: Colors.black, size: 18, fill: 1),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -550,26 +551,18 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   }
 
   Widget _buildBottomNavBar() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.white.withOpacity(0.7),
-                Colors.white.withOpacity(0.9),
-              ],
-            ),
-            border: Border(
-              top: BorderSide(
-                color: Colors.grey.shade200.withOpacity(0.5),
-                width: 0.5,
-              ),
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withOpacity(0.0),
+            Colors.white.withOpacity(0.95),
+          ],
+          stops: [0.0, 0.5],
+        ),
+      ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
