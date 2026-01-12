@@ -11,54 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # WebView
-  webview_flutter: any
-  webview_flutter_web: any
-  webview_flutter_android: any
-  webview_flutter_wkwebview: any
-
-  # Firebase
-  firebase_core: any
-  firebase_auth: any
-  cloud_firestore: any
-  firebase_database: any
-  cloud_functions: any
-  firebase_messaging: any
-
-  # State Management
-  provider: any
-
-  # Image Handling
-  image_picker: any
-  cached_network_image: any
-  image: any
-  flutter_cache_manager: any
-  http: any
-  
-  # permissions
-
-  permission_handler: any
-  flutter_local_notifications: any
-
-  # Video players
-  youtube_player_flutter: any
-  youtube_player_iframe: any
-
-  # UI
-  cupertino_icons: any
-  google_fonts: any
-  flutter_svg: any
-
-  # Utils
-  intl: any
-  shared_preferences: any
-  timeago: any
-  url_launcher: any
-  flutter_linkify: any
-  animations: any
-  path_provider: any
-  share_plus: any
-  file_picker: any
+  flutter_svg: ^2.0.9
   
 dev_dependencies:
   flutter_test:
