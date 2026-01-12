@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:animations/animations.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'dart:ui';
 
 void main() {
   runApp(const SocialFeedApp());
@@ -54,22 +55,14 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      extendBody: true,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
             Expanded(
-              child: PageTransitionSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation, secondaryAnimation) {
-                  return FadeThroughTransition(
-                    animation: animation,
-                    secondaryAnimation: secondaryAnimation,
-                    child: child,
-                  );
-                },
-                child: _buildCurrentTab(),
-              ),
+              child: _buildCurrentTab(),
             ),
           ],
         ),
@@ -82,81 +75,75 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
     if (_selectedBottomTab == 0) {
       return _selectedTab == 0 ? _buildParaVoceTab() : _buildSeguindoTab();
     } else if (_selectedBottomTab == 1) {
-      return _buildSearchTab();
+      return _buildEmptyTab('Buscar');
     } else if (_selectedBottomTab == 2) {
-      return _buildNotificationsTab();
+      return _buildEmptyTab('Notificações');
     } else {
-      return _buildMessagesTab();
+      return _buildEmptyTab('Mensagens');
     }
   }
 
-  Widget _buildHeader() {
+  Widget _buildEmptyTab(String title) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade200.withOpacity(0.8),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildIOSButton(
-                  onTap: () {},
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=50'),
-                  ),
-                ),
-                Text(
-                  _getHeaderTitle(),
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade900,
-                  ),
-                ),
-                _buildIOSButton(
-                  onTap: () {},
-                  child: Icon(
-                    Symbols.more_vert,
-                    color: Colors.grey.shade900,
-                    size: 24,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_selectedBottomTab == 0)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _buildSegmentedControl(),
-            ),
-        ],
-      ),
+      key: ValueKey(title),
+      color: Colors.white,
     );
   }
 
-  String _getHeaderTitle() {
-    switch (_selectedBottomTab) {
-      case 0:
-        return 'Feed';
-      case 1:
-        return 'Buscar';
-      case 2:
-        return 'Notificações';
-      case 3:
-        return 'Mensagens';
-      default:
-        return 'Feed';
-    }
+  Widget _buildHeader() {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.8),
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey.shade200.withOpacity(0.5),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildIOSButton(
+                      onTap: () {},
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=50'),
+                      ),
+                    ),
+                    Icon(
+                      Symbols.close,
+                      color: Colors.black,
+                      size: 24,
+                    ),
+                    _buildIOSButton(
+                      onTap: () {},
+                      child: Icon(
+                        Symbols.more_vert,
+                        color: Colors.black,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_selectedBottomTab == 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: _buildSegmentedControl(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSegmentedControl() {
@@ -291,319 +278,6 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchTab() {
-    return ListView(
-      key: const ValueKey('search'),
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(Symbols.search, color: Colors.grey.shade500, size: 24),
-              const SizedBox(width: 12),
-              Text(
-                'Buscar',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 17,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Tendências para você',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildTrendingItem('Tecnologia', '#Flutter', '15.2K posts'),
-        _buildTrendingItem('Design', '#UIUXDesign', '8.7K posts'),
-        _buildTrendingItem('Programação', '#DevLife', '23.4K posts'),
-        _buildTrendingItem('IA', '#MachineLearning', '45.1K posts'),
-      ],
-    );
-  }
-
-  Widget _buildTrendingItem(String category, String hashtag, String posts) {
-    return _buildIOSButton(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  hashtag,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  posts,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-              ],
-            ),
-            Icon(Symbols.more_vert, color: Colors.grey.shade400, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationsTab() {
-    return ListView(
-      key: const ValueKey('notifications'),
-      children: [
-        _buildNotificationItem(
-          avatar: 'https://i.pravatar.cc/150?img=5',
-          icon: Symbols.favorite,
-          iconColor: Colors.red,
-          text: 'Maria Silva curtiu sua publicação',
-          time: '5m',
-        ),
-        _buildNotificationItem(
-          avatar: 'https://i.pravatar.cc/150?img=8',
-          icon: Symbols.repeat,
-          iconColor: Colors.green,
-          text: 'Carlos Mendes compartilhou sua publicação',
-          time: '1h',
-        ),
-        _buildNotificationItem(
-          avatar: 'https://i.pravatar.cc/150?img=15',
-          icon: Symbols.person_add,
-          iconColor: Colors.blue,
-          text: 'Ana Costa começou a seguir você',
-          time: '3h',
-        ),
-        _buildNotificationItem(
-          avatar: 'https://i.pravatar.cc/150?img=20',
-          icon: Symbols.chat_bubble,
-          iconColor: Colors.blue,
-          text: 'Pedro Alves comentou: "Muito bom!"',
-          time: '5h',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNotificationItem({
-    required String avatar,
-    required IconData icon,
-    required Color iconColor,
-    required String text,
-    required String time,
-  }) {
-    return _buildIOSButton(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
-          ),
-        ),
-        child: Row(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundImage: NetworkImage(avatar),
-                ),
-                Positioned(
-                  right: -4,
-                  bottom: -4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: iconColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    text,
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMessagesTab() {
-    return ListView(
-      key: const ValueKey('messages'),
-      children: [
-        _buildMessageItem(
-          avatar: 'https://i.pravatar.cc/150?img=25',
-          name: 'Julia Santos',
-          message: 'Oi! Tudo bem? Vi sua publicação...',
-          time: '10m',
-          unread: true,
-        ),
-        _buildMessageItem(
-          avatar: 'https://i.pravatar.cc/150?img=30',
-          name: 'Roberto Lima',
-          message: 'Valeu pela dica!',
-          time: '1h',
-          unread: false,
-        ),
-        _buildMessageItem(
-          avatar: 'https://i.pravatar.cc/150?img=35',
-          name: 'Fernanda Costa',
-          message: 'Podemos conversar sobre o projeto?',
-          time: '3h',
-          unread: true,
-        ),
-        _buildMessageItem(
-          avatar: 'https://i.pravatar.cc/150?img=40',
-          name: 'Lucas Oliveira',
-          message: 'Perfeito! Até amanhã então',
-          time: '1d',
-          unread: false,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMessageItem({
-    required String avatar,
-    required String name,
-    required String message,
-    required String time,
-    required bool unread,
-  }) {
-    return _buildIOSButton(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: unread ? Colors.blue.shade50.withOpacity(0.3) : Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
-          ),
-        ),
-        child: Row(
-          children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundImage: NetworkImage(avatar),
-                ),
-                if (unread)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: unread ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                      Text(
-                        time,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    message,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: unread ? Colors.grey.shade900 : Colors.grey.shade500,
-                      fontWeight: unread ? FontWeight.w500 : FontWeight.normal,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -829,7 +503,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildActionButton(
-                        Symbols.chat_bubble,
+                        Symbols.mode_comment,
                         comments,
                       ),
                       _buildActionButton(
@@ -876,27 +550,39 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   }
 
   Widget _buildBottomNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200.withOpacity(0.8),
-            width: 0.5,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withOpacity(0.7),
+                Colors.white.withOpacity(0.9),
+              ],
+            ),
+            border: Border(
+              top: BorderSide(
+                color: Colors.grey.shade200.withOpacity(0.5),
+                width: 0.5,
+              ),
+            ),
           ),
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildBottomNavItem(Symbols.home, Symbols.home, 'Início', 0),
-              _buildBottomNavItem(Symbols.search, Symbols.search, 'Buscar', 1),
-              _buildBottomNavItem(Symbols.notifications, Symbols.notifications, 'Alertas', 2),
-              _buildBottomNavItem(Symbols.mail, Symbols.mail, 'Mensagens', 3),
-            ],
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildBottomNavItem(Symbols.home, Symbols.home, 'Início', 0),
+                  _buildBottomNavItem(Symbols.search, Symbols.search, 'Buscar', 1),
+                  _buildBottomNavItem(Symbols.notifications, Symbols.notifications, 'Alertas', 2),
+                  _buildBottomNavItem(Symbols.mail, Symbols.mail, 'Mensagens', 3),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -925,7 +611,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
         children: [
           Icon(
             isSelected ? filledIcon : outlinedIcon,
-            color: isSelected ? Colors.blue : Colors.grey.shade500,
+            color: isSelected ? Colors.black : Colors.grey.shade500,
             size: 24,
             fill: isSelected ? 1 : 0,
             weight: isSelected ? 400 : 300,
@@ -936,7 +622,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: isSelected ? Colors.blue : Colors.grey.shade500,
+              color: isSelected ? Colors.black : Colors.grey.shade500,
             ),
           ),
         ],
