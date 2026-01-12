@@ -13,6 +13,7 @@ dependencies:
 
   flutter_svg: ^2.0.9
   animations: ^2.0.11
+  material_symbols_icons: ^4.2785.1
   
 dev_dependencies:
   flutter_test:
