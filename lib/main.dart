@@ -104,46 +104,46 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           ),
         ),
       ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildIOSButton(
-                      onTap: () {},
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=50'),
-                      ),
-                    ),
-                    Text(
-                      '𝕏',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    _buildIOSButton(
-                      onTap: () {},
-                      child: Icon(
-                        Symbols.more_vert,
-                        color: Colors.black,
-                        size: 24,
-                      ),
-                    ),
-                  ],
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildIOSButton(
+                  onTap: () {},
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=50'),
+                  ),
                 ),
-              ),
-              if (_selectedBottomTab == 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: _buildSegmentedControl(),
+                Text(
+                  '𝕏',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
-            ],
+                _buildIOSButton(
+                  onTap: () {},
+                  child: Icon(
+                    Symbols.more_vert,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
           ),
+          if (_selectedBottomTab == 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _buildSegmentedControl(),
+            ),
+        ],
+      ),
     );
   }
 
@@ -563,19 +563,17 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           stops: [0.0, 0.5],
         ),
       ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildBottomNavItem(Symbols.home, Symbols.home, 'Início', 0),
-                  _buildBottomNavItem(Symbols.search, Symbols.search, 'Buscar', 1),
-                  _buildBottomNavItem(Symbols.notifications, Symbols.notifications, 'Alertas', 2),
-                  _buildBottomNavItem(Symbols.mail, Symbols.mail, 'Mensagens', 3),
-                ],
-              ),
-            ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildBottomNavItem(Symbols.home, Symbols.home, 'Início', 0),
+              _buildBottomNavItem(Symbols.search, Symbols.search, 'Buscar', 1),
+              _buildBottomNavItem(Symbols.notifications, Symbols.notifications, 'Alertas', 2),
+              _buildBottomNavItem(Symbols.mail, Symbols.mail, 'Mensagens', 3),
+            ],
           ),
         ),
       ),
