@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:animations/animations.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
-import 'dart:ui';
+import 'package:flutter_svg/flutter_svg.dart';
 
 void main() {
   runApp(const SocialFeedApp());
@@ -78,11 +78,9 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
     if (_selectedBottomTab == 0) {
       return _selectedTab == 0 ? _buildParaVoceTab() : _buildSeguindoTab();
     } else if (_selectedBottomTab == 1) {
-      return _buildEmptyTab('Buscar');
-    } else if (_selectedBottomTab == 2) {
-      return _buildEmptyTab('Notificações');
+      return _buildEmptyTab('Partidas');
     } else {
-      return _buildEmptyTab('Mensagens');
+      return _buildEmptyTab('Perfil');
     }
   }
 
@@ -97,24 +95,21 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade200,
-            width: 0.5,
-          ),
-        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildIOSButton(
               onTap: () {},
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.grey.shade300,
-                child: Icon(Icons.person, color: Colors.grey.shade600, size: 20),
+              child: Text(
+                '𝕏',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
             ),
             Row(
@@ -125,12 +120,14 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                 _buildTopTabButton('Seguindo', 1),
               ],
             ),
-            Text(
-              '𝕏',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+            _buildIOSButton(
+              onTap: () {},
+              child: SvgPicture.string(
+                '''<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>''',
+                width: 24,
+                height: 24,
               ),
             ),
           ],
@@ -192,6 +189,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           time: '2h',
           content: 'Acabei de testar o novo recurso e está incrível! 🚀',
           hasVideo: true,
+          videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
           comments: '389',
           retweets: '3.5K',
           likes: '4.6M',
@@ -358,6 +356,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
     required String content,
     String? imageUrl,
     bool hasVideo = false,
+    String? videoUrl,
     required String comments,
     required String retweets,
     required String likes,
@@ -379,8 +378,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
               onTap: () {},
               child: CircleAvatar(
                 radius: 20,
-                backgroundColor: Colors.grey.shade300,
-                child: Icon(Icons.person, color: Colors.grey.shade600, size: 24),
+                backgroundImage: NetworkImage(avatar),
               ),
             ),
             const SizedBox(width: 12),
@@ -428,19 +426,34 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                       height: 1.3,
                     ),
                   ),
-                  if (hasVideo) ...[
+                  if (hasVideo && videoUrl != null) ...[
                     const SizedBox(height: 12),
-                    Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Symbols.play_circle,
-                          size: 64,
-                          color: Colors.grey.shade400,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Container(
+                          color: Colors.black,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Image.network(
+                                'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=800',
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.3),
+                                ),
+                              ),
+                              Icon(
+                                Icons.play_circle_filled,
+                                size: 64,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -526,23 +539,43 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 0.5,
-          ),
-        ),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildBottomNavItem(Symbols.home, Symbols.home, 'Início', 0),
-              _buildBottomNavItem(Symbols.search, Symbols.search, 'Buscar', 1),
-              _buildBottomNavItem(Symbols.notifications, Symbols.notifications, 'Alertas', 2),
-              _buildBottomNavItem(Symbols.mail, Symbols.mail, 'Mensagens', 3),
+              _buildBottomNavItem(
+                '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m12,14c-1.103,0-2-.897-2-2s.897-2,2-2,2,.897,2,2-.897,2-2,2ZM3,10H0v4h3v-4Zm18,4h3v-4h-3v4Zm-2,0v-4c0-1.103.897-2,2-2h3c0-2.757-2.243-5-5-5h-6v5.142c1.72.447,3,1.999,3,3.858s-1.28,3.411-3,3.858v5.142h6c2.757,0,5-2.243,5-5h-3c-1.103,0-2-.897-2-2Zm-8,1.858c-1.72-.447-3-1.999-3-3.858s1.28-3.411,3-3.858V3h-6C2.243,3,0,5.243,0,8h3c1.103,0,2,.897,2,2v4c0,1.103-.897,2-2,2H0c0,2.757,2.243,5,5,5h6v-5.142Z"/>
+                </svg>''',
+                '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m19,3H5C2.243,3,0,5.243,0,8v8c0,2.757,2.243,5,5,5h14c2.757,0,5-2.243,5-5v-8c0-2.757-2.243-5-5-5Zm3,11h-2v-4h2v4Zm-10,0c-1.103,0-2-.897-2-2s.897-2,2-2,2,.897,2,2-.897,2-2,2ZM2,10h2v4h-2v-4Zm0,6h2c1.103,0,2-.897,2-2v-4c0-1.103-.897-2-2-2h-2c0-1.654,1.346-3,3-3h6v3.142c-1.72.447-3,1.999-3,3.858s1.28,3.411,3,3.858v3.142h-6c-1.654,0-3-1.346-3-3Zm17,3h-6v-3.142c1.72-.447,3-1.999,3-3.858s-1.28-3.411-3-3.858v-3.142h6c1.654,0,3,1.346,3,3h-2c-1.103,0-2,.897-2,2v4c0,1.103.897,2,2,2h2c0,1.654-1.346,3-3,3Z"/>
+                </svg>''',
+                'Início',
+                0,
+              ),
+              _buildBottomNavItem(
+                '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m19,3H5C2.243,3,0,5.243,0,8v8c0,2.757,2.243,5,5,5h14c2.757,0,5-2.243,5-5v-8c0-2.757-2.243-5-5-5Zm3,11h-2v-4h2v4Zm-10,0c-1.103,0-2-.897-2-2s.897-2,2-2,2,.897,2,2-.897,2-2,2ZM2,10h2v4h-2v-4Zm0,6h2c1.103,0,2-.897,2-2v-4c0-1.103-.897-2-2-2h-2c0-1.654,1.346-3,3-3h6v3.142c-1.72.447-3,1.999-3,3.858s1.28,3.411,3,3.858v3.142h-6c-1.654,0-3-1.346-3-3Zm17,3h-6v-3.142c1.72-.447,3-1.999,3-3.858s-1.28-3.411-3-3.858v-3.142h6c1.654,0,3,1.346,3,3h-2c-1.103,0-2,.897-2,2v4c0,1.103.897,2,2,2h2c0,1.654-1.346,3-3,3Z"/>
+                </svg>''',
+                '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m12,14c-1.103,0-2-.897-2-2s.897-2,2-2,2,.897,2,2-.897,2-2,2ZM3,10H0v4h3v-4Zm18,4h3v-4h-3v4Zm-2,0v-4c0-1.103.897-2,2-2h3c0-2.757-2.243-5-5-5h-6v5.142c1.72.447,3,1.999,3,3.858s-1.28,3.411-3,3.858v5.142h6c2.757,0,5-2.243,5-5h-3c-1.103,0-2-.897-2-2Zm-8,1.858c-1.72-.447-3-1.999-3-3.858s1.28-3.411,3-3.858V3h-6C2.243,3,0,5.243,0,8h3c1.103,0,2,.897,2,2v4c0,1.103-.897,2-2,2H0c0,2.757,2.243,5,5,5h6v-5.142Z"/>
+                </svg>''',
+                'Partidas',
+                1,
+              ),
+              _buildBottomNavItem(
+                '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m12,0C5.383,0,0,5.383,0,12s5.383,12,12,12,12-5.383,12-12S18.617,0,12,0Zm-4,21.164v-.164c0-2.206,1.794-4,4-4s4,1.794,4,4v.164c-1.226.537-2.578.836-4,.836s-2.774-.299-4-.836Zm9.925-1.113c-.456-2.859-2.939-5.051-5.925-5.051s-5.468,2.192-5.925,5.051c-2.47-1.823-4.075-4.753-4.075-8.051C2,6.486,6.486,2,12,2s10,4.486,10,10c0,3.298-1.605,6.228-4.075,8.051Zm-5.925-15.051c-2.206,0-4,1.794-4,4s1.794,4,4,4,4-1.794,4-4-1.794-4-4-4Zm0,6c-1.103,0-2-.897-2-2s.897-2,2-2,2,.897,2,2-.897,2-2,2Z"/>
+                </svg>''',
+                '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m12,0C5.383,0,0,5.383,0,12s5.383,12,12,12,12-5.383,12-12S18.617,0,12,0Zm-3.48,20.299c.107-1.835,1.619-3.299,3.48-3.299s3.373,1.464,3.48,3.299c-1.071.451-2.247.701-3.48.701s-2.409-.25-3.48-.701Zm9.668-1.781c-.84-2.617-3.296-4.518-6.188-4.518s-5.348,1.901-6.188,4.518c-1.727-1.641-2.812-3.953-2.812-6.518C3,7.037,7.038,3,12,3s9,4.037,9,9c0,2.565-1.084,4.877-2.812,6.518Zm-2.689-10.018c0,1.933-1.567,3.5-3.5,3.5s-3.5-1.567-3.5-3.5,1.567-3.5,3.5-3.5,3.5,1.567,3.5,3.5Z"/>
+                </svg>''',
+                'Perfil',
+                2,
+              ),
             ],
           ),
         ),
@@ -551,8 +584,8 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   }
 
   Widget _buildBottomNavItem(
-    IconData filledIcon,
-    IconData outlinedIcon,
+    String outlinedSvg,
+    String filledSvg,
     String label,
     int index,
   ) {
@@ -570,14 +603,16 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isSelected ? filledIcon : outlinedIcon,
-            color: isSelected ? Colors.blue : Colors.grey.shade500,
-            size: 24,
-            fill: isSelected ? 1 : 0,
-            weight: isSelected ? 400 : 300,
+          SvgPicture.string(
+            isSelected ? filledSvg : outlinedSvg,
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(
+              isSelected ? Colors.blue : Colors.grey.shade500,
+              BlendMode.srcIn,
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
