@@ -426,7 +426,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Symbols.verified, color: Colors.black, size: 18, fill: 1),
+                      Icon(Symbols.verified, color: Colors.blue, size: 18, fill: 1),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -565,7 +565,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.only(top: 8, bottom: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -602,7 +602,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
         children: [
           Icon(
             isSelected ? filledIcon : outlinedIcon,
-            color: isSelected ? Colors.black : Colors.grey.shade500,
+            color: isSelected ? Colors.blue : Colors.grey.shade500,
             size: 24,
             fill: isSelected ? 1 : 0,
             weight: isSelected ? 400 : 300,
@@ -613,7 +613,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: isSelected ? Colors.black : Colors.grey.shade500,
+              color: isSelected ? Colors.blue : Colors.grey.shade500,
             ),
           ),
         ],
