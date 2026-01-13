@@ -96,78 +96,52 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white,
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.shade200.withOpacity(0.5),
+            color: Colors.grey.shade200,
             width: 0.5,
           ),
         ),
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildIOSButton(
+              onTap: () {},
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.grey.shade300,
+                child: Icon(Icons.person, color: Colors.grey.shade600, size: 20),
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildIOSButton(
-                  onTap: () {},
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.grey.shade300,
-                    child: Icon(Icons.person, color: Colors.grey.shade600, size: 20),
-                  ),
-                ),
-                Text(
-                  '𝕏',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                _buildIOSButton(
-                  onTap: () {},
-                  child: Icon(
-                    Symbols.more_vert,
-                    color: Colors.black,
-                    size: 24,
-                  ),
-                ),
+                _buildTopTabButton('Para você', 0),
+                const SizedBox(width: 24),
+                _buildTopTabButton('Seguindo', 1),
               ],
             ),
-          ),
-          if (_selectedBottomTab == 0)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: _buildSegmentedControl(),
+            Text(
+              '𝕏',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSegmentedControl() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0x1F767680),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: const EdgeInsets.all(2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildSegmentButton('Para você', 0),
-          _buildSegmentButton('Seguindo', 1),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSegmentButton(String text, int index) {
+  Widget _buildTopTabButton(String text, int index) {
     final isActive = _selectedTab == index;
-    return GestureDetector(
+    return _buildIOSButton(
       onTap: () {
         setState(() {
           _selectedTab = index;
@@ -175,31 +149,27 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
         });
         _loadContent();
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              color: isActive ? Colors.black : Colors.grey.shade500,
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Container(
+            height: 3,
+            width: 40,
+            decoration: BoxDecoration(
+              color: isActive ? Colors.blue : Colors.transparent,
+              borderRadius: BorderRadius.circular(1.5),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -555,19 +525,17 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget _buildBottomNavBar() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.white.withOpacity(0.0),
-            Colors.white.withOpacity(0.95),
-          ],
-          stops: [0.0, 0.5],
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.shade200,
+            width: 0.5,
+          ),
         ),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(top: 12, bottom: 24),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
