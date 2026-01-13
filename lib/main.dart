@@ -115,7 +115,8 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                   onTap: () {},
                   child: CircleAvatar(
                     radius: 16,
-                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=50'),
+                    backgroundColor: Colors.grey.shade300,
+                    child: Icon(Icons.person, color: Colors.grey.shade600, size: 20),
                   ),
                 ),
                 Text(
@@ -408,7 +409,8 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
               onTap: () {},
               child: CircleAvatar(
                 radius: 20,
-                backgroundImage: NetworkImage(avatar),
+                backgroundColor: Colors.grey.shade300,
+                child: Icon(Icons.person, color: Colors.grey.shade600, size: 24),
               ),
             ),
             const SizedBox(width: 12),
@@ -565,7 +567,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 16),
+          padding: const EdgeInsets.only(top: 12, bottom: 24),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
