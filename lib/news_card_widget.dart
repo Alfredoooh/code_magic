@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'dart:ui';
 import 'models.dart';
 
 class NewsCardWidgets {
@@ -11,7 +11,6 @@ class NewsCardWidgets {
   final String? Function(NewsArticle) getTranslatedTitle;
   final String? Function(NewsArticle) getTranslatedDescription;
   final Future<void> Function(NewsArticle) onTranslate;
-  final Map<String, Color> colorCache;
 
   NewsCardWidgets({
     required this.isDarkTheme,
@@ -19,44 +18,12 @@ class NewsCardWidgets {
     required this.getTranslatedTitle,
     required this.getTranslatedDescription,
     required this.onTranslate,
-    required this.colorCache,
   });
 
   Color get _surfaceColor => isDarkTheme ? const Color(0xFF1A1A1A) : Colors.white;
   Color get _textColor => isDarkTheme ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
   Color get _subTextColor => isDarkTheme ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
   Color get _borderColor => isDarkTheme ? const Color(0xFF3A3B3C) : const Color(0xFFDDDFE2);
-
-  // OTIMIZADO: Extração de cor rápida e com cache
-  Future<Color> _getImageColor(String? imageUrl) async {
-    if (imageUrl == null || imageUrl.isEmpty) return const Color(0xFF2374E1);
-    
-    // Verificar cache primeiro
-    if (colorCache.containsKey(imageUrl)) {
-      return colorCache[imageUrl]!;
-    }
-
-    try {
-      final provider = CachedNetworkImageProvider(imageUrl);
-      
-      // OTIMIZADO: Reduzir cores analisadas de 20 para 8 (muito mais rápido)
-      final palette = await PaletteGenerator.fromImageProvider(
-        provider,
-        maximumColorCount: 8, // Reduzido para ganhar performance
-        timeout: const Duration(seconds: 3), // Timeout para não travar
-      );
-      
-      final color = palette.dominantColor?.color ?? 
-                    palette.vibrantColor?.color ?? 
-                    const Color(0xFF2374E1);
-      
-      colorCache[imageUrl] = color;
-      return color;
-    } catch (e) {
-      colorCache[imageUrl] = const Color(0xFF2374E1);
-      return const Color(0xFF2374E1);
-    }
-  }
 
   String _formatTime(DateTime date) {
     final now = DateTime.now();
@@ -70,38 +37,76 @@ class NewsCardWidgets {
     return '${date.day}/${date.month}';
   }
 
-  // CARD PRINCIPAL COM IMAGEM DE ALTA QUALIDADE
+  // CARD PRINCIPAL COM BACKGROUND BLUR
   Widget buildNewsCard(NewsArticle article) {
     return GestureDetector(
       onTap: () => onTapUrl(article.link),
-      child: FutureBuilder<Color>(
-        future: _getImageColor(article.imageUrl),
-        initialData: colorCache[article.imageUrl] ?? const Color(0xFF2374E1), // Mostrar cor do cache imediatamente
-        builder: (context, snap) {
-          final primaryColor = snap.data ?? const Color(0xFF2374E1);
-          return Container(
-            decoration: BoxDecoration(
-              color: _surfaceColor,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-              border: Border.all(color: primaryColor.withOpacity(0.12), width: 1),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Background com imagem blur
+            if (article.hasImage)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      // Imagem de fundo com blur
+                      CachedNetworkImage(
+                        imageUrl: article.imageUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                        errorWidget: (context, url, error) => Container(color: _borderColor),
+                        imageBuilder: (context, imageProvider) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: imageProvider,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      _surfaceColor.withOpacity(0.85), // Mais transparente no topo
+                                      _surfaceColor.withOpacity(0.92), // Menos transparente no meio
+                                      _surfaceColor.withOpacity(0.96), // Menos transparente embaixo
+                                    ],
+                                    stops: const [0.0, 0.5, 1.0],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
+              ),
+            
+            // Conteúdo do card
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 if (article.hasImage)
                   Stack(
                     children: [
@@ -116,10 +121,8 @@ class NewsCardWidgets {
                           placeholder: (context, url) => Container(
                             height: 220,
                             color: _borderColor,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                              ),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
                             ),
                           ),
                           errorWidget: (context, url, error) {
@@ -132,7 +135,7 @@ class NewsCardWidgets {
                                   Icon(Ionicons.image_outline, size: 48, color: _subTextColor),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Imagem indisponivel',
+                                    'Imagem indisponível',
                                     style: TextStyle(fontSize: 12, color: _subTextColor),
                                   ),
                                 ],
@@ -246,8 +249,8 @@ class NewsCardWidgets {
                 ),
               ],
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
