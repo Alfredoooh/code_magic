@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
-import '../models.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../services/football_api_service.dart';
+import 'match_details_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   final Color bgColor;
@@ -23,16 +25,51 @@ class MatchesScreen extends StatefulWidget {
 }
 
 class _MatchesScreenState extends State<MatchesScreen> {
-  int _selectedFilter = 0; // 0: Hoje, 1: Ao Vivo, 2: Finalizados
+  int _selectedFilter = 0;
+  bool _isLoading = true;
+  List<FootballMatch> _matches = [];
+  final FootballApiService _apiService = FootballApiService();
 
-  List<Match> get _filteredMatches {
-    final matches = RssSources.todayMatches;
-    if (_selectedFilter == 1) {
-      return matches.where((m) => m.isLive).toList();
-    } else if (_selectedFilter == 2) {
-      return matches.where((m) => m.isFinished).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadMatches();
+  }
+
+  Future<void> _loadMatches() async {
+    setState(() => _isLoading = true);
+    final matches = await _apiService.getTodayMatches();
+    if (mounted) {
+      setState(() {
+        _matches = matches;
+        _isLoading = false;
+      });
     }
-    return matches;
+  }
+
+  List<FootballMatch> get _filteredMatches {
+    if (_selectedFilter == 1) {
+      return _matches.where((m) => m.isLive).toList();
+    } else if (_selectedFilter == 2) {
+      return _matches.where((m) => m.isFinished).toList();
+    }
+    return _matches;
+  }
+
+  void _openMatchDetails(FootballMatch match) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MatchDetailsScreen(
+          matchId: match.id,
+          bgColor: widget.bgColor,
+          surfaceColor: widget.surfaceColor,
+          textColor: widget.textColor,
+          subTextColor: widget.subTextColor,
+          borderColor: widget.borderColor,
+        ),
+      ),
+    );
   }
 
   @override
@@ -58,6 +95,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
           _buildFilterChip('Ao Vivo', 1),
           const SizedBox(width: 12),
           _buildFilterChip('Finalizados', 2),
+          const Spacer(),
+          IconButton(
+            icon: Icon(Ionicons.refresh_outline, color: widget.textColor),
+            onPressed: _loadMatches,
+          ),
         ],
       ),
     );
@@ -89,6 +131,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   Widget _buildMatchesList() {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF2374E1)),
+        ),
+      );
+    }
+
     final matches = _filteredMatches;
 
     if (matches.isEmpty) {
@@ -107,185 +157,238 @@ class _MatchesScreenState extends State<MatchesScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: matches.length,
-      itemBuilder: (context, index) {
-        return _buildMatchCard(matches[index]);
-      },
+    return RefreshIndicator(
+      onRefresh: _loadMatches,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: matches.length,
+        itemBuilder: (context, index) {
+          return _buildMatchCard(matches[index]);
+        },
+      ),
     );
   }
 
-  Widget _buildMatchCard(Match match) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: widget.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: match.isLive
-                        ? Colors.red.withOpacity(0.1)
-                        : widget.borderColor.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(4),
+  Widget _buildMatchCard(FootballMatch match) {
+    return GestureDetector(
+      onTap: () => _openMatchDetails(match),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: widget.surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      if (match.competitionEmblem != null)
+                        CachedNetworkImage(
+                          imageUrl: match.competitionEmblem!,
+                          width: 20,
+                          height: 20,
+                          errorWidget: (context, url, error) => Icon(
+                            Ionicons.football,
+                            size: 20,
+                            color: widget.subTextColor,
+                          ),
+                        )
+                      else
+                        Icon(
+                          Ionicons.football,
+                          size: 20,
+                          color: widget.subTextColor,
+                        ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: match.isLive
+                              ? Colors.red.withOpacity(0.1)
+                              : widget.borderColor.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          match.isLive ? 'AO VIVO' : match.competition,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: match.isLive ? Colors.red : widget.subTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    match.isLive ? 'AO VIVO' : match.competition,
+                  Text(
+                    match.timeDisplay,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: match.isLive ? Colors.red : widget.subTextColor,
                     ),
                   ),
-                ),
-                if (!match.isLive && !match.isFinished)
-                  Text(
-                    match.time,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: widget.subTextColor,
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            border: Border.all(color: widget.borderColor),
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: match.homeTeamCrest != null
+                              ? CachedNetworkImage(
+                                  imageUrl: match.homeTeamCrest!,
+                                  fit: BoxFit.contain,
+                                  errorWidget: (context, url, error) => Icon(
+                                    Ionicons.shield_outline,
+                                    color: widget.textColor,
+                                    size: 24,
+                                  ),
+                                )
+                              : Icon(
+                                  Ionicons.shield_outline,
+                                  color: widget.textColor,
+                                  size: 24,
+                                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          match.homeTeam,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: widget.textColor,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
+                  const SizedBox(width: 20),
+                  Column(
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: widget.borderColor.withOpacity(0.3),
-                        ),
-                        child: Icon(
-                          Ionicons.shield_outline,
-                          color: widget.textColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
                       Text(
-                        match.homeTeam,
+                        match.displayScore,
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
                           color: widget.textColor,
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
                       ),
+                      if (match.isFinished)
+                        Text(
+                          'FT',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: widget.subTextColor,
+                          ),
+                        ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 20),
-                Column(
-                  children: [
-                    Text(
-                      '${match.homeScore} - ${match.awayScore}',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: widget.textColor,
-                      ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            border: Border.all(color: widget.borderColor),
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: match.awayTeamCrest != null
+                              ? CachedNetworkImage(
+                                  imageUrl: match.awayTeamCrest!,
+                                  fit: BoxFit.contain,
+                                  errorWidget: (context, url, error) => Icon(
+                                    Ionicons.shield_outline,
+                                    color: widget.textColor,
+                                    size: 24,
+                                  ),
+                                )
+                              : Icon(
+                                  Ionicons.shield_outline,
+                                  color: widget.textColor,
+                                  size: 24,
+                                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          match.awayTeam,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: widget.textColor,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    if (match.isFinished)
+                  ),
+                ],
+              ),
+              if (match.isLive) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.red,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'FT',
+                        'Transmissão ao vivo',
                         style: TextStyle(
                           fontSize: 12,
-                          color: widget.subTextColor,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: widget.borderColor.withOpacity(0.3),
-                        ),
-                        child: Icon(
-                          Ionicons.shield_outline,
-                          color: widget.textColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        match.awayTeam,
-                        style: TextStyle(
-                          fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: widget.textColor,
+                          color: Colors.red,
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
                       ),
                     ],
                   ),
                 ),
               ],
-            ),
-            if (match.isLive) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.red,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Transmissão ao vivo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
