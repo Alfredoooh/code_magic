@@ -19,6 +19,7 @@ dependencies:
   intl: ^0.18.1
   cached_network_image: ^3.3.0
   url_launcher: ^6.2.1
+  webview_flutter: ^4.4.2
   translator: ^0.1.7
   palette_generator: any
   
