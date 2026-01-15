@@ -114,23 +114,14 @@ class RssSources {
     NewsSource(name: "Marca", rss: "https://e00-marca.uecdn.es/rss/en/international.xml", country: "ES"),
     NewsSource(name: "AS", rss: "https://as.com/rss/futbol/portada.xml", country: "ES"),
     NewsSource(name: "talkSPORT", rss: "https://talksport.com/football/feed/", country: "UK"),
-    NewsSource(name: "ESPN FC", rss: "https://www.espn.com/espn/rss/soccer/news", country: "USA"),
     NewsSource(name: "Bleacher Report", rss: "https://bleacherreport.com/articles/feed", country: "USA"),
-    NewsSource(name: "Sport Mediaset", rss: "https://www.sportmediaset.mediaset.it/rss/calcio.xml", country: "IT"),
     NewsSource(name: "L'Equipe", rss: "https://www.lequipe.fr/rss/actu_rss_Football.xml", country: "FR"),
-    NewsSource(name: "Kicker", rss: "https://newsfeed.kicker.de/news/aktuell", country: "DE"),
-    NewsSource(name: "Sport Bild", rss: "https://sportbild.bild.de/rss/vl_sportbild/declare-1.sport.xml", country: "DE"),
     NewsSource(name: "Lance!", rss: "https://www.lance.com.br/rss.xml", country: "BR"),
-    NewsSource(name: "UOL Esporte", rss: "https://rss.uol.com.br/feed/esporte.xml", country: "BR"),
     NewsSource(name: "Record", rss: "https://www.record.pt/rss/futebol.xml", country: "PT"),
     NewsSource(name: "A Bola", rss: "https://www.abola.pt/rss/noticias.aspx", country: "PT"),
     NewsSource(name: "O Jogo", rss: "https://www.ojogo.pt/rss/futebol.xml", country: "PT"),
-    NewsSource(name: "Gazzetta dello Sport", rss: "https://www.gazzetta.it/rss/calcio.xml", country: "IT"),
-    NewsSource(name: "Corriere dello Sport", rss: "https://www.corrieredellosport.it/rss/calcio.xml", country: "IT"),
     NewsSource(name: "Mundo Deportivo", rss: "https://www.mundodeportivo.com/rss/futbol/", country: "ES"),
     NewsSource(name: "Sport", rss: "https://www.sport.es/es/rss/futbol/rss.xml", country: "ES"),
-    NewsSource(name: "OneFootball", rss: "https://onefootball.com/en/home/feed", country: "INT"),
-    NewsSource(name: "The Athletic", rss: "https://theathletic.com/soccer/rss/", country: "UK"),
   ];
   
   static final List<Match> todayMatches = [
@@ -189,13 +180,10 @@ class RssService {
           DateTime? pubDate;
           if (item.findElements('pubDate').isNotEmpty) {
             try {
-              pubDate = DateTime.parse(item.findElements('pubDate').first.innerText);
+              final dateStr = item.findElements('pubDate').first.innerText;
+              pubDate = _parseRssDate(dateStr);
             } catch (e) {
-              try {
-                pubDate = _parseRssDate(item.findElements('pubDate').first.innerText);
-              } catch (e2) {
-                // Ignora
-              }
+              // Ignora
             }
           }
 
@@ -216,26 +204,17 @@ class RssService {
   }
 
   DateTime _parseRssDate(String dateStr) {
-    final formats = [
-      'EEE, dd MMM yyyy HH:mm:ss Z',
-      'yyyy-MM-ddTHH:mm:ssZ',
-      'yyyy-MM-dd HH:mm:ss',
-    ];
-    
-    for (var format in formats) {
-      try {
-        return DateTime.parse(dateStr);
-      } catch (e) {
-        continue;
-      }
+    try {
+      return DateTime.parse(dateStr);
+    } catch (e) {
+      return DateTime.now();
     }
-    throw FormatException('Cannot parse date: $dateStr');
   }
 
   Future<List<NewsArticle>> fetchAllArticles() async {
     List<NewsArticle> allArticles = [];
     
-    final batches = _createBatches(RssSources.sources, 10);
+    final batches = _createBatches(RssSources.sources, 5);
     
     for (var batch in batches) {
       final results = await Future.wait(
@@ -249,7 +228,7 @@ class RssService {
 
     final sevenDaysAgo = DateTime.now().subtract(Duration(days: 7));
     allArticles = allArticles.where((article) {
-      if (article.pubDate == null) return false;
+      if (article.pubDate == null) return true;
       return article.pubDate!.isAfter(sevenDaysAgo);
     }).toList();
 
@@ -358,7 +337,8 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
         a.title.toLowerCase().contains('transfer') ||
         a.title.toLowerCase().contains('mercado') ||
         a.title.toLowerCase().contains('signing') ||
-        a.title.toLowerCase().contains('rumor')
+        a.title.toLowerCase().contains('rumor') ||
+        a.title.toLowerCase().contains('contrata')
       ).toList();
     }
   }
@@ -392,6 +372,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                           child: Column(
                             children: [
                               _buildHeader(),
+                              _buildTabBar(),
                               Expanded(child: _buildCurrentTab()),
                             ],
                           ),
@@ -537,12 +518,9 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
 
   Widget _buildHeader() {
     return Container(
-      decoration: BoxDecoration(
-        color: _bgColor,
-        border: Border(bottom: BorderSide(color: _borderColor, width: 0.5)),
-      ),
+      color: _bgColor,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -565,15 +543,13 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                 },
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTopTabButton('Para voce', 0),
-                const SizedBox(width: 20),
-                _buildTopTabButton('Atualidades', 1),
-                const SizedBox(width: 20),
-                _buildTopTabButton('Mercado', 2),
-              ],
+            Text(
+              'Football Feed',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: _textColor,
+              ),
             ),
             GestureDetector(
               onTap: () {},
@@ -585,6 +561,22 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      color: _bgColor,
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _buildTopTabButton('Para voce', 0),
+          const SizedBox(width: 24),
+          _buildTopTabButton('Atualidades', 1),
+          const SizedBox(width: 24),
+          _buildTopTabButton('Mercado', 2),
+        ],
       ),
     );
   }
@@ -603,15 +595,15 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           Text(
             text,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               color: isActive ? _textColor : _subTextColor,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Container(
             height: 3,
-            width: 35,
+            width: 40,
             decoration: BoxDecoration(
               color: isActive ? Color(0xFF2374E1) : Colors.transparent,
               borderRadius: BorderRadius.circular(1.5),
@@ -661,9 +653,9 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     return ListView.builder(
       key: ValueKey('feed-$_selectedTab'),
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: highQualityArticles.length + 
-                 (lowQualityArticles.length > 0 ? 1 : 0) + 
-                 (noImageArticles.length > 0 ? 1 : 0) + 1,
+      itemCount: 1 + highQualityArticles.length + 
+                 ((lowQualityArticles.length > 0 && highQualityArticles.length > 3) ? 1 : 0) + 
+                 ((noImageArticles.length > 0 && highQualityArticles.length > 6) ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == 0) {
           return Column(
@@ -676,7 +668,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
         
         final adjustedIndex = index - 1;
         
-        if (adjustedIndex > 0 && adjustedIndex % 4 == 0 && lowQualityArticles.isNotEmpty) {
+        if (adjustedIndex == 3 && lowQualityArticles.isNotEmpty) {
           return Column(
             children: [
               _buildLowQualityNewsGrid(lowQualityArticles.take(4).toList()),
@@ -685,7 +677,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           );
         }
         
-        if (adjustedIndex > 0 && adjustedIndex % 6 == 0 && noImageArticles.isNotEmpty) {
+        if (adjustedIndex == 6 && noImageArticles.isNotEmpty) {
           return Column(
             children: [
               _buildHorizontalNewsList(noImageArticles.take(10).toList()),
@@ -694,10 +686,14 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           );
         }
         
-        if (adjustedIndex < highQualityArticles.length) {
+        int articleIndex = adjustedIndex;
+        if (adjustedIndex > 3 && lowQualityArticles.isNotEmpty) articleIndex--;
+        if (adjustedIndex > 6 && noImageArticles.isNotEmpty) articleIndex--;
+        
+        if (articleIndex < highQualityArticles.length) {
           return Column(
             children: [
-              _buildNewsCard(highQualityArticles[adjustedIndex]),
+              _buildNewsCard(highQualityArticles[articleIndex]),
               SizedBox(height: 12),
             ],
           );
@@ -807,19 +803,15 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      match.homeTeam,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _textColor,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                    ),
-                  ],
+                child: Text(
+                  match.homeTeam,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
                 ),
               ),
               SizedBox(width: 20),
@@ -840,19 +832,15 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
               ),
               SizedBox(width: 20),
               Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      match.awayTeam,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _textColor,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                    ),
-                  ],
+                child: Text(
+                  match.awayTeam,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
                 ),
               ),
             ],
@@ -1271,8 +1259,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
       onTap: () {
         setState(() {
           _selectedBottomTab = index;
-          if (index == 0) {
-            _isLoading = true;
+          if (index == 0 && _articles.isEmpty) {
             _loadContent();
           }
         });
