@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart' as xml;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:translator/translator.dart';
-import 'package:palette_generator/palette_generator.dart';
 import 'svg_icons.dart';
 
 void main() {
@@ -59,9 +56,6 @@ class NewsArticle {
   final String link;
   final DateTime? pubDate;
   final NewsSource source;
-  String? translatedTitle;
-  String? translatedDescription;
-  Color? dominantColor;
 
   NewsArticle({
     required this.title,
@@ -70,9 +64,6 @@ class NewsArticle {
     required this.link,
     this.pubDate,
     required this.source,
-    this.translatedTitle,
-    this.translatedDescription,
-    this.dominantColor,
   });
 
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
@@ -111,25 +102,36 @@ class Match {
 
 class RssSources {
   static final List<NewsSource> sources = [
+    NewsSource(name: "ZeroZero", rss: "https://www.zerozero.pt/rss/noticias.php", favicon: "https://www.zerozero.pt/favicon.ico", country: "PT"),
+    NewsSource(name: "90min", rss: "https://90min.com/posts.rss", favicon: "https://90min.com/favicon.ico", country: "INT"),
+    NewsSource(name: "Goal", rss: "https://www.goal.com/feeds/en/news", favicon: "https://www.goal.com/favicon.ico", country: "INT"),
+    NewsSource(name: "ESPN", rss: "https://www.espn.com/espn/rss/news", favicon: "https://www.espn.com/favicon.ico", country: "USA"),
     NewsSource(name: "BBC Sport", rss: "https://feeds.bbci.co.uk/sport/football/rss.xml", favicon: "https://www.bbc.com/favicon.ico", country: "UK"),
     NewsSource(name: "Sky Sports", rss: "https://www.skysports.com/rss/12040", favicon: "https://www.skysports.com/favicon.ico", country: "UK"),
     NewsSource(name: "The Guardian", rss: "https://www.theguardian.com/football/rss", favicon: "https://www.theguardian.com/favicon.ico", country: "UK"),
-    NewsSource(name: "ESPN", rss: "https://www.espn.com/espn/rss/soccer/news", favicon: "https://www.espn.com/favicon.ico", country: "USA"),
-    NewsSource(name: "Goal", rss: "https://www.goal.com/feeds/en/news", favicon: "https://www.goal.com/favicon.ico", country: "INT"),
-    NewsSource(name: "90min", rss: "https://90min.com/posts.rss", favicon: "https://90min.com/favicon.ico", country: "INT"),
     NewsSource(name: "FourFourTwo", rss: "https://www.fourfourtwo.com/rss", favicon: "https://www.fourfourtwo.com/favicon.ico", country: "UK"),
-    NewsSource(name: "GloboEsporte", rss: "https://ge.globo.com/rss/ge/futebol/", favicon: "https://ge.globo.com/favicon.ico", country: "BR"),
     NewsSource(name: "Marca", rss: "https://e00-marca.uecdn.es/rss/en/international.xml", favicon: "https://www.marca.com/favicon.ico", country: "ES"),
-    NewsSource(name: "AS", rss: "https://as.com/rss/futbol/portada.xml", favicon: "https://as.com/favicon.ico", country: "ES"),
-    NewsSource(name: "talkSPORT", rss: "https://talksport.com/football/feed/", favicon: "https://talksport.com/favicon.ico", country: "UK"),
-    NewsSource(name: "Bleacher Report", rss: "https://bleacherreport.com/articles/feed", favicon: "https://bleacherreport.com/favicon.ico", country: "USA"),
-    NewsSource(name: "L'Equipe", rss: "https://www.lequipe.fr/rss/actu_rss_Football.xml", favicon: "https://www.lequipe.fr/favicon.ico", country: "FR"),
-    NewsSource(name: "Lance!", rss: "https://www.lance.com.br/rss.xml", favicon: "https://www.lance.com.br/favicon.ico", country: "BR"),
+    NewsSource(name: "AS", rss: "https://as.com/rss", favicon: "https://as.com/favicon.ico", country: "ES"),
+    NewsSource(name: "Mundo Deportivo", rss: "https://www.mundodeportivo.com/rss", favicon: "https://www.mundodeportivo.com/favicon.ico", country: "ES"),
+    NewsSource(name: "Sport", rss: "https://www.sport.es/es/rss/", favicon: "https://www.sport.es/favicon.ico", country: "ES"),
+    NewsSource(name: "L'Equipe", rss: "https://www.lequipe.fr/rss.xml", favicon: "https://www.lequipe.fr/favicon.ico", country: "FR"),
+    NewsSource(name: "Gazzetta", rss: "https://www.gazzetta.it/rss/", favicon: "https://www.gazzetta.it/favicon.ico", country: "IT"),
+    NewsSource(name: "Corriere Sport", rss: "https://www.corrieredellosport.it/rss", favicon: "https://www.corrieredellosport.it/favicon.ico", country: "IT"),
+    NewsSource(name: "Tuttosport", rss: "https://www.tuttosport.com/rss", favicon: "https://www.tuttosport.com/favicon.ico", country: "IT"),
     NewsSource(name: "Record", rss: "https://www.record.pt/rss/futebol.xml", favicon: "https://www.record.pt/favicon.ico", country: "PT"),
     NewsSource(name: "A Bola", rss: "https://www.abola.pt/rss/noticias.aspx", favicon: "https://www.abola.pt/favicon.ico", country: "PT"),
     NewsSource(name: "O Jogo", rss: "https://www.ojogo.pt/rss/futebol.xml", favicon: "https://www.ojogo.pt/favicon.ico", country: "PT"),
-    NewsSource(name: "Mundo Deportivo", rss: "https://www.mundodeportivo.com/rss/futbol/", favicon: "https://www.mundodeportivo.com/favicon.ico", country: "ES"),
-    NewsSource(name: "Sport", rss: "https://www.sport.es/es/rss/futbol/rss.xml", favicon: "https://www.sport.es/favicon.ico", country: "ES"),
+    NewsSource(name: "Bleacher Report", rss: "https://bleacherreport.com/articles/feed", favicon: "https://bleacherreport.com/favicon.ico", country: "USA"),
+    NewsSource(name: "CBS Sports", rss: "https://www.cbssports.com/rss/headlines/soccer/", favicon: "https://www.cbssports.com/favicon.ico", country: "USA"),
+    NewsSource(name: "Yahoo Sports", rss: "https://sports.yahoo.com/soccer/rss/", favicon: "https://sports.yahoo.com/favicon.ico", country: "USA"),
+    NewsSource(name: "Mirror Football", rss: "https://www.mirror.co.uk/sport/football/rss.xml", favicon: "https://www.mirror.co.uk/favicon.ico", country: "UK"),
+    NewsSource(name: "Daily Mail", rss: "https://www.dailymail.co.uk/sport/football/index.rss", favicon: "https://www.dailymail.co.uk/favicon.ico", country: "UK"),
+    NewsSource(name: "Football Italia", rss: "https://football-italia.net/feed", favicon: "https://football-italia.net/favicon.ico", country: "IT"),
+    NewsSource(name: "TeamTalk", rss: "https://www.teamtalk.com/feed/", favicon: "https://www.teamtalk.com/favicon.ico", country: "UK"),
+    NewsSource(name: "Football365", rss: "https://www.football365.com/rss", favicon: "https://www.football365.com/favicon.ico", country: "UK"),
+    NewsSource(name: "101GreatGoals", rss: "https://www.101greatgoals.com/feed", favicon: "https://www.101greatgoals.com/favicon.ico", country: "INT"),
+    NewsSource(name: "CaughtOffside", rss: "https://caughtoffside.com/feed", favicon: "https://caughtoffside.com/favicon.ico", country: "UK"),
+    NewsSource(name: "SoccerNews", rss: "https://www.soccernews.com/feed", favicon: "https://www.soccernews.com/favicon.ico", country: "INT"),
   ];
   
   static final List<Match> todayMatches = [
@@ -147,14 +149,12 @@ class RssSources {
 }
 
 class RssService {
-  final translator = GoogleTranslator();
-
   Future<List<NewsArticle>> fetchArticles(NewsSource source) async {
     try {
       final response = await http.get(
         Uri.parse(source.rss),
-        headers: {'User-Agent': 'FootballFeedApp/1.0'},
-      ).timeout(Duration(seconds: 10));
+        headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+      ).timeout(Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final document = xml.XmlDocument.parse(response.body);
@@ -202,6 +202,8 @@ class RssService {
               } catch (e) {
                 pubDate = DateTime.now();
               }
+            } else {
+              pubDate = DateTime.now();
             }
 
             final article = NewsArticle(
@@ -215,7 +217,7 @@ class RssService {
 
             articles.add(article);
           } catch (e) {
-            print('Error parsing item: $e');
+            print('Error parsing item from ${source.name}: $e');
             continue;
           }
         }
@@ -237,6 +239,7 @@ class RssService {
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
+        .replaceAll('&#x27;', "'")
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
@@ -252,7 +255,7 @@ class RssService {
   Future<List<NewsArticle>> fetchAllArticles() async {
     List<NewsArticle> allArticles = [];
     
-    final batches = _createBatches(RssSources.sources, 5);
+    final batches = _createBatches(RssSources.sources, 3);
     
     for (var batch in batches) {
       final results = await Future.wait(
@@ -262,17 +265,17 @@ class RssService {
       for (var articles in results) {
         allArticles.addAll(articles);
       }
+      
+      await Future.delayed(Duration(milliseconds: 500));
     }
 
-    final sevenDaysAgo = DateTime.now().subtract(Duration(days: 7));
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(Duration(days: 7));
+    
     allArticles = allArticles.where((article) {
       if (article.pubDate == null) return false;
       return article.pubDate!.isAfter(sevenDaysAgo);
     }).toList();
-
-    for (var article in allArticles) {
-      await _translateArticle(article);
-    }
 
     allArticles.sort((a, b) {
       if (a.pubDate == null) return 1;
@@ -281,32 +284,6 @@ class RssService {
     });
 
     return allArticles;
-  }
-
-  Future<void> _translateArticle(NewsArticle article) async {
-    try {
-      if (!_isPortuguese(article.title)) {
-        final titleTranslation = await translator.translate(article.title, to: 'pt');
-        article.translatedTitle = titleTranslation.text;
-      }
-      
-      if (article.description != null && !_isPortuguese(article.description!)) {
-        final descTranslation = await translator.translate(article.description!, to: 'pt');
-        article.translatedDescription = descTranslation.text;
-      }
-    } catch (e) {
-      print('Translation error: $e');
-    }
-  }
-
-  bool _isPortuguese(String text) {
-    final portugueseWords = ['de', 'da', 'do', 'em', 'para', 'com', 'por', 'que', 'não', 'uma'];
-    final words = text.toLowerCase().split(' ');
-    int count = 0;
-    for (var word in words) {
-      if (portugueseWords.contains(word)) count++;
-    }
-    return count >= 2;
   }
 
   List<List<NewsSource>> _createBatches(List<NewsSource> sources, int batchSize) {
@@ -396,20 +373,20 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     if (_selectedTab == 0) {
       return _articles;
     } else if (_selectedTab == 1) {
-      final today = DateTime.now();
+      final yesterday = DateTime.now().subtract(Duration(hours: 24));
       return _articles.where((a) {
         if (a.pubDate == null) return false;
-        final diff = today.difference(a.pubDate!);
-        return diff.inHours < 24;
+        return a.pubDate!.isAfter(yesterday);
       }).toList();
     } else {
       return _articles.where((a) {
-        final title = (a.translatedTitle ?? a.title).toLowerCase();
+        final title = a.title.toLowerCase();
+        final desc = (a.description ?? '').toLowerCase();
         return title.contains('transfer') ||
                title.contains('mercado') ||
                title.contains('signing') ||
-               title.contains('rumor') ||
-               title.contains('contrata');
+               desc.contains('transfer') ||
+               desc.contains('mercado');
       }).toList();
     }
   }
@@ -418,7 +395,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
-      extendBody: true,
+      extendBodyBehindAppBar: false,
       body: Stack(
         children: [
           AnimatedBuilder(
@@ -434,19 +411,16 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                   alignment: Alignment.centerLeft,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(_contentSlideAnimation.value * 20),
-                    child: AbsorbPointer(
-                      absorbing: _isDrawerOpen,
-                      child: Container(
-                        color: _bgColor,
-                        child: SafeArea(
-                          bottom: false,
-                          child: Column(
-                            children: [
-                              _buildHeader(),
-                              if (_selectedBottomTab == 0) _buildTabBar(),
-                              Expanded(child: _buildCurrentTab()),
-                            ],
-                          ),
+                    child: Container(
+                      color: _bgColor,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Column(
+                          children: [
+                            _buildHeader(),
+                            if (_selectedBottomTab == 0) _buildTabBar(),
+                            Expanded(child: _buildCurrentTab()),
+                          ],
                         ),
                       ),
                     ),
@@ -468,28 +442,16 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             },
           ),
           if (_isDrawerOpen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _toggleDrawer,
-                child: Container(
-                  color: Colors.transparent,
-                ),
+            GestureDetector(
+              onTap: _toggleDrawer,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                color: Colors.transparent,
               ),
             ),
         ],
       ),
-      bottomNavigationBar: AnimatedBuilder(
-        animation: _contentSlideAnimation,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(
-              MediaQuery.of(context).size.width * _contentSlideAnimation.value,
-              0,
-            ),
-            child: _buildBottomNavBar(),
-          );
-        },
-      ),
+      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -513,7 +475,12 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                       shape: BoxShape.circle,
                       color: Color(0xFF2374E1),
                     ),
-                    child: Icon(Ionicons.person, color: Colors.white, size: 24),
+                    child: SvgPicture.string(
+                      SvgIcons.profileFilled,
+                      width: 24,
+                      height: 24,
+                      colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    ),
                   ),
                   SizedBox(width: 16),
                   Expanded(
@@ -610,7 +577,16 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Widget _buildEmptyTab(String title) {
-    return Container(key: ValueKey(title), color: _bgColor);
+    return Container(
+      key: ValueKey(title),
+      color: _bgColor,
+      child: Center(
+        child: Text(
+          title,
+          style: TextStyle(fontSize: 18, color: _subTextColor),
+        ),
+      ),
+    );
   }
 
   Widget _buildHeader() {
@@ -623,21 +599,19 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           children: [
             GestureDetector(
               onTap: _toggleDrawer,
-              child: Image.asset(
-                'assets/logo.png',
+              child: Container(
                 width: 32,
                 height: 32,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Color(0xFF2374E1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Ionicons.football, color: Colors.white, size: 20),
-                  );
-                },
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF2374E1),
+                ),
+                child: SvgPicture.string(
+                  SvgIcons.profileFilled,
+                  width: 20,
+                  height: 20,
+                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                ),
               ),
             ),
             Image.asset(
@@ -658,7 +632,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             ),
             GestureDetector(
               onTap: () {},
-              child: Icon(Ionicons.search, color: _textColor, size: 24),
+              child: SvgPicture.string(
+                SvgIcons.search,
+                width: 24,
+                height: 24,
+              ),
             ),
           ],
         ),
@@ -740,6 +718,9 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadContent,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF2374E1),
+              ),
               child: Text('Tentar novamente'),
             ),
           ],
@@ -995,24 +976,46 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (article.hasImage)
-              ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                child: CachedNetworkImage(
-                  imageUrl: article.imageUrl!,
-                  height: 100,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  httpHeaders: {'User-Agent': 'FootballFeedApp/1.0'},
-                  placeholder: (context, url) => Container(
-                    height: 100,
-                    color: _borderColor,
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                    child: CachedNetworkImage(
+                      imageUrl: article.imageUrl!,
+                      height: 100,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                      placeholder: (context, url) => Container(
+                        height: 100,
+                        color: _borderColor,
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        height: 100,
+                        color: _borderColor,
+                        child: Icon(Ionicons.image_outline, color: _subTextColor),
+                      ),
+                    ),
                   ),
-                  errorWidget: (context, url, error) => Container(
-                    height: 100,
-                    color: _borderColor,
-                    child: Icon(Ionicons.image_outline, color: _subTextColor),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.05),
+                            Colors.black.withOpacity(0.3),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             Expanded(
               child: Padding(
@@ -1035,6 +1038,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                               width: 16,
                               height: 16,
                               fit: BoxFit.cover,
+                              httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                               errorWidget: (context, url, error) => Icon(
                                 Ionicons.globe_outline,
                                 size: 10,
@@ -1061,7 +1065,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                     SizedBox(height: 4),
                     Expanded(
                       child: Text(
-                        article.translatedTitle ?? article.title,
+                        article.title,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -1132,6 +1136,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                       width: 16,
                       height: 16,
                       fit: BoxFit.cover,
+                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                       errorWidget: (context, url, error) => Icon(
                         Ionicons.globe_outline,
                         size: 10,
@@ -1158,7 +1163,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             SizedBox(height: 8),
             Expanded(
               child: Text(
-                article.translatedTitle ?? article.title,
+                article.title,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1186,13 +1191,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Widget _buildNewsCard(NewsArticle article) {
-    final cardColor = article.dominantColor ?? _surfaceColor;
-    
     return GestureDetector(
       onTap: () => _launchUrl(article.link),
       child: Container(
         decoration: BoxDecoration(
-          color: cardColor,
+          color: _surfaceColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -1206,16 +1209,16 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (article.hasImage)
-              ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                child: Stack(
-                  children: [
-                    CachedNetworkImage(
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                    child: CachedNetworkImage(
                       imageUrl: article.imageUrl!,
                       height: 220,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      httpHeaders: {'User-Agent': 'FootballFeedApp/1.0'},
+                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                       placeholder: (context, url) => Container(
                         height: 220,
                         color: _borderColor,
@@ -1226,6 +1229,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                         ),
                       ),
                       errorWidget: (context, url, error) {
+                        print('Failed to load image: $url');
                         return Container(
                           height: 220,
                           color: _borderColor,
@@ -1243,26 +1247,26 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                         );
                       },
                     ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withOpacity(0.1),
-                              Colors.black.withOpacity(0.4),
-                            ],
-                          ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.1),
+                            Colors.black.withOpacity(0.5),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -1284,6 +1288,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                             width: 20,
                             height: 20,
                             fit: BoxFit.cover,
+                            httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                             errorWidget: (context, url, error) => Icon(
                               Ionicons.globe_outline,
                               size: 12,
@@ -1312,7 +1317,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                   ),
                   SizedBox(height: 8),
                   Text(
-                    article.translatedTitle ?? article.title,
+                    article.title,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1320,10 +1325,10 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                       color: _textColor,
                     ),
                   ),
-                  if ((article.translatedDescription ?? article.description) != null) ...[
+                  if (article.description != null && article.description!.isNotEmpty) ...[
                     SizedBox(height: 8),
                     Text(
-                      article.translatedDescription ?? article.description!,
+                      article.description!,
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.4,
@@ -1429,20 +1434,20 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildBottomNavItem(
-                Ionicons.home_outline,
-                Ionicons.home,
+                SvgIcons.homeOutline,
+                SvgIcons.homeFilled,
                 'Inicio',
                 0,
               ),
               _buildBottomNavItem(
-                Ionicons.football_outline,
-                Ionicons.football,
+                SvgIcons.matchesOutline,
+                SvgIcons.matchesFilled,
                 'Partidas',
                 1,
               ),
               _buildBottomNavItem(
-                Ionicons.tv_outline,
-                Ionicons.tv,
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>',
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>',
                 'TV',
                 2,
               ),
@@ -1454,8 +1459,8 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Widget _buildBottomNavItem(
-    IconData outlinedIcon,
-    IconData filledIcon,
+    String outlinedSvg,
+    String filledSvg,
     String label,
     int index,
   ) {
@@ -1472,10 +1477,14 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isSelected ? filledIcon : outlinedIcon,
-            size: 24,
-            color: isSelected ? Color(0xFF2374E1) : _subTextColor,
+          SvgPicture.string(
+            isSelected ? filledSvg : outlinedSvg,
+            width: 22,
+            height: 22,
+            colorFilter: ColorFilter.mode(
+              isSelected ? Color(0xFF2374E1) : _subTextColor,
+              BlendMode.srcIn,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
