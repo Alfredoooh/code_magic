@@ -19,13 +19,11 @@ class FootballFeedApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mantemos a ThemeData básica — o resto do tema é gerido pelas cores locais no State
     return MaterialApp(
       title: 'Football Feed',
       theme: ThemeData(
         fontFamily: '-apple-system',
         useMaterial3: true,
-        // Mantemos um theme neutro; o app usa cores locais via _isDarkTheme
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2374E1)),
         scaffoldBackgroundColor: Color(0xFF0A0A0A),
       ),
@@ -185,8 +183,6 @@ class RssService {
               }
             } else if (item.findElements('media:thumbnail').isNotEmpty) {
               imageUrl = item.findElements('media:thumbnail').first.getAttribute('url');
-            } else {
-              // Some feeds put images inside <content:encoded> or inside the description HTML. We won't parse them now.
             }
 
             if (imageUrl != null) {
@@ -219,7 +215,6 @@ class RssService {
 
             articles.add(article);
           } catch (e) {
-            // parsing single item failed
             continue;
           }
         }
@@ -227,7 +222,6 @@ class RssService {
         return articles;
       }
     } catch (e) {
-      // network or parse error
       print('Error fetching ${source.name}: $e');
     }
     return [];
@@ -249,11 +243,9 @@ class RssService {
 
   DateTime _parseRssDate(String dateStr) {
     try {
-      // Tenta parse padrão ISO primeiro
       return DateTime.parse(dateStr);
     } catch (e) {
       try {
-        // Tenta parse com HttpDate
         return HttpDate.parse(dateStr);
       } catch (e) {
         return DateTime.now();
@@ -333,6 +325,17 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   late Animation<double> _drawerSlideAnimation;
   late Animation<double> _contentSlideAnimation;
 
+  // TV SVGs (os que o usuário forneceu)
+  final String _tvOutlineSvg = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" width="512" height="512"><path d="M19,3H5A5.006,5.006,0,0,0,0,8v6a5.006,5.006,0,0,0,5,5h6v1H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2H13V19h6a5.006,5.006,0,0,0,5-5V8A5.006,5.006,0,0,0,19,3Zm3,11a3,3,0,0,1-3,3H5a3,3,0,0,1-3-3V8A3,3,0,0,1,5,5H19a3,3,0,0,1,3,3Z"/></svg>
+''';
+
+  final String _tvFilledSvg = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="Filled" viewBox="0 0 24 24" width="512" height="512"><path d="M19,3H5A5.006,5.006,0,0,0,0,8v6a5.006,5.006,0,0,0,5,5h6v1H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2H13V19h6a5.006,5.006,0,0,0,5-5V8A5.006,5.006,0,0,0,19,3Z"/></svg>
+''';
+
   @override
   void initState() {
     super.initState();
@@ -366,7 +369,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
       _isLoading = false;
     });
 
-    // Pré-carregar cores (async) e traduções em lote para rapidez
     _prefetchImageColors(_articles);
     _prefetchTranslations(_articles);
   }
@@ -429,7 +431,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   void _prefetchImageColors(List<NewsArticle> articles) {
-    // prefetch but não bloquear UI
     for (var article in articles) {
       final url = article.imageUrl;
       if (url != null && !_imageColorCache.containsKey(url)) {
@@ -439,8 +440,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   // ----------------- Translation (rapid) -----------------
-  // Usa LibreTranslate público como exemplo (https://libretranslate.com/translate).
-  // Atenção: limites e disponibilidade do endpoint podem variar. Troque se necessário.
   Future<String?> _translateText(String text, {String target = 'pt'}) async {
     if (text.trim().isEmpty) return null;
     final key = '${text.hashCode}_$target';
@@ -475,7 +474,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Future<void> _prefetchTranslations(List<NewsArticle> articles) async {
-    // Translate em lotes para não sobrecarregar
     const batch = 5;
     for (var i = 0; i < articles.length; i += batch) {
       final sub = articles.sublist(i, (i + batch) > articles.length ? articles.length : i + batch);
@@ -494,11 +492,9 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
         }
       }).toList());
 
-      // pequena pausa entre lotes para reduzir probabilidade de throttling
       await Future.delayed(const Duration(milliseconds: 250));
     }
 
-    // após pré-tradução, pedir rebuild para mostrar traduções
     if (mounted) setState(() {});
   }
 
@@ -519,7 +515,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     return Scaffold(
       backgroundColor: _bgColor,
       extendBodyBehindAppBar: false,
-      // REMOVED: bottomNavigationBar to allow drawer overlaying it. bottom nav added inside body Stack.
       body: Stack(
         children: [
           AnimatedBuilder(
@@ -544,8 +539,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                             _buildHeader(),
                             if (_selectedBottomTab == 0) _buildTabBar(),
                             Expanded(child: _buildCurrentTab()),
-                            // espaço extra para evitar conteudo por baixo da bottom nav quando não aberta
-                            SizedBox(height: 12),
+                            const SizedBox(height: 12),
                           ],
                         ),
                       ),
@@ -556,7 +550,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             },
           ),
 
-          // bottom navbar moved inside the body so drawer can overlay it.
           Positioned(
             left: 0,
             right: 0,
@@ -564,13 +557,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             child: IgnorePointer(
               ignoring: false,
               child: Container(
-                // dá um pouco de elevação sobre o conteúdo
                 child: _buildBottomNavBar(),
               ),
             ),
           ),
 
-          // overlay above content & bottom nav when drawer open (dim entire screen)
           if (_isDrawerOpen)
             GestureDetector(
               onTap: _toggleDrawer,
@@ -580,7 +571,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
               ),
             ),
 
-          // drawer overlay (must be after bottomNavBar so it overlays it)
           if (_isDrawerOpen)
             AnimatedBuilder(
               animation: _drawerSlideAnimation,
@@ -1141,7 +1131,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                       ),
                     ),
                   ),
-                  // separação/gradiente entre imagem e texto: topo mais transparente, base mais forte
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -1171,7 +1160,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                   children: [
                     Row(
                       children: [
-                        // favicon circular antes do nome
                         Container(
                           width: 20,
                           height: 20,
@@ -1335,7 +1323,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Widget _buildNewsCard(NewsArticle article) {
-    // Usamos FutureBuilder para obter cor primária da imagem (cacheada)
     final imageUrl = article.imageUrl;
     return GestureDetector(
       onTap: () => _launchUrl(article.link),
@@ -1354,13 +1341,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                   offset: const Offset(0, 2),
                 ),
               ],
-              // borda sutil usando a cor primária com baixa opacidade
               border: Border.all(color: primaryColor.withOpacity(0.12), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // barra superior com a cor primária (liga ao pedido "os cards tenham a cor primária da imagem")
                 Container(
                   height: 6,
                   decoration: BoxDecoration(
@@ -1408,7 +1393,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                           },
                         ),
                       ),
-                      // gradiente: topo mais transparente e fundo mais forte (separa imagem do texto)
                       Positioned(
                         bottom: 0,
                         left: 0,
@@ -1476,7 +1460,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                             ),
                           ],
                           const Spacer(),
-                          // botão para forçar traduzir (se quiser)
                           GestureDetector(
                             onTap: () async {
                               final keyTitle = '${article.title.hashCode}_pt';
@@ -1630,10 +1613,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                 1,
               ),
               _buildBottomNavItem(
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>',
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>',
+                _tvOutlineSvg,
+                _tvFilledSvg,
                 'TV',
                 2,
+                inactiveColor: const Color(0xFF9AA0A6),
               ),
             ],
           ),
@@ -1646,9 +1630,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     String outlinedSvg,
     String filledSvg,
     String label,
-    int index,
-  ) {
+    int index, {
+    Color? inactiveColor,
+  }) {
     final isSelected = _selectedBottomTab == index;
+    final Color colorInactive = inactiveColor ?? _subTextColor;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -1666,7 +1652,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             width: 22,
             height: 22,
             colorFilter: ColorFilter.mode(
-              isSelected ? const Color(0xFF2374E1) : _subTextColor,
+              isSelected ? const Color(0xFF2374E1) : colorInactive,
               BlendMode.srcIn,
             ),
           ),
@@ -1676,7 +1662,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: isSelected ? const Color(0xFF2374E1) : _subTextColor,
+              color: isSelected ? const Color(0xFF2374E1) : colorInactive,
             ),
           ),
         ],
