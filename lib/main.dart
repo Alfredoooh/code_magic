@@ -429,25 +429,26 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
               );
             },
           ),
-          AnimatedBuilder(
-            animation: _drawerSlideAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(
-                  MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
-                  0,
-                ),
-                child: _buildDrawer(),
-              );
-            },
-          ),
           if (_isDrawerOpen)
             GestureDetector(
               onTap: _toggleDrawer,
               behavior: HitTestBehavior.opaque,
               child: Container(
-                color: Colors.transparent,
+                color: Colors.black.withOpacity(0.5),
               ),
+            ),
+          if (_isDrawerOpen)
+            AnimatedBuilder(
+              animation: _drawerSlideAnimation,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(
+                    MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
+                    0,
+                  ),
+                  child: _buildDrawer(),
+                );
+              },
             ),
         ],
       ),
@@ -473,13 +474,15 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                     height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFF2374E1),
+                      color: _borderColor,
                     ),
-                    child: SvgPicture.string(
-                      SvgIcons.profileFilled,
-                      width: 24,
-                      height: 24,
-                      colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    child: Center(
+                      child: SvgPicture.string(
+                        SvgIcons.profileFilled,
+                        width: 24,
+                        height: 24,
+                        colorFilter: ColorFilter.mode(_textColor, BlendMode.srcIn),
+                      ),
                     ),
                   ),
                   SizedBox(width: 16),
@@ -604,13 +607,15 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFF2374E1),
+                  color: _borderColor,
                 ),
-                child: SvgPicture.string(
-                  SvgIcons.profileFilled,
-                  width: 20,
-                  height: 20,
-                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                child: Center(
+                  child: SvgPicture.string(
+                    SvgIcons.profileFilled,
+                    width: 18,
+                    height: 18,
+                    colorFilter: ColorFilter.mode(_textColor, BlendMode.srcIn),
+                  ),
                 ),
               ),
             ),
