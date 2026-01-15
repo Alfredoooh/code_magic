@@ -1,27 +1,26 @@
+// PARTE 1: Main, Models e RSS Service
+// main.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart' as xml;
-import 'dart:convert';
-import 'package:intl/intl.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:ionicons/ionicons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:ionicons/ionicons.dart';
-
-// ==== PARTE 1: main.dart ====
-// Este arquivo contém o app principal e a configuração
+import 'dart:convert';
 
 void main() {
-  runApp(const SocialFeedApp());
+  runApp(const FootballFeedApp());
 }
 
-class SocialFeedApp extends StatelessWidget {
-  const SocialFeedApp({Key? key}) : super(key: key);
+class FootballFeedApp extends StatelessWidget {
+  const FootballFeedApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Feed Futebol',
+      title: 'Football Feed',
       theme: ThemeData(
         fontFamily: '-apple-system',
         useMaterial3: true,
@@ -33,242 +32,264 @@ class SocialFeedApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: Color(0xFF0A0A0A),
       ),
-      home: const SocialFeedScreen(),
+      home: const FootballFeedScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-// ==== MODELOS ====
+// models.dart
+class NewsSource {
+  final String name;
+  final String rss;
+  final String? logo;
+  final String? country;
 
-class NewsItem {
+  NewsSource({
+    required this.name,
+    required this.rss,
+    this.logo,
+    this.country,
+  });
+}
+
+class NewsArticle {
   final String title;
-  final String link;
   final String? description;
-  final String? thumbnail;
-  final String source;
+  final String? imageUrl;
+  final String link;
   final DateTime? pubDate;
-  final String sourceLogo;
+  final NewsSource source;
 
-  NewsItem({
+  NewsArticle({
     required this.title,
-    required this.link,
     this.description,
-    this.thumbnail,
-    required this.source,
+    this.imageUrl,
+    required this.link,
     this.pubDate,
-    required this.sourceLogo,
+    required this.source,
   });
 
-  bool get hasImage => thumbnail != null && thumbnail!.isNotEmpty;
+  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
 }
 
-class RssFeed {
-  final String name;
-  final String url;
-  final String logo;
-
-  RssFeed({required this.name, required this.url, required this.logo});
-}
-
-// ==== LISTA DE FEEDS (60+ fontes) ====
-
-final List<RssFeed> RSS_FEEDS = [
-  // Portugueses
-  RssFeed(name: "ZeroZero", url: "https://www.zerozero.pt/rss/noticias.php", logo: "⚽"),
-  RssFeed(name: "O Jogo", url: "https://www.ojogo.pt/rss", logo: "📰"),
-  RssFeed(name: "Bola na Rede", url: "https://www.bolanarede.pt/feed/", logo: "⚽"),
-  RssFeed(name: "MaisFutebol", url: "https://www.maisfutebol.iol.pt/rss", logo: "⚽"),
-  RssFeed(name: "Record", url: "https://www.record.pt/rss.aspx", logo: "📰"),
-  RssFeed(name: "A Bola", url: "https://www.abola.pt/rss", logo: "⚽"),
-  RssFeed(name: "Tribuna Expresso", url: "https://expresso.pt/rss", logo: "📰"),
-  
-  // Brasileiros
-  RssFeed(name: "GE Globo", url: "https://ge.globo.com/rss/ge/futebol/", logo: "🇧🇷"),
-  RssFeed(name: "UOL Esporte", url: "https://rss.uol.com.br/feed/esporte.xml", logo: "📰"),
-  RssFeed(name: "Lance", url: "https://www.lance.com.br/rss.xml", logo: "⚽"),
-  RssFeed(name: "ESPN Brasil", url: "https://www.espn.com.br/feeds/rss/news", logo: "📺"),
-  RssFeed(name: "Trivela", url: "https://trivela.com.br/feed/", logo: "⚽"),
-  RssFeed(name: "TNT Sports", url: "https://www.tntsports.com.br/rss", logo: "📺"),
-  
-  // Internacionais - Inglês
-  RssFeed(name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/rss.xml", logo: "🇬🇧"),
-  RssFeed(name: "Sky Sports", url: "https://www.skysports.com/rss/12040", logo: "📺"),
-  RssFeed(name: "The Guardian", url: "https://www.theguardian.com/football/rss", logo: "📰"),
-  RssFeed(name: "Goal.com", url: "https://www.goal.com/feeds/en/news", logo: "⚽"),
-  RssFeed(name: "90min", url: "https://90min.com/posts.rss", logo: "⚽"),
-  RssFeed(name: "ESPN FC", url: "https://www.espn.com/espn/rss/soccer/news", logo: "📺"),
-  RssFeed(name: "FourFourTwo", url: "https://www.fourfourtwo.com/rss", logo: "📰"),
-  RssFeed(name: "Football365", url: "https://www.football365.com/rss", logo: "⚽"),
-  RssFeed(name: "TeamTalk", url: "https://www.teamtalk.com/feed/", logo: "⚽"),
-  RssFeed(name: "Mirror Football", url: "https://www.mirror.co.uk/sport/football/rss.xml", logo: "📰"),
-  RssFeed(name: "The Sun Football", url: "https://www.thesun.co.uk/sport/football/feed/", logo: "📰"),
-  RssFeed(name: "Daily Mail Sport", url: "https://www.dailymail.co.uk/sport/football/index.rss", logo: "📰"),
-  RssFeed(name: "CaughtOffside", url: "https://caughtoffside.com/feed", logo: "⚽"),
-  RssFeed(name: "101GreatGoals", url: "https://www.101greatgoals.com/feed", logo: "⚽"),
-  RssFeed(name: "Bleacher Report", url: "https://bleacherreport.com/articles/feed", logo: "📰"),
-  RssFeed(name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/soccer/", logo: "📺"),
-  
-  // Italianos
-  RssFeed(name: "Gazzetta dello Sport", url: "https://www.gazzetta.it/rss/", logo: "🇮🇹"),
-  RssFeed(name: "Corriere dello Sport", url: "https://www.corrieredellosport.it/rss", logo: "📰"),
-  RssFeed(name: "Tuttosport", url: "https://www.tuttosport.com/rss", logo: "📰"),
-  RssFeed(name: "Football Italia", url: "https://football-italia.net/feed", logo: "🇮🇹"),
-  
-  // Espanhóis
-  RssFeed(name: "Marca", url: "https://www.marca.com/rss", logo: "🇪🇸"),
-  RssFeed(name: "AS", url: "https://as.com/rss", logo: "🇪🇸"),
-  RssFeed(name: "Mundo Deportivo", url: "https://www.mundodeportivo.com/rss", logo: "📰"),
-  RssFeed(name: "Sport", url: "https://www.sport.es/es/rss/", logo: "📰"),
-  
-  // Francês
-  RssFeed(name: "L'Equipe", url: "https://www.lequipe.fr/rss.xml", logo: "🇫🇷"),
-  
-  // Alemão
-  RssFeed(name: "Kicker", url: "https://www.kicker.de/news/rss", logo: "🇩🇪"),
-  RssFeed(name: "Sport1", url: "https://www.sport1.de/fussball/rss", logo: "📰"),
-  
-  // Clubes Oficiais
-  RssFeed(name: "Man United", url: "https://www.manutd.com/Feeds/News?format=xml", logo: "🔴"),
-  RssFeed(name: "Liverpool FC", url: "https://www.liverpoolfc.com/news/rss", logo: "🔴"),
-  RssFeed(name: "Chelsea FC", url: "https://www.chelseafc.com/en/news/rss", logo: "🔵"),
-  RssFeed(name: "Arsenal", url: "https://www.arsenal.com/rss.xml", logo: "🔴"),
-  RssFeed(name: "Man City", url: "https://www.mancity.com/feeds/news", logo: "🔵"),
-  RssFeed(name: "Tottenham", url: "https://www.tottenhamhotspur.com/rss/", logo: "⚪"),
-  RssFeed(name: "Real Madrid (fan)", url: "https://www.managingmadrid.com/feed/", logo: "⚪"),
-  RssFeed(name: "Barcelona (fan)", url: "https://www.barcablaugranes.com/feed/", logo: "🔴"),
-  
-  // Outras fontes
-  RssFeed(name: "Transfermarkt", url: "https://www.transfermarkt.com/rss/news/", logo: "💰"),
-  RssFeed(name: "MLS Soccer", url: "https://www.mlssoccer.com/rss", logo: "🇺🇸"),
-  RssFeed(name: "OneFootball", url: "https://onefootball.com/en/rss", logo: "⚽"),
-  RssFeed(name: "World Soccer", url: "https://www.worldsoccer.com/feed", logo: "🌍"),
-  RssFeed(name: "Squawka", url: "https://www.squawka.com/feed/", logo: "📊"),
-  RssFeed(name: "SportsLens", url: "https://sportslens.com/feed", logo: "📰"),
-  RssFeed(name: "Football.co.uk", url: "https://www.football.co.uk/rss/", logo: "⚽"),
-  RssFeed(name: "SoccerWire", url: "https://www.soccerwire.com/feed", logo: "⚽"),
-  RssFeed(name: "Yahoo Sports", url: "https://sports.yahoo.com/soccer/rss/", logo: "📰"),
-];
-
-// ==== SERVIÇO DE FETCH RSS ====
-
-class RssService {
-  static final List<String> proxies = [
-    'https://api.allorigins.win/raw?url=',
-    'https://api.rss2json.com/v1/api.json?rss_url=',
-    'https://thingproxy.freeboard.io/fetch/',
+// rss_sources.dart
+class RssSources {
+  static final List<NewsSource> sources = [
+    // Principais fontes internacionais
+    NewsSource(name: "BBC Sport", rss: "https://feeds.bbci.co.uk/sport/football/rss.xml", country: "UK"),
+    NewsSource(name: "Sky Sports", rss: "https://www.skysports.com/rss/12040", country: "UK"),
+    NewsSource(name: "The Guardian", rss: "https://www.theguardian.com/football/rss", country: "UK"),
+    NewsSource(name: "ESPN", rss: "https://www.espn.com/espn/rss/soccer/news", country: "USA"),
+    NewsSource(name: "Goal", rss: "https://www.goal.com/feeds/en/news", country: "INT"),
+    NewsSource(name: "90min", rss: "https://90min.com/posts.rss", country: "INT"),
+    NewsSource(name: "FourFourTwo", rss: "https://www.fourfourtwo.com/rss", country: "UK"),
+    NewsSource(name: "Football365", rss: "https://www.football365.com/rss", country: "UK"),
+    NewsSource(name: "Mirror Football", rss: "https://www.mirror.co.uk/sport/football/rss.xml", country: "UK"),
+    NewsSource(name: "Daily Mail", rss: "https://www.dailymail.co.uk/sport/football/index.rss", country: "UK"),
+    NewsSource(name: "The Sun", rss: "https://www.thesun.co.uk/sport/football/feed/", country: "UK"),
+    NewsSource(name: "Bleacher Report", rss: "https://bleacherreport.com/articles/feed", country: "USA"),
+    NewsSource(name: "CBS Sports", rss: "https://www.cbssports.com/rss/headlines/soccer/", country: "USA"),
+    NewsSource(name: "TeamTalk", rss: "https://www.teamtalk.com/feed/", country: "UK"),
+    
+    // Fontes portuguesas
+    NewsSource(name: "ZeroZero", rss: "https://www.zerozero.pt/rss/noticias.php", country: "PT"),
+    NewsSource(name: "MaisFutebol", rss: "https://www.maisfutebol.iol.pt/rss", country: "PT"),
+    NewsSource(name: "O Jogo", rss: "https://www.ojogo.pt/rss", country: "PT"),
+    NewsSource(name: "Record", rss: "https://www.record.pt/rss", country: "PT"),
+    NewsSource(name: "A Bola", rss: "https://www.abola.pt/rss", country: "PT"),
+    NewsSource(name: "Sporting CP", rss: "https://www.sporting.pt/en/news/rss", country: "PT"),
+    NewsSource(name: "FC Porto", rss: "https://www.fcporto.pt/pt/rss", country: "PT"),
+    
+    // Fontes brasileiras
+    NewsSource(name: "GloboEsporte", rss: "https://ge.globo.com/rss/ge/futebol/", country: "BR"),
+    NewsSource(name: "UOL Esporte", rss: "https://rss.uol.com.br/feed/esporte.xml", country: "BR"),
+    NewsSource(name: "Lance!", rss: "https://www.lance.com.br/rss", country: "BR"),
+    NewsSource(name: "ESPN Brasil", rss: "https://www.espn.com.br/feeds/rss/news", country: "BR"),
+    NewsSource(name: "Trivela", rss: "https://trivela.com.br/feed/", country: "BR"),
+    
+    // Fontes espanholas
+    NewsSource(name: "Marca", rss: "https://e00-marca.uecdn.es/rss/en/international.xml", country: "ES"),
+    NewsSource(name: "AS", rss: "https://as.com/rss/futbol/portada.xml", country: "ES"),
+    NewsSource(name: "Mundo Deportivo", rss: "https://www.mundodeportivo.com/rss/futbol/", country: "ES"),
+    NewsSource(name: "Sport", rss: "https://www.sport.es/es/rss/", country: "ES"),
+    NewsSource(name: "El País Deportes", rss: "https://elpais.com/deportes/rss/", country: "ES"),
+    
+    // Fontes italianas
+    NewsSource(name: "Football Italia", rss: "https://football-italia.net/feed", country: "IT"),
+    NewsSource(name: "La Gazzetta", rss: "https://www.gazzetta.it/rss/", country: "IT"),
+    NewsSource(name: "Corriere dello Sport", rss: "https://www.corrieredellosport.it/rss", country: "IT"),
+    NewsSource(name: "Tuttosport", rss: "https://www.tuttosport.com/rss", country: "IT"),
+    
+    // Fontes francesas
+    NewsSource(name: "L'Équipe", rss: "https://www.lequipe.fr/rss/actu_rss_Football.xml", country: "FR"),
+    NewsSource(name: "RMC Sport", rss: "https://rmcsport.bfmtv.com/rss/football/", country: "FR"),
+    
+    // Fontes alemãs
+    NewsSource(name: "Kicker", rss: "https://www.kicker.de/news/fussball/rss.xml", country: "DE"),
+    NewsSource(name: "Sport1", rss: "https://www.sport1.de/fussball/rss", country: "DE"),
+    
+    // Sites especializados
+    NewsSource(name: "Transfermarkt", rss: "https://www.transfermarkt.com/rss/news/", country: "INT"),
+    NewsSource(name: "Who Scored", rss: "https://www.whoscored.com/rss", country: "INT"),
+    NewsSource(name: "Football Transfers", rss: "https://www.footballtransfers.com/en/rss", country: "INT"),
+    NewsSource(name: "Inside World Football", rss: "https://www.insideworldfootball.com/feed/", country: "INT"),
+    
+    // Fan blogs Premier League
+    NewsSource(name: "This Is Anfield", rss: "https://www.thisisanfield.com/feed/", country: "UK"),
+    NewsSource(name: "The Empire of The Kop", rss: "https://www.empireofthekop.com/feed/", country: "UK"),
+    NewsSource(name: "Arseblog", rss: "https://arseblog.com/feed", country: "UK"),
+    NewsSource(name: "Just Arsenal", rss: "https://www.justarsenal.com/feed", country: "UK"),
+    NewsSource(name: "Talk Chelsea", rss: "https://www.talkchelsea.net/feed/", country: "UK"),
+    NewsSource(name: "The Peoples Person", rss: "https://thepeoplesperson.com/feed/", country: "UK"),
+    NewsSource(name: "Stretty News", rss: "https://strettynews.com/feed", country: "UK"),
+    NewsSource(name: "The Mag (Newcastle)", rss: "https://www.themag.co.uk/feed/", country: "UK"),
+    
+    // Fan blogs La Liga
+    NewsSource(name: "Managing Madrid", rss: "https://www.managingmadrid.com/rss/current", country: "ES"),
+    NewsSource(name: "Barca Blaugranes", rss: "https://www.barcablaugranes.com/rss/current", country: "ES"),
+    NewsSource(name: "Barca Universal", rss: "https://barcauniversal.com/feed/", country: "ES"),
+    
+    // Fan blogs Serie A
+    NewsSource(name: "RomaPress", rss: "https://romapress.net/feed/", country: "IT"),
+    NewsSource(name: "SempreMilan", rss: "https://sempremilan.com/feed", country: "IT"),
+    NewsSource(name: "JuveFC", rss: "https://www.juvefc.com/feed/", country: "IT"),
+    
+    // MLS
+    NewsSource(name: "MLS Soccer", rss: "https://www.mlssoccer.com/rss", country: "USA"),
+    NewsSource(name: "SBI Soccer", rss: "https://sbisoccer.com/feed", country: "USA"),
+    
+    // Clubes oficiais
+    NewsSource(name: "Manchester United", rss: "https://www.manutd.com/en/feeds/first-team", country: "UK"),
+    NewsSource(name: "PSG Official", rss: "https://en.psg.fr/teams/first-team/content.rss", country: "FR"),
+    NewsSource(name: "Bayern Munich", rss: "https://fcbayern.com/en/news/rss", country: "DE"),
+    NewsSource(name: "Borussia Dortmund", rss: "https://www.bvb.de/eng/News.rss", country: "DE"),
+    NewsSource(name: "Juventus", rss: "https://www.juventus.com/en/feed", country: "IT"),
+    
+    // Outros
+    NewsSource(name: "101 Great Goals", rss: "https://www.101greatgoals.com/feed", country: "INT"),
+    NewsSource(name: "Caught Offside", rss: "https://caughtoffside.com/feed", country: "UK"),
+    NewsSource(name: "Football Fan Cast", rss: "https://footballfancast.com/feed", country: "UK"),
+    NewsSource(name: "World Soccer", rss: "https://www.worldsoccer.com/feed", country: "INT"),
+    NewsSource(name: "Squawka", rss: "https://www.squawka.com/feed/", country: "UK"),
+    NewsSource(name: "OneFootball", rss: "https://onefootball.com/en/rss", country: "INT"),
   ];
+}
 
-  static Future<List<NewsItem>> fetchFeed(RssFeed feed) async {
-    for (String proxy in proxies) {
-      try {
-        final url = proxy + Uri.encodeComponent(feed.url);
-        final response = await http.get(Uri.parse(url)).timeout(Duration(seconds: 10));
-        
-        if (response.statusCode == 200) {
-          if (proxy.contains('rss2json')) {
-            return _parseRss2Json(response.body, feed);
-          } else {
-            return _parseXmlFeed(response.body, feed);
+// rss_service.dart
+class RssService {
+  Future<List<NewsArticle>> fetchArticles(NewsSource source) async {
+    try {
+      final response = await http.get(
+        Uri.parse(source.rss),
+        headers: {'User-Agent': 'FootballFeedApp/1.0'},
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final document = xml.XmlDocument.parse(response.body);
+        final items = document.findAllElements('item');
+
+        return items.map((item) {
+          final title = item.findElements('title').first.innerText;
+          final link = item.findElements('link').first.innerText;
+          final description = item.findElements('description').isNotEmpty
+              ? item.findElements('description').first.innerText
+              : null;
+
+          String? imageUrl;
+          // Tenta encontrar imagem em diferentes tags
+          if (item.findElements('media:content').isNotEmpty) {
+            imageUrl = item.findElements('media:content').first.getAttribute('url');
+          } else if (item.findElements('enclosure').isNotEmpty) {
+            imageUrl = item.findElements('enclosure').first.getAttribute('url');
+          } else if (item.findElements('media:thumbnail').isNotEmpty) {
+            imageUrl = item.findElements('media:thumbnail').first.getAttribute('url');
           }
-        }
-      } catch (e) {
-        continue;
+
+          DateTime? pubDate;
+          if (item.findElements('pubDate').isNotEmpty) {
+            try {
+              pubDate = DateTime.parse(item.findElements('pubDate').first.innerText);
+            } catch (e) {
+              // Ignora erro de parse de data
+            }
+          }
+
+          return NewsArticle(
+            title: title,
+            description: description,
+            imageUrl: imageUrl,
+            link: link,
+            pubDate: pubDate,
+            source: source,
+          );
+        }).toList();
       }
+    } catch (e) {
+      print('Error fetching ${source.name}: $e');
     }
     return [];
   }
 
-  static List<NewsItem> _parseRss2Json(String body, RssFeed feed) {
-    try {
-      final json = jsonDecode(body);
-      final items = json['items'] as List;
-      return items.map((item) {
-        return NewsItem(
-          title: item['title'] ?? '',
-          link: item['link'] ?? item['guid'] ?? '',
-          description: item['description']?.replaceAll(RegExp(r'<[^>]*>'), '') ?? '',
-          thumbnail: item['thumbnail'] ?? item['enclosure']?['link'],
-          source: feed.name,
-          sourceLogo: feed.logo,
-          pubDate: item['pubDate'] != null ? DateTime.tryParse(item['pubDate']) : null,
-        );
-      }).toList();
-    } catch (e) {
-      return [];
+  Future<List<NewsArticle>> fetchAllArticles() async {
+    List<NewsArticle> allArticles = [];
+    
+    // Busca de 20 fontes por vez para não sobrecarregar
+    final batches = _createBatches(RssSources.sources, 20);
+    
+    for (var batch in batches) {
+      final results = await Future.wait(
+        batch.map((source) => fetchArticles(source)),
+      );
+      
+      for (var articles in results) {
+        allArticles.addAll(articles);
+      }
     }
+
+    // Ordena por data
+    allArticles.sort((a, b) {
+      if (a.pubDate == null) return 1;
+      if (b.pubDate == null) return -1;
+      return b.pubDate!.compareTo(a.pubDate!);
+    });
+
+    return allArticles;
   }
 
-  static List<NewsItem> _parseXmlFeed(String body, RssFeed feed) {
-    try {
-      final document = xml.XmlDocument.parse(body);
-      final items = document.findAllElements('item');
-      
-      return items.map((item) {
-        final title = item.findElements('title').first.text;
-        final link = item.findElements('link').isNotEmpty 
-            ? item.findElements('link').first.text 
-            : item.findElements('guid').first.text;
-        
-        final desc = item.findElements('description').isNotEmpty
-            ? item.findElements('description').first.text.replaceAll(RegExp(r'<[^>]*>'), '')
-            : '';
-        
-        String? thumb;
-        final media = item.findElements('media:content');
-        if (media.isNotEmpty) {
-          thumb = media.first.getAttribute('url');
-        }
-        if (thumb == null) {
-          final enclosure = item.findElements('enclosure');
-          if (enclosure.isNotEmpty) {
-            thumb = enclosure.first.getAttribute('url');
-          }
-        }
-        
-        final pubDateStr = item.findElements('pubDate').isNotEmpty
-            ? item.findElements('pubDate').first.text
-            : null;
-        
-        return NewsItem(
-          title: title,
-          link: link,
-          description: desc,
-          thumbnail: thumb,
-          source: feed.name,
-          sourceLogo: feed.logo,
-          pubDate: pubDateStr != null ? DateTime.tryParse(pubDateStr) : null,
-        );
-      }).toList();
-    } catch (e) {
-      return [];
+  List<List<NewsSource>> _createBatches(List<NewsSource> sources, int batchSize) {
+    List<List<NewsSource>> batches = [];
+    for (var i = 0; i < sources.length; i += batchSize) {
+      batches.add(sources.sublist(
+        i,
+        i + batchSize > sources.length ? sources.length : i + batchSize,
+      ));
     }
+    return batches;
   }
 }
 
-// ==== PARTE 2: Interface e Screen ====
-// Cole este código no mesmo arquivo após a Parte 1
-
-class SocialFeedScreen extends StatefulWidget {
-  const SocialFeedScreen({Key? key}) : super(key: key);
+// PARTE 2: UI Components e Screen Principal
+// football_feed_screen.dart
+class FootballFeedScreen extends StatefulWidget {
+  const FootballFeedScreen({Key? key}) : super(key: key);
 
   @override
-  State<SocialFeedScreen> createState() => _SocialFeedScreenState();
+  State<FootballFeedScreen> createState() => _FootballFeedScreenState();
 }
 
-class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProviderStateMixin {
+class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProviderStateMixin {
   int _selectedTab = 0;
   int _selectedBottomTab = 0;
   bool _isLoading = true;
   bool _isDrawerOpen = false;
   bool _isDarkTheme = true;
-  List<NewsItem> _allNews = [];
-  List<NewsItem> _filteredNews = [];
+  List<NewsArticle> _articles = [];
+  final RssService _rssService = RssService();
+  
   late AnimationController _drawerAnimationController;
   late Animation<double> _drawerSlideAnimation;
   late Animation<double> _contentSlideAnimation;
-
-  bool get _isWeb => kIsWeb;
 
   @override
   void initState() {
@@ -294,43 +315,21 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
 
   Future<void> _loadContent() async {
     setState(() => _isLoading = true);
-    
-    List<NewsItem> allNews = [];
-    
-    for (final feed in RSS_FEEDS) {
-      try {
-        final items = await RssService.fetchFeed(feed);
-        allNews.addAll(items);
-      } catch (e) {
-        print('Erro ao carregar ${feed.name}: $e');
-      }
-    }
-    
-    allNews.sort((a, b) {
-      if (a.pubDate == null) return 1;
-      if (b.pubDate == null) return -1;
-      return b.pubDate!.compareTo(a.pubDate!);
-    });
-    
+    final articles = await _rssService.fetchAllArticles();
     if (mounted) {
       setState(() {
-        _allNews = allNews;
-        _filteredNews = _selectedTab == 0 ? allNews : allNews.where((n) => n.hasImage).toList();
+        _articles = articles;
         _isLoading = false;
       });
     }
   }
 
   void _toggleDrawer() {
-    setState(() {
-      _isDrawerOpen = !_isDrawerOpen;
-    });
-    if (!_isWeb) {
-      if (_isDrawerOpen) {
-        _drawerAnimationController.forward();
-      } else {
-        _drawerAnimationController.reverse();
-      }
+    setState(() => _isDrawerOpen = !_isDrawerOpen);
+    if (_isDrawerOpen) {
+      _drawerAnimationController.forward();
+    } else {
+      _drawerAnimationController.reverse();
     }
   }
 
@@ -342,36 +341,6 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-    if (_isWeb) {
-      return _buildWebLayout();
-    }
-    return _buildMobileLayout();
-  }
-
-  Widget _buildWebLayout() {
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: Stack(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: _buildCurrentTab(),
-                ),
-              ],
-            ),
-          ),
-          if (_isDrawerOpen) _buildDrawerContent(),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: _bgColor,
       extendBody: true,
@@ -385,14 +354,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
                   MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
                   0,
                 ),
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.85,
-                  height: MediaQuery.of(context).size.height,
-                  decoration: BoxDecoration(
-                    color: _surfaceColor,
-                  ),
-                  child: _buildDrawerContent(),
-                ),
+                child: _buildDrawer(),
               );
             },
           ),
@@ -416,9 +378,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
                         child: Column(
                           children: [
                             _buildHeader(),
-                            Expanded(
-                              child: _buildCurrentTab(),
-                            ),
+                            Expanded(child: _buildCurrentTab()),
                           ],
                         ),
                       ),
@@ -434,9 +394,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
               child: AnimatedOpacity(
                 opacity: _isDrawerOpen ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 350),
-                child: Container(
-                  color: Colors.black.withOpacity(0.5),
-                ),
+                child: Container(color: Colors.black.withOpacity(0.5)),
               ),
             ),
         ],
@@ -456,91 +414,91 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  Widget _buildDrawerContent() {
-    return SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Configurações',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+  Widget _buildDrawer() {
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.85,
+      height: MediaQuery.of(context).size.height,
+      decoration: BoxDecoration(color: _surfaceColor),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(
+                    _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
                     color: _textColor,
+                    size: 24,
                   ),
-                ),
-                if (_isWeb)
-                  IconButton(
-                    onPressed: _toggleDrawer,
-                    icon: Icon(Icons.close, color: _textColor, size: 28),
-                  ),
-              ],
-            ),
-          ),
-          Divider(color: _borderColor, height: 1),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Icon(
-                  _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
-                  color: _textColor,
-                  size: 24,
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: _textColor,
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
+                      style: TextStyle(fontSize: 16, color: _textColor),
                     ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isDarkTheme = !_isDarkTheme;
-                    });
-                  },
-                  child: Container(
-                    width: 51,
-                    height: 31,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: _isDarkTheme ? Color(0xFF2374E1) : Color(0xFFE4E6EB),
-                    ),
-                    child: AnimatedAlign(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      alignment: _isDarkTheme ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        width: 27,
-                        height: 27,
-                        margin: EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
+                  GestureDetector(
+                    onTap: () => setState(() => _isDarkTheme = !_isDarkTheme),
+                    child: Container(
+                      width: 51,
+                      height: 31,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: _isDarkTheme ? Color(0xFF2374E1) : Color(0xFFE4E6EB),
+                      ),
+                      child: AnimatedAlign(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        alignment: _isDarkTheme ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          width: 27,
+                          height: 27,
+                          margin: EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            Divider(color: _borderColor),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _buildDrawerItem(Ionicons.refresh_outline, 'Atualizar Feed', () {
+                    _toggleDrawer();
+                    _loadContent();
+                  }),
+                  _buildDrawerItem(Ionicons.globe_outline, 'Todas as Fontes', () {}),
+                  _buildDrawerItem(Ionicons.star_outline, 'Favoritos', () {}),
+                  _buildDrawerItem(Ionicons.settings_outline, 'Configurações', () {}),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: _textColor),
+      title: Text(title, style: TextStyle(color: _textColor)),
+      onTap: onTap,
     );
   }
 
   Widget _buildCurrentTab() {
     if (_selectedBottomTab == 0) {
-      return _buildNewsTab();
+      return _selectedTab == 0 ? _buildParaVoceTab() : _buildSeguindoTab();
     } else if (_selectedBottomTab == 1) {
       return _buildEmptyTab('Partidas');
     } else {
@@ -549,32 +507,21 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
   }
 
   Widget _buildEmptyTab(String title) {
-    return Container(
-      key: ValueKey(title),
-      color: _bgColor,
-      child: Center(
-        child: Text(
-          title,
-          style: TextStyle(fontSize: 24, color: _subTextColor),
-        ),
-      ),
-    );
+    return Container(key: ValueKey(title), color: _bgColor);
   }
 
   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
         color: _surfaceColor,
-        border: Border(
-          bottom: BorderSide(color: _borderColor, width: 0.5),
-        ),
+        border: Border(bottom: BorderSide(color: _borderColor, width: 0.5)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildIOSButton(
+            GestureDetector(
               onTap: _toggleDrawer,
               child: Container(
                 width: 32,
@@ -583,25 +530,20 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
                   color: Color(0xFF2374E1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
-                  child: Text(
-                    '⚽',
-                    style: TextStyle(fontSize: 20),
-                  ),
-                ),
+                child: Icon(Ionicons.football, color: Colors.white, size: 20),
               ),
             ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTopTabButton('Todas', 0),
+                _buildTopTabButton('Para você', 0),
                 const SizedBox(width: 24),
-                _buildTopTabButton('Com Imagem', 1),
+                _buildTopTabButton('Seguindo', 1),
               ],
             ),
-            _buildIOSButton(
-              onTap: _loadContent,
-              child: Icon(Ionicons.refresh, color: _textColor, size: 24),
+            GestureDetector(
+              onTap: () {},
+              child: Icon(Ionicons.search, color: _textColor, size: 24),
             ),
           ],
         ),
@@ -611,13 +553,8 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
 
   Widget _buildTopTabButton(String text, int index) {
     final isActive = _selectedTab == index;
-    return _buildIOSButton(
-      onTap: () {
-        setState(() {
-          _selectedTab = index;
-          _filteredNews = index == 0 ? _allNews : _allNews.where((n) => n.hasImage).toList();
-        });
-      },
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -643,51 +580,39 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  Widget _buildNewsTab() {
+  Widget _buildParaVoceTab() {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: Color(0xFF2374E1)),
+      return ListView.builder(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: 5,
+        itemBuilder: (context, index) => _buildSkeletonPost(),
       );
     }
 
-    if (_filteredNews.isEmpty) {
-      return Center(
-        child: Text(
-          'Nenhuma notícia disponível',
-          style: TextStyle(color: _subTextColor),
-        ),
-      );
-    }
+    final articlesWithImages = _articles.where((a) => a.hasImage).toList();
+    final articlesWithoutImages = _articles.where((a) => !a.hasImage).toList();
 
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      itemCount: _filteredNews.length,
+      key: const ValueKey('para-voce'),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount: articlesWithImages.length + (articlesWithoutImages.length > 0 ? 1 : 0),
       itemBuilder: (context, index) {
-        final news = _filteredNews[index];
-        
-        if (!news.hasImage && index < _filteredNews.length - 1 && !_filteredNews[index + 1].hasImage) {
-          final noImageNews = <NewsItem>[];
-          int j = index;
-          while (j < _filteredNews.length && !_filteredNews[j].hasImage) {
-            noImageNews.add(_filteredNews[j]);
-            j++;
-          }
-          
-          if (noImageNews.length > 1) {
-            return Column(
-              children: [
-                _buildHorizontalNewsList(noImageNews),
-                SizedBox(height: 8),
-              ],
-            );
-          }
-        }
-        
-        if (news.hasImage) {
+        // Insere scroll horizontal a cada 3 posts com imagem
+        if (index > 0 && index % 3 == 0 && articlesWithoutImages.isNotEmpty) {
           return Column(
             children: [
-              _buildNewsCard(news),
-              SizedBox(height: 8),
+              _buildHorizontalNewsList(articlesWithoutImages.take(10).toList()),
+              SizedBox(height: 12),
+              _buildNewsCard(articlesWithImages[index]),
+            ],
+          );
+        }
+        
+        if (index < articlesWithImages.length) {
+          return Column(
+            children: [
+              _buildNewsCard(articlesWithImages[index]),
+              SizedBox(height: 12),
             ],
           );
         }
@@ -697,30 +622,29 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  Widget _buildHorizontalNewsList(List<NewsItem> newsList) {
+  Widget _buildHorizontalNewsList(List<NewsArticle> articles) {
     return Container(
-      height: 120,
+      height: 140,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 8),
-        itemCount: newsList.length,
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        itemCount: articles.length,
         itemBuilder: (context, index) {
-          return _buildCompactNewsCard(newsList[index]);
+          return _buildCompactNewsCard(articles[index]);
         },
       ),
     );
   }
 
-  Widget _buildCompactNewsCard(NewsItem news) {
-    return _buildIOSButton(
-      onTap: () => _openLink(news.link),
+  Widget _buildCompactNewsCard(NewsArticle article) {
+    return GestureDetector(
+      onTap: () => _launchUrl(article.link),
       child: Container(
-        width: 280,
+        width: 200,
         margin: EdgeInsets.only(right: 12),
-        padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: _surfaceColor,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -729,24 +653,23 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
             ),
           ],
         ),
+        padding: EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Text(
-                  news.sourceLogo,
-                  style: TextStyle(fontSize: 16),
-                ),
-                SizedBox(width: 8),
+                Icon(Ionicons.newspaper_outline, size: 14, color: Color(0xFF2374E1)),
+                SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    news.source,
+                    article.source.name,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: _subTextColor,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2374E1),
                     ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -755,21 +678,21 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
             SizedBox(height: 8),
             Expanded(
               child: Text(
-                news.title,
+                article.title,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _textColor,
                   height: 1.3,
+                  color: _textColor,
                 ),
-                maxLines: 3,
+                maxLines: 4,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (news.pubDate != null) ...[
+            if (article.pubDate != null) ...[
               SizedBox(height: 4),
               Text(
-                _formatDate(news.pubDate!),
+                _formatTime(article.pubDate!),
                 style: TextStyle(
                   fontSize: 11,
                   color: _subTextColor,
@@ -782,13 +705,13 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  Widget _buildNewsCard(NewsItem news) {
-    return _buildIOSButton(
-      onTap: () => _openLink(news.link),
+  Widget _buildNewsCard(NewsArticle article) {
+    return GestureDetector(
+      onTap: () => _launchUrl(article.link),
       child: Container(
         decoration: BoxDecoration(
           color: _surfaceColor,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -800,78 +723,72 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (news.hasImage)
+            if (article.hasImage)
               ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                 child: CachedNetworkImage(
-                  imageUrl: news.thumbnail!,
+                  imageUrl: article.imageUrl!,
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     height: 200,
                     color: _borderColor,
+                    child: Center(child: CircularProgressIndicator()),
                   ),
                   errorWidget: (context, url, error) => Container(
                     height: 200,
                     color: _borderColor,
-                    child: Icon(Icons.image_not_supported, color: _subTextColor),
+                    child: Icon(Ionicons.image_outline, size: 48, color: _subTextColor),
                   ),
                 ),
               ),
             Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
+                      Icon(Ionicons.newspaper_outline, size: 14, color: Color(0xFF2374E1)),
+                      SizedBox(width: 6),
                       Text(
-                        news.sourceLogo,
-                        style: TextStyle(fontSize: 18),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          news.source,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: _subTextColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        article.source.name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2374E1),
                         ),
                       ),
-                      if (news.pubDate != null)
+                      if (article.pubDate != null) ...[
+                        Text(' · ', style: TextStyle(color: _subTextColor)),
                         Text(
-                          _formatDate(news.pubDate!),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _subTextColor,
-                          ),
+                          _formatTime(article.pubDate!),
+                          style: TextStyle(fontSize: 12, color: _subTextColor),
                         ),
+                      ],
                     ],
                   ),
                   SizedBox(height: 8),
                   Text(
-                    news.title,
+                    article.title,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: _textColor,
                       height: 1.3,
+                      color: _textColor,
                     ),
                   ),
-                  if (news.description != null && news.description!.isNotEmpty) ...[
+                  if (article.description != null) ...[
                     SizedBox(height: 8),
                     Text(
-                      news.description!,
+                      article.description!,
                       style: TextStyle(
                         fontSize: 14,
-                        color: _subTextColor,
                         height: 1.4,
+                        color: _subTextColor,
                       ),
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -884,35 +801,97 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  String _formatDate(DateTime date) {
+  String _formatTime(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
     
-    if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}min';
-    } else if (diff.inHours < 24) {
-      return '${diff.inHours}h';
-    } else if (diff.inDays < 7) {
-      return '${diff.inDays}d';
-    } else {
-      return DateFormat('dd/MM').format(date);
-    }
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${date.day}/${date.month}';
   }
 
-  Future<void> _openLink(String url) async {
+  Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
+  Widget _buildSeguindoTab() {
+    return Center(
+      key: const ValueKey('seguindo'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Ionicons.people_outline, size: 64, color: _borderColor),
+          const SizedBox(height: 16),
+          Text(
+            'Comece a seguir fontes para ver\no conteúdo delas aqui',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: _subTextColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonPost() {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildShimmer(
+            child: Container(
+              width: 150,
+              height: 12,
+              decoration: BoxDecoration(
+                color: _borderColor,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildShimmer(
+            child: Container(
+              width: double.infinity,
+              height: 150,
+              decoration: BoxDecoration(
+                color: _borderColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShimmer({required Widget child}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.3, end: 1.0),
+      duration: const Duration(milliseconds: 1000),
+      builder: (context, value, child) => Opacity(opacity: value, child: child),
+      onEnd: () {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) setState(() {});
+        });
+      },
+      child: child,
+    );
+  }
+
   Widget _buildBottomNavBar() {
     return Container(
       decoration: BoxDecoration(
         color: _surfaceColor,
-        border: Border(
-          top: BorderSide(color: _borderColor, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: _borderColor, width: 0.5)),
       ),
       child: SafeArea(
         child: Padding(
@@ -920,9 +899,9 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildBottomNavItem(Ionicons.newspaper, 'Notícias', 0),
-              _buildBottomNavItem(Ionicons.football, 'Partidas', 1),
-              _buildBottomNavItem(Ionicons.person, 'Perfil', 2),
+              _buildBottomNavItem(Ionicons.home_outline, Ionicons.home, 'Início', 0),
+              _buildBottomNavItem(Ionicons.football_outline, Ionicons.football, 'Partidas', 1),
+              _buildBottomNavItem(Ionicons.person_outline, Ionicons.person, 'Perfil', 2),
             ],
           ),
         ),
@@ -930,19 +909,15 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  Widget _buildBottomNavItem(IconData icon, String label, int index) {
+  Widget _buildBottomNavItem(IconData outlineIcon, IconData filledIcon, String label, int index) {
     final isSelected = _selectedBottomTab == index;
-    return _buildIOSButton(
-      onTap: () {
-        setState(() {
-          _selectedBottomTab = index;
-        });
-      },
+    return GestureDetector(
+      onTap: () => setState(() => _selectedBottomTab = index),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            icon,
+            isSelected ? filledIcon : outlineIcon,
             size: 22,
             color: isSelected ? Color(0xFF2374E1) : _subTextColor,
           ),
@@ -957,14 +932,6 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildIOSButton({required VoidCallback onTap, required Widget child}) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: child,
     );
   }
 }
