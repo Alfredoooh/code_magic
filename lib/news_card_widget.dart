@@ -1,188 +1,61 @@
-// news_card_widget.dart - Cards de notícias em HTML com Tailwind CSS
+// news_card_widgets.dart - Widgets de cards de notícias
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:ionicons/ionicons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'models.dart';
 
-class HtmlNewsCard extends StatefulWidget {
-  final NewsArticle article;
+class NewsCardWidgets {
   final bool isDarkTheme;
-  final Color primaryColor;
-  final String? translatedTitle;
-  final String? translatedDescription;
-  final Function(String) onTap;
-  final Function() onTranslate;
+  final Function(String) onTapUrl;
+  final String? Function(NewsArticle) getTranslatedTitle;
+  final String? Function(NewsArticle) getTranslatedDescription;
+  final Future<void> Function(NewsArticle) onTranslate;
+  final Map<String, Color> colorCache;
 
-  const HtmlNewsCard({
-    Key? key,
-    required this.article,
+  NewsCardWidgets({
     required this.isDarkTheme,
-    required this.primaryColor,
-    this.translatedTitle,
-    this.translatedDescription,
-    required this.onTap,
+    required this.onTapUrl,
+    required this.getTranslatedTitle,
+    required this.getTranslatedDescription,
     required this.onTranslate,
-  }) : super(key: key);
+    required this.colorCache,
+  });
 
-  @override
-  State<HtmlNewsCard> createState() => _HtmlNewsCardState();
-}
+  Color get _surfaceColor => isDarkTheme ? const Color(0xFF1A1A1A) : Colors.white;
+  Color get _textColor => isDarkTheme ? const Color(0xFFE4E6EB) : const Color(0xFF050505);
+  Color get _subTextColor => isDarkTheme ? const Color(0xFFB0B3B8) : const Color(0xFF65676B);
+  Color get _borderColor => isDarkTheme ? const Color(0xFF3A3B3C) : const Color(0xFFDDDFE2);
 
-class _HtmlNewsCardState extends State<HtmlNewsCard> {
-  late final WebViewController controller;
-  double _height = 400;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (NavigationRequest request) {
-            if (request.url.startsWith('action://open')) {
-              widget.onTap(widget.article.link);
-              return NavigationDecision.prevent;
-            } else if (request.url.startsWith('action://translate')) {
-              widget.onTranslate();
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.prevent;
-          },
-        ),
-      )
-      ..loadHtmlString(_generateHtml());
-
-    // Ajusta altura dinamicamente
-    Future.delayed(const Duration(milliseconds: 300), () {
-      controller.runJavaScriptReturningResult('document.body.scrollHeight').then((result) {
-        final height = double.tryParse(result.toString()) ?? 400;
-        if (mounted) {
-          setState(() {
-            _height = height + 20;
-          });
-        }
-      });
-    });
-  }
-
-  @override
-  void didUpdateWidget(HtmlNewsCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.translatedTitle != widget.translatedTitle ||
-        oldWidget.translatedDescription != widget.translatedDescription ||
-        oldWidget.isDarkTheme != widget.isDarkTheme) {
-      controller.loadHtmlString(_generateHtml());
+  // OTIMIZADO: Extração de cor rápida e com cache
+  Future<Color> _getImageColor(String? imageUrl) async {
+    if (imageUrl == null || imageUrl.isEmpty) return const Color(0xFF2374E1);
+    
+    // Verificar cache primeiro
+    if (colorCache.containsKey(imageUrl)) {
+      return colorCache[imageUrl]!;
     }
-  }
 
-  String _generateHtml() {
-    final bgColor = widget.isDarkTheme ? '#1A1A1A' : '#FFFFFF';
-    final textColor = widget.isDarkTheme ? '#E4E6EB' : '#050505';
-    final subTextColor = widget.isDarkTheme ? '#B0B3B8' : '#65676B';
-    final borderColor = widget.isDarkTheme ? '#3A3B3C' : '#DDDFE2';
-    
-    final title = widget.translatedTitle ?? widget.article.title;
-    final description = widget.translatedDescription ?? widget.article.description ?? '';
-    
-    final primaryColorHex = '#${widget.primaryColor.value.toRadixString(16).substring(2)}';
-    
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      background: transparent;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-  </style>
-</head>
-<body>
-  <div onclick="location.href='action://open'" class="cursor-pointer rounded-xl overflow-hidden shadow-lg transition-transform active:scale-98" style="background: ${bgColor}; border: 1px solid ${primaryColorHex}20;">
-    
-    <!-- Top Border Accent -->
-    <div class="h-1.5" style="background: ${primaryColorHex};"></div>
-    
-    ${widget.article.hasImage ? '''
-    <!-- Image -->
-    <div class="relative">
-      <img 
-        src="${widget.article.imageUrl}" 
-        class="w-full h-56 object-cover"
-        onerror="this.parentElement.innerHTML='<div class=\\'w-full h-56 flex items-center justify-center\\' style=\\'background: ${borderColor};color: ${subTextColor}\\'><svg class=\\'w-12 h-12\\' fill=\\'none\\' stroke=\\'currentColor\\' viewBox=\\'0 0 24 24\\'><path stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\' stroke-width=\\'2\\' d=\\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\\'></path></svg></div>';"
-      />
-      <div class="absolute bottom-0 left-0 right-0 h-9" style="background: linear-gradient(to bottom, transparent, ${widget.isDarkTheme ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.10)'});"></div>
-    </div>
-    ''' : ''}
-    
-    <!-- Content -->
-    <div class="p-4">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2 flex-1">
-          <div class="w-5.5 h-5.5 rounded-full overflow-hidden flex-shrink-0" style="background: ${borderColor}50;">
-            <img 
-              src="${widget.article.source.favicon}" 
-              class="w-full h-full object-cover"
-              onerror="this.style.display='none'"
-            />
-          </div>
-          <span class="text-xs font-semibold truncate" style="color: ${subTextColor};">
-            ${widget.article.source.name}
-          </span>
-          ${widget.article.pubDate != null ? '''
-          <span style="color: ${subTextColor};">·</span>
-          <span class="text-xs" style="color: ${subTextColor};">
-            ${_formatTime(widget.article.pubDate!)}
-          </span>
-          ''' : ''}
-        </div>
-        
-        <button 
-          onclick="event.stopPropagation(); location.href='action://translate';"
-          class="p-1 rounded-full hover:bg-opacity-10 transition-colors flex-shrink-0"
-          style="color: ${subTextColor};"
-        >
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-          </svg>
-        </button>
-      </div>
+    try {
+      final provider = CachedNetworkImageProvider(imageUrl);
       
-      <!-- Title -->
-      <h2 class="text-base font-semibold leading-snug mb-2" style="color: ${textColor};">
-        ${_escapeHtml(title)}
-      </h2>
+      // OTIMIZADO: Reduzir cores analisadas de 20 para 8 (muito mais rápido)
+      final palette = await PaletteGenerator.fromImageProvider(
+        provider,
+        maximumColorCount: 8, // Reduzido para ganhar performance
+        timeout: const Duration(seconds: 3), // Timeout para não travar
+      );
       
-      ${description.isNotEmpty ? '''
-      <!-- Description -->
-      <p class="text-sm leading-relaxed line-clamp-3" style="color: ${subTextColor};">
-        ${_escapeHtml(description)}
-      </p>
-      ''' : ''}
-    </div>
-  </div>
-</body>
-</html>
-    ''';
-  }
-
-  String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+      final color = palette.dominantColor?.color ?? 
+                    palette.vibrantColor?.color ?? 
+                    const Color(0xFF2374E1);
+      
+      colorCache[imageUrl] = color;
+      return color;
+    } catch (e) {
+      colorCache[imageUrl] = const Color(0xFF2374E1);
+      return const Color(0xFF2374E1);
+    }
   }
 
   String _formatTime(DateTime date) {
@@ -197,228 +70,437 @@ class _HtmlNewsCardState extends State<HtmlNewsCard> {
     return '${date.day}/${date.month}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: _height,
-      child: WebViewWidget(controller: controller),
+  // CARD PRINCIPAL COM IMAGEM DE ALTA QUALIDADE
+  Widget buildNewsCard(NewsArticle article) {
+    return GestureDetector(
+      onTap: () => onTapUrl(article.link),
+      child: FutureBuilder<Color>(
+        future: _getImageColor(article.imageUrl),
+        initialData: colorCache[article.imageUrl] ?? const Color(0xFF2374E1), // Mostrar cor do cache imediatamente
+        builder: (context, snap) {
+          final primaryColor = snap.data ?? const Color(0xFF2374E1);
+          return Container(
+            decoration: BoxDecoration(
+              color: _surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(color: primaryColor.withOpacity(0.12), width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                ),
+                if (article.hasImage)
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        child: CachedNetworkImage(
+                          imageUrl: article.imageUrl!,
+                          height: 220,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                          placeholder: (context, url) => Container(
+                            height: 220,
+                            color: _borderColor,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) {
+                            return Container(
+                              height: 220,
+                              color: _borderColor,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Ionicons.image_outline, size: 48, color: _subTextColor),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Imagem indisponivel',
+                                    style: TextStyle(fontSize: 12, color: _subTextColor),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withOpacity(isDarkTheme ? 0.02 : 0.0),
+                                Colors.black.withOpacity(isDarkTheme ? 0.55 : 0.10),
+                              ],
+                              stops: const [0.0, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _borderColor.withOpacity(0.5),
+                            ),
+                            child: ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: article.source.favicon,
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.cover,
+                                httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                                errorWidget: (context, url, error) => Icon(
+                                  Ionicons.globe_outline,
+                                  size: 12,
+                                  color: _subTextColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            article.source.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _subTextColor,
+                            ),
+                          ),
+                          if (article.pubDate != null) ...[
+                            Text(' · ', style: TextStyle(color: _subTextColor)),
+                            Text(
+                              _formatTime(article.pubDate!),
+                              style: TextStyle(fontSize: 12, color: _subTextColor),
+                            ),
+                          ],
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () => onTranslate(article),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Icon(Ionicons.language_outline, size: 18, color: _subTextColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        getTranslatedTitle(article) ?? article.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                          color: _textColor,
+                        ),
+                      ),
+                      if ((article.description != null && article.description!.isNotEmpty) || 
+                          getTranslatedDescription(article) != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          getTranslatedDescription(article) ?? (article.description ?? ''),
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: _subTextColor,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
-}
 
-// Card pequeno (grid)
-class HtmlSmallNewsCard extends StatefulWidget {
-  final NewsArticle article;
-  final bool isDarkTheme;
-  final String? translatedTitle;
-  final Function(String) onTap;
-
-  const HtmlSmallNewsCard({
-    Key? key,
-    required this.article,
-    required this.isDarkTheme,
-    this.translatedTitle,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  State<HtmlSmallNewsCard> createState() => _HtmlSmallNewsCardState();
-}
-
-class _HtmlSmallNewsCardState extends State<HtmlSmallNewsCard> {
-  late final WebViewController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (NavigationRequest request) {
-            if (request.url.startsWith('action://open')) {
-              widget.onTap(widget.article.link);
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.prevent;
-          },
+  // CARD PEQUENO (GRID)
+  Widget buildSmallNewsCard(NewsArticle article) {
+    return GestureDetector(
+      onTap: () => onTapUrl(article.link),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-      )
-      ..loadHtmlString(_generateHtml());
-  }
-
-  String _generateHtml() {
-    final bgColor = widget.isDarkTheme ? '#1A1A1A' : '#FFFFFF';
-    final textColor = widget.isDarkTheme ? '#E4E6EB' : '#050505';
-    final subTextColor = widget.isDarkTheme ? '#B0B3B8' : '#65676B';
-    final borderColor = widget.isDarkTheme ? '#3A3B3C' : '#DDDFE2';
-    
-    final title = widget.translatedTitle ?? widget.article.title;
-    
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: transparent; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-  </style>
-</head>
-<body>
-  <div onclick="location.href='action://open'" class="cursor-pointer rounded-xl overflow-hidden shadow-md h-full flex flex-col" style="background: ${bgColor};">
-    
-    ${widget.article.hasImage ? '''
-    <div class="relative">
-      <img src="${widget.article.imageUrl}" class="w-full h-24 object-cover" />
-      <div class="absolute bottom-0 left-0 right-0 h-3.5" style="background: linear-gradient(to bottom, transparent, ${widget.isDarkTheme ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.08)'});"></div>
-    </div>
-    ''' : ''}
-    
-    <div class="p-2.5 flex-1 flex flex-col">
-      <div class="flex items-center gap-2 mb-1">
-        <div class="w-5 h-5 rounded-full flex-shrink-0" style="background: ${borderColor};">
-          <img src="${widget.article.source.favicon}" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'" />
-        </div>
-        <span class="text-xs font-semibold truncate" style="color: ${subTextColor};">${widget.article.source.name}</span>
-      </div>
-      
-      <p class="text-xs font-semibold leading-snug line-clamp-3 flex-1" style="color: ${textColor};">
-        ${_escapeHtml(title)}
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    ''';
-  }
-
-  String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WebViewWidget(controller: controller);
-  }
-}
-
-// Card compacto (horizontal)
-class HtmlCompactNewsCard extends StatefulWidget {
-  final NewsArticle article;
-  final bool isDarkTheme;
-  final String? translatedTitle;
-  final Function(String) onTap;
-
-  const HtmlCompactNewsCard({
-    Key? key,
-    required this.article,
-    required this.isDarkTheme,
-    this.translatedTitle,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  State<HtmlCompactNewsCard> createState() => _HtmlCompactNewsCardState();
-}
-
-class _HtmlCompactNewsCardState extends State<HtmlCompactNewsCard> {
-  late final WebViewController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (NavigationRequest request) {
-            if (request.url.startsWith('action://open')) {
-              widget.onTap(widget.article.link);
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.prevent;
-          },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (article.hasImage)
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: CachedNetworkImage(
+                      imageUrl: article.imageUrl!,
+                      height: 100,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                      placeholder: (context, url) => Container(
+                        height: 100,
+                        color: _borderColor,
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        height: 100,
+                        color: _borderColor,
+                        child: Icon(Ionicons.image_outline, color: _subTextColor),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 14,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(isDarkTheme ? 0.35 : 0.08),
+                          ],
+                          stops: const [0.0, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _borderColor,
+                          ),
+                          child: ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: article.source.favicon,
+                              width: 20,
+                              height: 20,
+                              fit: BoxFit.cover,
+                              httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                              errorWidget: (context, url, error) => Icon(
+                                Ionicons.globe_outline,
+                                size: 12,
+                                color: _subTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            article.source.name,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: _subTextColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Expanded(
+                      child: Text(
+                        getTranslatedTitle(article) ?? article.title,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                          color: _textColor,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      )
-      ..loadHtmlString(_generateHtml());
+      ),
+    );
   }
 
-  String _generateHtml() {
-    final bgColor = widget.isDarkTheme ? '#1A1A1A' : '#FFFFFF';
-    final textColor = widget.isDarkTheme ? '#E4E6EB' : '#050505';
-    final subTextColor = widget.isDarkTheme ? '#B0B3B8' : '#65676B';
-    final borderColor = widget.isDarkTheme ? '#3A3B3C' : '#DDDFE2';
-    
-    final title = widget.translatedTitle ?? widget.article.title;
-    
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: transparent; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-  </style>
-</head>
-<body>
-  <div onclick="location.href='action://open'" class="cursor-pointer rounded-xl p-3 shadow-md h-full flex flex-col" style="background: ${bgColor}; width: 200px;">
-    
-    <div class="flex items-center gap-1.5 mb-2">
-      <div class="w-4.5 h-4.5 rounded-full flex-shrink-0" style="background: ${borderColor};">
-        <img src="${widget.article.source.favicon}" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'" />
-      </div>
-      <span class="text-xs font-semibold truncate" style="color: ${subTextColor};">${widget.article.source.name}</span>
-    </div>
-    
-    <p class="text-sm font-semibold leading-snug flex-1 line-clamp-4" style="color: ${textColor};">
-      ${_escapeHtml(title)}
-    </p>
-    
-    ${widget.article.pubDate != null ? '''
-    <span class="text-xs mt-1" style="color: ${subTextColor};">
-      ${_formatTime(widget.article.pubDate!)}
-    </span>
-    ''' : ''}
-  </div>
-</body>
-</html>
-    ''';
+  // CARD COMPACTO (HORIZONTAL)
+  Widget buildCompactNewsCard(NewsArticle article) {
+    return GestureDetector(
+      onTap: () => onTapUrl(article.link),
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _borderColor,
+                  ),
+                  child: ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl: article.source.favicon,
+                      width: 18,
+                      height: 18,
+                      fit: BoxFit.cover,
+                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                      errorWidget: (context, url, error) => Icon(
+                        Ionicons.globe_outline,
+                        size: 10,
+                        color: _subTextColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    article.source.name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _subTextColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Text(
+                getTranslatedTitle(article) ?? article.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                  color: _textColor,
+                ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (article.pubDate != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _formatTime(article.pubDate!),
+                style: TextStyle(fontSize: 11, color: _subTextColor),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
-  String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+  // GRID DE NOTÍCIAS
+  Widget buildLowQualityNewsGrid(List<NewsArticle> articles) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: articles.length > 4 ? 4 : articles.length,
+      itemBuilder: (context, index) {
+        return buildSmallNewsCard(articles[index]);
+      },
+    );
   }
 
-  String _formatTime(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 1) return 'Agora';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}min';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays == 1) return '1 dia';
-    if (diff.inDays < 7) return '${diff.inDays} dias';
-    return '${date.day}/${date.month}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WebViewWidget(controller: controller);
+  // LISTA HORIZONTAL
+  Widget buildHorizontalNewsList(List<NewsArticle> articles) {
+    return SizedBox(
+      height: 140,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: articles.length,
+        itemBuilder: (context, index) {
+          return buildCompactNewsCard(articles[index]);
+        },
+      ),
+    );
   }
 }
