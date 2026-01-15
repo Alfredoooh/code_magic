@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/football_feed_screen.dart';
+import 'screens/main_scaffold.dart';
 
 void main() {
   runApp(const FootballFeedApp());
@@ -18,7 +18,7 @@ class FootballFeedApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2374E1)),
         scaffoldBackgroundColor: Color(0xFF0A0A0A),
       ),
-      home: const FootballFeedScreen(),
+      home: const MainScaffold(),
       debugShowCheckedModeBanner: false,
     );
   }
