@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ionicons/ionicons.dart';
 import '../models.dart';
 import '../rss_service.dart';
-import '../news_card_widgets.dart';
+import '../news_card_widget.dart';
 import '../widgets/tab_bar_widget.dart';
 import '../widgets/matches_card.dart';
 import '../widgets/skeleton_loader.dart';
