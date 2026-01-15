@@ -23,10 +23,10 @@ class SocialFeedApp extends StatelessWidget {
         colorScheme: ColorScheme.dark(
           primary: Color(0xFF2374E1),
           secondary: Color(0xFF2374E1),
-          background: Color(0xFF18191A),
-          surface: Color(0xFF242526),
+          background: Color(0xFF0A0A0A),
+          surface: Color(0xFF1A1A1A),
         ),
-        scaffoldBackgroundColor: Color(0xFF18191A),
+        scaffoldBackgroundColor: Color(0xFF0A0A0A),
       ),
       home: const SocialFeedScreen(),
       debugShowCheckedModeBanner: false,
@@ -91,8 +91,8 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     }
   }
 
-  Color get _bgColor => _isDarkTheme ? Color(0xFF18191A) : Color(0xFFF0F2F5);
-  Color get _surfaceColor => _isDarkTheme ? Color(0xFF242526) : Colors.white;
+  Color get _bgColor => _isDarkTheme ? Color(0xFF0A0A0A) : Color(0xFFF0F2F5);
+  Color get _surfaceColor => _isDarkTheme ? Color(0xFF1A1A1A) : Colors.white;
   Color get _textColor => _isDarkTheme ? Color(0xFFE4E6EB) : Color(0xFF050505);
   Color get _subTextColor => _isDarkTheme ? Color(0xFFB0B3B8) : Color(0xFF65676B);
   Color get _borderColor => _isDarkTheme ? Color(0xFF3A3B3C) : Color(0xFFDDDFE2);
@@ -104,6 +104,19 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
       extendBody: true,
       body: Stack(
         children: [
+          // Drawer
+          AnimatedBuilder(
+            animation: _drawerSlideAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
+                  0,
+                ),
+                child: _buildDrawer(),
+              );
+            },
+          ),
           // Main content with slide animation
           AnimatedBuilder(
             animation: _contentSlideAnimation,
@@ -149,19 +162,6 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
                 ),
               ),
             ),
-          // Drawer
-          AnimatedBuilder(
-            animation: _drawerSlideAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(
-                  MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
-                  0,
-                ),
-                child: _buildDrawer(),
-              );
-            },
-          ),
         ],
       ),
       bottomNavigationBar: AnimatedBuilder(
@@ -187,118 +187,57 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
         color: _surfaceColor,
       ),
       child: SafeArea(
-        child: Column(
-          children: [
-            // Header do drawer
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=20'),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Seu Nome',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: _textColor,
-                          ),
-                        ),
-                        Text(
-                          '@seunome',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _subTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _toggleDrawer,
-                    icon: Icon(Icons.close, color: _textColor),
-                  ),
-                ],
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Icon(
+                _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
+                color: _textColor,
+                size: 24,
               ),
-            ),
-            Divider(color: _borderColor, height: 1),
-            // Switch de tema
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Row(
-                children: [
-                  Icon(
-                    _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
+                  style: TextStyle(
+                    fontSize: 16,
                     color: _textColor,
-                    size: 24,
                   ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: _textColor,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isDarkTheme = !_isDarkTheme;
+                  });
+                },
+                child: Container(
+                  width: 51,
+                  height: 31,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: _isDarkTheme ? Color(0xFF2374E1) : Color(0xFFE4E6EB),
+                  ),
+                  child: AnimatedAlign(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    alignment: _isDarkTheme ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      width: 27,
+                      height: 27,
+                      margin: EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                  CupertinoSwitch(
-                    value: _isDarkTheme,
-                    activeColor: Color(0xFF2374E1),
-                    onChanged: (value) {
-                      setState(() {
-                        _isDarkTheme = value;
-                      });
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-            Divider(color: _borderColor, height: 1),
-            // Menu items
-            _buildDrawerItem(Ionicons.person_outline, 'Perfil'),
-            _buildDrawerItem(Ionicons.settings_outline, 'Configurações'),
-            _buildDrawerItem(Ionicons.bookmark_outline, 'Salvos'),
-            _buildDrawerItem(Ionicons.notifications_outline, 'Notificações'),
-            _buildDrawerItem(Ionicons.help_circle_outline, 'Ajuda'),
-            Spacer(),
-            Divider(color: _borderColor, height: 1),
-            _buildDrawerItem(Ionicons.log_out_outline, 'Sair', isLogout: true),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem(IconData icon, String title, {bool isLogout = false}) {
-    return InkWell(
-      onTap: () {},
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isLogout ? Colors.red : _textColor,
-              size: 24,
-            ),
-            SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: isLogout ? Colors.red : _textColor,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -511,7 +450,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _surfaceColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -626,7 +565,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
       child: Container(
         decoration: BoxDecoration(
           color: _surfaceColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -704,7 +643,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
             if (hasVideo && videoUrl != null) ...[
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: Container(
@@ -743,7 +682,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
             if (imageUrl != null) ...[
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 child: Image.network(
                   imageUrl,
                   width: double.infinity,
