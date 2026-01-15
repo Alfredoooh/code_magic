@@ -11,6 +11,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'svg_icons.dart';
 import 'models.dart';
 import 'rss_service.dart';
+import 'news_card_widget.dart';
 
 void main() {
   runApp(const FootballFeedApp());
@@ -652,12 +653,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
         if (adjustedIndex > 6 && noImageArticles.isNotEmpty) articleIndex--;
 
         if (articleIndex < highQualityArticles.length) {
-          return Column(
-            children: [
-              _buildNewsCard(highQualityArticles[articleIndex]),
-              const SizedBox(height: 12),
-            ],
-          );
+          return _buildNewsCard(highQualityArticles[articleIndex]);
         }
 
         return const SizedBox.shrink();
@@ -833,132 +829,11 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Widget _buildSmallNewsCard(NewsArticle article) {
-    return GestureDetector(
-      onTap: () => _launchUrl(article.link),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _surfaceColor,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (article.hasImage)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                    child: CachedNetworkImage(
-                      imageUrl: article.imageUrl!,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                      placeholder: (context, url) => Container(
-                        height: 100,
-                        color: _borderColor,
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 100,
-                        color: _borderColor,
-                        child: Icon(Ionicons.image_outline, color: _subTextColor),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 14,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(_isDarkTheme ? 0.35 : 0.08),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _borderColor,
-                          ),
-                          child: ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: article.source.favicon,
-                              width: 20,
-                              height: 20,
-                              fit: BoxFit.cover,
-                              httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                              errorWidget: (context, url, error) => Icon(
-                                Ionicons.globe_outline,
-                                size: 12,
-                                color: _subTextColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            article.source.name,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: _subTextColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Expanded(
-                      child: Text(
-                        _getTranslatedTitle(article) ?? article.title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                          color: _textColor,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return HtmlSmallNewsCard(
+      article: article,
+      isDarkTheme: _isDarkTheme,
+      translatedTitle: _getTranslatedTitle(article),
+      onTap: _launchUrl,
     );
   }
 
@@ -977,280 +852,44 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   }
 
   Widget _buildCompactNewsCard(NewsArticle article) {
-    return GestureDetector(
-      onTap: () => _launchUrl(article.link),
-      child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: _surfaceColor,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _borderColor,
-                  ),
-                  child: ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: article.source.favicon,
-                      width: 18,
-                      height: 18,
-                      fit: BoxFit.cover,
-                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                      errorWidget: (context, url, error) => Icon(
-                        Ionicons.globe_outline,
-                        size: 10,
-                        color: _subTextColor,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    article.source.name,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _subTextColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Text(
-                _getTranslatedTitle(article) ?? article.title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  height: 1.3,
-                  color: _textColor,
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (article.pubDate != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                _formatTime(article.pubDate!),
-                style: TextStyle(fontSize: 11, color: _subTextColor),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return HtmlCompactNewsCard(
+      article: article,
+      isDarkTheme: _isDarkTheme,
+      translatedTitle: _getTranslatedTitle(article),
+      onTap: _launchUrl,
     );
   }
 
   Widget _buildNewsCard(NewsArticle article) {
     final imageUrl = article.imageUrl;
-    return GestureDetector(
-      onTap: () => _launchUrl(article.link),
-      child: FutureBuilder<Color>(
-        future: _getImagePrimaryColor(imageUrl),
-        builder: (context, snap) {
-          final primaryColor = snap.data ?? const Color(0xFF2374E1);
-          return Container(
-            decoration: BoxDecoration(
-              color: _surfaceColor,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-              border: Border.all(color: primaryColor.withOpacity(0.12), width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  ),
-                ),
-                if (article.hasImage)
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        child: CachedNetworkImage(
-                          imageUrl: article.imageUrl!,
-                          height: 220,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                          placeholder: (context, url) => Container(
-                            height: 220,
-                            color: _borderColor,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF2374E1)),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) {
-                            return Container(
-                              height: 220,
-                              color: _borderColor,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Ionicons.image_outline, size: 48, color: _subTextColor),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Imagem indisponivel',
-                                    style: TextStyle(fontSize: 12, color: _subTextColor),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          height: 36,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withOpacity(_isDarkTheme ? 0.02 : 0.0),
-                                Colors.black.withOpacity(_isDarkTheme ? 0.55 : 0.10),
-                              ],
-                              stops: const [0.0, 1.0],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _borderColor.withOpacity(0.5),
-                            ),
-                            child: ClipOval(
-                              child: CachedNetworkImage(
-                                imageUrl: article.source.favicon,
-                                width: 22,
-                                height: 22,
-                                fit: BoxFit.cover,
-                                httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                                errorWidget: (context, url, error) => Icon(
-                                  Ionicons.globe_outline,
-                                  size: 12,
-                                  color: _subTextColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            article.source.name,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _subTextColor,
-                            ),
-                          ),
-                          if (article.pubDate != null) ...[
-                            Text(' · ', style: TextStyle(color: _subTextColor)),
-                            Text(
-                              _formatTime(article.pubDate!),
-                              style: TextStyle(fontSize: 12, color: _subTextColor),
-                            ),
-                          ],
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () async {
-                              final keyTitle = '${article.title.hashCode}_pt';
-                              if (!_translationCache.containsKey(keyTitle)) {
-                                final t = await _translateText(article.title, target: 'pt');
-                                if (t != null) setState(() {});
-                              }
-                              final keyDesc = article.description != null ? '${article.description!.hashCode}_pt' : null;
-                              if (keyDesc != null && !_translationCache.containsKey(keyDesc)) {
-                                final td = await _translateText(article.description!, target: 'pt');
-                                if (td != null) setState(() {});
-                              }
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Icon(Ionicons.language_outline, size: 18, color: _subTextColor),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _getTranslatedTitle(article) ?? article.title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                          color: _textColor,
-                        ),
-                      ),
-                      if ((article.description != null && article.description!.isNotEmpty) || _getTranslatedDescription(article) != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _getTranslatedDescription(article) ?? (article.description ?? ''),
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.4,
-                            color: _subTextColor,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    return FutureBuilder<Color>(
+      future: _getImagePrimaryColor(imageUrl),
+      builder: (context, snap) {
+        final primaryColor = snap.data ?? const Color(0xFF2374E1);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: HtmlNewsCard(
+            article: article,
+            isDarkTheme: _isDarkTheme,
+            primaryColor: primaryColor,
+            translatedTitle: _getTranslatedTitle(article),
+            translatedDescription: _getTranslatedDescription(article),
+            onTap: _launchUrl,
+            onTranslate: () async {
+              final keyTitle = '${article.title.hashCode}_pt';
+              if (!_translationCache.containsKey(keyTitle)) {
+                final t = await _translateText(article.title, target: 'pt');
+                if (t != null) setState(() {});
+              }
+              final keyDesc = article.description != null ? '${article.description!.hashCode}_pt' : null;
+              if (keyDesc != null && !_translationCache.containsKey(keyDesc)) {
+                final td = await _translateText(article.description!, target: 'pt');
+                if (td != null) setState(() {});
+              }
+            },
+          ),
+        );
+      },
     );
   }
 
