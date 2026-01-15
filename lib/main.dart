@@ -1,14 +1,16 @@
+// main.dart - UI e lógica principal
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart' as xml;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'svg_icons.dart';
+import 'models.dart';
+import 'rss_service.dart';
 
 void main() {
   runApp(const FootballFeedApp());
@@ -33,272 +35,6 @@ class FootballFeedApp extends StatelessWidget {
   }
 }
 
-class NewsSource {
-  final String name;
-  final String rss;
-  final String favicon;
-  final String? country;
-
-  NewsSource({
-    required this.name,
-    required this.rss,
-    required this.favicon,
-    this.country,
-  });
-}
-
-class NewsArticle {
-  final String title;
-  final String? description;
-  final String? imageUrl;
-  final String link;
-  final DateTime? pubDate;
-  final NewsSource source;
-
-  NewsArticle({
-    required this.title,
-    this.description,
-    this.imageUrl,
-    required this.link,
-    this.pubDate,
-    required this.source,
-  });
-
-  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
-
-  bool get hasHighQualityImage {
-    if (!hasImage) return false;
-    final url = imageUrl!.toLowerCase();
-    return !url.contains('thumbnail') &&
-        !url.contains('small') &&
-        !url.contains('tiny') &&
-        !url.contains('icon');
-  }
-}
-
-class Match {
-  final String homeTeam;
-  final String awayTeam;
-  final String homeScore;
-  final String awayScore;
-  final String competition;
-  final String time;
-  final bool isLive;
-  final bool isFinished;
-
-  Match({
-    required this.homeTeam,
-    required this.awayTeam,
-    required this.homeScore,
-    required this.awayScore,
-    required this.competition,
-    required this.time,
-    this.isLive = false,
-    this.isFinished = false,
-  });
-}
-
-class RssSources {
-  static final List<NewsSource> sources = [
-    NewsSource(name: "ZeroZero", rss: "https://www.zerozero.pt/rss/noticias.php", favicon: "https://www.zerozero.pt/favicon.ico", country: "PT"),
-    NewsSource(name: "90min", rss: "https://90min.com/posts.rss", favicon: "https://90min.com/favicon.ico", country: "INT"),
-    NewsSource(name: "Goal", rss: "https://www.goal.com/feeds/en/news", favicon: "https://www.goal.com/favicon.ico", country: "INT"),
-    NewsSource(name: "ESPN", rss: "https://www.espn.com/espn/rss/news", favicon: "https://www.espn.com/favicon.ico", country: "USA"),
-    NewsSource(name: "BBC Sport", rss: "https://feeds.bbci.co.uk/sport/football/rss.xml", favicon: "https://www.bbc.com/favicon.ico", country: "UK"),
-    NewsSource(name: "Sky Sports", rss: "https://www.skysports.com/rss/12040", favicon: "https://www.skysports.com/favicon.ico", country: "UK"),
-    NewsSource(name: "The Guardian", rss: "https://www.theguardian.com/football/rss", favicon: "https://www.theguardian.com/favicon.ico", country: "UK"),
-    NewsSource(name: "FourFourTwo", rss: "https://www.fourfourtwo.com/rss", favicon: "https://www.fourfourtwo.com/favicon.ico", country: "UK"),
-    NewsSource(name: "Marca", rss: "https://e00-marca.uecdn.es/rss/en/international.xml", favicon: "https://www.marca.com/favicon.ico", country: "ES"),
-    NewsSource(name: "AS", rss: "https://as.com/rss", favicon: "https://as.com/favicon.ico", country: "ES"),
-    NewsSource(name: "Mundo Deportivo", rss: "https://www.mundodeportivo.com/rss", favicon: "https://www.mundodeportivo.com/favicon.ico", country: "ES"),
-    NewsSource(name: "Sport", rss: "https://www.sport.es/es/rss/", favicon: "https://www.sport.es/favicon.ico", country: "ES"),
-    NewsSource(name: "L'Equipe", rss: "https://www.lequipe.fr/rss.xml", favicon: "https://www.lequipe.fr/favicon.ico", country: "FR"),
-    NewsSource(name: "Gazzetta", rss: "https://www.gazzetta.it/rss/", favicon: "https://www.gazzetta.it/favicon.ico", country: "IT"),
-    NewsSource(name: "Corriere Sport", rss: "https://www.corrieredellosport.it/rss", favicon: "https://www.corrieredellosport.it/favicon.ico", country: "IT"),
-    NewsSource(name: "Tuttosport", rss: "https://www.tuttosport.com/rss", favicon: "https://www.tuttosport.com/favicon.ico", country: "IT"),
-    NewsSource(name: "Record", rss: "https://www.record.pt/rss/futebol.xml", favicon: "https://www.record.pt/favicon.ico", country: "PT"),
-    NewsSource(name: "A Bola", rss: "https://www.abola.pt/rss/noticias.aspx", favicon: "https://www.abola.pt/favicon.ico", country: "PT"),
-    NewsSource(name: "O Jogo", rss: "https://www.ojogo.pt/rss/futebol.xml", favicon: "https://www.ojogo.pt/favicon.ico", country: "PT"),
-    NewsSource(name: "Bleacher Report", rss: "https://bleacherreport.com/articles/feed", favicon: "https://bleacherreport.com/favicon.ico", country: "USA"),
-    NewsSource(name: "CBS Sports", rss: "https://www.cbssports.com/rss/headlines/soccer/", favicon: "https://www.cbssports.com/favicon.ico", country: "USA"),
-    NewsSource(name: "Yahoo Sports", rss: "https://sports.yahoo.com/soccer/rss/", favicon: "https://sports.yahoo.com/favicon.ico", country: "USA"),
-    NewsSource(name: "Mirror Football", rss: "https://www.mirror.co.uk/sport/football/rss.xml", favicon: "https://www.mirror.co.uk/favicon.ico", country: "UK"),
-    NewsSource(name: "Daily Mail", rss: "https://www.dailymail.co.uk/sport/football/index.rss", favicon: "https://www.dailymail.co.uk/favicon.ico", country: "UK"),
-    NewsSource(name: "Football Italia", rss: "https://football-italia.net/feed", favicon: "https://football-italia.net/favicon.ico", country: "IT"),
-    NewsSource(name: "TeamTalk", rss: "https://www.teamtalk.com/feed/", favicon: "https://www.teamtalk.com/favicon.ico", country: "UK"),
-    NewsSource(name: "Football365", rss: "https://www.football365.com/rss", favicon: "https://www.football365.com/favicon.ico", country: "UK"),
-    NewsSource(name: "101GreatGoals", rss: "https://www.101greatgoals.com/feed", favicon: "https://www.101greatgoals.com/favicon.ico", country: "INT"),
-    NewsSource(name: "CaughtOffside", rss: "https://caughtoffside.com/feed", favicon: "https://caughtoffside.com/favicon.ico", country: "UK"),
-    NewsSource(name: "SoccerNews", rss: "https://www.soccernews.com/feed", favicon: "https://www.soccernews.com/favicon.ico", country: "INT"),
-  ];
-
-  static final List<Match> todayMatches = [
-    Match(homeTeam: "Manchester City", awayTeam: "Liverpool", homeScore: "2", awayScore: "1", competition: "Premier League", time: "20:00", isLive: true),
-    Match(homeTeam: "Real Madrid", awayTeam: "Barcelona", homeScore: "0", awayScore: "0", competition: "La Liga", time: "21:00"),
-    Match(homeTeam: "Bayern Munich", awayTeam: "Borussia Dortmund", homeScore: "3", awayScore: "2", competition: "Bundesliga", time: "18:30", isFinished: true),
-    Match(homeTeam: "PSG", awayTeam: "Marseille", homeScore: "-", awayScore: "-", competition: "Ligue 1", time: "22:00"),
-    Match(homeTeam: "Juventus", awayTeam: "Inter Milan", homeScore: "1", awayScore: "1", competition: "Serie A", time: "19:45", isLive: true),
-    Match(homeTeam: "Arsenal", awayTeam: "Chelsea", homeScore: "-", awayScore: "-", competition: "Premier League", time: "17:30"),
-    Match(homeTeam: "Atletico Madrid", awayTeam: "Sevilla", homeScore: "2", awayScore: "0", competition: "La Liga", time: "16:00", isFinished: true),
-    Match(homeTeam: "AC Milan", awayTeam: "Napoli", homeScore: "-", awayScore: "-", competition: "Serie A", time: "20:45"),
-    Match(homeTeam: "Benfica", awayTeam: "Porto", homeScore: "1", awayScore: "0", competition: "Primeira Liga", time: "21:15", isLive: true),
-    Match(homeTeam: "Ajax", awayTeam: "PSV", homeScore: "-", awayScore: "-", competition: "Eredivisie", time: "19:00"),
-  ];
-}
-
-class RssService {
-  Future<List<NewsArticle>> fetchArticles(NewsSource source) async {
-    try {
-      final response = await http.get(
-        Uri.parse(source.rss),
-        headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
-      ).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final document = xml.XmlDocument.parse(response.body);
-        final items = document.findAllElements('item');
-
-        List<NewsArticle> articles = [];
-
-        for (var item in items) {
-          try {
-            final title = item.findElements('title').first.innerText.trim();
-            final link = item.findElements('link').first.innerText.trim();
-            var description = item.findElements('description').isNotEmpty
-                ? item.findElements('description').first.innerText.trim()
-                : null;
-
-            if (description != null) {
-              description = _cleanHtml(description);
-            }
-
-            String? imageUrl;
-            if (item.findElements('media:content').isNotEmpty) {
-              imageUrl = item.findElements('media:content').first.getAttribute('url');
-            } else if (item.findElements('enclosure').isNotEmpty) {
-              final enclosure = item.findElements('enclosure').first;
-              final type = enclosure.getAttribute('type');
-              if (type != null && type.startsWith('image/')) {
-                imageUrl = enclosure.getAttribute('url');
-              }
-            } else if (item.findElements('media:thumbnail').isNotEmpty) {
-              imageUrl = item.findElements('media:thumbnail').first.getAttribute('url');
-            }
-
-            if (imageUrl != null) {
-              imageUrl = imageUrl.trim();
-              if (!imageUrl.startsWith('http')) {
-                imageUrl = null;
-              }
-            }
-
-            DateTime? pubDate;
-            if (item.findElements('pubDate').isNotEmpty) {
-              try {
-                final dateStr = item.findElements('pubDate').first.innerText;
-                pubDate = _parseRssDate(dateStr);
-              } catch (e) {
-                pubDate = DateTime.now();
-              }
-            } else {
-              pubDate = DateTime.now();
-            }
-
-            final article = NewsArticle(
-              title: title,
-              description: description,
-              imageUrl: imageUrl,
-              link: link,
-              pubDate: pubDate,
-              source: source,
-            );
-
-            articles.add(article);
-          } catch (e) {
-            continue;
-          }
-        }
-
-        return articles;
-      }
-    } catch (e) {
-      print('Error fetching ${source.name}: $e');
-    }
-    return [];
-  }
-
-  String _cleanHtml(String html) {
-    return html
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'")
-        .replaceAll('&#x27;', "'")
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  DateTime _parseRssDate(String dateStr) {
-    try {
-      return DateTime.parse(dateStr);
-    } catch (e) {
-      try {
-        return HttpDate.parse(dateStr);
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-  }
-
-  Future<List<NewsArticle>> fetchAllArticles() async {
-    List<NewsArticle> allArticles = [];
-
-    final batches = _createBatches(RssSources.sources, 3);
-
-    for (var batch in batches) {
-      final results = await Future.wait(
-        batch.map((source) => fetchArticles(source)),
-      );
-
-      for (var articles in results) {
-        allArticles.addAll(articles);
-      }
-
-      await Future.delayed(const Duration(milliseconds: 350));
-    }
-
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
-
-    allArticles = allArticles.where((article) {
-      if (article.pubDate == null) return false;
-      return article.pubDate!.isAfter(sevenDaysAgo);
-    }).toList();
-
-    allArticles.sort((a, b) {
-      if (a.pubDate == null) return 1;
-      if (b.pubDate == null) return -1;
-      return b.pubDate!.compareTo(a.pubDate!);
-    });
-
-    return allArticles;
-  }
-
-  List<List<NewsSource>> _createBatches(List<NewsSource> sources, int batchSize) {
-    List<List<NewsSource>> batches = [];
-    for (var i = 0; i < sources.length; i += batchSize) {
-      batches.add(sources.sublist(
-        i,
-        i + batchSize > sources.length ? sources.length : i + batchSize,
-      ));
-    }
-    return batches;
-  }
-}
-
 class FootballFeedScreen extends StatefulWidget {
   const FootballFeedScreen({Key? key}) : super(key: key);
 
@@ -317,7 +53,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   final PageController _matchesPageController = PageController();
   int _currentMatchPage = 0;
 
-  // caches
   final Map<String, Color> _imageColorCache = {};
   final Map<String, String> _translationCache = {};
 
@@ -325,16 +60,9 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
   late Animation<double> _drawerSlideAnimation;
   late Animation<double> _contentSlideAnimation;
 
-  // TV SVGs (os que o usuário forneceu)
-  final String _tvOutlineSvg = '''
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" width="512" height="512"><path d="M19,3H5A5.006,5.006,0,0,0,0,8v6a5.006,5.006,0,0,0,5,5h6v1H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2H13V19h6a5.006,5.006,0,0,0,5-5V8A5.006,5.006,0,0,0,19,3Zm3,11a3,3,0,0,1-3,3H5a3,3,0,0,1-3-3V8A3,3,0,0,1,5,5H19a3,3,0,0,1,3,3Z"/></svg>
-''';
+  final String _tvOutlineSvg = '''<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" width="512" height="512"><path d="M19,3H5A5.006,5.006,0,0,0,0,8v6a5.006,5.006,0,0,0,5,5h6v1H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2H13V19h6a5.006,5.006,0,0,0,5-5V8A5.006,5.006,0,0,0,19,3Zm3,11a3,3,0,0,1-3,3H5a3,3,0,0,1-3-3V8A3,3,0,0,1,5,5H19a3,3,0,0,1,3,3Z"/></svg>''';
 
-  final String _tvFilledSvg = '''
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" id="Filled" viewBox="0 0 24 24" width="512" height="512"><path d="M19,3H5A5.006,5.006,0,0,0,0,8v6a5.006,5.006,0,0,0,5,5h6v1H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2H13V19h6a5.006,5.006,0,0,0,5-5V8A5.006,5.006,0,0,0,19,3Z"/></svg>
-''';
+  final String _tvFilledSvg = '''<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" id="Filled" viewBox="0 0 24 24" width="512" height="512"><path d="M19,3H5A5.006,5.006,0,0,0,0,8v6a5.006,5.006,0,0,0,5,5h6v1H8a1,1,0,0,0,0,2h8a1,1,0,0,0,0-2H13V19h6a5.006,5.006,0,0,0,5-5V8A5.006,5.006,0,0,0,19,3Z"/></svg>''';
 
   @override
   void initState() {
@@ -410,7 +138,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     }
   }
 
-  // ----------------- Image color extraction -----------------
   Future<Color> _getImagePrimaryColor(String? imageUrl) async {
     if (imageUrl == null || imageUrl.isEmpty) return const Color(0xFF2374E1);
     if (_imageColorCache.containsKey(imageUrl)) return _imageColorCache[imageUrl]!;
@@ -439,7 +166,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     }
   }
 
-  // ----------------- Translation (rapid) -----------------
   Future<String?> _translateText(String text, {String target = 'pt'}) async {
     if (text.trim().isEmpty) return null;
     final key = '${text.hashCode}_$target';
@@ -464,8 +190,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
           _translationCache[key] = translated;
           return translated;
         }
-      } else {
-        print('Translate error: ${resp.statusCode} ${resp.body}');
       }
     } catch (e) {
       print('Translate request failed: $e');
@@ -509,7 +233,29 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
     return _translationCache.containsKey(key) ? _translationCache[key] : null;
   }
 
-  // ----------------- Build UI -----------------
+  String _formatTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'Agora';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}min';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays == 1) return '1 dia';
+    if (diff.inDays < 7) return '${diff.inDays} dias';
+    return '${date.day}/${date.month}';
+  }
+
+  Future<void> _launchUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      print('Error launching URL: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -554,12 +300,7 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
             left: 0,
             right: 0,
             bottom: 0,
-            child: IgnorePointer(
-              ignoring: false,
-              child: Container(
-                child: _buildBottomNavBar(),
-              ),
-            ),
+            child: _buildBottomNavBar(),
           ),
 
           if (_isDrawerOpen)
@@ -1374,7 +1115,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
                             ),
                           ),
                           errorWidget: (context, url, error) {
-                            print('Failed to load image: $url');
                             return Container(
                               height: 220,
                               color: _borderColor,
@@ -1512,29 +1252,6 @@ class _FootballFeedScreenState extends State<FootballFeedScreen> with TickerProv
         },
       ),
     );
-  }
-
-  String _formatTime(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 1) return 'Agora';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}min';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays == 1) return '1 dia';
-    if (diff.inDays < 7) return '${diff.inDays} dias';
-    return '${date.day}/${date.month}';
-  }
-
-  Future<void> _launchUrl(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    } catch (e) {
-      print('Error launching URL: $e');
-    }
   }
 
   Widget _buildSkeletonPost() {
