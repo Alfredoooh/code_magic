@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:animations/animations.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -51,13 +52,15 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
   late Animation<double> _drawerSlideAnimation;
   late Animation<double> _contentSlideAnimation;
 
+  bool get _isWeb => kIsWeb;
+
   @override
   void initState() {
     super.initState();
     _loadContent();
     _drawerAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: _isWeb ? Duration.zero : const Duration(milliseconds: 350),
     );
     _drawerSlideAnimation = Tween<double>(begin: -1.0, end: 0.0).animate(
       CurvedAnimation(parent: _drawerAnimationController, curve: Curves.easeInOut),
@@ -84,6 +87,10 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     setState(() {
       _isDrawerOpen = !_isDrawerOpen;
     });
+    if (_isWeb) {
+      // Na web não precisa de animação
+      return;
+    }
     if (_isDrawerOpen) {
       _drawerAnimationController.forward();
     } else {
@@ -99,6 +106,56 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
+    if (_isWeb) {
+      return _buildWebLayout();
+    }
+    return _buildMobileLayout();
+  }
+
+  Widget _buildWebLayout() {
+    return Scaffold(
+      backgroundColor: _bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: _buildCurrentTab(),
+                ),
+              ],
+            ),
+          ),
+          // Drawer fullscreen para web
+          if (_isDrawerOpen)
+            GestureDetector(
+              onTap: _toggleDrawer,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {}, // Previne fechar ao clicar no drawer
+                    child: Container(
+                      width: 400,
+                      decoration: BoxDecoration(
+                        color: _surfaceColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: _buildDrawerContent(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNavBar(),
+    );
+  }
+
+  Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: _bgColor,
       extendBody: true,
@@ -113,7 +170,14 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
                   MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
                   0,
                 ),
-                child: _buildDrawer(),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  height: MediaQuery.of(context).size.height,
+                  decoration: BoxDecoration(
+                    color: _surfaceColor,
+                  ),
+                  child: _buildDrawerContent(),
+                ),
               );
             },
           ),
@@ -179,65 +243,58 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProvider
     );
   }
 
-  Widget _buildDrawer() {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.85,
-      height: MediaQuery.of(context).size.height,
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Icon(
-                _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
-                color: _textColor,
-                size: 24,
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: _textColor,
-                  ),
+  Widget _buildDrawerContent() {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(
+              _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
+              color: _textColor,
+              size: 24,
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: _textColor,
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _isDarkTheme = !_isDarkTheme;
-                  });
-                },
-                child: Container(
-                  width: 51,
-                  height: 31,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: _isDarkTheme ? Color(0xFF2374E1) : Color(0xFFE4E6EB),
-                  ),
-                  child: AnimatedAlign(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    alignment: _isDarkTheme ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      width: 27,
-                      height: 27,
-                      margin: EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isDarkTheme = !_isDarkTheme;
+                });
+              },
+              child: Container(
+                width: 51,
+                height: 31,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: _isDarkTheme ? Color(0xFF2374E1) : Color(0xFFE4E6EB),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  alignment: _isDarkTheme ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    width: 27,
+                    height: 27,
+                    margin: EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
