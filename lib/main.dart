@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:animations/animations.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:ionicons/ionicons.dart';
 import 'svg_icons.dart';
 
 void main() {
@@ -40,15 +41,36 @@ class SocialFeedScreen extends StatefulWidget {
   State<SocialFeedScreen> createState() => _SocialFeedScreenState();
 }
 
-class _SocialFeedScreenState extends State<SocialFeedScreen> {
+class _SocialFeedScreenState extends State<SocialFeedScreen> with TickerProviderStateMixin {
   int _selectedTab = 0;
   int _selectedBottomTab = 0;
   bool _isLoading = true;
+  bool _isDrawerOpen = false;
+  bool _isDarkTheme = true;
+  late AnimationController _drawerAnimationController;
+  late Animation<double> _drawerSlideAnimation;
+  late Animation<double> _contentSlideAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadContent();
+    _drawerAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _drawerSlideAnimation = Tween<double>(begin: -1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _drawerAnimationController, curve: Curves.easeInOut),
+    );
+    _contentSlideAnimation = Tween<double>(begin: 0.0, end: 0.2).animate(
+      CurvedAnimation(parent: _drawerAnimationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _drawerAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadContent() async {
@@ -58,23 +80,227 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
     }
   }
 
+  void _toggleDrawer() {
+    setState(() {
+      _isDrawerOpen = !_isDrawerOpen;
+    });
+    if (_isDrawerOpen) {
+      _drawerAnimationController.forward();
+    } else {
+      _drawerAnimationController.reverse();
+    }
+  }
+
+  Color get _bgColor => _isDarkTheme ? Color(0xFF18191A) : Color(0xFFF0F2F5);
+  Color get _surfaceColor => _isDarkTheme ? Color(0xFF242526) : Colors.white;
+  Color get _textColor => _isDarkTheme ? Color(0xFFE4E6EB) : Color(0xFF050505);
+  Color get _subTextColor => _isDarkTheme ? Color(0xFFB0B3B8) : Color(0xFF65676B);
+  Color get _borderColor => _isDarkTheme ? Color(0xFF3A3B3C) : Color(0xFFDDDFE2);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF18191A),
+      backgroundColor: _bgColor,
       extendBody: true,
-      body: SafeArea(
-        bottom: false,
+      body: Stack(
+        children: [
+          // Main content with slide animation
+          AnimatedBuilder(
+            animation: _contentSlideAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  MediaQuery.of(context).size.width * _contentSlideAnimation.value,
+                  0,
+                ),
+                child: Transform.scale(
+                  scale: 1.0 - (_contentSlideAnimation.value * 0.1),
+                  alignment: Alignment.centerLeft,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(_contentSlideAnimation.value * 20),
+                    child: AbsorbPointer(
+                      absorbing: _isDrawerOpen,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Column(
+                          children: [
+                            _buildHeader(),
+                            Expanded(
+                              child: _buildCurrentTab(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Drawer overlay
+          if (_isDrawerOpen)
+            GestureDetector(
+              onTap: _toggleDrawer,
+              child: AnimatedOpacity(
+                opacity: _isDrawerOpen ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 350),
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                ),
+              ),
+            ),
+          // Drawer
+          AnimatedBuilder(
+            animation: _drawerSlideAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  MediaQuery.of(context).size.width * _drawerSlideAnimation.value,
+                  0,
+                ),
+                child: _buildDrawer(),
+              );
+            },
+          ),
+        ],
+      ),
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _contentSlideAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(
+              MediaQuery.of(context).size.width * _contentSlideAnimation.value,
+              0,
+            ),
+            child: _buildBottomNavBar(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.85,
+      height: MediaQuery.of(context).size.height,
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+      ),
+      child: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
-            Expanded(
-              child: _buildCurrentTab(),
+            // Header do drawer
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=20'),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Seu Nome',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: _textColor,
+                          ),
+                        ),
+                        Text(
+                          '@seunome',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _subTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _toggleDrawer,
+                    icon: Icon(Icons.close, color: _textColor),
+                  ),
+                ],
+              ),
+            ),
+            Divider(color: _borderColor, height: 1),
+            // Switch de tema
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Icon(
+                    _isDarkTheme ? Ionicons.moon : Ionicons.sunny,
+                    color: _textColor,
+                    size: 24,
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      _isDarkTheme ? 'Modo Escuro' : 'Modo Claro',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _textColor,
+                      ),
+                    ),
+                  ),
+                  CupertinoSwitch(
+                    value: _isDarkTheme,
+                    activeColor: Color(0xFF2374E1),
+                    onChanged: (value) {
+                      setState(() {
+                        _isDarkTheme = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Divider(color: _borderColor, height: 1),
+            // Menu items
+            _buildDrawerItem(Ionicons.person_outline, 'Perfil'),
+            _buildDrawerItem(Ionicons.settings_outline, 'Configurações'),
+            _buildDrawerItem(Ionicons.bookmark_outline, 'Salvos'),
+            _buildDrawerItem(Ionicons.notifications_outline, 'Notificações'),
+            _buildDrawerItem(Ionicons.help_circle_outline, 'Ajuda'),
+            Spacer(),
+            Divider(color: _borderColor, height: 1),
+            _buildDrawerItem(Ionicons.log_out_outline, 'Sair', isLogout: true),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, {bool isLogout = false}) {
+    return InkWell(
+      onTap: () {},
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isLogout ? Colors.red : _textColor,
+              size: 24,
+            ),
+            SizedBox(width: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                color: isLogout ? Colors.red : _textColor,
+              ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -91,16 +317,16 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget _buildEmptyTab(String title) {
     return Container(
       key: ValueKey(title),
-      color: Color(0xFF18191A),
+      color: _bgColor,
     );
   }
 
   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xFF242526),
+        color: _surfaceColor,
         border: Border(
-          bottom: BorderSide(color: Color(0xFF3A3B3C), width: 0.5),
+          bottom: BorderSide(color: _borderColor, width: 0.5),
         ),
       ),
       child: Padding(
@@ -109,7 +335,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildIOSButton(
-              onTap: () {},
+              onTap: _toggleDrawer,
               child: Image.asset(
                 'assets/logo.png',
                 width: 32,
@@ -176,7 +402,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              color: isActive ? Color(0xFFE4E6EB) : Color(0xFFB0B3B8),
+              color: isActive ? _textColor : _subTextColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -196,6 +422,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget _buildParaVoceTab() {
     if (_isLoading) {
       return ListView.builder(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: 5,
         itemBuilder: (context, index) => _buildSkeletonPost(),
       );
@@ -203,6 +430,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
 
     return ListView(
       key: const ValueKey('para-voce'),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       children: [
         _buildPost(
           avatar: 'https://i.pravatar.cc/150?img=1',
@@ -216,6 +444,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           retweets: '3.5K',
           likes: '4.6M',
         ),
+        SizedBox(height: 12),
         _buildPost(
           avatar: 'https://i.pravatar.cc/150?img=12',
           name: 'Manoj Kumar',
@@ -227,6 +456,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
           retweets: '2',
           likes: '182',
         ),
+        SizedBox(height: 12),
         _buildPost(
           avatar: 'https://i.pravatar.cc/150?img=33',
           name: 'UI/UX Savior',
@@ -245,6 +475,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget _buildSeguindoTab() {
     if (_isLoading) {
       return ListView.builder(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: 3,
         itemBuilder: (context, index) => _buildSkeletonPost(),
       );
@@ -256,9 +487,9 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Symbols.people_outline,
+            Ionicons.people_outline,
             size: 64,
-            color: Color(0xFF3A3B3C),
+            color: _borderColor,
           ),
           const SizedBox(height: 16),
           Text(
@@ -266,7 +497,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
-              color: Color(0xFFB0B3B8),
+              color: _subTextColor,
             ),
           ),
         ],
@@ -276,11 +507,18 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
 
   Widget _buildSkeletonPost() {
     return Container(
+      margin: EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF3A3B3C), width: 0.5),
-        ),
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +528,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Color(0xFF3A3B3C),
+                color: _borderColor,
                 shape: BoxShape.circle,
               ),
             ),
@@ -305,7 +543,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                     width: 150,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: Color(0xFF3A3B3C),
+                      color: _borderColor,
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
@@ -316,7 +554,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                     width: double.infinity,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: Color(0xFF3A3B3C),
+                      color: _borderColor,
                       borderRadius: BorderRadius.circular(5),
                     ),
                   ),
@@ -327,7 +565,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                     width: 200,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: Color(0xFF3A3B3C),
+                      color: _borderColor,
                       borderRadius: BorderRadius.circular(5),
                     ),
                   ),
@@ -338,7 +576,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
                     width: double.infinity,
                     height: 150,
                     decoration: BoxDecoration(
-                      color: Color(0xFF3A3B3C),
+                      color: _borderColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -387,140 +625,156 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
       onTap: () {},
       child: Container(
         decoration: BoxDecoration(
-          color: Color(0xFF242526),
-          border: Border(
-            bottom: BorderSide(color: Color(0xFF3A3B3C), width: 0.5),
-          ),
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildIOSButton(
-              onTap: () {},
-              child: CircleAvatar(
-                radius: 20,
-                backgroundImage: NetworkImage(avatar),
+            Row(
+              children: [
+                _buildIOSButton(
+                  onTap: () {},
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundImage: NetworkImage(avatar),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: _textColor,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Symbols.verified, color: Color(0xFF2374E1), size: 16, fill: 1),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            username,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _subTextColor,
+                            ),
+                          ),
+                          Text(' · ', style: TextStyle(color: _subTextColor)),
+                          Text(
+                            time,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _subTextColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Ionicons.ellipsis_horizontal, color: _subTextColor, size: 20),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              content,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.4,
+                color: _textColor,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE4E6EB),
+            if (hasVideo && videoUrl != null) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    color: Colors.black,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Image.network(
+                          'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=800',
+                          fit: BoxFit.cover,
+                          width: double.infinity,
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Symbols.verified, color: Color(0xFF2374E1), size: 18, fill: 1),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          username,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFFB0B3B8),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(' · ', style: TextStyle(color: Color(0xFFB0B3B8))),
-                      Text(
-                        time,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFFB0B3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    content,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.3,
-                      color: Color(0xFFE4E6EB),
-                    ),
-                  ),
-                  if (hasVideo && videoUrl != null) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: Container(
-                          color: Colors.black,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Image.network(
-                                'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=800',
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.3),
-                                ),
-                              ),
-                              Icon(
-                                Icons.play_circle_filled,
-                                size: 64,
-                                color: Colors.white,
-                              ),
-                            ],
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
                           ),
                         ),
-                      ),
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Ionicons.play,
+                            size: 32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                  if (imageUrl != null) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 200,
-                            color: Color(0xFF3A3B3C),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildActionButton(SvgIcons.comment, comments),
-                      _buildActionButton(SvgIcons.retweet, retweets),
-                      _buildActionButton(Symbols.favorite, likes),
-                      _buildActionButton(Symbols.share, ''),
-                      _buildActionButton(SvgIcons.bookmark, ''),
-                    ],
                   ),
-                ],
+                ),
               ),
+            ],
+            if (imageUrl != null) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 200,
+                      color: _borderColor,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildActionButton(SvgIcons.comment, comments),
+                _buildActionButton(SvgIcons.retweet, retweets),
+                _buildActionButton(Symbols.favorite, likes),
+                _buildActionButton(Symbols.share, ''),
+              ],
             ),
           ],
         ),
@@ -539,12 +793,12 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
               width: 18,
               height: 18,
               colorFilter: ColorFilter.mode(
-                Color(0xFFB0B3B8),
+                _subTextColor,
                 BlendMode.srcIn,
               ),
             )
           else
-            Icon(icon, size: 18, color: Color(0xFFB0B3B8)),
+            Icon(icon, size: 18, color: _subTextColor),
           if (count.isNotEmpty) ...[
             const SizedBox(width: 6),
             Text(
@@ -552,7 +806,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFFB0B3B8),
+                color: _subTextColor,
               ),
             ),
           ],
@@ -564,14 +818,14 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   Widget _buildBottomNavBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xFF242526),
+        color: _surfaceColor,
         border: Border(
-          top: BorderSide(color: Color(0xFF3A3B3C), width: 0.5),
+          top: BorderSide(color: _borderColor, width: 0.5),
         ),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -622,10 +876,10 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
         children: [
           SvgPicture.string(
             isSelected ? filledSvg : outlinedSvg,
-            width: 24,
-            height: 24,
+            width: 22,
+            height: 22,
             colorFilter: ColorFilter.mode(
-              isSelected ? Color(0xFF2374E1) : Color(0xFFB0B3B8),
+              isSelected ? Color(0xFF2374E1) : _subTextColor,
               BlendMode.srcIn,
             ),
           ),
@@ -635,7 +889,7 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: isSelected ? Color(0xFF2374E1) : Color(0xFFB0B3B8),
+              color: isSelected ? Color(0xFF2374E1) : _subTextColor,
             ),
           ),
         ],
@@ -644,18 +898,10 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
   }
 
   Widget _buildIOSButton({required VoidCallback onTap, required Widget child}) {
-    return OpenContainer(
-      closedElevation: 0,
-      openElevation: 0,
-      closedColor: Colors.transparent,
-      openColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 300),
-      closedBuilder: (context, action) => GestureDetector(
-        onTap: onTap,
-        child: child,
-      ),
-      openBuilder: (context, action) => Container(),
-      tappable: false,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: child,
     );
   }
 }
