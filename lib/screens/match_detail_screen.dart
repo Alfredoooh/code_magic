@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/football_api_service.dart';
 
@@ -28,6 +28,7 @@ class MatchDetailsScreen extends StatefulWidget {
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   MatchDetails? _matchDetails;
+  List<MatchEvent> _events = [];
   final FootballApiService _apiService = FootballApiService();
   late TabController _tabController;
 
@@ -47,9 +48,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
   Future<void> _loadMatchDetails() async {
     setState(() => _isLoading = true);
     final details = await _apiService.getMatchDetails(widget.matchId);
+    final events = await _apiService.getMatchEvents(widget.matchId);
     if (mounted) {
       setState(() {
         _matchDetails = details;
+        _events = events;
         _isLoading = false;
       });
     }
@@ -63,7 +66,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
         backgroundColor: widget.surfaceColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Ionicons.arrow_back, color: widget.textColor),
+          icon: Icon(Symbols.arrow_back, color: widget.textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -97,7 +100,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Ionicons.alert_circle_outline, size: 64, color: widget.borderColor),
+                      Icon(Symbols.error, size: 64, color: widget.borderColor),
                       const SizedBox(height: 16),
                       Text(
                         'Erro ao carregar detalhes',
@@ -134,13 +137,13 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
 
   Widget _buildEventsTab() {
     final match = _matchDetails!;
-    
-    if (match.events.isEmpty) {
+
+    if (_events.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Ionicons.list_outline, size: 64, color: widget.borderColor),
+            Icon(Symbols.list_alt, size: 64, color: widget.borderColor),
             const SizedBox(height: 16),
             Text(
               'Nenhum evento registrado',
@@ -177,7 +180,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                     ),
                   ),
                 ),
-                ...match.events.map((event) => _buildEventItem(event, match)),
+                ..._events.map((event) => _buildEventItem(event, match)),
               ],
             ),
           ),
@@ -188,7 +191,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
 
   Widget _buildFormationTab() {
     final match = _matchDetails!;
-    
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -276,7 +279,6 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                   ),
                   child: Stack(
                     children: [
-                      // Campo de futebol estilizado
                       Center(
                         child: Container(
                           width: 100,
@@ -287,7 +289,6 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                           ),
                         ),
                       ),
-                      // Meio de campo
                       Positioned(
                         top: 0,
                         bottom: 0,
@@ -324,7 +325,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
 
   Widget _buildStatsTab() {
     final match = _matchDetails!;
-    
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -368,7 +369,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
   Widget _buildStatRow(String label, int homeValue, int awayValue) {
     final total = homeValue + awayValue;
     final homePercent = total > 0 ? homeValue / total : 0.5;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -438,19 +439,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
           Expanded(
             child: Column(
               children: [
-                if (match.homeTeamCrest != null)
+                if (match.homeTeamLogo != null)
                   CachedNetworkImage(
-                    imageUrl: match.homeTeamCrest!,
+                    imageUrl: match.homeTeamLogo!,
                     width: 48,
                     height: 48,
                     errorWidget: (context, url, error) => Icon(
-                      Ionicons.shield_outline,
+                      Symbols.shield,
                       size: 48,
                       color: widget.textColor,
                     ),
                   )
                 else
-                  Icon(Ionicons.shield_outline, size: 48, color: widget.textColor),
+                  Icon(Symbols.shield, size: 48, color: widget.textColor),
                 const SizedBox(height: 8),
                 Text(
                   match.homeTeam,
@@ -525,19 +526,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
           Expanded(
             child: Column(
               children: [
-                if (match.awayTeamCrest != null)
+                if (match.awayTeamLogo != null)
                   CachedNetworkImage(
-                    imageUrl: match.awayTeamCrest!,
+                    imageUrl: match.awayTeamLogo!,
                     width: 48,
                     height: 48,
                     errorWidget: (context, url, error) => Icon(
-                      Ionicons.shield_outline,
+                      Symbols.shield,
                       size: 48,
                       color: widget.textColor,
                     ),
                   )
                 else
-                  Icon(Ionicons.shield_outline, size: 48, color: widget.textColor),
+                  Icon(Symbols.shield, size: 48, color: widget.textColor),
                 const SizedBox(height: 8),
                 Text(
                   match.awayTeam,
@@ -565,23 +566,23 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
         children: [
           Row(
             children: [
-              if (match.competitionEmblem != null)
+              if (match.leagueLogo != null)
                 CachedNetworkImage(
-                  imageUrl: match.competitionEmblem!,
+                  imageUrl: match.leagueLogo!,
                   width: 24,
                   height: 24,
                   errorWidget: (context, url, error) => Icon(
-                    Ionicons.football,
+                    Symbols.sports_soccer,
                     size: 24,
                     color: widget.subTextColor,
                   ),
                 )
               else
-                Icon(Ionicons.football, size: 24, color: widget.subTextColor),
+                Icon(Symbols.sports_soccer, size: 24, color: widget.subTextColor),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  match.competition,
+                  match.league,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -635,18 +636,18 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                         border: Border.all(color: widget.borderColor, width: 2),
                       ),
                       padding: const EdgeInsets.all(16),
-                      child: match.homeTeamCrest != null
+                      child: match.homeTeamLogo != null
                           ? CachedNetworkImage(
-                              imageUrl: match.homeTeamCrest!,
+                              imageUrl: match.homeTeamLogo!,
                               fit: BoxFit.contain,
                               errorWidget: (context, url, error) => Icon(
-                                Ionicons.shield_outline,
+                                Symbols.shield,
                                 color: widget.textColor,
                                 size: 40,
                               ),
                             )
                           : Icon(
-                              Ionicons.shield_outline,
+                              Symbols.shield,
                               color: widget.textColor,
                               size: 40,
                             ),
@@ -683,7 +684,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                     Text(
                       match.isFinished ? 'FINALIZADO' : 
                       match.isLive ? 'AO VIVO' : 
-                      '${match.utcDate.toLocal().hour.toString().padLeft(2, '0')}:${match.utcDate.toLocal().minute.toString().padLeft(2, '0')}',
+                      '${match.date.toLocal().hour.toString().padLeft(2, '0')}:${match.date.toLocal().minute.toString().padLeft(2, '0')}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -705,18 +706,18 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                         border: Border.all(color: widget.borderColor, width: 2),
                       ),
                       padding: const EdgeInsets.all(16),
-                      child: match.awayTeamCrest != null
+                      child: match.awayTeamLogo != null
                           ? CachedNetworkImage(
-                              imageUrl: match.awayTeamCrest!,
+                              imageUrl: match.awayTeamLogo!,
                               fit: BoxFit.contain,
                               errorWidget: (context, url, error) => Icon(
-                                Ionicons.shield_outline,
+                                Symbols.shield,
                                 color: widget.textColor,
                                 size: 40,
                               ),
                             )
                           : Icon(
-                              Ionicons.shield_outline,
+                              Symbols.shield,
                               color: widget.textColor,
                               size: 40,
                             ),
@@ -763,17 +764,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 16),
-          if (match.venue != null) _buildInfoRow(Ionicons.location_outline, 'Estádio', match.venue!),
-          if (match.referee != null) _buildInfoRow(Ionicons.person_outline, 'Árbitro', match.referee!),
+          if (match.venue != null) _buildInfoRow(Symbols.location_on, 'Estádio', match.venue!),
+          if (match.referee != null) _buildInfoRow(Symbols.person, 'Árbitro', match.referee!),
           _buildInfoRow(
-            Ionicons.calendar_outline,
+            Symbols.calendar_today,
             'Data',
-            '${match.utcDate.toLocal().day.toString().padLeft(2, '0')}/${match.utcDate.toLocal().month.toString().padLeft(2, '0')}/${match.utcDate.toLocal().year}',
+            '${match.date.toLocal().day.toString().padLeft(2, '0')}/${match.date.toLocal().month.toString().padLeft(2, '0')}/${match.date.toLocal().year}',
           ),
           _buildInfoRow(
-            Ionicons.time_outline,
+            Symbols.schedule,
             'Horário',
-            '${match.utcDate.toLocal().hour.toString().padLeft(2, '0')}:${match.utcDate.toLocal().minute.toString().padLeft(2, '0')}',
+            '${match.date.toLocal().hour.toString().padLeft(2, '0')}:${match.date.toLocal().minute.toString().padLeft(2, '0')}',
           ),
         ],
       ),
@@ -811,7 +812,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
 
   Widget _buildEventItem(MatchEvent event, MatchDetails match) {
     final isHomeTeam = event.team == match.homeTeam;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -821,7 +822,6 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
       ),
       child: Row(
         children: [
-          // Lado esquerdo (time da casa)
           if (isHomeTeam) ...[
             Expanded(
               flex: 5,
@@ -843,9 +843,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (event.type != 'GOAL' && event.type != 'CARD')
+                        if (event.type != 'Goal' && event.detail != 'Yellow Card' && event.detail != 'Red Card')
                           Text(
-                            event.type,
+                            event.detail,
                             style: TextStyle(
                               fontSize: 11,
                               color: widget.subTextColor,
@@ -870,7 +870,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
               ),
               child: Center(
                 child: Text(
-                  "${event.minute}'",
+                  "${event.time}'",
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -882,7 +882,6 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
             const SizedBox(width: 8),
             const Expanded(flex: 5, child: SizedBox()),
           ] else ...[
-            // Lado direito (time visitante)
             const Expanded(flex: 5, child: SizedBox()),
             const SizedBox(width: 8),
             Container(
@@ -894,7 +893,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
               ),
               child: Center(
                 child: Text(
-                  "${event.minute}'",
+                  "${event.time}'",
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -925,9 +924,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (event.type != 'GOAL' && event.type != 'CARD')
+                        if (event.type != 'Goal' && event.detail != 'Yellow Card' && event.detail != 'Red Card')
                           Text(
-                            event.type,
+                            event.detail,
                             style: TextStyle(
                               fontSize: 11,
                               color: widget.subTextColor,
@@ -948,25 +947,24 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> with SingleTick
   Widget _buildEventIcon(MatchEvent event) {
     IconData icon;
     Color color;
-    
-    switch (event.type) {
-      case 'GOAL':
-        icon = Ionicons.football;
-        color = Colors.green;
-        break;
-      case 'CARD':
-        icon = Ionicons.card;
-        color = Colors.red;
-        break;
-      case 'SUBSTITUTION':
-        icon = Ionicons.swap_horizontal;
-        color = const Color(0xFF2374E1);
-        break;
-      default:
-        icon = Ionicons.information_circle;
-        color = widget.subTextColor;
+
+    if (event.type == 'Goal') {
+      icon = Symbols.sports_soccer;
+      color = Colors.green;
+    } else if (event.detail == 'Yellow Card') {
+      icon = Symbols.style;
+      color = Colors.yellow.shade700;
+    } else if (event.detail == 'Red Card') {
+      icon = Symbols.style;
+      color = Colors.red;
+    } else if (event.type == 'subst') {
+      icon = Symbols.swap_horiz;
+      color = const Color(0xFF2374E1);
+    } else {
+      icon = Symbols.info;
+      color = widget.subTextColor;
     }
-    
+
     return Container(
       width: 32,
       height: 32,
