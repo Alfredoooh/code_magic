@@ -22,11 +22,39 @@ class _MainScaffoldState extends State<MainScaffold> with TickerProviderStateMix
   late Animation<double> _drawerSlideAnimation;
   late Animation<double> _contentSlideAnimation;
 
-  final PageController _pageController = PageController();
+  // Lista de widgets para manter o estado
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    
+    // Inicializa as telas uma única vez
+    _screens = [
+      FeedScreen(
+        bgColor: _bgColor,
+        surfaceColor: _surfaceColor,
+        textColor: _textColor,
+        subTextColor: _subTextColor,
+        borderColor: _borderColor,
+        isDarkTheme: _isDarkTheme,
+      ),
+      MatchesScreen(
+        bgColor: _bgColor,
+        surfaceColor: _surfaceColor,
+        textColor: _textColor,
+        subTextColor: _subTextColor,
+        borderColor: _borderColor,
+      ),
+      TvScreen(
+        bgColor: _bgColor,
+        surfaceColor: _surfaceColor,
+        textColor: _textColor,
+        subTextColor: _subTextColor,
+        borderColor: _borderColor,
+      ),
+    ];
+    
     _drawerAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
@@ -42,7 +70,6 @@ class _MainScaffoldState extends State<MainScaffold> with TickerProviderStateMix
   @override
   void dispose() {
     _drawerAnimationController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -63,7 +90,6 @@ class _MainScaffoldState extends State<MainScaffold> with TickerProviderStateMix
 
   void _onBottomNavTap(int index) {
     setState(() => _selectedBottomTab = index);
-    _pageController.jumpToPage(index);
   }
 
   @override
@@ -94,38 +120,12 @@ class _MainScaffoldState extends State<MainScaffold> with TickerProviderStateMix
                               bgColor: _bgColor,
                               borderColor: _borderColor,
                               textColor: _textColor,
+                              isDarkTheme: _isDarkTheme,
                             ),
                             Expanded(
-                              child: PageView(
-                                controller: _pageController,
-                                physics: const NeverScrollableScrollPhysics(),
-                                onPageChanged: (index) {
-                                  setState(() => _selectedBottomTab = index);
-                                },
-                                children: [
-                                  FeedScreen(
-                                    bgColor: _bgColor,
-                                    surfaceColor: _surfaceColor,
-                                    textColor: _textColor,
-                                    subTextColor: _subTextColor,
-                                    borderColor: _borderColor,
-                                    isDarkTheme: _isDarkTheme,
-                                  ),
-                                  MatchesScreen(
-                                    bgColor: _bgColor,
-                                    surfaceColor: _surfaceColor,
-                                    textColor: _textColor,
-                                    subTextColor: _subTextColor,
-                                    borderColor: _borderColor,
-                                  ),
-                                  TvScreen(
-                                    bgColor: _bgColor,
-                                    surfaceColor: _surfaceColor,
-                                    textColor: _textColor,
-                                    subTextColor: _subTextColor,
-                                    borderColor: _borderColor,
-                                  ),
-                                ],
+                              child: IndexedStack(
+                                index: _selectedBottomTab,
+                                children: _screens,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -166,9 +166,6 @@ class _MainScaffoldState extends State<MainScaffold> with TickerProviderStateMix
                     isDarkTheme: _isDarkTheme,
                     onThemeToggle: () {
                       setState(() => _isDarkTheme = !_isDarkTheme);
-                    },
-                    onRefresh: () {
-                      // Callback para refresh do feed
                     },
                     onClose: _toggleDrawer,
                     surfaceColor: _surfaceColor,
