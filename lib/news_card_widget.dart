@@ -37,19 +37,19 @@ class NewsCardWidgets {
     return '${date.day}/${date.month}';
   }
 
-  // CARD PRINCIPAL COM BACKGROUND BLUR
+  // CARD PRINCIPAL COM BACKGROUND BLUR - VERSÃO COMPACTA
   Widget buildNewsCard(NewsArticle article) {
     return GestureDetector(
       onTap: () => onTapUrl(article.link),
       child: Container(
         decoration: BoxDecoration(
           color: _surfaceColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -59,122 +59,78 @@ class NewsCardWidgets {
             if (article.hasImage)
               Positioned.fill(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    children: [
-                      // Imagem de fundo com blur
-                      CachedNetworkImage(
-                        imageUrl: article.imageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                        errorWidget: (context, url, error) => Container(color: _borderColor),
-                        imageBuilder: (context, imageProvider) {
-                          return Container(
+                  borderRadius: BorderRadius.circular(16),
+                  child: CachedNetworkImage(
+                    imageUrl: article.imageUrl!,
+                    fit: BoxFit.cover,
+                    httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                    errorWidget: (context, url, error) => Container(color: _borderColor),
+                    imageBuilder: (context, imageProvider) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: imageProvider,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                          child: Container(
                             decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: imageProvider,
-                                fit: BoxFit.cover,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  _surfaceColor.withOpacity(0.88),
+                                  _surfaceColor.withOpacity(0.94),
+                                  _surfaceColor.withOpacity(0.97),
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
                               ),
                             ),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      _surfaceColor.withOpacity(0.85), // Mais transparente no topo
-                                      _surfaceColor.withOpacity(0.92), // Menos transparente no meio
-                                      _surfaceColor.withOpacity(0.96), // Menos transparente embaixo
-                                    ],
-                                    stops: const [0.0, 0.5, 1.0],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
-            
+
             // Conteúdo do card
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (article.hasImage)
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        child: CachedNetworkImage(
-                          imageUrl: article.imageUrl!,
-                          height: 220,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                          placeholder: (context, url) => Container(
-                            height: 220,
-                            color: _borderColor,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) {
-                            return Container(
-                              height: 220,
-                              color: _borderColor,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Ionicons.image_outline, size: 48, color: _subTextColor),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Imagem indisponível',
-                                    style: TextStyle(fontSize: 12, color: _subTextColor),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: CachedNetworkImage(
+                      imageUrl: article.imageUrl!,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                      placeholder: (context, url) => Container(
+                        height: 160,
+                        color: _borderColor,
+                        child: const Center(child: CircularProgressIndicator()),
                       ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          height: 36,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withOpacity(isDarkTheme ? 0.02 : 0.0),
-                                Colors.black.withOpacity(isDarkTheme ? 0.55 : 0.10),
-                              ],
-                              stops: const [0.0, 1.0],
-                            ),
-                          ),
-                        ),
+                      errorWidget: (context, url, error) => Container(
+                        height: 160,
+                        color: _borderColor,
+                        child: Icon(Ionicons.image_outline, size: 40, color: _subTextColor),
                       ),
-                    ],
+                    ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Container(
-                            width: 22,
-                            height: 22,
+                            width: 16,
+                            height: 16,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _borderColor.withOpacity(0.5),
@@ -182,65 +138,68 @@ class NewsCardWidgets {
                             child: ClipOval(
                               child: CachedNetworkImage(
                                 imageUrl: article.source.favicon,
-                                width: 22,
-                                height: 22,
+                                width: 16,
+                                height: 16,
                                 fit: BoxFit.cover,
                                 httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                                 errorWidget: (context, url, error) => Icon(
                                   Ionicons.globe_outline,
-                                  size: 12,
+                                  size: 10,
                                   color: _subTextColor,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            article.source.name,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _subTextColor,
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              article.source.name,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _subTextColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (article.pubDate != null) ...[
-                            Text(' · ', style: TextStyle(color: _subTextColor)),
+                            Text(' · ', style: TextStyle(color: _subTextColor, fontSize: 11)),
                             Text(
                               _formatTime(article.pubDate!),
-                              style: TextStyle(fontSize: 12, color: _subTextColor),
+                              style: TextStyle(fontSize: 11, color: _subTextColor),
                             ),
                           ],
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () => onTranslate(article),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Icon(Ionicons.language_outline, size: 18, color: _subTextColor),
-                            ),
+                            child: Icon(Ionicons.language_outline, size: 16, color: _subTextColor),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Text(
                         getTranslatedTitle(article) ?? article.title,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                           height: 1.3,
                           color: _textColor,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if ((article.description != null && article.description!.isNotEmpty) || 
                           getTranslatedDescription(article) != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           getTranslatedDescription(article) ?? (article.description ?? ''),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             height: 1.4,
                             color: _subTextColor,
                           ),
-                          maxLines: 3,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -262,10 +221,10 @@ class NewsCardWidgets {
       child: Container(
         decoration: BoxDecoration(
           color: _surfaceColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.06),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -275,47 +234,24 @@ class NewsCardWidgets {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (article.hasImage)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                    child: CachedNetworkImage(
-                      imageUrl: article.imageUrl!,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      httpHeaders: {'User-Agent': 'Mozilla/5.0'},
-                      placeholder: (context, url) => Container(
-                        height: 100,
-                        color: _borderColor,
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 100,
-                        color: _borderColor,
-                        child: Icon(Ionicons.image_outline, color: _subTextColor),
-                      ),
-                    ),
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                child: CachedNetworkImage(
+                  imageUrl: article.imageUrl!,
+                  height: 90,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  httpHeaders: {'User-Agent': 'Mozilla/5.0'},
+                  placeholder: (context, url) => Container(
+                    height: 90,
+                    color: _borderColor,
                   ),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 14,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(isDarkTheme ? 0.35 : 0.08),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 90,
+                    color: _borderColor,
+                    child: Icon(Ionicons.image_outline, size: 30, color: _subTextColor),
                   ),
-                ],
+                ),
               ),
             Expanded(
               child: Padding(
@@ -326,8 +262,8 @@ class NewsCardWidgets {
                     Row(
                       children: [
                         Container(
-                          width: 20,
-                          height: 20,
+                          width: 14,
+                          height: 14,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: _borderColor,
@@ -335,19 +271,19 @@ class NewsCardWidgets {
                           child: ClipOval(
                             child: CachedNetworkImage(
                               imageUrl: article.source.favicon,
-                              width: 20,
-                              height: 20,
+                              width: 14,
+                              height: 14,
                               fit: BoxFit.cover,
                               httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                               errorWidget: (context, url, error) => Icon(
                                 Ionicons.globe_outline,
-                                size: 12,
+                                size: 8,
                                 color: _subTextColor,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             article.source.name,
@@ -362,7 +298,7 @@ class NewsCardWidgets {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Expanded(
                       child: Text(
                         getTranslatedTitle(article) ?? article.title,
@@ -391,17 +327,17 @@ class NewsCardWidgets {
     return GestureDetector(
       onTap: () => onTapUrl(article.link),
       child: Container(
-        width: 200,
+        width: 180,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           color: _surfaceColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.06),
               blurRadius: 10,
               offset: const Offset(0, 2),
-            ),
+            ],
           ],
         ),
         padding: const EdgeInsets.all(12),
@@ -411,8 +347,8 @@ class NewsCardWidgets {
             Row(
               children: [
                 Container(
-                  width: 18,
-                  height: 18,
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _borderColor,
@@ -420,13 +356,13 @@ class NewsCardWidgets {
                   child: ClipOval(
                     child: CachedNetworkImage(
                       imageUrl: article.source.favicon,
-                      width: 18,
-                      height: 18,
+                      width: 14,
+                      height: 14,
                       fit: BoxFit.cover,
                       httpHeaders: {'User-Agent': 'Mozilla/5.0'},
                       errorWidget: (context, url, error) => Icon(
                         Ionicons.globe_outline,
-                        size: 10,
+                        size: 8,
                         color: _subTextColor,
                       ),
                     ),
@@ -437,7 +373,7 @@ class NewsCardWidgets {
                   child: Text(
                     article.source.name,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: _subTextColor,
                     ),
@@ -452,7 +388,7 @@ class NewsCardWidgets {
               child: Text(
                 getTranslatedTitle(article) ?? article.title,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
                   color: _textColor,
@@ -465,7 +401,7 @@ class NewsCardWidgets {
               const SizedBox(height: 4),
               Text(
                 _formatTime(article.pubDate!),
-                style: TextStyle(fontSize: 11, color: _subTextColor),
+                style: TextStyle(fontSize: 10, color: _subTextColor),
               ),
             ],
           ],
@@ -495,7 +431,7 @@ class NewsCardWidgets {
   // LISTA HORIZONTAL
   Widget buildHorizontalNewsList(List<NewsArticle> articles) {
     return SizedBox(
-      height: 140,
+      height: 130,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
