@@ -175,32 +175,39 @@ class FootballMatch {
   final int id;
   final String homeTeam;
   final String awayTeam;
-  final String? homeTeamLogo;
-  final String? awayTeamLogo;
+  final String? homeTeamCrest;  // Mantém compatibilidade
+  final String? awayTeamCrest;  // Mantém compatibilidade
   final int? homeScore;
   final int? awayScore;
   final String statusShort;
   final String statusLong;
   final int? elapsed;
-  final String league;
-  final String? leagueLogo;
-  final DateTime date;
+  final String competition;  // Mantém compatibilidade
+  final String? competitionEmblem;  // Mantém compatibilidade
+  final DateTime utcDate;  // Mantém compatibilidade
   final String? venue;
+  
+  // Getters para compatibilidade adicional
+  String get league => competition;
+  String? get leagueLogo => competitionEmblem;
+  DateTime get date => utcDate;
+  String? get homeTeamLogo => homeTeamCrest;
+  String? get awayTeamLogo => awayTeamCrest;
 
   FootballMatch({
     required this.id,
     required this.homeTeam,
     required this.awayTeam,
-    this.homeTeamLogo,
-    this.awayTeamLogo,
+    this.homeTeamCrest,
+    this.awayTeamCrest,
     this.homeScore,
     this.awayScore,
     required this.statusShort,
     required this.statusLong,
     this.elapsed,
-    required this.league,
-    this.leagueLogo,
-    required this.date,
+    required this.competition,
+    this.competitionEmblem,
+    required this.utcDate,
     this.venue,
   });
 
@@ -209,16 +216,16 @@ class FootballMatch {
       id: json['fixture']['id'],
       homeTeam: json['teams']['home']['name'],
       awayTeam: json['teams']['away']['name'],
-      homeTeamLogo: json['teams']['home']['logo'],
-      awayTeamLogo: json['teams']['away']['logo'],
+      homeTeamCrest: json['teams']['home']['logo'],
+      awayTeamCrest: json['teams']['away']['logo'],
       homeScore: json['goals']['home'],
       awayScore: json['goals']['away'],
       statusShort: json['fixture']['status']['short'],
       statusLong: json['fixture']['status']['long'],
       elapsed: json['fixture']['status']['elapsed'],
-      league: json['league']['name'],
-      leagueLogo: json['league']['logo'],
-      date: DateTime.parse(json['fixture']['date']),
+      competition: json['league']['name'],
+      competitionEmblem: json['league']['logo'],
+      utcDate: DateTime.parse(json['fixture']['date']),
       venue: json['fixture']['venue']?['name'],
     );
   }
@@ -237,8 +244,8 @@ class FootballMatch {
   String get timeDisplay {
     if (isLive && elapsed != null) return "$elapsed'";
     if (isFinished) return getStatusText(statusShort);
-    final hour = date.toLocal().hour.toString().padLeft(2, '0');
-    final minute = date.toLocal().minute.toString().padLeft(2, '0');
+    final hour = utcDate.toLocal().hour.toString().padLeft(2, '0');
+    final minute = utcDate.toLocal().minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
 
