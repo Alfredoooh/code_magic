@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/football_api_service.dart';
-import 'match_details_screen.dart';
+import 'match_detail_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   final Color bgColor;
