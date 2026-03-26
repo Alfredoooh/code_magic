@@ -45,3 +45,4 @@ flutter build ios --release
 # Web
 flutter build web --release
 ```
+ 
