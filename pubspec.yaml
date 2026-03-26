@@ -22,9 +22,18 @@ dependencies:
   #webview_flutter: ^4.4.2
   #translator: ^0.1.7
   #palette_generator: any
-  ionicons: ^0.2.2
-  google_fonts: ^6.2.1
-  shared_preferences: ^2.2.2
+  #ionicons: ^0.2.2
+  #google_fonts: ^6.2.1
+  #shared_preferences: ^2.2.2
+  cupertino_icons: any
+  flutter_lucide: any
+  provider: any
+  shared_preferences: any
+  uuid: any
+  intl: any
+  flutter_slidable: any
+  animations: any
+  google_fonts: any
   
 dev_dependencies:
   flutter_test:
