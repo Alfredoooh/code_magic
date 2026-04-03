@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+/*import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -54,6 +54,61 @@ class TaskFlowApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
       home: const SplashScreen(),
+    );
+  }
+}
+*/
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoApp(
+      home: MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Cupertino Modal Example'),
+      ),
+      child: SafeArea(
+        child: Center(
+          child: CupertinoButton.filled(
+            child: Text('Show Modal'),
+            onPressed: () {
+              // Mostrar o modal do Cupertino quando o botão for pressionado
+              showCupertinoModalPopup(
+                context: context,
+                builder: (context) {
+                  return CupertinoActionSheet(
+                    title: Text('Cupertino Modal'),
+                    message: Text('Este é um modal no estilo Cupertino!'),
+                    actions: <Widget>[
+                      CupertinoActionSheetAction(
+                        child: Text('Fechar'),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }
