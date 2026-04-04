@@ -34,12 +34,12 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  double _dragStartValue = 0.0;
-
-  static const Duration _duration = Duration(milliseconds: 320);
+  static const Duration _duration = Duration(milliseconds: 260);
   static const Curve _curve = Curves.easeOutCubic;
 
-  // Mantém as tuas melhorias: -20% na descida, -30% nas bordas.
+  // Mantém as tuas melhorias:
+  // - tela desce menos 20%
+  // - bordas curvas menos 30%
   static const double _screenScaleOpen = 0.945;
   static const double _screenEdgeOpen = 14.0 * 0.8;
   static const double _screenRadiusOpen = 18.0 * 0.7;
@@ -83,33 +83,32 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen>
   }
 
   void _onDragStart(DragStartDetails details) {
-    _dragStartValue = _controller.value;
+    _controller.stop();
   }
 
   void _onDragUpdate(DragUpdateDetails details, double dragDistance) {
     final delta = details.primaryDelta ?? 0.0;
 
-    // Arrastar para baixo reduz o progresso do modal.
-    final nextValue = (_dragStartValue - (delta / dragDistance)).clamp(0.0, 1.0);
-
-    // Atualização direta: segue o dedo sem “saltos”.
+    // Arrastar para baixo fecha, arrastar para cima abre.
+    // Atualização direta = segue o dedo sem travar nem saltar.
+    final nextValue = (_controller.value - (delta / dragDistance)).clamp(0.0, 1.0);
     _controller.value = nextValue;
   }
 
   void _onDragEnd(DragEndDetails details) {
-    final primaryVelocity = details.primaryVelocity ?? 0.0;
+    final velocity = details.primaryVelocity ?? 0.0;
 
-    // Swipe forte fecha/abre imediatamente.
-    if (primaryVelocity > 700) {
+    // Swipe forte.
+    if (velocity > 700) {
       close();
       return;
     }
-    if (primaryVelocity < -700) {
+    if (velocity < -700) {
       open();
       return;
     }
 
-    // Caso normal: fecha ou abre conforme o ponto atual.
+    // Decide pela posição final.
     if (_controller.value < 0.5) {
       close();
     } else {
@@ -122,84 +121,94 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen>
     final media = MediaQuery.of(context);
     final sheetTravel = media.size.height * 0.60;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final p = _controller.value;
+    return PopScope(
+      canPop: _controller.value <= 0.0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _controller.value > 0.0) {
+          close();
+        }
+      },
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final p = _controller.value;
 
-        // Progresso contínuo para o gesto.
-        final easedP = Curves.easeOutCubic.transform(p);
+          // Durante o gesto, usa progresso cru.
+          // Só o settle final usa a animação suave.
+          final screenTop = ui.lerpDouble(
+            0.0,
+            media.padding.top + _screenEdgeOpen,
+            p,
+          )!;
+          final screenBottom = ui.lerpDouble(0.0, _screenEdgeOpen, p)!;
+          final screenScale = ui.lerpDouble(1.0, _screenScaleOpen, p)!;
+          final screenRadius = ui.lerpDouble(0.0, _screenRadiusOpen, p)!;
 
-        final screenTop = ui.lerpDouble(0.0, media.padding.top + _screenEdgeOpen, easedP)!;
-        final screenBottom = ui.lerpDouble(0.0, _screenEdgeOpen, easedP)!;
-        final screenScale = ui.lerpDouble(1.0, _screenScaleOpen, easedP)!;
-        final screenRadius = ui.lerpDouble(0.0, _screenRadiusOpen, easedP)!;
+          final sheetOffsetY = (1.0 - p) * sheetTravel;
+          final sheetOpacity = p;
+          final sheetShadowOpacity = ui.lerpDouble(0.0, 0.10, p)!;
+          final sheetRadius = ui.lerpDouble(_sheetRadiusClosed, _sheetRadiusOpen, p)!;
 
-        final sheetOffsetY = (1.0 - easedP) * sheetTravel;
-        final sheetOpacity = easedP;
-        final sheetShadowOpacity = ui.lerpDouble(0.0, 0.10, easedP)!;
-        final sheetRadius = ui.lerpDouble(_sheetRadiusClosed, _sheetRadiusOpen, easedP)!;
-
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: p > 0.5
-              ? const SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: Brightness.light,
-                  statusBarBrightness: Brightness.dark,
-                )
-              : const SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: Brightness.dark,
-                  statusBarBrightness: Brightness.light,
-                ),
-          child: Scaffold(
-            backgroundColor: Colors.black,
-            body: Stack(
-              children: [
-                // Tela principal.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: screenTop,
-                  bottom: screenBottom,
-                  child: Transform.scale(
-                    scale: screenScale,
-                    alignment: Alignment.center,
-                    child: RepaintBoundary(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(screenRadius),
-                          boxShadow: p > 0
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.18),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 10),
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: p > 0.5
+                ? const SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.light,
+                    statusBarBrightness: Brightness.dark,
+                  )
+                : const SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.dark,
+                    statusBarBrightness: Brightness.light,
+                  ),
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: screenTop,
+                    bottom: screenBottom,
+                    child: Transform.scale(
+                      scale: screenScale,
+                      alignment: Alignment.center,
+                      child: RepaintBoundary(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(screenRadius),
+                            boxShadow: p > 0
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.18),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ]
+                                : const [],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(screenRadius),
+                            child: SafeArea(
+                              child: Center(
+                                child: ElevatedButton(
+                                  onPressed: toggle,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF111111),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 22,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
                                   ),
-                                ]
-                              : const [],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(screenRadius),
-                          child: SafeArea(
-                            child: Center(
-                              child: ElevatedButton(
-                                onPressed: toggle,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF111111),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 22,
-                                    vertical: 14,
+                                  child: Text(
+                                    p > 0.5 ? 'Expandir tela' : 'Reduzir tela',
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                child: Text(
-                                  p > 0.5 ? 'Expandir tela' : 'Reduzir tela',
                                 ),
                               ),
                             ),
@@ -208,177 +217,173 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen>
                       ),
                     ),
                   ),
-                ),
 
-                // Fundo escuro.
-                IgnorePointer(
-                  ignoring: p <= 0.01,
-                  child: Opacity(
-                    opacity: p * 0.32,
-                    child: GestureDetector(
-                      onTap: close,
-                      child: Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        color: Colors.black,
+                  IgnorePointer(
+                    ignoring: p <= 0.01,
+                    child: Opacity(
+                      opacity: p * 0.32,
+                      child: GestureDetector(
+                        onTap: close,
+                        child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                // Sheet inferior.
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: IgnorePointer(
-                    ignoring: p <= 0.01,
-                    child: Opacity(
-                      opacity: sheetOpacity,
-                      child: Transform.translate(
-                        offset: Offset(0, sheetOffsetY),
-                        child: SafeArea(
-                          top: false,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: 540,
-                              minWidth: media.size.width,
-                              maxHeight: media.size.height * 0.52,
-                            ),
-                            child: RepaintBoundary(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF5F5F7).withOpacity(0.98),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(sheetRadius),
-                                    topRight: Radius.circular(sheetRadius),
-                                  ),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.55),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(sheetShadowOpacity),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, -6),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: IgnorePointer(
+                      ignoring: p <= 0.01,
+                      child: Opacity(
+                        opacity: sheetOpacity,
+                        child: Transform.translate(
+                          offset: Offset(0, sheetOffsetY),
+                          child: SafeArea(
+                            top: false,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: 540,
+                                minWidth: media.size.width,
+                                maxHeight: media.size.height * 0.52,
+                              ),
+                              child: RepaintBoundary(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F5F7).withOpacity(0.98),
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(sheetRadius),
+                                      topRight: Radius.circular(sheetRadius),
                                     ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(sheetRadius),
-                                    topRight: Radius.circular(sheetRadius),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.max,
-                                    children: [
-                                      GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onVerticalDragStart: _onDragStart,
-                                        onVerticalDragUpdate: (details) {
-                                          _onDragUpdate(details, sheetTravel);
-                                        },
-                                        onVerticalDragEnd: _onDragEnd,
-                                        child: Column(
-                                          children: [
-                                            const SizedBox(height: 10),
-                                            Container(
-                                              width: 40,
-                                              height: 4,
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF3C3C43)
-                                                    .withOpacity(0.25),
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 14),
-                                          ],
-                                        ),
-                                      ),
-                                      const Text(
-                                        'iOS Paper Sheet',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF111111),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 20),
-                                        child: Text(
-                                          'O modal sobe ao mesmo tempo que a tela encolhe.',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            height: 1.45,
-                                            color: Color(0xB8000000),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 18),
-                                      Expanded(
-                                        child: SingleChildScrollView(
-                                          padding: const EdgeInsets.fromLTRB(
-                                            18,
-                                            0,
-                                            18,
-                                            18,
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  TextButton(
-                                                    onPressed: close,
-                                                    style: TextButton.styleFrom(
-                                                      backgroundColor:
-                                                          const Color(0xFFE9E9EE),
-                                                      foregroundColor:
-                                                          const Color(0xFF111111),
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                        horizontal: 18,
-                                                        vertical: 12,
-                                                      ),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(12),
-                                                      ),
-                                                    ),
-                                                    child: const Text('Fechar'),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  TextButton(
-                                                    onPressed: () {},
-                                                    style: TextButton.styleFrom(
-                                                      backgroundColor:
-                                                          const Color(0xFF0A84FF),
-                                                      foregroundColor: Colors.white,
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                        horizontal: 18,
-                                                        vertical: 12,
-                                                      ),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(12),
-                                                      ),
-                                                    ),
-                                                    child: const Text('Confirmar'),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 18),
-                                            ],
-                                          ),
-                                        ),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.55),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(sheetShadowOpacity),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, -6),
                                       ),
                                     ],
                                   ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(sheetRadius),
+                                      topRight: Radius.circular(sheetRadius),
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.max,
+                                      children: [
+                                        GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onVerticalDragStart: _onDragStart,
+                                          onVerticalDragUpdate: (details) {
+                                            _onDragUpdate(details, sheetTravel);
+                                          },
+                                          onVerticalDragEnd: _onDragEnd,
+                                          child: Column(
+                                            children: [
+                                              const SizedBox(height: 10),
+                                              Container(
+                                                width: 40,
+                                                height: 4,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF3C3C43)
+                                                      .withOpacity(0.25),
+                                                  borderRadius: BorderRadius.circular(999),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 14),
+                                            ],
+                                          ),
+                                        ),
+                                        const Text(
+                                          'iOS Paper Sheet',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF111111),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 20),
+                                          child: Text(
+                                            'O modal sobe ao mesmo tempo que a tela encolhe.',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              height: 1.45,
+                                              color: Color(0xB8000000),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 18),
+                                        Expanded(
+                                          child: SingleChildScrollView(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              18,
+                                              0,
+                                              18,
+                                              18,
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    TextButton(
+                                                      onPressed: close,
+                                                      style: TextButton.styleFrom(
+                                                        backgroundColor:
+                                                            const Color(0xFFE9E9EE),
+                                                        foregroundColor:
+                                                            const Color(0xFF111111),
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                          horizontal: 18,
+                                                          vertical: 12,
+                                                        ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(12),
+                                                        ),
+                                                      ),
+                                                      child: const Text('Fechar'),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    TextButton(
+                                                      onPressed: () {},
+                                                      style: TextButton.styleFrom(
+                                                        backgroundColor:
+                                                            const Color(0xFF0A84FF),
+                                                        foregroundColor: Colors.white,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                          horizontal: 18,
+                                                          vertical: 12,
+                                                        ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(12),
+                                                        ),
+                                                      ),
+                                                      child: const Text('Confirmar'),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 18),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -387,12 +392,12 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen>
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
