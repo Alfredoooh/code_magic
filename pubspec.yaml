@@ -25,26 +25,34 @@ dependencies:
   #ionicons: ^0.2.2
   #google_fonts: ^6.2.1
   #shared_preferences: ^2.2.2
-  cupertino_icons: any
-  flutter_lucide: any
-  provider: any
-  shared_preferences: any
-  uuid: any
-  intl: any
-  flutter_slidable: any
-  animations: any
-  google_fonts: any
-  
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: any
+  http: ^1.2.0
+  crypto: ^3.0.3
+  shared_preferences: ^2.2.2
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon/icon.png
-    - assets/logo.png
+    - assets/config/appconfig.json
+    - assets/favicon.png
+    - assets/icons/sport_icon_football.png
+    - assets/icons/sport_icon_basketball.png
+    - assets/icons/sport_icon_tennis.png
+    - assets/icons/sport_icon_handball.png
+    - assets/icons/sport_icon_volleyball.png
+    - assets/icons/sport_icon_hockey.png
+    - assets/icons/sport_icon_rugby.png
+    - assets/icons/sport_icon_baseball.png
+    - assets/icons/sport_icon_boxe.png
+    - assets/icons/sport_icon_golf.png
+    - assets/icons/sport_icon_cricket.png
+    - assets/icons/sport_icon_pingpong.png
+    - assets/icons/sport_icon_waterpolo.png
+    - assets/icons/sport_icon_badminton.png
+    - assets/icons/sport_icon_bike.png
+    - assets/icons/sport_icon_moto.png
+    - assets/icons/sport_icon_helmet.png
+    - assets/icons/sport_icon_footus.png
+    - assets/icons/sport_icon_default.png
 
 flutter_native_splash:
   color: "#FFFFFF"
