@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MyApp());
@@ -44,86 +45,105 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final media = MediaQuery.of(context);
+    final topInset = media.padding.top;
+
     const duration = Duration(milliseconds: 320);
     const curve = Curves.easeOutCubic;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          AnimatedContainer(
-            duration: duration,
-            curve: curve,
-            margin: EdgeInsets.all(isOpen ? 12 : 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(isOpen ? 16 : 0),
-              boxShadow: isOpen
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.18),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
-                      ),
-                    ]
-                  : [],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isOpen
+          ? const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+              statusBarBrightness: Brightness.dark,
+            )
+          : const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
             ),
-            child: SafeArea(
-              child: Center(
-                child: ElevatedButton(
-                  onPressed: toggle,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF111111),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(isOpen ? 'Expandir tela' : 'Reduzir tela'),
-                ),
-              ),
-            ),
-          ),
-
-          AnimatedOpacity(
-            duration: duration,
-            curve: curve,
-            opacity: isOpen ? 1 : 0,
-            child: IgnorePointer(
-              ignoring: !isOpen,
-              child: GestureDetector(
-                onTap: close,
-                child: Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: Colors.black.withOpacity(0.32),
-                ),
-              ),
-            ),
-          ),
-
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: AnimatedSlide(
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            AnimatedPositioned(
               duration: duration,
               curve: curve,
-              offset: isOpen ? Offset.zero : const Offset(0, 1.1),
-              child: AnimatedOpacity(
+              left: 0,
+              right: 0,
+              top: isOpen ? topInset + 12 : 0,
+              bottom: isOpen ? 12 : 0,
+              child: AnimatedContainer(
                 duration: duration,
                 curve: curve,
-                opacity: isOpen ? 1 : 0,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(isOpen ? 16 : 0),
+                  boxShadow: isOpen
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.18),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: SafeArea(
+                  child: Center(
+                    child: ElevatedButton(
+                      onPressed: toggle,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF111111),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(isOpen ? 'Expandir tela' : 'Reduzir tela'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            AnimatedOpacity(
+              duration: duration,
+              curve: curve,
+              opacity: isOpen ? 1 : 0,
+              child: IgnorePointer(
+                ignoring: !isOpen,
+                child: GestureDetector(
+                  onTap: close,
+                  child: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.black.withOpacity(0.32),
+                  ),
+                ),
+              ),
+            ),
+
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: AnimatedSlide(
+                duration: duration,
+                curve: curve,
+                offset: isOpen ? Offset.zero : const Offset(0, 1.1),
+                child: AnimatedOpacity(
+                  duration: duration,
+                  curve: curve,
+                  opacity: isOpen ? 1 : 0,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxWidth: 540,
-                      minWidth: size.width,
+                      minWidth: media.size.width,
                     ),
                     child: Container(
                       decoration: BoxDecoration(
@@ -225,8 +245,8 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
