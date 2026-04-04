@@ -12,9 +12,7 @@ class DrawerApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: const DrawerHomePage(),
-      theme: ThemeData(
-        useMaterial3: true,
-      ),
+      theme: ThemeData(useMaterial3: true),
     );
   }
 }
@@ -42,72 +40,13 @@ class _DrawerHomePageState extends State<DrawerHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Drawer
-          AnimatedPositioned(
-            duration: animDuration,
-            curve: animCurve,
-            top: 0,
-            bottom: 0,
-            left: isOpen ? 0 : -drawerWidth,
-            width: drawerWidth,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF4F4F4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.12),
-                    blurRadius: 14,
-                    offset: Offset(2, 0),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  SizedBox(height: 40),
-                  Text(
-                    'Menu',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111111),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Divider(height: 1, color: Color.fromRGBO(0, 0, 0, 0.08)),
-                  _DrawerItem(title: 'Início'),
-                  _DrawerItem(title: 'Perfil'),
-                  _DrawerItem(title: 'Configurações'),
-                  _DrawerItem(title: 'Sair'),
-                ],
-              ),
-            ),
-          ),
-
-          // Overlay
-          AnimatedOpacity(
-            duration: animDuration,
-            curve: animCurve,
-            opacity: isOpen ? 1.0 : 0.0,
-            child: IgnorePointer(
-              ignoring: !isOpen,
-              child: GestureDetector(
-                onTap: toggleDrawer,
-                child: Container(
-                  color: const Color.fromRGBO(0, 0, 0, 0.18),
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
-            ),
-          ),
-
-          // App content
+          // App content primeiro, para ficar atrás
           AnimatedPositioned(
             duration: animDuration,
             curve: animCurve,
@@ -119,21 +58,24 @@ class _DrawerHomePageState extends State<DrawerHomePage> {
               color: Colors.white,
               child: Column(
                 children: [
-                  Container(
-                    height: 60,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.centerLeft,
-                    color: Colors.white,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: toggleDrawer,
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          alignment: Alignment.center,
-                          child: const IconMenu(),
+                  SafeArea(
+                    bottom: false,
+                    child: Container(
+                      height: 60,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.centerLeft,
+                      color: Colors.white,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: toggleDrawer,
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: const IconMenu(),
+                          ),
                         ),
                       ),
                     ),
@@ -154,6 +96,71 @@ class _DrawerHomePageState extends State<DrawerHomePage> {
               ),
             ),
           ),
+
+          // Overlay no meio
+          AnimatedOpacity(
+            duration: animDuration,
+            curve: animCurve,
+            opacity: isOpen ? 1.0 : 0.0,
+            child: IgnorePointer(
+              ignoring: !isOpen,
+              child: GestureDetector(
+                onTap: toggleDrawer,
+                child: Container(
+                  color: const Color.fromRGBO(0, 0, 0, 0.18),
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
+            ),
+          ),
+
+          // Drawer por cima de tudo
+          AnimatedPositioned(
+            duration: animDuration,
+            curve: animCurve,
+            top: 0,
+            bottom: 0,
+            left: isOpen ? 0 : -drawerWidth,
+            width: drawerWidth,
+            child: Container(
+              padding: EdgeInsets.only(
+                top: topPadding + 20,
+                left: 20,
+                right: 20,
+                bottom: 20,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF4F4F4),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.12),
+                    blurRadius: 14,
+                    offset: Offset(2, 0),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Menu',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111111),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Divider(height: 1, color: Color.fromRGBO(0, 0, 0, 0.08)),
+                  _DrawerItem(title: 'Início'),
+                  _DrawerItem(title: 'Perfil'),
+                  _DrawerItem(title: 'Configurações'),
+                  _DrawerItem(title: 'Sair'),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -170,7 +177,10 @@ class _DrawerItem extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Color.fromRGBO(0, 0, 0, 0.08), width: 1),
+          bottom: BorderSide(
+            color: Color.fromRGBO(0, 0, 0, 0.08),
+            width: 1,
+          ),
         ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 12),
