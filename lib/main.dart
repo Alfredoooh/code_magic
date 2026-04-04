@@ -31,13 +31,8 @@ class AnimatedSheetScreen extends StatefulWidget {
 class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
   bool isOpen = false;
 
-  void toggle() {
-    setState(() => isOpen = !isOpen);
-  }
-
-  void close() {
-    setState(() => isOpen = false);
-  }
+  void toggle() => setState(() => isOpen = !isOpen);
+  void close() => setState(() => isOpen = false);
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +40,9 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
 
     const duration = Duration(milliseconds: 320);
     const curve = Curves.easeOutCubic;
+
+    final screenTop = isOpen ? media.padding.top + 14.0 : 0.0;
+    final screenBottom = isOpen ? 14.0 : 0.0;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isOpen
@@ -62,46 +60,52 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            Center(
-              child: AnimatedContainer(
+            AnimatedPositioned(
+              duration: duration,
+              curve: curve,
+              left: 0,
+              right: 0,
+              top: screenTop,
+              bottom: screenBottom,
+              child: AnimatedScale(
                 duration: duration,
                 curve: curve,
-                width: media.size.width,
-                height: media.size.height,
-                transformAlignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..translate(0.0, isOpen ? 12.0 : 0.0)
-                  ..scale(isOpen ? 0.965 : 1.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(isOpen ? 16 : 0),
-                  boxShadow: isOpen
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
-                            blurRadius: 24,
-                            offset: const Offset(0, 10),
+                scale: isOpen ? 0.945 : 1.0,
+                alignment: Alignment.center,
+                child: AnimatedContainer(
+                  duration: duration,
+                  curve: curve,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(isOpen ? 18 : 0),
+                    boxShadow: isOpen
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: SafeArea(
+                    child: Center(
+                      child: ElevatedButton(
+                        onPressed: toggle,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF111111),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 22,
+                            vertical: 14,
                           ),
-                        ]
-                      : [],
-                ),
-                child: SafeArea(
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: toggle,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF111111),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 14,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        child: Text(isOpen ? 'Expandir tela' : 'Reduzir tela'),
                       ),
-                      child: Text(isOpen ? 'Expandir tela' : 'Reduzir tela'),
                     ),
                   ),
                 ),
@@ -130,42 +134,47 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
               child: AnimatedSlide(
                 duration: duration,
                 curve: curve,
-                offset: isOpen ? Offset.zero : const Offset(0, 1.1),
+                offset: isOpen ? Offset.zero : const Offset(0, 1.12),
                 child: AnimatedOpacity(
                   duration: duration,
                   curve: curve,
                   opacity: isOpen ? 1 : 0,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: 540,
-                      minWidth: media.size.width,
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7).withOpacity(0.98),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(isOpen ? 14 : 16),
-                          topRight: Radius.circular(isOpen ? 14 : 16),
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.55),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isOpen ? 0.10 : 0.0),
-                            blurRadius: 16,
-                            offset: const Offset(0, -6),
-                          ),
-                        ],
+                  child: SafeArea(
+                    top: false,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: 540,
+                        minWidth: media.size.width,
+                        maxHeight: media.size.height * 0.52,
                       ),
-                      child: SafeArea(
-                        top: false,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F7).withOpacity(0.98),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(isOpen ? 16 : 18),
+                            topRight: Radius.circular(isOpen ? 16 : 18),
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.55),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isOpen ? 0.10 : 0.0),
+                              blurRadius: 16,
+                              offset: const Offset(0, -6),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(isOpen ? 16 : 18),
+                            topRight: Radius.circular(isOpen ? 16 : 18),
+                          ),
                           child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisSize: MainAxisSize.max,
                             children: [
+                              const SizedBox(height: 10),
                               Container(
                                 width: 40,
                                 height: 4,
@@ -185,51 +194,64 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              const Text(
-                                'O modal sobe ao mesmo tempo que a tela encolhe.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  height: 1.45,
-                                  color: Color(0xB8000000),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20),
+                                child: Text(
+                                  'O modal sobe ao mesmo tempo que a tela encolhe.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    height: 1.45,
+                                    color: Color(0xB8000000),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  TextButton(
-                                    onPressed: close,
-                                    style: TextButton.styleFrom(
-                                      backgroundColor: const Color(0xFFE9E9EE),
-                                      foregroundColor: const Color(0xFF111111),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 12,
+                              const SizedBox(height: 18),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          TextButton(
+                                            onPressed: close,
+                                            style: TextButton.styleFrom(
+                                              backgroundColor: const Color(0xFFE9E9EE),
+                                              foregroundColor: const Color(0xFF111111),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 18,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                            child: const Text('Fechar'),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          TextButton(
+                                            onPressed: () {},
+                                            style: TextButton.styleFrom(
+                                              backgroundColor: const Color(0xFF0A84FF),
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 18,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                            child: const Text('Confirmar'),
+                                          ),
+                                        ],
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text('Fechar'),
+                                      const SizedBox(height: 18),
+                                    ],
                                   ),
-                                  const SizedBox(width: 10),
-                                  TextButton(
-                                    onPressed: () {},
-                                    style: TextButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0A84FF),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text('Confirmar'),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
