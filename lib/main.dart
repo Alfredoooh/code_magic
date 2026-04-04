@@ -32,21 +32,16 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
   bool isOpen = false;
 
   void toggle() {
-    setState(() {
-      isOpen = !isOpen;
-    });
+    setState(() => isOpen = !isOpen);
   }
 
   void close() {
-    setState(() {
-      isOpen = false;
-    });
+    setState(() => isOpen = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final topInset = media.padding.top;
 
     const duration = Duration(milliseconds: 320);
     const curve = Curves.easeOutCubic;
@@ -67,16 +62,16 @@ class _AnimatedSheetScreenState extends State<AnimatedSheetScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            AnimatedPositioned(
-              duration: duration,
-              curve: curve,
-              left: 0,
-              right: 0,
-              top: isOpen ? topInset + 12 : 0,
-              bottom: isOpen ? 12 : 0,
+            Center(
               child: AnimatedContainer(
                 duration: duration,
                 curve: curve,
+                width: media.size.width,
+                height: media.size.height,
+                transformAlignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..translate(0.0, isOpen ? 12.0 : 0.0)
+                  ..scale(isOpen ? 0.965 : 1.0),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(isOpen ? 16 : 0),
