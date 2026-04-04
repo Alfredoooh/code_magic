@@ -30,159 +30,55 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _sheetController;
-  bool _sheetOpen = false;
+  late final AnimationController _drawerController;
+  bool _drawerOpen = false;
+
+  static const double _drawerWidth = 280;
 
   @override
   void initState() {
     super.initState();
-    _sheetController = AnimationController(
+    _drawerController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
-      reverseDuration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 420),
+      reverseDuration: const Duration(milliseconds: 420),
     );
   }
 
   @override
   void dispose() {
-    _sheetController.dispose();
+    _drawerController.dispose();
     super.dispose();
   }
 
-  Future<void> _openSheet() async {
-    if (_sheetOpen) return;
-
-    setState(() {
-      _sheetOpen = true;
-    });
-
-    try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: false,
-        isDismissible: true,
-        enableDrag: true,
-        backgroundColor: Colors.transparent,
-        barrierColor: Colors.black.withOpacity(0.34),
-        transitionAnimationController: _sheetController,
-        builder: (context) {
-          final media = MediaQuery.of(context);
-
-          return Align(
-            alignment: Alignment.bottomCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 540,
-                minWidth: media.size.width,
-                maxHeight: media.size.height * 0.58,
-              ),
-              child: Material(
-                color: const Color(0xFFF5F5F7),
-                elevation: 0,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      const SizedBox(height: 10),
-                      Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3C3C43).withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'iOS Paper Sheet',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF111111),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: Text(
-                          'Este é um modal real do Flutter, com animação sincronizada com a tela.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 1.45,
-                            color: Color(0xB8000000),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    style: TextButton.styleFrom(
-                                      backgroundColor: const Color(0xFFE9E9EE),
-                                      foregroundColor: const Color(0xFF111111),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text('Fechar'),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  TextButton(
-                                    onPressed: () {},
-                                    style: TextButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0A84FF),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text('Confirmar'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    } finally {
+  Future<void> _toggleDrawer() async {
+    if (_drawerOpen) {
+      await _drawerController.reverse();
       if (mounted) {
-        setState(() {
-          _sheetOpen = false;
-        });
+        setState(() => _drawerOpen = false);
       }
+    } else {
+      if (mounted) {
+        setState(() => _drawerOpen = true);
+      }
+      await _drawerController.forward();
     }
+  }
+
+  Future<void> _closeDrawer() async {
+    if (!_drawerOpen) return;
+    await _drawerController.reverse();
+    if (mounted) {
+      setState(() => _drawerOpen = false);
+    }
+  }
+
+  Future<void> _openDrawer() async {
+    if (_drawerOpen) return;
+    if (mounted) {
+      setState(() => _drawerOpen = true);
+    }
+    await _drawerController.forward();
   }
 
   @override
@@ -190,9 +86,9 @@ class _HomeScreenState extends State<HomeScreen>
     final media = MediaQuery.of(context);
 
     return AnimatedBuilder(
-      animation: _sheetController,
+      animation: _drawerController,
       builder: (context, child) {
-        final t = _sheetController.value;
+        final t = _drawerController.value;
 
         final overlayStyle = t > 0.01
             ? const SystemUiOverlayStyle(
@@ -209,11 +105,77 @@ class _HomeScreenState extends State<HomeScreen>
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: overlayStyle,
           child: Scaffold(
-            backgroundColor: Colors.black,
+            backgroundColor: const Color(0xFF111111),
             body: Stack(
               children: [
+                // Drawer por baixo
+                Positioned.fill(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Transform.translate(
+                      offset: Offset(-_drawerWidth * (1 - t), 0),
+                      child: Container(
+                        width: _drawerWidth,
+                        height: media.size.height,
+                        color: const Color(0xFFF4F4F4),
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Menu',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF111111),
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                _DrawerItem(
+                                  label: 'Início',
+                                  icon: Icons.home_rounded,
+                                  onTap: () => _closeDrawer(),
+                                ),
+                                _DrawerItem(
+                                  label: 'Perfil',
+                                  icon: Icons.person_rounded,
+                                  onTap: () => _closeDrawer(),
+                                ),
+                                _DrawerItem(
+                                  label: 'Configurações',
+                                  icon: Icons.settings_rounded,
+                                  onTap: () => _closeDrawer(),
+                                ),
+                                _DrawerItem(
+                                  label: 'Sair',
+                                  icon: Icons.logout_rounded,
+                                  onTap: () => _closeDrawer(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Overlay escuro
+                if (t > 0)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTap: _closeDrawer,
+                      child: Container(
+                        color: Colors.black.withOpacity(0.18 * t),
+                      ),
+                    ),
+                  ),
+
+                // Tela principal
                 Transform.translate(
-                  offset: Offset(0, 14 * t),
+                  offset: Offset(110 * t, 0),
                   child: Transform.scale(
                     scale: 1 - (0.055 * t),
                     alignment: Alignment.center,
@@ -234,25 +196,154 @@ class _HomeScreenState extends State<HomeScreen>
                             : [],
                       ),
                       child: SafeArea(
-                        child: Center(
-                          child: ElevatedButton(
-                            onPressed: _sheetOpen ? null : _openSheet,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF111111),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 22,
-                                vertical: 14,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              height: 60,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: _drawerOpen
+                                          ? _closeDrawer
+                                          : _openDrawer,
+                                      child: Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(
+                                          Icons.menu_rounded,
+                                          size: 28,
+                                          color: Color(0xFF111111),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text(
+                                      'Tela principal',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF111111),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            child: Text(
-                              _sheetOpen ? 'A abrir...' : 'Reduzir tela',
+                            Expanded(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Texto qualquer 1',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF111111),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        'Texto qualquer 2: este conteúdo pode ser substituído depois pelo teu layout real.',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          height: 1.5,
+                                          color: Color(0xB8000000),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 18),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF5F5F7),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: const Text(
+                                          'Texto qualquer 3 dentro de um cartão simples.',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF111111),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF5F5F7),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: const Text(
+                                          'Texto qualquer 4. Aqui podes colocar botões, listas, imagens ou outras secções.',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF111111),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF5F5F7),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: const Text(
+                                          'Texto qualquer 5. O drawer abre por cima e a tela faz o deslocamento com animação suave.',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF111111),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      ElevatedButton(
+                                        onPressed: _drawerOpen
+                                            ? _closeDrawer
+                                            : _openDrawer,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF111111),
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 22,
+                                            vertical: 14,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _drawerOpen
+                                              ? 'Fechar menu'
+                                              : 'Abrir menu',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
@@ -263,6 +354,45 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       },
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _DrawerItem({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFF222222), size: 22),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF222222),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
