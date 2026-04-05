@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../widgets/match_card.dart';
-import '../widgets/sport_chip.dart';
+import 'sport_chip.dart';
 
 class SportsTab extends StatelessWidget {
   const SportsTab({super.key});
