@@ -45,7 +45,7 @@ class ElephantBetApp extends StatelessWidget {
             const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: const Color(0xFF1A3A6E),
           elevation: 0,
           shape: RoundedRectangleBorder(
