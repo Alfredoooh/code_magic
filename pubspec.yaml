@@ -1,63 +1,29 @@
-name: printerNet
-description: 
+name: doction_editor
+description: Document editor - pixel perfect Flutter port
 publish_to: 'none'
-version: 1.2.0+5
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.0.0"
+  flutter: '>=3.10.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  flutter_quill: ^10.8.4
+  google_fonts: ^6.2.1
+  http: ^1.2.1
+  file_picker: ^8.0.3
+  image_picker: ^1.1.2
+  path_provider: ^2.1.3
+  share_plus: ^9.0.0
+  printing: ^5.13.1
+  pdf: ^3.11.1
 
-  #flutter_svg: ^2.0.9
-  #animations: ^2.0.11
-  #material_symbols_icons: ^4.2785.1
-  #ionicons: any
-  #xml: ^6.3.0
-  #intl: ^0.18.1
-  #cached_network_image: ^3.3.0
-  #url_launcher: ^6.2.1
-  #webview_flutter: ^4.4.2
-  #translator: ^0.1.7
-  #palette_generator: any
-  #ionicons: ^0.2.2
-  #google_fonts: ^6.2.1
-  #shared_preferences: ^2.2.2
-  http: ^1.2.0
-  provider: any
-  crypto: ^3.0.3
-  shared_preferences: ^2.2.2
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/config/appconfig.json
-    - assets/favicon.png
-    - assets/icons/sport_icon_football.png
-    - assets/icons/sport_icon_basketball.png
-    - assets/icons/sport_icon_tennis.png
-    - assets/icons/sport_icon_handball.png
-    - assets/icons/sport_icon_volleyball.png
-    - assets/icons/sport_icon_hockey.png
-    - assets/icons/sport_icon_rugby.png
-    - assets/icons/sport_icon_baseball.png
-    - assets/icons/sport_icon_boxe.png
-    - assets/icons/sport_icon_golf.png
-    - assets/icons/sport_icon_cricket.png
-    - assets/icons/sport_icon_pingpong.png
-    - assets/icons/sport_icon_waterpolo.png
-    - assets/icons/sport_icon_badminton.png
-    - assets/icons/sport_icon_bike.png
-    - assets/icons/sport_icon_moto.png
-    - assets/icons/sport_icon_helmet.png
-    - assets/icons/sport_icon_footus.png
-    - assets/icons/sport_icon_default.png
-
-flutter_native_splash:
-  color: "#FFFFFF"
-  image: assets/icon/icon.png
-  android: true
-  ios: true
-  web: true
