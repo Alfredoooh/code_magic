@@ -225,10 +225,10 @@ class _EditorScreenState extends State<EditorScreen>
   void _onQcChange() {
     final style = _qc.getSelectionStyle();
     setState(() {
-      _isBold = style.containsKey(Attribute.bold);
-      _isItalic = style.containsKey(Attribute.italic);
-      _isUnderline = style.containsKey(Attribute.underline);
-      _isStrike = style.containsKey(Attribute.strikeThrough);
+      _isBold = style.containsKey(Attribute.bold.key);
+      _isItalic = style.containsKey(Attribute.italic.key);
+      _isUnderline = style.containsKey(Attribute.underline.key);
+      _isStrike = style.containsKey(Attribute.strikeThrough.key);
       final align = style.attributes[Attribute.align.key];
       _currentAlign = align?.value ?? 'left';
       final color = style.attributes['color'];
@@ -318,12 +318,12 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _setFontFamily(String family) {
-    _exec(FontFamilyAttribute(family));
+    _exec(Attribute.fromKeyValue('font', family));
     setState(() => _currentFont = family);
   }
 
   void _setFontSize(int size) {
-    _exec(SizeAttribute(size.toDouble()));
+    _exec(Attribute.fromKeyValue('size', size.toString()));
     setState(() => _currentSize = size);
   }
 
@@ -424,9 +424,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _insertTable() {
     _closePopup();
-    // Insert a simple table as HTML-like text block
     final index = _qc.selection.baseOffset;
-    // Quill doesn't natively support tables, we insert a visual representation
     final tableText =
         '┌──────────┬──────────┬──────────┐\n│          │          │          │\n├──────────┼──────────┼──────────┤\n│          │          │          │\n├──────────┼──────────┼──────────┤\n│          │          │          │\n└──────────┴──────────┴──────────┘\n';
     _qc.document.insert(index, tableText);
@@ -435,7 +433,7 @@ class _EditorScreenState extends State<EditorScreen>
   void _insertHR() {
     _closePopup();
     final index = _qc.selection.baseOffset;
-    _qc.document.insert(index, BlockEmbed.horizontalRule);
+    _qc.document.insert(index, BlockEmbed.custom('divider', 'hr'));
   }
 
   void _insertDateTime() {
@@ -471,7 +469,6 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _setLineHeight(double h) {
-    // Line height via custom attribute
     _closePopup();
   }
 
@@ -536,7 +533,6 @@ class _EditorScreenState extends State<EditorScreen>
     final triggerOffset = triggerBox.localToGlobal(Offset.zero);
     final triggerSize = triggerBox.size;
 
-    // Position above the trigger
     double left = triggerOffset.dx + triggerSize.width / 2 - width / 2;
     left = left.clamp(8.0, screenSize.width - width - 8);
 
@@ -647,7 +643,7 @@ class _EditorScreenState extends State<EditorScreen>
           child: _FormatPopup(
             onCase: _transformCase,
             onSuperscript: () {
-              _exec(Attribute.superScript);
+              _exec(Attribute.superscript);
               _closePopup();
             },
             onSubscript: () {
@@ -880,7 +876,7 @@ class _EditorScreenState extends State<EditorScreen>
       controller: _qc,
       focusNode: _editorFocus,
       scrollController: _editorScroll,
-      config: QuillEditorConfig(
+      configurations: QuillEditorConfigurations(
         scrollable: false,
         autoFocus: false,
         expands: false,
@@ -948,8 +944,10 @@ class _EditorScreenState extends State<EditorScreen>
           ),
         ),
         selectionColor: const Color(0xFFBFDBFE),
-        cursorColor: T.accent,
-        cursorWidth: 2,
+        cursorStyle: const CursorStyle(
+          color: T.accent,
+          width: 2,
+        ),
       ),
     );
   }
@@ -1443,7 +1441,6 @@ class _SpringCurve extends Curve {
   const _SpringCurve();
   @override
   double transform(double t) {
-    // Approximate cubic-bezier(.34,1.56,.64,1)
     return 1.0 + (t - 1.0) * (t - 1.0) * ((1.56 + 1) * (t - 1.0) + 1.56);
   }
 }
@@ -2139,7 +2136,7 @@ class _StylesPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = [
-      (Icons.format_paragraph, 'Parágrafo', 'p'),
+      (Icons.subject_rounded, 'Parágrafo', 'p'),
       (Icons.title, 'Título 1', 'h1'),
       (Icons.format_size, 'Título 2', 'h2'),
       (Icons.text_fields, 'Título 3', 'h3'),
