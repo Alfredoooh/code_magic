@@ -16,6 +16,33 @@ import 'drawer_item.dart';
 import 'ai_dots.dart';
 import 'font_fullscreen.dart';
 
+// ─── EMBED CLASSES ────────────────────────────────────────────────────────────
+
+class DividerBlockEmbed extends CustomBlockEmbed {
+  const DividerBlockEmbed() : super('divider', '');
+}
+
+class DividerEmbedBuilder extends EmbedBuilder {
+  @override
+  String get key => 'divider';
+
+  @override
+  Widget build(
+    BuildContext context,
+    QuillController controller,
+    Embed node,
+    bool readOnly,
+    bool inline,
+    TextStyle textStyle,
+  ) {
+    return const Divider(
+      height: 32,
+      thickness: 1,
+      color: Color(0xFFE5E5E5),
+    );
+  }
+}
+
 // ─── EDITOR SCREEN ────────────────────────────────────────────────────────────
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key});
@@ -102,7 +129,6 @@ class _EditorScreenState extends State<EditorScreen>
   void _onQcChange() {
     final style = _qc.getSelectionStyle();
     setState(() {
-      // FIX: containsKey recebe String em v10.x — usar .key
       _isBold = style.containsKey(Attribute.bold.key);
       _isItalic = style.containsKey(Attribute.italic.key);
       _isUnderline = style.containsKey(Attribute.underline.key);
@@ -112,8 +138,9 @@ class _EditorScreenState extends State<EditorScreen>
       final color = style.attributes['color'];
       if (color?.value != null) {
         try {
-          _currentColor =
-              Color(int.parse('FF${color!.value.toString().replaceAll('#', '')}', radix: 16));
+          _currentColor = Color(int.parse(
+              'FF${color!.value.toString().replaceAll('#', '')}',
+              radix: 16));
         } catch (_) {}
       }
       final size = style.attributes[Attribute.size.key];
@@ -144,7 +171,6 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  // Format operations
   void _exec(Attribute attr) {
     _qc.formatSelection(attr);
   }
@@ -196,13 +222,11 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _setFontFamily(String family) {
-    // FIX: FontFamilyAttribute não existe em v10.x — usar FontAttribute
     _exec(FontAttribute(family));
     setState(() => _currentFont = family);
   }
 
   void _setFontSize(int size) {
-    // FIX: SizeAttribute(double) não existe em v10.x — usar SizeAttribute com String
     _exec(SizeAttribute('$size'));
     setState(() => _currentSize = size);
   }
@@ -256,7 +280,8 @@ class _EditorScreenState extends State<EditorScreen>
         final c = TextEditingController();
         return AlertDialog(
           backgroundColor: T.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Text('Link', style: T.dmSans(size: 15, w: FontWeight.w600)),
           content: TextField(
             controller: c,
@@ -277,7 +302,8 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, c.text),
-              child: Text('OK', style: T.dmSans(color: T.accent, w: FontWeight.w600)),
+              child: Text('OK',
+                  style: T.dmSans(color: T.accent, w: FontWeight.w600)),
             ),
           ],
         );
@@ -313,7 +339,6 @@ class _EditorScreenState extends State<EditorScreen>
   void _insertHR() {
     _closePopup();
     final index = _qc.selection.baseOffset;
-    // FIX: BlockEmbed.horizontalRule não existe em v10.x — usar BlockEmbed.custom com CustomBlockEmbed
     _qc.document.insert(index, BlockEmbed.custom(const DividerBlockEmbed()));
   }
 
@@ -422,8 +447,10 @@ class _EditorScreenState extends State<EditorScreen>
         left: left,
         bottom: screenSize.height - triggerOffset.dy + 12,
         width: width,
-        arrowLeft: (triggerOffset.dx + triggerSize.width / 2 - left - 7).clamp(12.0, width - 24.0),
-        originX: (triggerOffset.dx + triggerSize.width / 2 - left).clamp(20.0, width - 20.0),
+        arrowLeft: (triggerOffset.dx + triggerSize.width / 2 - left - 7)
+            .clamp(12.0, width - 24.0),
+        originX: (triggerOffset.dx + triggerSize.width / 2 - left)
+            .clamp(20.0, width - 20.0),
         child: child,
         onDismiss: _closePopup,
       ),
@@ -524,7 +551,6 @@ class _EditorScreenState extends State<EditorScreen>
           child: FormatPopup(
             onCase: _transformCase,
             onSuperscript: () {
-              // FIX: Attribute.superScript → Attribute.superscript (minúsculo)
               _exec(Attribute.superscript);
               _closePopup();
             },
@@ -585,22 +611,20 @@ class _EditorScreenState extends State<EditorScreen>
           builder: (ctx, _) {
             return Stack(
               children: [
-                // ── MAIN APP ──────────────────────────────────
                 Transform.translate(
                   offset: Offset(_appSlide.value, 0),
                   child: _buildMainApp(),
                 ),
-                // ── OVERLAY ───────────────────────────────────
                 if (_drawerOpen)
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: _closeDrawer,
                       child: Container(
-                        color: Color.fromRGBO(0, 0, 0, _overlayOpacity.value),
+                        color:
+                            Color.fromRGBO(0, 0, 0, _overlayOpacity.value),
                       ),
                     ),
                   ),
-                // ── DRAWER ────────────────────────────────────
                 Transform.translate(
                   offset: Offset(_drawerSlide.value, 0),
                   child: _buildDrawer(),
@@ -624,7 +648,6 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  // ── TOPBAR ────────────────────────────────────────────────────────────────
   Widget _buildTopbar() {
     return SafeArea(
       bottom: false,
@@ -638,7 +661,6 @@ class _EditorScreenState extends State<EditorScreen>
           height: 52,
           child: Stack(
             children: [
-              // Menu button
               Positioned(
                 left: 6,
                 top: 4,
@@ -647,7 +669,6 @@ class _EditorScreenState extends State<EditorScreen>
                   onTap: _toggleDrawer,
                 ),
               ),
-              // Title
               Positioned.fill(
                 child: Center(
                   child: GestureDetector(
@@ -656,12 +677,17 @@ class _EditorScreenState extends State<EditorScreen>
                       child: TextField(
                         controller: _titleCtrl,
                         textAlign: TextAlign.center,
-                        style: T.dmSans(size: 15, w: FontWeight.w600),
+                        style:
+                            T.dmSans(size: 15, w: FontWeight.w600),
                         decoration: InputDecoration(
                           hintText: 'Sem título',
-                          hintStyle: T.dmSans(size: 15, w: FontWeight.w600, color: T.muted),
+                          hintStyle: T.dmSans(
+                              size: 15,
+                              w: FontWeight.w600,
+                              color: T.muted),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           isDense: true,
                         ),
                         maxLines: 1,
@@ -670,7 +696,6 @@ class _EditorScreenState extends State<EditorScreen>
                   ),
                 ),
               ),
-              // Undo/Redo
               Positioned(
                 right: 6,
                 top: 4,
@@ -694,30 +719,30 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  // ── CANVAS ────────────────────────────────────────────────────────────────
   Widget _buildCanvas() {
-  return LayoutBuilder(
-    builder: (ctx, constraints) {
-      final double availableWidth = constraints.maxWidth - 32;
-      final double scale = availableWidth < 794 ? availableWidth / 794 : 1.0;
-      return SingleChildScrollView(
-        // ← usa um ScrollController SEPARADO do editor
-        controller: _editorScroll,
-        padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-        child: Center(
-          child: Transform.scale(
-            scale: scale,
-            alignment: Alignment.topCenter,
-            child: SizedBox(
-              width: 794,
-              child: _a4Mode ? _buildA4Pages() : _buildScrollPage(),
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final double availableWidth = constraints.maxWidth - 32;
+        final double scale =
+            availableWidth < 794 ? availableWidth / 794 : 1.0;
+        return SingleChildScrollView(
+          controller: _editorScroll,
+          padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+          child: Center(
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: 794,
+                child:
+                    _a4Mode ? _buildA4Pages() : _buildScrollPage(),
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   Widget _buildScrollPage() {
     return Container(
@@ -727,8 +752,14 @@ class _EditorScreenState extends State<EditorScreen>
         color: T.surface,
         borderRadius: BorderRadius.circular(4),
         boxShadow: const [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1)),
-          BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 3,
+              offset: Offset(0, 1)),
+          BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 20,
+              offset: Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.fromLTRB(88, 96, 88, 120),
@@ -744,8 +775,14 @@ class _EditorScreenState extends State<EditorScreen>
         color: T.surface,
         borderRadius: BorderRadius.circular(4),
         boxShadow: const [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1)),
-          BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 3,
+              offset: Offset(0, 1)),
+          BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 20,
+              offset: Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.fromLTRB(88, 96, 88, 96),
@@ -754,67 +791,74 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Widget _buildEditor() {
-  return QuillEditor.basic(
-    controller: _qc,
-    focusNode: _editorFocus,
-    configurations: QuillEditorConfigurations(
-      // scrollable: false porque o scroll é feito pelo SingleChildScrollView pai
-      scrollable: false,
-      autoFocus: false,
-      expands: false,
-      padding: EdgeInsets.zero,
-      placeholder: 'Começa a escrever…',
-      embedBuilders: [DividerEmbedBuilder()],
-      customStyles: DefaultStyles(
-        paragraph: DefaultTextBlockStyle(
-          GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.ink),
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(0, 0),
-          const VerticalSpacing(0, 0),
-          null,
-        ),
-        h1: DefaultTextBlockStyle(
-          GoogleFonts.lora(
-              fontSize: 28, fontWeight: FontWeight.w700, color: T.ink),
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(8, 4),
-          const VerticalSpacing(0, 0),
-          null,
-        ),
-        h2: DefaultTextBlockStyle(
-          GoogleFonts.lora(
-              fontSize: 22, fontWeight: FontWeight.w600, color: T.ink),
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(6, 3),
-          const VerticalSpacing(0, 0),
-          null,
-        ),
-        h3: DefaultTextBlockStyle(
-          GoogleFonts.lora(
-              fontSize: 18, fontWeight: FontWeight.w600, color: T.ink),
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(4, 2),
-          const VerticalSpacing(0, 0),
-          null,
-        ),
-        bold: const TextStyle(fontWeight: FontWeight.w700),
-        italic: const TextStyle(fontStyle: FontStyle.italic),
-        underline: const TextStyle(decoration: TextDecoration.underline),
-        strikeThrough:
-            const TextStyle(decoration: TextDecoration.lineThrough),
-        placeHolder: DefaultTextBlockStyle(
-          GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.muted),
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(0, 0),
-          const VerticalSpacing(0, 0),
-          null,
+    return QuillEditor.basic(
+      controller: _qc,
+      focusNode: _editorFocus,
+      configurations: QuillEditorConfigurations(
+        scrollable: false,
+        autoFocus: false,
+        expands: false,
+        padding: EdgeInsets.zero,
+        placeholder: 'Começa a escrever…',
+        embedBuilders: [DividerEmbedBuilder()],
+        customStyles: DefaultStyles(
+          paragraph: DefaultTextBlockStyle(
+            GoogleFonts.lora(
+                fontSize: 16, height: 1.85, color: T.ink),
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            null,
+          ),
+          h1: DefaultTextBlockStyle(
+            GoogleFonts.lora(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: T.ink),
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(8, 4),
+            const VerticalSpacing(0, 0),
+            null,
+          ),
+          h2: DefaultTextBlockStyle(
+            GoogleFonts.lora(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: T.ink),
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(6, 3),
+            const VerticalSpacing(0, 0),
+            null,
+          ),
+          h3: DefaultTextBlockStyle(
+            GoogleFonts.lora(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: T.ink),
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(4, 2),
+            const VerticalSpacing(0, 0),
+            null,
+          ),
+          bold: const TextStyle(fontWeight: FontWeight.w700),
+          italic: const TextStyle(fontStyle: FontStyle.italic),
+          underline:
+              const TextStyle(decoration: TextDecoration.underline),
+          strikeThrough:
+              const TextStyle(decoration: TextDecoration.lineThrough),
+          placeHolder: DefaultTextBlockStyle(
+            GoogleFonts.lora(
+                fontSize: 16, height: 1.85, color: T.muted),
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            null,
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  // ── DRAWER ────────────────────────────────────────────────────────────────
   Widget _buildDrawer() {
     return Positioned(
       left: 0,
@@ -835,11 +879,12 @@ class _EditorScreenState extends State<EditorScreen>
           ),
           child: Column(
             children: [
-              // Header
               Container(
-                padding: const EdgeInsets.fromLTRB(20, 52, 20, 14),
+                padding:
+                    const EdgeInsets.fromLTRB(20, 52, 20, 14),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: T.divider)),
+                  border: Border(
+                      bottom: BorderSide(color: T.divider)),
                 ),
                 child: Text(
                   'Funcionalidades',
@@ -850,42 +895,50 @@ class _EditorScreenState extends State<EditorScreen>
                   ),
                 ),
               ),
-              // Items
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
                     children: [
                       Container(
                         decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide(color: T.divider)),
+                          border: Border(
+                              bottom:
+                                  BorderSide(color: T.divider)),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
+                          padding:
+                              const EdgeInsets.only(bottom: 8),
                           child: Column(
                             children: [
                               DrawerItem(
-                                icon: _aiMode ? LucideIcons.bot : LucideIcons.keyboard,
-                                label: _aiMode ? 'IA ativa' : 'Toolbar / IA',
+                                icon: _aiMode
+                                    ? LucideIcons.bot
+                                    : LucideIcons.keyboard,
+                                label: _aiMode
+                                    ? 'IA ativa'
+                                    : 'Toolbar / IA',
                                 isActive: _aiMode,
                                 onTap: () {
                                   _closeDrawer();
                                   setState(() {
-                                    if (_aiMode) {
-                                      _aiMode = false;
-                                    } else {
-                                      _aiMode = true;
-                                    }
+                                    _aiMode = !_aiMode;
                                   });
                                 },
                               ),
                               DrawerItem(
-                                icon: _a4Mode ? LucideIcons.layoutGrid : LucideIcons.fileText,
-                                label: _a4Mode ? 'Formato: A4' : 'Formato: Scroll',
+                                icon: _a4Mode
+                                    ? LucideIcons.layoutGrid
+                                    : LucideIcons.fileText,
+                                label: _a4Mode
+                                    ? 'Formato: A4'
+                                    : 'Formato: Scroll',
                                 isActive: _a4Mode,
                                 onTap: () {
-                                  setState(() => _a4Mode = !_a4Mode);
+                                  setState(
+                                      () => _a4Mode = !_a4Mode);
                                   _closeDrawer();
                                 },
                               ),
@@ -904,7 +957,6 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  // ── FLOATING TOOLBAR ─────────────────────────────────────────────────────
   Widget _buildFloatingToolbar() {
     return SafeArea(
       top: false,
@@ -912,7 +964,8 @@ class _EditorScreenState extends State<EditorScreen>
         padding: EdgeInsets.only(
           left: 8,
           right: 8,
-          bottom: math.max(14, MediaQuery.of(context).padding.bottom + 4),
+          bottom: math.max(
+              14, MediaQuery.of(context).padding.bottom + 4),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
@@ -939,11 +992,13 @@ class _EditorScreenState extends State<EditorScreen>
               child: Row(
                 children: [
                   Expanded(
-                    child: _aiMode ? _buildAIRow() : _buildTbButtons(),
+                    child: _aiMode
+                        ? _buildAIRow()
+                        : _buildTbButtons(),
                   ),
-                  // Confirm / Send button
                   Padding(
-                    padding: const EdgeInsets.only(right: 6, left: 2),
+                    padding: const EdgeInsets.only(
+                        right: 6, left: 2),
                     child: GestureDetector(
                       onTap: () {
                         if (_aiMode) {
@@ -954,22 +1009,32 @@ class _EditorScreenState extends State<EditorScreen>
                         }
                       },
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration:
+                            const Duration(milliseconds: 200),
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: _aiMode ? T.accent : T.surface,
-                          borderRadius: BorderRadius.circular(999),
+                          color: _aiMode
+                              ? T.accent
+                              : T.surface,
+                          borderRadius:
+                              BorderRadius.circular(999),
                           border: Border.all(
-                            color: _aiMode ? Colors.transparent : T.divider,
+                            color: _aiMode
+                                ? Colors.transparent
+                                : T.divider,
                           ),
                         ),
                         child: _aiLoading
                             ? const Center(child: AiDots())
                             : Icon(
-                                _aiMode ? LucideIcons.send : LucideIcons.check,
+                                _aiMode
+                                    ? LucideIcons.send
+                                    : LucideIcons.check,
                                 size: 16,
-                                color: _aiMode ? Colors.white : T.sub,
+                                color: _aiMode
+                                    ? Colors.white
+                                    : T.sub,
                               ),
                       ),
                     ),
@@ -1005,7 +1070,6 @@ class _EditorScreenState extends State<EditorScreen>
   Widget _buildTbButtons() {
     return Stack(
       children: [
-        // Left fade
         Positioned(
           left: 0,
           top: 0,
@@ -1019,13 +1083,15 @@ class _EditorScreenState extends State<EditorScreen>
                   bottomLeft: Radius.circular(999),
                 ),
                 gradient: LinearGradient(
-                  colors: [Colors.white.withOpacity(0.97), Colors.transparent],
+                  colors: [
+                    Colors.white.withOpacity(0.97),
+                    Colors.transparent
+                  ],
                 ),
               ),
             ),
           ),
         ),
-        // Right fade
         Positioned(
           right: 0,
           top: 0,
@@ -1037,7 +1103,10 @@ class _EditorScreenState extends State<EditorScreen>
                 gradient: LinearGradient(
                   begin: Alignment.centerRight,
                   end: Alignment.centerLeft,
-                  colors: [Colors.white.withOpacity(0.97), Colors.transparent],
+                  colors: [
+                    Colors.white.withOpacity(0.97),
+                    Colors.transparent
+                  ],
                 ),
               ),
             ),
@@ -1045,16 +1114,17 @@ class _EditorScreenState extends State<EditorScreen>
         ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 6),
           child: Row(
             children: [
-              // Color
-              Builder(builder: (ctx) => TbColorBtn(
-                color: _currentColor,
-                onTap: () => _onTbBtnTap(ctx, 'color-text'),
-              )),
+              Builder(
+                  builder: (ctx) => TbColorBtn(
+                        color: _currentColor,
+                        onTap: () =>
+                            _onTbBtnTap(ctx, 'color-text'),
+                      )),
               const TbDiv(),
-              // Bold
               TbFmtBtn(
                 label: 'B',
                 bold: true,
@@ -1080,25 +1150,27 @@ class _EditorScreenState extends State<EditorScreen>
                 onTap: _toggleStrike,
               ),
               const TbDiv(),
-              // Font chip
-              Builder(builder: (ctx) => TbChip(
-                label: _currentFont,
-                onTap: () => _onTbBtnTap(ctx, 'font'),
-              )),
-              // Size chip
-              Builder(builder: (ctx) => TbChip(
-                label: '$_currentSize',
-                onTap: () => _onTbBtnTap(ctx, 'size'),
-              )),
+              Builder(
+                  builder: (ctx) => TbChip(
+                        label: _currentFont,
+                        onTap: () =>
+                            _onTbBtnTap(ctx, 'font'),
+                      )),
+              Builder(
+                  builder: (ctx) => TbChip(
+                        label: '$_currentSize',
+                        onTap: () =>
+                            _onTbBtnTap(ctx, 'size'),
+                      )),
               const TbDiv(),
-              // Styles chip
-              Builder(builder: (ctx) => TbChip(
-                label: 'Estilos',
-                icon: LucideIcons.chevronDown,
-                onTap: () => _onTbBtnTap(ctx, 'styles'),
-              )),
+              Builder(
+                  builder: (ctx) => TbChip(
+                        label: 'Estilos',
+                        icon: LucideIcons.chevronDown,
+                        onTap: () =>
+                            _onTbBtnTap(ctx, 'styles'),
+                      )),
               const TbDiv(),
-              // Align
               TbAlignBtn(
                 icon: LucideIcons.alignLeft,
                 active: _currentAlign == 'left',
@@ -1120,25 +1192,35 @@ class _EditorScreenState extends State<EditorScreen>
                 onTap: () => _setAlign('justify'),
               ),
               const TbDiv(),
-              // List
-              TbIconBtnSm(icon: LucideIcons.list, onTap: _insertBulletList),
-              TbIconBtnSm(icon: LucideIcons.listOrdered, onTap: _insertNumberedList),
-              TbIconBtnSm(icon: LucideIcons.indent, onTap: _insertIndent),
-              TbIconBtnSm(icon: LucideIcons.outdent, onTap: () => _exec(Attribute.indentL1)),
+              TbIconBtnSm(
+                  icon: LucideIcons.list,
+                  onTap: _insertBulletList),
+              TbIconBtnSm(
+                  icon: LucideIcons.listOrdered,
+                  onTap: _insertNumberedList),
+              TbIconBtnSm(
+                  icon: LucideIcons.indent,
+                  onTap: _insertIndent),
+              TbIconBtnSm(
+                  icon: LucideIcons.outdent,
+                  onTap: () =>
+                      _exec(Attribute.indentL1)),
               const TbDiv(),
-              // Insert chip
-              Builder(builder: (ctx) => TbChip(
-                label: 'Inserir',
-                icon: LucideIcons.plus,
-                onTap: () => _onTbBtnTap(ctx, 'insert'),
-              )),
+              Builder(
+                  builder: (ctx) => TbChip(
+                        label: 'Inserir',
+                        icon: LucideIcons.plus,
+                        onTap: () =>
+                            _onTbBtnTap(ctx, 'insert'),
+                      )),
               const TbDiv(),
-              // Format chip
-              Builder(builder: (ctx) => TbChip(
-                label: 'Formatar',
-                icon: LucideIcons.settings2,
-                onTap: () => _onTbBtnTap(ctx, 'format'),
-              )),
+              Builder(
+                  builder: (ctx) => TbChip(
+                        label: 'Formatar',
+                        icon: LucideIcons.settings2,
+                        onTap: () =>
+                            _onTbBtnTap(ctx, 'format'),
+                      )),
               const SizedBox(width: 8),
             ],
           ),
@@ -1146,8 +1228,4 @@ class _EditorScreenState extends State<EditorScreen>
       ],
     );
   }
-}
-
-class DividerBlockEmbed extends CustomBlockEmbed {
-  const DividerBlockEmbed() : super('divider', '');
 }
