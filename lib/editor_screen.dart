@@ -102,10 +102,11 @@ class _EditorScreenState extends State<EditorScreen>
   void _onQcChange() {
     final style = _qc.getSelectionStyle();
     setState(() {
-      _isBold = style.containsKey(Attribute.bold);
-      _isItalic = style.containsKey(Attribute.italic);
-      _isUnderline = style.containsKey(Attribute.underline);
-      _isStrike = style.containsKey(Attribute.strikeThrough);
+      // FIX: containsKey recebe String em v10.x — usar .key
+      _isBold = style.containsKey(Attribute.bold.key);
+      _isItalic = style.containsKey(Attribute.italic.key);
+      _isUnderline = style.containsKey(Attribute.underline.key);
+      _isStrike = style.containsKey(Attribute.strikeThrough.key);
       final align = style.attributes[Attribute.align.key];
       _currentAlign = align?.value ?? 'left';
       final color = style.attributes['color'];
@@ -195,12 +196,14 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _setFontFamily(String family) {
-    _exec(FontFamilyAttribute(family));
+    // FIX: FontFamilyAttribute não existe em v10.x — usar Attribute.fromKeyValue
+    _exec(Attribute.fromKeyValue('font', family));
     setState(() => _currentFont = family);
   }
 
   void _setFontSize(int size) {
-    _exec(SizeAttribute(size.toDouble()));
+    // FIX: SizeAttribute(double) não existe em v10.x — usar Attribute.fromKeyValue com String
+    _exec(Attribute.fromKeyValue('size', '$size'));
     setState(() => _currentSize = size);
   }
 
@@ -310,7 +313,8 @@ class _EditorScreenState extends State<EditorScreen>
   void _insertHR() {
     _closePopup();
     final index = _qc.selection.baseOffset;
-    _qc.document.insert(index, BlockEmbed.horizontalRule);
+    // FIX: BlockEmbed.horizontalRule não existe em v10.x — usar BlockEmbed.custom
+    _qc.document.insert(index, BlockEmbed.custom('divider'));
   }
 
   void _insertDateTime() {
@@ -520,7 +524,8 @@ class _EditorScreenState extends State<EditorScreen>
           child: FormatPopup(
             onCase: _transformCase,
             onSuperscript: () {
-              _exec(Attribute.superScript);
+              // FIX: Attribute.superScript → Attribute.superscript (minúsculo)
+              _exec(Attribute.superscript);
               _closePopup();
             },
             onSubscript: () {
@@ -698,7 +703,7 @@ class _EditorScreenState extends State<EditorScreen>
 
         return SingleChildScrollView(
           controller: _editorScroll,
-          padding: EdgeInsets.fromLTRB(16, 28, 16, 200),
+          padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
           child: Center(
             child: Transform.scale(
               scale: scale,
@@ -767,7 +772,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(0, 0),
-            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
+            const VerticalSpacing(0, 0),
             null,
           ),
           h1: DefaultTextBlockStyle(
@@ -778,7 +783,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(8, 4),
-            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
+            const VerticalSpacing(0, 0),
             null,
           ),
           h2: DefaultTextBlockStyle(
@@ -789,7 +794,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(6, 3),
-            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
+            const VerticalSpacing(0, 0),
             null,
           ),
           h3: DefaultTextBlockStyle(
@@ -800,7 +805,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(4, 2),
-            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
+            const VerticalSpacing(0, 0),
             null,
           ),
           bold: const TextStyle(fontWeight: FontWeight.w700),
@@ -815,12 +820,10 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(0, 0),
-            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
+            const VerticalSpacing(0, 0),
             null,
           ),
         ),
-        // REMOVIDO: selectionColor — parâmetro eliminado na v10.x
-        // Usa Theme.of(context).textSelectionTheme.selectionColor se precisares
       ),
     );
   }
