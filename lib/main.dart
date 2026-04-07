@@ -7,6 +7,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
 
 void main() {
@@ -138,6 +139,11 @@ const List<Color> kColors = [
 ];
 
 const List<int> kSizes = [8, 10, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 36, 48, 64, 72];
+
+// ─── CUSTOM BLOCK EMBED FOR DIVIDER ──────────────────────────────────────────
+class DividerEmbed extends CustomBlockEmbed {
+  DividerEmbed() : super('divider', 'hr');
+}
 
 // ─── EDITOR SCREEN ────────────────────────────────────────────────────────────
 class EditorScreen extends StatefulWidget {
@@ -317,13 +323,14 @@ class _EditorScreenState extends State<EditorScreen>
     setState(() => _currentColor = c);
   }
 
+  // FIX 1: Attribute.fromKeyValue returns Attribute? — use ! to unwrap
   void _setFontFamily(String family) {
-    _exec(Attribute.fromKeyValue('font', family));
+    _exec(Attribute.fromKeyValue('font', family)!);
     setState(() => _currentFont = family);
   }
 
   void _setFontSize(int size) {
-    _exec(Attribute.fromKeyValue('size', size.toString()));
+    _exec(Attribute.fromKeyValue('size', size.toString())!);
     setState(() => _currentSize = size);
   }
 
@@ -430,10 +437,11 @@ class _EditorScreenState extends State<EditorScreen>
     _qc.document.insert(index, tableText);
   }
 
+  // FIX 2: BlockEmbed.custom in v10.8.2 takes a CustomBlockEmbed, not two strings
   void _insertHR() {
     _closePopup();
     final index = _qc.selection.baseOffset;
-    _qc.document.insert(index, BlockEmbed.custom('divider', 'hr'));
+    _qc.document.insert(index, BlockEmbed.custom(DividerEmbed()));
   }
 
   void _insertDateTime() {
@@ -761,7 +769,7 @@ class _EditorScreenState extends State<EditorScreen>
                 left: 6,
                 top: 4,
                 child: _TbIconBtn(
-                  icon: Icons.menu_rounded,
+                  icon: LucideIcons.menu,
                   onTap: _toggleDrawer,
                 ),
               ),
@@ -795,11 +803,11 @@ class _EditorScreenState extends State<EditorScreen>
                 child: Row(
                   children: [
                     _TbIconBtn(
-                      icon: Icons.undo_rounded,
+                      icon: LucideIcons.undo2,
                       onTap: () => _qc.undo(),
                     ),
                     _TbIconBtn(
-                      icon: Icons.redo_rounded,
+                      icon: LucideIcons.redo2,
                       onTap: () => _qc.redo(),
                     ),
                   ],
@@ -872,6 +880,8 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Widget _buildEditor() {
+    // FIX 3 & 4: selectionColor moved into QuillEditorConfigurations,
+    // CursorStyle requires backgroundColor parameter
     return QuillEditor(
       controller: _qc,
       focusNode: _editorFocus,
@@ -943,9 +953,12 @@ class _EditorScreenState extends State<EditorScreen>
             null,
           ),
         ),
+        // FIX 3: selectionColor is now a direct param of QuillEditorConfigurations
         selectionColor: const Color(0xFFBFDBFE),
+        // FIX 4: CursorStyle now requires backgroundColor
         cursorStyle: const CursorStyle(
           color: T.accent,
+          backgroundColor: Colors.transparent,
           width: 2,
         ),
       ),
@@ -1004,7 +1017,7 @@ class _EditorScreenState extends State<EditorScreen>
                           child: Column(
                             children: [
                               _DrawerItem(
-                                icon: _aiMode ? Icons.smart_toy_outlined : Icons.keyboard_alt_outlined,
+                                icon: _aiMode ? LucideIcons.bot : LucideIcons.keyboard,
                                 label: _aiMode ? 'IA activa' : 'Toolbar / IA',
                                 isActive: _aiMode,
                                 onTap: () {
@@ -1019,7 +1032,7 @@ class _EditorScreenState extends State<EditorScreen>
                                 },
                               ),
                               _DrawerItem(
-                                icon: _a4Mode ? Icons.grid_view_rounded : Icons.article_outlined,
+                                icon: _a4Mode ? LucideIcons.layoutGrid : LucideIcons.fileText,
                                 label: _a4Mode ? 'Formato: A4' : 'Formato: Scroll',
                                 isActive: _a4Mode,
                                 onTap: () {
@@ -1105,7 +1118,7 @@ class _EditorScreenState extends State<EditorScreen>
                         child: _aiLoading
                             ? const Center(child: _AiDots())
                             : Icon(
-                                _aiMode ? Icons.send_rounded : Icons.check_rounded,
+                                _aiMode ? LucideIcons.sendHorizonal : LucideIcons.check,
                                 size: 16,
                                 color: _aiMode ? Colors.white : T.sub,
                               ),
@@ -1232,49 +1245,49 @@ class _EditorScreenState extends State<EditorScreen>
               // Styles chip
               Builder(builder: (ctx) => _TbChip(
                 label: 'Estilos',
-                icon: Icons.keyboard_arrow_down_rounded,
+                icon: LucideIcons.chevronDown,
                 onTap: () => _onTbBtnTap(ctx, 'styles'),
               )),
               const _TbDiv(),
               // Align
               _TbAlignBtn(
-                icon: Icons.format_align_left_rounded,
+                icon: LucideIcons.alignLeft,
                 active: _currentAlign == 'left',
                 onTap: () => _setAlign('left'),
               ),
               _TbAlignBtn(
-                icon: Icons.format_align_center_rounded,
+                icon: LucideIcons.alignCenter,
                 active: _currentAlign == 'center',
                 onTap: () => _setAlign('center'),
               ),
               _TbAlignBtn(
-                icon: Icons.format_align_right_rounded,
+                icon: LucideIcons.alignRight,
                 active: _currentAlign == 'right',
                 onTap: () => _setAlign('right'),
               ),
               _TbAlignBtn(
-                icon: Icons.format_align_justify_rounded,
+                icon: LucideIcons.alignJustify,
                 active: _currentAlign == 'justify',
                 onTap: () => _setAlign('justify'),
               ),
               const _TbDiv(),
               // List
-              _TbIconBtnSm(icon: Icons.format_list_bulleted_rounded, onTap: _insertBulletList),
-              _TbIconBtnSm(icon: Icons.format_list_numbered_rounded, onTap: _insertNumberedList),
-              _TbIconBtnSm(icon: Icons.format_indent_increase_rounded, onTap: _insertIndent),
-              _TbIconBtnSm(icon: Icons.format_indent_decrease_rounded, onTap: () => _exec(Attribute.indentL1)),
+              _TbIconBtnSm(icon: LucideIcons.list, onTap: _insertBulletList),
+              _TbIconBtnSm(icon: LucideIcons.listOrdered, onTap: _insertNumberedList),
+              _TbIconBtnSm(icon: LucideIcons.indent, onTap: _insertIndent),
+              _TbIconBtnSm(icon: LucideIcons.outdent, onTap: () => _exec(Attribute.indentL1)),
               const _TbDiv(),
               // Insert chip
               Builder(builder: (ctx) => _TbChip(
                 label: 'Inserir',
-                icon: Icons.add_rounded,
+                icon: LucideIcons.plus,
                 onTap: () => _onTbBtnTap(ctx, 'insert'),
               )),
               const _TbDiv(),
               // Format chip
               Builder(builder: (ctx) => _TbChip(
                 label: 'Formatar',
-                icon: Icons.tune_rounded,
+                icon: LucideIcons.sliders,
                 onTap: () => _onTbBtnTap(ctx, 'format'),
               )),
               const SizedBox(width: 8),
@@ -1847,7 +1860,7 @@ class _ColorPopupState extends State<_ColorPopup> {
                     color: _preview,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.check, color: Colors.white, size: 16),
+                  child: const Icon(LucideIcons.check, color: Colors.white, size: 16),
                 ),
               ),
             ],
@@ -1910,7 +1923,7 @@ class _FontPopupState extends State<_FontPopup> {
                     borderRadius: BorderRadius.circular(7),
                     color: Colors.transparent,
                   ),
-                  child: const Icon(Icons.open_in_full_rounded, size: 14, color: T.muted),
+                  child: const Icon(LucideIcons.maximize2, size: 14, color: T.muted),
                 ),
               ),
             ],
@@ -2136,13 +2149,13 @@ class _StylesPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = [
-      (Icons.subject_rounded, 'Parágrafo', 'p'),
-      (Icons.title, 'Título 1', 'h1'),
-      (Icons.format_size, 'Título 2', 'h2'),
-      (Icons.text_fields, 'Título 3', 'h3'),
-      (Icons.short_text, 'Título 4', 'h4'),
-      (Icons.format_quote, 'Citação', 'blockquote'),
-      (Icons.code, 'Código', 'code'),
+      (LucideIcons.alignLeft, 'Parágrafo', 'p'),
+      (LucideIcons.heading1, 'Título 1', 'h1'),
+      (LucideIcons.heading2, 'Título 2', 'h2'),
+      (LucideIcons.heading3, 'Título 3', 'h3'),
+      (LucideIcons.heading4, 'Título 4', 'h4'),
+      (LucideIcons.quote, 'Citação', 'blockquote'),
+      (LucideIcons.code, 'Código', 'code'),
     ];
 
     return Column(
@@ -2191,9 +2204,9 @@ class _InsertPopup extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _PopupItemBtn(icon: Icons.link, label: 'Link', onTap: onLink),
-                _PopupItemBtn(icon: Icons.image_outlined, label: 'Imagem', onTap: onImage),
-                _PopupItemBtn(icon: Icons.table_chart_outlined, label: 'Tabela 3×3', onTap: onTable),
+                _PopupItemBtn(icon: LucideIcons.link, label: 'Link', onTap: onLink),
+                _PopupItemBtn(icon: LucideIcons.image, label: 'Imagem', onTap: onImage),
+                _PopupItemBtn(icon: LucideIcons.table, label: 'Tabela 3×3', onTap: onTable),
               ],
             ),
           ),
@@ -2203,9 +2216,9 @@ class _InsertPopup extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _PopupItemBtn(icon: Icons.horizontal_rule, label: 'Linha divisória', onTap: onHR),
+                _PopupItemBtn(icon: LucideIcons.minus, label: 'Linha divisória', onTap: onHR),
                 _PopupItemBtn(
-                  icon: Icons.calendar_today_outlined,
+                  icon: LucideIcons.calendar,
                   label: 'Data e hora',
                   onTap: onDateTime,
                 ),
@@ -2222,10 +2235,10 @@ class _InsertPopup extends StatelessWidget {
               ),
             ),
           ),
-          _PopupItemBtn(icon: Icons.warning_amber_rounded, label: 'Aviso', onTap: () => onCallout('warn')),
-          _PopupItemBtn(icon: Icons.info_outline, label: 'Informação', onTap: () => onCallout('info')),
-          _PopupItemBtn(icon: Icons.check_circle_outline, label: 'Sucesso', onTap: () => onCallout('success')),
-          _PopupItemBtn(icon: Icons.cancel_outlined, label: 'Erro', onTap: () => onCallout('error')),
+          _PopupItemBtn(icon: LucideIcons.alertTriangle, label: 'Aviso', onTap: () => onCallout('warn')),
+          _PopupItemBtn(icon: LucideIcons.info, label: 'Informação', onTap: () => onCallout('info')),
+          _PopupItemBtn(icon: LucideIcons.checkCircle, label: 'Sucesso', onTap: () => onCallout('success')),
+          _PopupItemBtn(icon: LucideIcons.xCircle, label: 'Erro', onTap: () => onCallout('error')),
           const SizedBox(height: 4),
         ],
       ),
@@ -2272,9 +2285,9 @@ class _FormatPopup extends StatelessWidget {
                     style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)),
                   ),
                 ),
-                _PopupItemBtn(icon: Icons.text_fields, label: 'MAIÚSCULAS', onTap: () => onCase('upper')),
-                _PopupItemBtn(icon: Icons.text_fields, label: 'minúsculas', onTap: () => onCase('lower')),
-                _PopupItemBtn(icon: Icons.text_fields, label: 'Primeira Maiúscula', onTap: () => onCase('title')),
+                _PopupItemBtn(icon: LucideIcons.wholeWord, label: 'MAIÚSCULAS', onTap: () => onCase('upper')),
+                _PopupItemBtn(icon: LucideIcons.wholeWord, label: 'minúsculas', onTap: () => onCase('lower')),
+                _PopupItemBtn(icon: LucideIcons.wholeWord, label: 'Primeira Maiúscula', onTap: () => onCase('title')),
               ],
             ),
           ),
@@ -2292,9 +2305,9 @@ class _FormatPopup extends StatelessWidget {
                     style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)),
                   ),
                 ),
-                _PopupItemBtn(icon: Icons.superscript, label: 'Sobrescrito', onTap: onSuperscript),
-                _PopupItemBtn(icon: Icons.subscript, label: 'Subscrito', onTap: onSubscript),
-                _PopupItemBtn(icon: Icons.code, label: 'Código inline', onTap: onInlineCode),
+                _PopupItemBtn(icon: LucideIcons.superscript, label: 'Sobrescrito', onTap: onSuperscript),
+                _PopupItemBtn(icon: LucideIcons.subscript, label: 'Subscrito', onTap: onSubscript),
+                _PopupItemBtn(icon: LucideIcons.code, label: 'Código inline', onTap: onInlineCode),
               ],
             ),
           ),
@@ -2313,17 +2326,17 @@ class _FormatPopup extends StatelessWidget {
                   ),
                 ),
                 _PopupItemBtn(
-                  icon: Icons.format_line_spacing,
+                  icon: LucideIcons.alignJustify,
                   label: '1.0 — Compacto',
                   onTap: () => onLineHeight(1.0),
                 ),
                 _PopupItemBtn(
-                  icon: Icons.format_line_spacing,
+                  icon: LucideIcons.alignJustify,
                   label: '1.5 — Normal',
                   onTap: () => onLineHeight(1.5),
                 ),
                 _PopupItemBtn(
-                  icon: Icons.format_line_spacing,
+                  icon: LucideIcons.alignJustify,
                   label: '2.0 — Espaçado',
                   onTap: () => onLineHeight(2.0),
                 ),
@@ -2331,7 +2344,7 @@ class _FormatPopup extends StatelessWidget {
             ),
           ),
           _PopupItemBtn(
-            icon: Icons.delete_outline,
+            icon: LucideIcons.trash2,
             label: 'Limpar formatação',
             onTap: onClearFormat,
             color: Colors.red,
@@ -2423,7 +2436,7 @@ class _FontFullscreenState extends State<_FontFullscreen> {
                       borderRadius: BorderRadius.circular(9),
                       color: Colors.transparent,
                     ),
-                    child: const Icon(Icons.close, size: 17, color: T.sub),
+                    child: const Icon(LucideIcons.x, size: 17, color: T.sub),
                   ),
                 ),
               ],
