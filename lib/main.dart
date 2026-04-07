@@ -34,7 +34,7 @@ class DoctionApp extends StatelessWidget {
 
 // pubspec.yaml
 // dependencies:
-//   flutter_quill: ^10.8.5
+//   flutter_quill: ^10.8.2
 //   flutter:
 //     sdk: flutter
 
@@ -150,14 +150,12 @@ class _EditorPageState extends State<EditorPage> {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceVariant,
               border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).dividerColor,
-                ),
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
             child: QuillSimpleToolbar(
               controller: _controller,
-              config: const QuillSimpleToolbarConfig(
+              configurations: QuillSimpleToolbarConfigurations(
                 showBoldButton: true,
                 showItalicButton: true,
                 showUnderLineButton: true,
@@ -166,10 +164,6 @@ class _EditorPageState extends State<EditorPage> {
                 showBackgroundColorButton: true,
                 showClearFormat: true,
                 showAlignmentButtons: true,
-                showLeftAlignment: true,
-                showCenterAlignment: true,
-                showRightAlignment: true,
-                showJustifyAlignment: true,
                 showHeaderStyle: true,
                 showListNumbers: true,
                 showListBullets: true,
@@ -186,13 +180,13 @@ class _EditorPageState extends State<EditorPage> {
 
           // Editor
           Expanded(
-            child: Container(
+            child: Padding(
               padding: const EdgeInsets.all(16),
               child: QuillEditor(
                 controller: _controller,
                 focusNode: _focusNode,
                 scrollController: _scrollController,
-                config: const QuillEditorConfig(
+                configurations: const QuillEditorConfigurations(
                   placeholder: 'Comece a escrever algo incrível...',
                   padding: EdgeInsets.all(8),
                   autoFocus: false,
