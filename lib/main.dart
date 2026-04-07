@@ -423,9 +423,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _insertTable() {
     _closePopup();
-    // Insert a simple table as HTML-like text block
     final index = _qc.selection.baseOffset;
-    // Quill doesn't natively support tables, we insert a visual representation
     final tableText =
         '┌──────────┬──────────┬──────────┐\n│          │          │          │\n├──────────┼──────────┼──────────┤\n│          │          │          │\n├──────────┼──────────┼──────────┤\n│          │          │          │\n└──────────┴──────────┴──────────┘\n';
     _qc.document.insert(index, tableText);
@@ -470,7 +468,6 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _setLineHeight(double h) {
-    // Line height via custom attribute
     _closePopup();
   }
 
@@ -535,7 +532,6 @@ class _EditorScreenState extends State<EditorScreen>
     final triggerOffset = triggerBox.localToGlobal(Offset.zero);
     final triggerSize = triggerBox.size;
 
-    // Position above the trigger
     double left = triggerOffset.dx + triggerSize.width / 2 - width / 2;
     left = left.clamp(8.0, screenSize.width - width - 8);
 
@@ -1098,7 +1094,7 @@ class _EditorScreenState extends State<EditorScreen>
                         child: _aiLoading
                             ? const Center(child: _AiDots())
                             : Icon(
-                                _aiMode ? LucideIcons.send : LucideLucideIcons.check,
+                                _aiMode ? LucideIcons.send : LucideIcons.check,
                                 size: 16,
                                 color: _aiMode ? Colors.white : T.sub,
                               ),
@@ -1434,7 +1430,6 @@ class _SpringCurve extends Curve {
   const _SpringCurve();
   @override
   double transform(double t) {
-    // Approximate cubic-bezier(.34,1.56,.64,1)
     return 1.0 + (t - 1.0) * (t - 1.0) * ((1.56 + 1) * (t - 1.0) + 1.56);
   }
 }
@@ -1841,7 +1836,7 @@ class _ColorPopupState extends State<_ColorPopup> {
                     color: _preview,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(LucideIcons.check, color: Colors.white, size: 16),
+                  child: const Icon(LucideIcons.check, color: Colors.white, size: 16),
                 ),
               ),
             ],
@@ -1904,7 +1899,7 @@ class _FontPopupState extends State<_FontPopup> {
                     borderRadius: BorderRadius.circular(7),
                     color: Colors.transparent,
                   ),
-                  child: Icon(LucideIcons.maximize2, size: 14, color: T.muted),
+                  child: const Icon(LucideIcons.maximize2, size: 14, color: T.muted),
                 ),
               ),
             ],
@@ -2417,7 +2412,7 @@ class _FontFullscreenState extends State<_FontFullscreen> {
                       borderRadius: BorderRadius.circular(9),
                       color: Colors.transparent,
                     ),
-                    child: Icon(LucideIcons.x, size: 17, color: T.sub),
+                    child: const Icon(LucideIcons.x, size: 17, color: T.sub),
                   ),
                 ),
               ],
