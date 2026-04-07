@@ -626,14 +626,14 @@ class _EditorScreenState extends State<EditorScreen>
 
   // ── TOPBAR ────────────────────────────────────────────────────────────────
   Widget _buildTopbar() {
-    return Container(
-      height: 52,
-      decoration: const BoxDecoration(
-        color: T.surface,
-        border: Border(bottom: BorderSide(color: T.divider)),
-      ),
-      child: SafeArea(
-        bottom: false,
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        height: 52,
+        decoration: const BoxDecoration(
+          color: T.surface,
+          border: Border(bottom: BorderSide(color: T.divider)),
+        ),
         child: SizedBox(
           height: 52,
           child: Stack(
