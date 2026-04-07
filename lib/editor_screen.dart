@@ -196,14 +196,14 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _setFontFamily(String family) {
-    // FIX: FontFamilyAttribute não existe em v10.x — usar Attribute.fromKeyValue
-    _exec(Attribute.fromKeyValue('font', family));
+    // FIX: FontFamilyAttribute não existe em v10.x — usar FontAttribute
+    _exec(FontAttribute(family));
     setState(() => _currentFont = family);
   }
 
   void _setFontSize(int size) {
-    // FIX: SizeAttribute(double) não existe em v10.x — usar Attribute.fromKeyValue com String
-    _exec(Attribute.fromKeyValue('size', '$size'));
+    // FIX: SizeAttribute(double) não existe em v10.x — usar SizeAttribute com String
+    _exec(SizeAttribute('$size'));
     setState(() => _currentSize = size);
   }
 
@@ -313,8 +313,8 @@ class _EditorScreenState extends State<EditorScreen>
   void _insertHR() {
     _closePopup();
     final index = _qc.selection.baseOffset;
-    // FIX: BlockEmbed.horizontalRule não existe em v10.x — usar BlockEmbed.custom
-    _qc.document.insert(index, BlockEmbed.custom('divider'));
+    // FIX: BlockEmbed.horizontalRule não existe em v10.x — usar BlockEmbed.custom com CustomBlockEmbed
+    _qc.document.insert(index, BlockEmbed.custom(const DividerBlockEmbed()));
   }
 
   void _insertDateTime() {
@@ -881,7 +881,7 @@ class _EditorScreenState extends State<EditorScreen>
                             children: [
                               DrawerItem(
                                 icon: _aiMode ? LucideIcons.bot : LucideIcons.keyboard,
-                                label: _aiMode ? 'IA activa' : 'Toolbar / IA',
+                                label: _aiMode ? 'IA ativa' : 'Toolbar / IA',
                                 isActive: _aiMode,
                                 onTap: () {
                                   _closeDrawer();
@@ -1160,4 +1160,8 @@ class _EditorScreenState extends State<EditorScreen>
       ],
     );
   }
+}
+
+class DividerBlockEmbed extends CustomBlockEmbed {
+  const DividerBlockEmbed() : super('divider', '');
 }
