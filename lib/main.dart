@@ -889,6 +889,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(0, 0),
+            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
             null,
           ),
           h1: DefaultTextBlockStyle(
@@ -899,6 +900,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(8, 4),
+            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
             null,
           ),
           h2: DefaultTextBlockStyle(
@@ -909,6 +911,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(6, 3),
+            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
             null,
           ),
           h3: DefaultTextBlockStyle(
@@ -919,6 +922,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(4, 2),
+            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
             null,
           ),
           bold: const TextStyle(fontWeight: FontWeight.w700),
@@ -933,10 +937,12 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(0, 0),
+            const VerticalSpacing(0, 0), // lineSpacing — novo em 10.x
             null,
           ),
         ),
-        selectionColor: const Color(0xFFBFDBFE),
+        // REMOVIDO: selectionColor — parâmetro eliminado na v10.x
+        // Usa Theme.of(context).textSelectionTheme.selectionColor se precisares
       ),
     );
   }
@@ -1836,7 +1842,7 @@ class _ColorPopupState extends State<_ColorPopup> {
                     color: _preview,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(LucideIcons.check, color: Colors.white, size: 16),
+                  child: Icon(LucideIcons.check, color: Colors.white, size: 16),
                 ),
               ),
             ],
@@ -1899,7 +1905,7 @@ class _FontPopupState extends State<_FontPopup> {
                     borderRadius: BorderRadius.circular(7),
                     color: Colors.transparent,
                   ),
-                  child: const Icon(LucideIcons.maximize2, size: 14, color: T.muted),
+                  child: Icon(LucideIcons.maximize2, size: 14, color: T.muted),
                 ),
               ),
             ],
@@ -2412,7 +2418,8 @@ class _FontFullscreenState extends State<_FontFullscreen> {
                       borderRadius: BorderRadius.circular(9),
                       color: Colors.transparent,
                     ),
-                    child: const Icon(LucideIcons.x, size: 17, color: T.sub),
+                    // CORRIGIDO: removido const — LucideIcons não é constante em compile-time
+                    child: Icon(LucideIcons.x, size: 17, color: T.sub),
                   ),
                 ),
               ],
