@@ -103,6 +103,18 @@ const List<Color> kColors = [
 
 const List<int> kSizes = [8,10,12,13,14,15,16,18,20,22,24,28,32,36,48,64,72];
 
+// ─── DIVIDER EMBED BUILDER ────────────────────────────────────────────────────
+class _DividerEmbedBuilder extends EmbedBuilder {
+  const _DividerEmbedBuilder();
+  @override String get key => 'divider';
+  @override bool get expanded => false;
+  @override
+  Widget build(BuildContext context, QuillController controller,
+      Embed node, bool readOnly, bool inline, TextStyle textStyle) {
+    return const Divider(color: Color(0xFFDDDDDD), thickness: 1, height: 24);
+  }
+}
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 class DoctionApp extends StatelessWidget {
   const DoctionApp({super.key});
@@ -217,8 +229,17 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     setState(() => _currentColor = c);
   }
 
-  void _setFontFamily(String f) { _fmt(FontFamilyAttribute(f)); setState(() => _currentFont = f); }
-  void _setFontSize(int s)      { _fmt(SizeAttribute(s.toDouble())); setState(() => _currentSize = s); }
+  // FIX 1: FontFamilyAttribute → Attribute.fromKeyValue('font', f)
+  void _setFontFamily(String f) {
+    _fmt(Attribute.fromKeyValue('font', f));
+    setState(() => _currentFont = f);
+  }
+
+  // FIX 2: SizeAttribute(s.toDouble()) → SizeAttribute(s.toString())
+  void _setFontSize(int s) {
+    _fmt(SizeAttribute(s.toString()));
+    setState(() => _currentSize = s);
+  }
 
   void _applyStyle(String tag) {
     switch (tag) {
@@ -293,9 +314,11 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     _qc.document.insert(_qc.selection.baseOffset, tbl);
   }
 
+  // FIX 3: BlockEmbed.horizontalRule → CustomBlockEmbed('divider', 'true')
   void _insertHR() {
     _closePopup();
-    _qc.document.insert(_qc.selection.baseOffset, BlockEmbed.horizontalRule);
+    final idx = _qc.selection.baseOffset;
+    _qc.document.insert(idx, BlockEmbed.custom(CustomBlockEmbed('divider', 'true')));
   }
 
   void _insertDateTime() {
@@ -394,7 +417,8 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
       case 'format':
         _showPopup(box: box, width: 240, child: _FormatPopup(
           onCase: _transformCase,
-          onSuperscript: () { _fmt(Attribute.superScript); _closePopup(); },
+          // FIX 4: Attribute.superScript → Attribute.superscript
+          onSuperscript: () { _fmt(Attribute.superscript); _closePopup(); },
           onSubscript:   () { _fmt(Attribute.subscript);   _closePopup(); },
           onInlineCode:  () { _fmt(Attribute.inlineCode);  _closePopup(); },
           onLineHeight:  (_) => _closePopup(),
@@ -508,14 +532,7 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     child: _buildEditor(),
   );
 
-  // ── EDITOR — API v11 ──────────────────────────────────────────────────────
-  // Mudanças em relação ao código antigo:
-  //   • configurations: → config:
-  //   • QuillEditorConfigurations → QuillEditorConfig
-  //   • HorizontalSpacing(0,0) → HorizontalSpacing.zero  (sem const)
-  //   • VerticalSpacing(x,y)   → VerticalSpacing(x,y)    (sem const; 3 params agora)
-  //   • DefaultTextBlockStyle  agora aceita 5 args (+ VerticalSpacing p/ lineSpacing)
-  //   • selectionColor removido do QuillEditorConfig; usa Theme.of(ctx).textSelectionTheme
+  // ── EDITOR ────────────────────────────────────────────────────────────────
   Widget _buildEditor() => QuillEditor(
     controller:       _qc,
     focusNode:        _editorFocus,
@@ -526,6 +543,8 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
       autoFocus:   false,
       expands:     false,
       scrollable:  false,
+      // FIX 3 (cont): registar o embed builder para 'divider'
+      embedBuilders: [const _DividerEmbedBuilder()],
       customStyles: DefaultStyles(
         paragraph: DefaultTextBlockStyle(
           GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.ink),
