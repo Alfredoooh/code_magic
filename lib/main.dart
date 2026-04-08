@@ -80,7 +80,10 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _toggleReadOnly() {
-    setState(() => _readOnly = !_readOnly);
+    setState(() {
+      _readOnly = !_readOnly;
+      _controller.readOnly = _readOnly;
+    });
   }
 
   void _clearEditor() {
@@ -281,8 +284,6 @@ class _EditorPageState extends State<EditorPage> {
                   autoFocus: false,
                   expands: true,
                   scrollable: true,
-                  readOnly: _readOnly,
-                  showCursor: !_readOnly,
                   // Suporte a embeds (imagens e vídeos)
                   embedBuilders: FlutterQuillEmbeds.editorBuilders(),
                 ),
