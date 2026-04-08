@@ -11,13 +11,13 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_quill: any
-  lucide_icons: ^0.0.1
-  google_fonts: ^6.2.1
-  provider: ^6.1.2
-  file_picker: ^8.0.0
-  image_picker: ^1.1.2
-  flutter_colorpicker: ^1.1.0
-  collection: ^1.18.0
+  lucide_icons: any
+  google_fonts: any
+  provider: any
+  file_picker: any
+  image_picker: any
+  flutter_colorpicker: any
+  collection: any
 
 dependency_overrides:
   intl: ^0.20.2
