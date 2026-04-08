@@ -358,7 +358,6 @@ class _EditorPageState extends State<EditorPage>
     _aiCtrl.clear();
     setState(() => _aiLoading = true);
     try {
-      // Using http package — swap with your preferred client
       final resp = await _httpPost(
         'https://api.anthropic.com/v1/messages',
         {
@@ -384,7 +383,6 @@ class _EditorPageState extends State<EditorPage>
     setState(() => _aiLoading = false);
   }
 
-  // Minimal HTTP without extra deps — uses HttpClient
   Future<Map<String, dynamic>> _httpPost(String url, Map body) async {
     final uri = Uri.parse(url);
     final client = HttpClient();
@@ -628,27 +626,28 @@ class _EditorPageState extends State<EditorPage>
         ),
       );
 
+  // ── FIX 1: QuillEditor sem `configurations:`, parâmetros directos.
+  // ── FIX 2: DefaultTextBlockStyle com 5 argumentos (+ BoxDecoration? null).
   Widget _buildEditor() => quill.QuillEditor(
         controller: _qc,
         focusNode: _focusNode,
         scrollController: ScrollController(),
-        configurations: quill.QuillEditorConfigurations(
-          placeholder: 'Começa a escrever…',
-          autoFocus: false,
-          expands: false,
-          scrollable: false,
-          padding: EdgeInsets.zero,
-          customStyles: quill.DefaultStyles(
-            paragraph: quill.DefaultTextBlockStyle(
-              GoogleFonts.lora(
-                fontSize: 16,
-                height: 1.85,
-                color: kInk,
-              ),
-              const quill.VerticalSpacing(0, 0),
-              const quill.VerticalSpacing(0, 0),
-              null,
+        placeholder: 'Começa a escrever…',
+        autoFocus: false,
+        expands: false,
+        scrollable: false,
+        padding: EdgeInsets.zero,
+        customStyles: quill.DefaultStyles(
+          paragraph: quill.DefaultTextBlockStyle(
+            GoogleFonts.lora(
+              fontSize: 16,
+              height: 1.85,
+              color: kInk,
             ),
+            const quill.HorizontalSpacing(0, 0),
+            const quill.VerticalSpacing(0, 0),
+            const quill.VerticalSpacing(0, 0),
+            null, // BoxDecoration? — 5.º argumento obrigatório na v11
           ),
         ),
       );
@@ -682,7 +681,6 @@ class _EditorPageState extends State<EditorPage>
   }
 
   void _insertTable() {
-    // Insert as plain text placeholder — full table support needs quill extension
     final idx = _qc.selection.extentOffset;
     _qc.document.insert(idx, '\n[Tabela 3×3]\n');
   }
@@ -910,7 +908,6 @@ class _FloatingToolbar extends StatelessWidget {
                   ? _buildAIRow(ctx)
                   : _buildToolsRow(ctx),
             ),
-            // Confirm / Send button
             Padding(
               padding: const EdgeInsets.only(right: 6, left: 2),
               child: GestureDetector(
@@ -1626,13 +1623,14 @@ class _StepBtn extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STYLES POPUP
+// FIX 3: lista tipada como (String, IconData, quill.Attribute) — sem nullable.
 // ─────────────────────────────────────────────────────────────────────────────
 class _StylesPopup extends StatelessWidget {
   final void Function(quill.Attribute) onStyle;
   const _StylesPopup({required this.onStyle});
 
-  static final _items = [
-    ('Parágrafo', LucideIcons.pilcrow, quill.Attribute.fromKeyValue('blockquote', null)),
+  static final List<(String, IconData, quill.Attribute)> _items = [
+    ('Parágrafo', LucideIcons.pilcrow, quill.Attribute.fromKeyValue('blockquote', null) as quill.Attribute),
     ('Título 1', LucideIcons.heading1, quill.HeaderAttribute(level: 1)),
     ('Título 2', LucideIcons.heading2, quill.HeaderAttribute(level: 2)),
     ('Título 3', LucideIcons.heading3, quill.HeaderAttribute(level: 3)),
@@ -1648,6 +1646,7 @@ class _StylesPopup extends StatelessWidget {
           ..._items.map((t) => _PopupItem(
                 label: t.$1,
                 icon: t.$2,
+                // FIX 3: t.$3 já é Attribute não-nullable — sem cast adicional.
                 onTap: () => onStyle(t.$3),
               )),
         ],
@@ -1692,6 +1691,8 @@ class _InsertPopup extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FORMAT POPUP
+// FIX 4: superscript/subscript — nomes correctos na v11.
+// FIX 5: ClearStyleAttribute removido — substituído por limpar atributo a atributo.
 // ─────────────────────────────────────────────────────────────────────────────
 class _FormatPopup extends StatelessWidget {
   final quill.QuillController qc;
@@ -1711,6 +1712,16 @@ class _FormatPopup extends StatelessWidget {
     final sel = qc.selection;
     if (sel.isCollapsed) return;
     qc.document.replace(sel.start, sel.end - sel.start, newText);
+  }
+
+  // FIX 5: limpa todos os atributos inline conhecidos em vez de ClearStyleAttribute.
+  void _clearFormatting() {
+    final attrs = qc.getSelectionStyle().attributes;
+    for (final attr in attrs.values) {
+      // Para limpar, passa o mesmo atributo com valor null
+      final cleared = quill.Attribute.clone(attr, null);
+      if (cleared != null) qc.formatSelection(cleared);
+    }
   }
 
   @override
@@ -1740,11 +1751,12 @@ class _FormatPopup extends StatelessWidget {
             child: Text('INLINE',
                 style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC))),
           ),
+          // FIX 4: Attribute.superscript / Attribute.subscript (minúsculas na v11)
           _PopupItem(label: 'Sobrescrito', icon: LucideIcons.superscript, onTap: () {
-            qc.formatSelection(quill.Attribute.superScript); onDone();
+            qc.formatSelection(quill.Attribute.superscript); onDone();
           }),
           _PopupItem(label: 'Subscrito', icon: LucideIcons.subscript, onTap: () {
-            qc.formatSelection(quill.Attribute.subScript); onDone();
+            qc.formatSelection(quill.Attribute.subscript); onDone();
           }),
           const Divider(height: 1, color: kBorder),
           Padding(
@@ -1753,7 +1765,6 @@ class _FormatPopup extends StatelessWidget {
                 style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC))),
           ),
           _PopupItem(label: '1.0 — Compacto', icon: LucideIcons.alignVerticalJustifyStart, onTap: () {
-            // Line height via custom attribute
             qc.formatSelection(quill.Attribute.fromKeyValue('line-height', '1.0'));
             onDone();
           }),
@@ -1766,14 +1777,12 @@ class _FormatPopup extends StatelessWidget {
             onDone();
           }),
           const Divider(height: 1, color: kBorder),
+          // FIX 5: sem ClearStyleAttribute — usa _clearFormatting()
           _PopupItem(
             label: 'Limpar formatação',
             icon: LucideIcons.trash2,
             danger: true,
-            onTap: () {
-              qc.formatSelection(const quill.ClearStyleAttribute());
-              onDone();
-            },
+            onTap: () { _clearFormatting(); onDone(); },
           ),
         ],
       );
