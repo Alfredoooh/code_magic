@@ -10,7 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_quill: ^11.0.0
+  flutter_quill: ^10.8.2
+  flutter_quill_extensions: ^10.8.2
   lucide_icons: any
   google_fonts: any
   provider: any
