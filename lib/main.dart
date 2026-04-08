@@ -1,98 +1,96 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS / THEME
-// ─────────────────────────────────────────────────────────────────────────────
-const kAccent = Color(0xFF2563EB);
-const kAccentBg = Color(0xFFEFF6FF);
-const kInk = Color(0xFF34322D);
-const kSub = Color(0xFF5E5E5B);
-const kMuted = Color(0xFF858481);
-const kSurface = Color(0xFFFFFFFF);
-const kBg = Color(0xFFF8F8F7);
-const kBorder = Color(0x14000000);
-const kDivider = Color(0x14000000);
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
+  runApp(const DoctionApp());
+}
 
-TextStyle dmSans({double size = 14, FontWeight fw = FontWeight.w400, Color? color}) =>
-    GoogleFonts.dmSans(fontSize: size, fontWeight: fw, color: color ?? kInk);
+// ─── THEME TOKENS ─────────────────────────────────────────────────────────────
+class T {
+  static const accent    = Color(0xFF2563EB);
+  static const accentBg  = Color(0xFFEFF6FF);
+  static const ink       = Color(0xFF34322D);
+  static const sub       = Color(0xFF5E5E5B);
+  static const muted     = Color(0xFF858481);
+  static const surface   = Color(0xFFFFFFFF);
+  static const bg        = Color(0xFFF8F8F7);
+  static const divider   = Color(0x14000000);
+  static const dark      = Color(0xFF1C1C1E);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FONT DATA
-// ─────────────────────────────────────────────────────────────────────────────
+  static TextStyle dmSans({double size = 14, FontWeight w = FontWeight.w400, Color? color}) =>
+      GoogleFonts.dmSans(fontSize: size, fontWeight: w, color: color ?? ink);
+
+  static TextStyle lora({double size = 16, FontWeight w = FontWeight.w400, Color? color, FontStyle style = FontStyle.normal}) =>
+      GoogleFonts.lora(fontSize: size, fontWeight: w, color: color ?? ink, fontStyle: style);
+}
+
+// ─── FONT DATA ─────────────────────────────────────────────────────────────────
 class FontEntry {
-  final String label;
-  final String family;
-  final String group;
+  final String label, family, group;
   const FontEntry(this.label, this.family, this.group);
 }
 
-final kFonts = <FontEntry>[
-  FontEntry('Lora', 'Lora', 'Serif'),
-  FontEntry('Playfair Display', 'Playfair Display', 'Serif'),
-  FontEntry('Merriweather', 'Merriweather', 'Serif'),
-  FontEntry('PT Serif', 'PT Serif', 'Serif'),
+const List<FontEntry> kFonts = [
+  FontEntry('Lora',              'Lora',              'Serif'),
+  FontEntry('Playfair Display',  'Playfair Display',  'Serif'),
+  FontEntry('Merriweather',      'Merriweather',      'Serif'),
+  FontEntry('Source Serif 4',    'Source Serif 4',    'Serif'),
+  FontEntry('PT Serif',          'PT Serif',          'Serif'),
   FontEntry('Libre Baskerville', 'Libre Baskerville', 'Serif'),
-  FontEntry('EB Garamond', 'EB Garamond', 'Serif'),
-  FontEntry('Crimson Text', 'Crimson Text', 'Serif'),
-  FontEntry('Cormorant Garamond', 'Cormorant Garamond', 'Serif'),
-  FontEntry('Spectral', 'Spectral', 'Serif'),
-  FontEntry('Bitter', 'Bitter', 'Serif'),
-  FontEntry('Arvo', 'Arvo', 'Serif'),
-  FontEntry('Inter', 'Inter', 'Sans-serif'),
-  FontEntry('Open Sans', 'Open Sans', 'Sans-serif'),
-  FontEntry('Montserrat', 'Montserrat', 'Sans-serif'),
-  FontEntry('DM Sans', 'DM Sans', 'Sans-serif'),
-  FontEntry('Roboto', 'Roboto', 'Sans-serif'),
-  FontEntry('Nunito', 'Nunito', 'Sans-serif'),
-  FontEntry('Poppins', 'Poppins', 'Sans-serif'),
-  FontEntry('Raleway', 'Raleway', 'Sans-serif'),
-  FontEntry('Josefin Sans', 'Josefin Sans', 'Sans-serif'),
-  FontEntry('Quicksand', 'Quicksand', 'Sans-serif'),
-  FontEntry('Mulish', 'Mulish', 'Sans-serif'),
-  FontEntry('Work Sans', 'Work Sans', 'Sans-serif'),
-  FontEntry('Karla', 'Karla', 'Sans-serif'),
-  FontEntry('Cabin', 'Cabin', 'Sans-serif'),
-  FontEntry('Fira Sans', 'Fira Sans', 'Sans-serif'),
-  FontEntry('Rubik', 'Rubik', 'Sans-serif'),
-  FontEntry('IBM Plex Sans', 'IBM Plex Sans', 'Sans-serif'),
-  FontEntry('Lato', 'Lato', 'Sans-serif'),
-  FontEntry('Oxygen', 'Oxygen', 'Sans-serif'),
-  FontEntry('Ubuntu', 'Ubuntu', 'Sans-serif'),
-  FontEntry('Manrope', 'Manrope', 'Sans-serif'),
-  FontEntry('Outfit', 'Outfit', 'Sans-serif'),
-  FontEntry('IBM Plex Mono', 'IBM Plex Mono', 'Monospace'),
-  FontEntry('Source Code Pro', 'Source Code Pro', 'Monospace'),
-  FontEntry('Fira Code', 'Fira Code', 'Monospace'),
-  FontEntry('JetBrains Mono', 'JetBrains Mono', 'Monospace'),
-  FontEntry('Space Mono', 'Space Mono', 'Monospace'),
-  FontEntry('Inconsolata', 'Inconsolata', 'Monospace'),
-  FontEntry('Ubuntu Mono', 'Ubuntu Mono', 'Monospace'),
-  FontEntry('Cinzel', 'Cinzel', 'Decorativa'),
-  FontEntry('Abril Fatface', 'Abril Fatface', 'Decorativa'),
-  FontEntry('Pacifico', 'Pacifico', 'Decorativa'),
-  FontEntry('Comfortaa', 'Comfortaa', 'Decorativa'),
-  FontEntry('Dancing Script', 'Dancing Script', 'Manuscrita'),
-  FontEntry('Great Vibes', 'Great Vibes', 'Manuscrita'),
-  FontEntry('Sacramento', 'Sacramento', 'Manuscrita'),
-  FontEntry('Caveat', 'Caveat', 'Manuscrita'),
-  FontEntry('Kalam', 'Kalam', 'Manuscrita'),
-  FontEntry('Patrick Hand', 'Patrick Hand', 'Manuscrita'),
-  FontEntry('Indie Flower', 'Indie Flower', 'Manuscrita'),
-  FontEntry('Permanent Marker', 'Permanent Marker', 'Manuscrita'),
+  FontEntry('EB Garamond',       'EB Garamond',       'Serif'),
+  FontEntry('Crimson Text',      'Crimson Text',      'Serif'),
+  FontEntry('Cormorant Garamond','Cormorant Garamond','Serif'),
+  FontEntry('Noto Serif',        'Noto Serif',        'Serif'),
+  FontEntry('Spectral',          'Spectral',          'Serif'),
+  FontEntry('Bitter',            'Bitter',            'Serif'),
+  FontEntry('Inter',             'Inter',             'Sans-serif'),
+  FontEntry('Open Sans',         'Open Sans',         'Sans-serif'),
+  FontEntry('Montserrat',        'Montserrat',        'Sans-serif'),
+  FontEntry('DM Sans',           'DM Sans',           'Sans-serif'),
+  FontEntry('Roboto',            'Roboto',            'Sans-serif'),
+  FontEntry('Nunito',            'Nunito',            'Sans-serif'),
+  FontEntry('Poppins',           'Poppins',           'Sans-serif'),
+  FontEntry('Raleway',           'Raleway',           'Sans-serif'),
+  FontEntry('Josefin Sans',      'Josefin Sans',      'Sans-serif'),
+  FontEntry('Work Sans',         'Work Sans',         'Sans-serif'),
+  FontEntry('Karla',             'Karla',             'Sans-serif'),
+  FontEntry('Rubik',             'Rubik',             'Sans-serif'),
+  FontEntry('IBM Plex Sans',     'IBM Plex Sans',     'Sans-serif'),
+  FontEntry('Mulish',            'Mulish',            'Sans-serif'),
+  FontEntry('Quicksand',         'Quicksand',         'Sans-serif'),
+  FontEntry('IBM Plex Mono',     'IBM Plex Mono',     'Monospace'),
+  FontEntry('Source Code Pro',   'Source Code Pro',   'Monospace'),
+  FontEntry('Fira Code',         'Fira Code',         'Monospace'),
+  FontEntry('JetBrains Mono',    'JetBrains Mono',    'Monospace'),
+  FontEntry('Space Mono',        'Space Mono',        'Monospace'),
+  FontEntry('Inconsolata',       'Inconsolata',       'Monospace'),
+  FontEntry('Ubuntu Mono',       'Ubuntu Mono',       'Monospace'),
+  FontEntry('Cinzel',            'Cinzel',            'Decorativa'),
+  FontEntry('Abril Fatface',     'Abril Fatface',     'Decorativa'),
+  FontEntry('Pacifico',          'Pacifico',          'Decorativa'),
+  FontEntry('Dancing Script',    'Dancing Script',    'Manuscrita'),
+  FontEntry('Caveat',            'Caveat',            'Manuscrita'),
+  FontEntry('Kalam',             'Kalam',             'Manuscrita'),
+  FontEntry('Patrick Hand',      'Patrick Hand',      'Manuscrita'),
+  FontEntry('Indie Flower',      'Indie Flower',      'Manuscrita'),
+  FontEntry('Permanent Marker',  'Permanent Marker',  'Manuscrita'),
+  FontEntry('Sacramento',        'Sacramento',        'Manuscrita'),
+  FontEntry('Great Vibes',       'Great Vibes',       'Manuscrita'),
 ];
 
-final kFontGroups = ['Todas', 'Serif', 'Sans-serif', 'Monospace', 'Decorativa', 'Manuscrita'];
-const kSizes = [8, 10, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 36, 48, 64, 72];
-const kColors = [
+const List<Color> kColors = [
   Color(0xFF000000), Color(0xFF34322D), Color(0xFF5E5E5B), Color(0xFF858481),
   Color(0xFFD1D5DB), Color(0xFFE5E7EB), Color(0xFFF3F4F6), Color(0xFFFFFFFF),
   Color(0xFFDC2626), Color(0xFFEA580C), Color(0xFFD97706), Color(0xFFCA8A04),
@@ -103,189 +101,223 @@ const kColors = [
   Color(0xFF6EE7B7), Color(0xFFA5B4FC), Color(0xFFFBCFE8), Color(0xFFE9D5FF),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ENTRY POINT
-// ─────────────────────────────────────────────────────────────────────────────
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  runApp(const EditorApp());
-}
+const List<int> kSizes = [8,10,12,13,14,15,16,18,20,22,24,28,32,36,48,64,72];
 
-class EditorApp extends StatelessWidget {
-  const EditorApp({super.key});
+// ─── APP ──────────────────────────────────────────────────────────────────────
+class DoctionApp extends StatelessWidget {
+  const DoctionApp({super.key});
   @override
   Widget build(BuildContext ctx) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: kAccent),
-          scaffoldBackgroundColor: kBg,
-          fontFamily: GoogleFonts.dmSans().fontFamily,
-          useMaterial3: true,
-        ),
-        home: const EditorPage(),
-      );
+    title: 'Doction',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      colorSchemeSeed: T.accent,
+      scaffoldBackgroundColor: T.bg,
+      fontFamily: GoogleFonts.dmSans().fontFamily,
+    ),
+    home: const EditorScreen(),
+  );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EDITOR PAGE
-// ─────────────────────────────────────────────────────────────────────────────
-class EditorPage extends StatefulWidget {
-  const EditorPage({super.key});
+// ─── EDITOR SCREEN ────────────────────────────────────────────────────────────
+class EditorScreen extends StatefulWidget {
+  const EditorScreen({super.key});
   @override
-  State<EditorPage> createState() => _EditorPageState();
+  State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorPageState extends State<EditorPage> with TickerProviderStateMixin {
-  late quill.QuillController _qc;
-  final _titleCtrl = TextEditingController();
-  final _scrollCtrl = ScrollController();
-  final _focusNode = FocusNode();
+class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMixin {
+  late QuillController _qc;
+  final FocusNode      _editorFocus   = FocusNode();
+  final ScrollController _editorScroll = ScrollController();
+  final TextEditingController _titleCtrl = TextEditingController();
 
-  late AnimationController _drawerCtrl;
-  late Animation<double> _drawerAnim;
+  // Drawer
+  late AnimationController _drawerAnim;
+  late Animation<double>   _drawerSlide, _appSlide, _overlayOpacity;
   bool _drawerOpen = false;
 
-  bool _aiMode = false;
-  final _aiCtrl = TextEditingController();
-  bool _aiLoading = false;
-  String _curFont = 'Lora';
-  int _curSize = 16;
-  Color _curColor = kInk;
-  String _curAlign = 'left';
-  bool _a4Mode = false;
+  // State
+  bool   _a4Mode       = false;
+  bool   _aiMode       = false;
+  bool   _aiLoading    = false;
+  Color  _currentColor = T.ink;
+  String _currentFont  = 'Lora';
+  int    _currentSize  = 16;
+  bool   _isBold = false, _isItalic = false, _isUnderline = false, _isStrike = false;
+  String _currentAlign = 'left';
 
-  OverlayEntry? _activeOverlay;
+  final TextEditingController _aiCtrl = TextEditingController();
+  final FocusNode _aiFocus = FocusNode();
 
-  bool _isBold = false;
-  bool _isItalic = false;
-  bool _isUnderline = false;
-  bool _isStrike = false;
+  OverlayEntry? _activePopup;
 
   @override
   void initState() {
     super.initState();
-    _qc = quill.QuillController.basic();
-    _qc.addListener(_onDocChange);
-    _drawerCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _drawerAnim = CurvedAnimation(
-      parent: _drawerCtrl,
-      curve: const Cubic(0.22, 1, 0.36, 1),
-      reverseCurve: const Cubic(0.22, 1, 0.36, 1),
-    );
-  }
+    _qc = QuillController.basic();
+    _qc.addListener(_onQcChange);
 
-  void _onDocChange() {
-    final attrs = _qc.getSelectionStyle().attributes;
-    setState(() {
-      _isBold = attrs[quill.Attribute.bold.key]?.value == true;
-      _isItalic = attrs[quill.Attribute.italic.key]?.value == true;
-      _isUnderline = attrs[quill.Attribute.underline.key]?.value == true;
-      _isStrike = attrs[quill.Attribute.strikeThrough.key]?.value == true;
-    });
+    _drawerAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _drawerSlide   = Tween<double>(begin: -260, end: 0).animate(CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic));
+    _appSlide      = Tween<double>(begin: 0, end: 110).animate(CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic));
+    _overlayOpacity= Tween<double>(begin: 0, end: 0.18).animate(CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic));
   }
 
   @override
   void dispose() {
-    _qc.removeListener(_onDocChange);
+    _qc.removeListener(_onQcChange);
     _qc.dispose();
+    _drawerAnim.dispose();
+    _editorFocus.dispose();
+    _editorScroll.dispose();
     _titleCtrl.dispose();
-    _scrollCtrl.dispose();
-    _focusNode.dispose();
-    _drawerCtrl.dispose();
     _aiCtrl.dispose();
+    _aiFocus.dispose();
     super.dispose();
   }
 
-  void _openDrawer() { setState(() => _drawerOpen = true); _drawerCtrl.forward(); }
-  void _closeDrawer() { _drawerCtrl.reverse().then((_) => setState(() => _drawerOpen = false)); }
-
-  void _toggleBold() { _qc.formatSelection(quill.Attribute.bold); setState(() => _isBold = !_isBold); }
-  void _toggleItalic() { _qc.formatSelection(quill.Attribute.italic); setState(() => _isItalic = !_isItalic); }
-  void _toggleUnderline() { _qc.formatSelection(quill.Attribute.underline); setState(() => _isUnderline = !_isUnderline); }
-  void _toggleStrike() { _qc.formatSelection(quill.Attribute.strikeThrough); setState(() => _isStrike = !_isStrike); }
-
-  void _setAlign(String align) {
-    quill.Attribute attr;
-    switch (align) {
-      case 'center': attr = quill.Attribute.centerAlignment; break;
-      case 'right':  attr = quill.Attribute.rightAlignment;  break;
-      case 'justify': attr = quill.Attribute.justifyAlignment; break;
-      default: attr = quill.Attribute.leftAlignment;
-    }
-    _qc.formatSelection(attr);
-    setState(() => _curAlign = align);
+  void _onQcChange() {
+    final style = _qc.getSelectionStyle();
+    setState(() {
+      _isBold      = style.containsKey(Attribute.bold.key);
+      _isItalic    = style.containsKey(Attribute.italic.key);
+      _isUnderline = style.containsKey(Attribute.underline.key);
+      _isStrike    = style.containsKey(Attribute.strikeThrough.key);
+      final align  = style.attributes[Attribute.align.key];
+      _currentAlign = align?.value ?? 'left';
+    });
   }
 
-  void _setFont(String family) {
-    _qc.formatSelection(quill.Attribute.fromKeyValue('font', family));
-    setState(() => _curFont = family);
-    _closePopup();
+  void _toggleDrawer() {
+    if (_drawerOpen) { _drawerAnim.reverse(); _drawerOpen = false; }
+    else             { _drawerAnim.forward(); _drawerOpen = true;  }
+    setState(() {});
   }
+  void _closeDrawer() { if (_drawerOpen) { _drawerAnim.reverse(); _drawerOpen = false; setState((){}); } }
 
-  void _setSize(int sz) {
-    _qc.formatSelection(quill.Attribute.fromKeyValue('size', '${sz}px'));
-    setState(() => _curSize = sz);
+  // ── FORMAT ────────────────────────────────────────────────────────────────
+  void _fmt(Attribute attr) => _qc.formatSelection(attr);
+
+  void _toggleBold()      => _fmt(_isBold      ? Attribute.clone(Attribute.bold,          null) : Attribute.bold);
+  void _toggleItalic()    => _fmt(_isItalic    ? Attribute.clone(Attribute.italic,        null) : Attribute.italic);
+  void _toggleUnderline() => _fmt(_isUnderline ? Attribute.clone(Attribute.underline,     null) : Attribute.underline);
+  void _toggleStrike()    => _fmt(_isStrike    ? Attribute.clone(Attribute.strikeThrough, null) : Attribute.strikeThrough);
+
+  void _setAlign(String a) {
+    final map = {'left': Attribute.leftAlignment, 'center': Attribute.centerAlignment,
+                 'right': Attribute.rightAlignment, 'justify': Attribute.justifyAlignment};
+    _fmt(map[a]!);
+    setState(() => _currentAlign = a);
   }
 
   void _setColor(Color c) {
-    final hex = '#${c.value.toRadixString(16).substring(2).toUpperCase()}';
-    _qc.formatSelection(quill.Attribute.fromKeyValue('color', hex));
-    setState(() => _curColor = c);
+    final hex = '#${c.red.toRadixString(16).padLeft(2,'0')}${c.green.toRadixString(16).padLeft(2,'0')}${c.blue.toRadixString(16).padLeft(2,'0')}';
+    _fmt(ColorAttribute(hex));
+    setState(() => _currentColor = c);
   }
 
-  void _insertBulletList() => _qc.formatSelection(quill.Attribute.ul);
-  void _insertOrderedList() => _qc.formatSelection(quill.Attribute.ol);
-  void _indent() => _qc.formatSelection(const quill.IndentAttribute(level: 1));
-  void _outdent() => _qc.formatSelection(const quill.IndentAttribute(level: -1));
+  void _setFontFamily(String f) { _fmt(FontFamilyAttribute(f)); setState(() => _currentFont = f); }
+  void _setFontSize(int s)      { _fmt(SizeAttribute(s.toDouble())); setState(() => _currentSize = s); }
 
-  void _setBlockStyle(quill.Attribute attr) {
-    _qc.formatSelection(attr);
+  void _applyStyle(String tag) {
+    switch (tag) {
+      case 'h1': _fmt(HeaderAttribute(level: 1)); break;
+      case 'h2': _fmt(HeaderAttribute(level: 2)); break;
+      case 'h3': _fmt(HeaderAttribute(level: 3)); break;
+      case 'h4': _fmt(HeaderAttribute(level: 4)); break;
+      case 'blockquote': _fmt(Attribute.blockQuote); break;
+      case 'code': _fmt(Attribute.codeBlock); break;
+      default: _fmt(HeaderAttribute(level: 0));
+    }
     _closePopup();
   }
 
-  // ── POPUP ────────────────────────────────────────────────
-  void _closePopup() { _activeOverlay?.remove(); _activeOverlay = null; }
-
-  void _showPopup({
-    required BuildContext triggerCtx,
-    required Widget Function(BuildContext, VoidCallback) builder,
-    double width = 240,
-  }) {
+  void _transformCase(String mode) {
+    final sel = _qc.selection;
+    if (sel.isCollapsed) return;
+    final txt = _qc.document.getPlainText(sel.start, sel.end - sel.start);
+    final result = mode == 'upper' ? txt.toUpperCase()
+                 : mode == 'lower' ? txt.toLowerCase()
+                 : txt.replaceAllMapped(RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase());
+    _qc.replaceText(sel.start, sel.end - sel.start, result, null);
     _closePopup();
-    final box = triggerCtx.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final pos = box.localToGlobal(Offset.zero);
-    final size = box.size;
-    final screenW = MediaQuery.of(context).size.width;
-    final screenH = MediaQuery.of(context).size.height;
+  }
 
-    double left = pos.dx + size.width / 2 - width / 2;
-    left = left.clamp(8.0, screenW - width - 8);
-    final bottom = screenH - pos.dy + 12;
-    final arrowLeft = (pos.dx + size.width / 2 - left - 9).clamp(12.0, width - 24.0);
+  void _insertLink() {
+    _closePopup();
+    Future.delayed(const Duration(milliseconds: 80), _showLinkDialog);
+  }
 
-    _activeOverlay = OverlayEntry(builder: (ctx) => Stack(children: [
-      Positioned.fill(
-        child: GestureDetector(
-          onTap: _closePopup,
-          behavior: HitTestBehavior.opaque,
-          child: const SizedBox.expand(),
+  void _showLinkDialog() async {
+    final c = TextEditingController();
+    final url = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: T.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Text('Link', style: T.dmSans(size: 15, w: FontWeight.w600)),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'https://',
+            hintStyle: T.dmSans(color: T.muted),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancelar', style: T.dmSans(color: T.sub))),
+          TextButton(onPressed: () => Navigator.pop(ctx, c.text), child: Text('OK', style: T.dmSans(color: T.accent, w: FontWeight.w600))),
+        ],
       ),
-      Positioned(
-        left: left, bottom: bottom, width: width,
-        child: _PopupCard(arrowLeft: arrowLeft, child: builder(ctx, _closePopup)),
-      ),
-    ]));
-    Overlay.of(context).insert(_activeOverlay!);
+    );
+    if (url != null && url.isNotEmpty) _fmt(LinkAttribute(url));
   }
 
-  // ── AI ───────────────────────────────────────────────────
-  void _toggleAI() => setState(() => _aiMode = !_aiMode);
+  void _insertImage() async {
+    _closePopup();
+    final img = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (img == null) return;
+    final bytes = await img.readAsBytes();
+    final b64   = base64Encode(bytes);
+    final ext   = img.path.split('.').last.toLowerCase();
+    final mime  = ext == 'png' ? 'image/png' : 'image/jpeg';
+    final idx   = _qc.selection.baseOffset;
+    _qc.document.insert(idx, BlockEmbed.image('data:$mime;base64,$b64'));
+  }
+
+  void _insertTable() {
+    _closePopup();
+    const tbl = '┌──────────┬──────────┬──────────┐\n│          │          │          │\n├──────────┼──────────┼──────────┤\n│          │          │          │\n├──────────┼──────────┼──────────┤\n│          │          │          │\n└──────────┴──────────┴──────────┘\n';
+    _qc.document.insert(_qc.selection.baseOffset, tbl);
+  }
+
+  void _insertHR() {
+    _closePopup();
+    _qc.document.insert(_qc.selection.baseOffset, BlockEmbed.horizontalRule);
+  }
+
+  void _insertDateTime() {
+    _closePopup();
+    final n = DateTime.now();
+    _qc.document.insert(_qc.selection.baseOffset,
+      '${n.day.toString().padLeft(2,'0')}/${n.month.toString().padLeft(2,'0')}/${n.year} ${n.hour.toString().padLeft(2,'0')}:${n.minute.toString().padLeft(2,'0')}');
+  }
+
+  void _insertCallout(String type) {
+    _closePopup();
+    final txt = {'warn':'▲ Aviso','info':'ℹ Informação','success':'✓ Sucesso','error':'✕ Erro'}[type]!;
+    _qc.document.insert(_qc.selection.baseOffset, txt);
+  }
+
+  void _clearFormat() {
+    _fmt(Attribute.clone(Attribute.bold,          null));
+    _fmt(Attribute.clone(Attribute.italic,        null));
+    _fmt(Attribute.clone(Attribute.underline,     null));
+    _fmt(Attribute.clone(Attribute.strikeThrough, null));
+    _closePopup();
+  }
 
   Future<void> _doAI() async {
     final prompt = _aiCtrl.text.trim();
@@ -293,1322 +325,943 @@ class _EditorPageState extends State<EditorPage> with TickerProviderStateMixin {
     _aiCtrl.clear();
     setState(() => _aiLoading = true);
     try {
-      final resp = await _httpPost('https://api.anthropic.com/v1/messages', {
-        'model': 'claude-sonnet-4-20250514',
-        'max_tokens': 1000,
-        'system': 'Responde APENAS com o texto a inserir no editor, sem explicações nem markdown extra. Responde em português.',
-        'messages': [{'role': 'user', 'content': prompt}],
-      });
-      final txt = (resp['content'] as List?)
-              ?.whereType<Map>()
-              .map((e) => e['text'] ?? '')
-              .join('') ??
-          '(sem resposta)';
-      final idx = _qc.selection.extentOffset;
-      _qc.document.insert(idx, txt);
+      final res = await http.post(
+        Uri.parse('https://api.anthropic.com/v1/messages'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'model': 'claude-sonnet-4-20250514',
+          'max_tokens': 1000,
+          'system': 'Responde APENAS com o texto a inserir no editor, sem explicações nem markdown extra. Responde em português.',
+          'messages': [{'role': 'user', 'content': prompt}],
+        }),
+      );
+      final data = jsonDecode(res.body);
+      final txt  = (data['content'] as List?)?.map((i) => i['text'] ?? '').join('') ?? '(sem resposta)';
+      _qc.document.insert(_qc.selection.baseOffset, txt);
     } catch (_) {
-      _qc.document.insert(_qc.selection.extentOffset, '[Erro IA]');
+      _qc.document.insert(_qc.selection.baseOffset, '[Erro IA]');
+    } finally {
+      setState(() => _aiLoading = false);
+      _aiFocus.requestFocus();
     }
-    setState(() => _aiLoading = false);
   }
 
-  Future<Map<String, dynamic>> _httpPost(String url, Map body) async {
-    final uri = Uri.parse(url);
-    final client = HttpClient();
-    final req = await client.postUrl(uri);
-    req.headers.set('Content-Type', 'application/json');
-    req.write(jsonEncode(body));
-    final resp = await req.close();
-    final raw = await resp.transform(utf8.decoder).join();
-    client.close();
-    return jsonDecode(raw) as Map<String, dynamic>;
-  }
+  // ── POPUP SYSTEM ──────────────────────────────────────────────────────────
+  void _closePopup() { _activePopup?.remove(); _activePopup = null; }
 
-  // ── IMAGE ────────────────────────────────────────────────
-  Future<void> _pickImage() async {
+  void _showPopup({required RenderBox box, required Widget child, double width = 240}) {
     _closePopup();
-    final picker = ImagePicker();
-    final xf = await picker.pickImage(source: ImageSource.gallery);
-    if (xf == null) return;
-    final bytes = await xf.readAsBytes();
-    final b64 = base64Encode(bytes);
-    final ext = xf.name.split('.').last.toLowerCase();
-    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-    _qc.document.insert(
-      _qc.selection.extentOffset,
-      quill.BlockEmbed.image('data:$mime;base64,$b64'),
-    );
+    final screenSize = MediaQuery.of(context).size;
+    final off  = box.localToGlobal(Offset.zero);
+    final sz   = box.size;
+    double left = off.dx + sz.width / 2 - width / 2;
+    left = left.clamp(8.0, screenSize.width - width - 8);
+    final arrowL = (off.dx + sz.width / 2 - left - 7).clamp(12.0, width - 24.0);
+    final originX = (off.dx + sz.width / 2 - left).clamp(20.0, width - 20.0);
+
+    _activePopup = OverlayEntry(builder: (ctx) => _PopupOverlay(
+      left: left, bottom: screenSize.height - off.dy + 12,
+      width: width, arrowLeft: arrowL, originX: originX,
+      onDismiss: _closePopup, child: child,
+    ));
+    Overlay.of(context).insert(_activePopup!);
   }
 
-  // ── BUILD ────────────────────────────────────────────────
+  void _onTbBtn(BuildContext ctx, String popup) {
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    if (_activePopup != null) { _closePopup(); return; }
+    switch (popup) {
+      case 'color':
+        _showPopup(box: box, width: 254, child: _ColorPopup(currentColor: _currentColor, onColor: (c) { _setColor(c); _closePopup(); }));
+        break;
+      case 'font':
+        _showPopup(box: box, width: 240, child: _FontPopup(currentFont: _currentFont,
+          onFont: (f) { _setFontFamily(f); _closePopup(); },
+          onFullscreen: () { _closePopup(); _showFontFullscreen(); }));
+        break;
+      case 'size':
+        _showPopup(box: box, width: 220, child: _SizePopup(currentSize: _currentSize, onSize: (s) { _setFontSize(s); _closePopup(); }));
+        break;
+      case 'styles':
+        _showPopup(box: box, width: 200, child: _StylesPopup(onStyle: _applyStyle));
+        break;
+      case 'insert':
+        _showPopup(box: box, width: 240, child: _InsertPopup(
+          onLink: _insertLink, onImage: _insertImage, onTable: _insertTable,
+          onHR: _insertHR, onDateTime: _insertDateTime, onCallout: _insertCallout));
+        break;
+      case 'format':
+        _showPopup(box: box, width: 240, child: _FormatPopup(
+          onCase: _transformCase,
+          onSuperscript: () { _fmt(Attribute.superScript); _closePopup(); },
+          onSubscript:   () { _fmt(Attribute.subscript);   _closePopup(); },
+          onInlineCode:  () { _fmt(Attribute.inlineCode);  _closePopup(); },
+          onLineHeight:  (_) => _closePopup(),
+          onClearFormat: _clearFormat));
+        break;
+    }
+  }
+
+  void _showFontFullscreen() => showModalBottomSheet(
+    context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+    builder: (ctx) => _FontFullscreen(currentFont: _currentFont, onFont: (f) { _setFontFamily(f); Navigator.pop(ctx); }),
+  );
+
+  // ── BUILD ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext ctx) {
-    return LayoutBuilder(builder: (ctx, constraints) {
-      final w = constraints.maxWidth;
-      final scale = w < 826 ? (w - 32) / 794.0 : 1.0;
-      return Scaffold(
-        backgroundColor: kBg,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.dark),
+      child: Scaffold(
+        backgroundColor: T.bg,
+        resizeToAvoidBottomInset: true,
         body: AnimatedBuilder(
           animation: _drawerAnim,
-          builder: (ctx, _) {
-            final dx = _drawerAnim.value * 110.0;
-            return Stack(children: [
-              Transform.translate(
-                offset: Offset(dx, 0),
-                child: Column(children: [
-                  _Topbar(
-                    titleCtrl: _titleCtrl,
-                    onMenu: _openDrawer,
-                    onUndo: () => _qc.undo(),
-                    onRedo: () => _qc.redo(),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-                      child: Center(
-                        child: Transform.scale(
-                          scale: scale,
-                          alignment: Alignment.topCenter,
-                          child: _a4Mode ? _buildA4Pages() : _buildScrollPage(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
-              if (_drawerOpen)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: _closeDrawer,
-                    child: AnimatedOpacity(
-                      opacity: _drawerAnim.value * 0.18,
-                      duration: Duration.zero,
-                      child: Container(color: Colors.black),
-                    ),
-                  ),
-                ),
-              Transform.translate(
-                offset: Offset((_drawerAnim.value - 1) * 260, 0),
-                child: _Drawer(
-                  a4Mode: _a4Mode,
-                  aiMode: _aiMode,
-                  onToggleAI: () { _toggleAI(); _closeDrawer(); },
-                  onToggleA4: () { setState(() => _a4Mode = !_a4Mode); _closeDrawer(); },
-                ),
-              ),
-              Positioned(
-                left: 0, right: 0, bottom: 0,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 14),
-                    child: _FloatingToolbar(
-                      aiMode: _aiMode, aiLoading: _aiLoading, aiCtrl: _aiCtrl,
-                      isBold: _isBold, isItalic: _isItalic,
-                      isUnderline: _isUnderline, isStrike: _isStrike,
-                      curFont: _curFont, curSize: _curSize,
-                      curColor: _curColor, curAlign: _curAlign,
-                      onBold: _toggleBold, onItalic: _toggleItalic,
-                      onUnderline: _toggleUnderline, onStrike: _toggleStrike,
-                      onAlignLeft: () => _setAlign('left'),
-                      onAlignCenter: () => _setAlign('center'),
-                      onAlignRight: () => _setAlign('right'),
-                      onAlignJustify: () => _setAlign('justify'),
-                      onList: _insertBulletList,
-                      onListOrdered: _insertOrderedList,
-                      onIndent: _indent, onOutdent: _outdent,
-                      onAISubmit: _doAI,
-                      onConfirm: () { _closePopup(); _focusNode.requestFocus(); },
-                      onColorTap: (c) => _showPopup(
-                        triggerCtx: c, width: 254,
-                        builder: (_, close) => _ColorPopup(
-                          curColor: _curColor,
-                          onPick: (col) { _setColor(col); close(); },
-                        ),
-                      ),
-                      onFontTap: (c) => _showPopup(
-                        triggerCtx: c, width: 240,
-                        builder: (_, close) => _FontPopup(
-                          curFont: _curFont,
-                          onSelect: _setFont,
-                          onExpand: () { close(); _openFontFullscreen(); },
-                        ),
-                      ),
-                      onSizeTap: (c) => _showPopup(
-                        triggerCtx: c, width: 220,
-                        builder: (_, close) => _SizePopup(
-                          curSize: _curSize,
-                          onSize: (s) { _setSize(s); close(); },
-                          onInc: () => setState(() { _curSize = math.min(200, _curSize + 1); _setSize(_curSize); }),
-                          onDec: () => setState(() { _curSize = math.max(6, _curSize - 1); _setSize(_curSize); }),
-                        ),
-                      ),
-                      onStylesTap: (c) => _showPopup(
-                        triggerCtx: c, width: 200,
-                        builder: (_, close) => _StylesPopup(
-                          onStyle: (attr) { _setBlockStyle(attr); close(); },
-                        ),
-                      ),
-                      onInsertTap: (c) => _showPopup(
-                        triggerCtx: c, width: 240,
-                        builder: (_, close) => _InsertPopup(
-                          onImage: _pickImage,
-                          onLink: () { close(); _showLinkDialog(); },
-                          onTable: () { _insertTable(); close(); },
-                          onHr: () { _insertHr(); close(); },
-                          onDate: () { _insertDate(); close(); },
-                          onCallout: (t) { _insertCallout(t); close(); },
-                        ),
-                      ),
-                      onFormatTap: (c) => _showPopup(
-                        triggerCtx: c, width: 240,
-                        builder: (_, close) => _FormatPopup(qc: _qc, onDone: close),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ]);
-          },
+          builder: (_, __) => Stack(children: [
+            Transform.translate(offset: Offset(_appSlide.value, 0), child: _buildMainApp()),
+            if (_drawerOpen)
+              Positioned.fill(child: GestureDetector(
+                onTap: _closeDrawer,
+                child: Container(color: Color.fromRGBO(0, 0, 0, _overlayOpacity.value)),
+              )),
+            Transform.translate(offset: Offset(_drawerSlide.value, 0), child: _buildDrawer()),
+          ]),
         ),
-      );
-    });
-  }
-
-  // ── PAGE BUILDERS ────────────────────────────────────────
-  Widget _buildScrollPage() => Container(
-        width: 794,
-        constraints: const BoxConstraints(minHeight: 1123),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(4),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1)),
-            BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0, 4)),
-          ],
-        ),
-        padding: const EdgeInsets.fromLTRB(88, 96, 88, 120),
-        child: _buildEditor(),
-      );
-
-  Widget _buildA4Pages() => SizedBox(
-        width: 794,
-        child: Column(children: [
-          Container(
-            width: 794, height: 1123,
-            decoration: BoxDecoration(
-              color: kSurface,
-              borderRadius: BorderRadius.circular(4),
-              boxShadow: const [
-                BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1)),
-                BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0, 4)),
-              ],
-            ),
-            padding: const EdgeInsets.fromLTRB(88, 96, 88, 96),
-            child: Stack(children: [
-              _buildEditor(),
-              Positioned(
-                right: 20, bottom: 14,
-                child: Text('1', style: dmSans(size: 10, fw: FontWeight.w600, color: kMuted)),
-              ),
-            ]),
-          ),
-        ]),
-      );
-
-  // ── FIX PRINCIPAL: QuillEditor v11 usa scrollController + focusNode
-  // ── directamente, e configurations: para todo o resto.
-  Widget _buildEditor() => quill.QuillEditor(
-        controller: _qc,
-        focusNode: _focusNode,
-        scrollController: ScrollController(),
-        configurations: quill.QuillEditorConfigurations(
-          placeholder: 'Começa a escrever…',
-          autoFocus: false,
-          expands: false,
-          scrollable: false,
-          padding: EdgeInsets.zero,
-          customStyles: quill.DefaultStyles(
-            paragraph: quill.DefaultTextBlockStyle(
-              GoogleFonts.lora(fontSize: 16, height: 1.85, color: kInk),
-              const quill.HorizontalSpacing(0, 0),
-              const quill.VerticalSpacing(0, 0),
-              const quill.VerticalSpacing(0, 0),
-              null,
-            ),
-          ),
-        ),
-      );
-
-  // ── DIALOGS ──────────────────────────────────────────────
-  void _showLinkDialog() {
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Link', style: dmSans(size: 16, fw: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(hintText: 'https://...'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancelar', style: dmSans())),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (ctrl.text.isNotEmpty) _qc.formatSelection(quill.LinkAttribute(ctrl.text));
-            },
-            child: Text('Inserir', style: dmSans(color: kAccent)),
-          ),
-        ],
       ),
     );
   }
 
-  void _insertTable() => _qc.document.insert(_qc.selection.extentOffset, '\n[Tabela 3×3]\n');
-  void _insertHr() => _qc.document.insert(_qc.selection.extentOffset, '\n──────────────────────\n');
+  Widget _buildMainApp() => Column(children: [
+    _buildTopbar(),
+    Expanded(child: _buildCanvas()),
+    _buildFloatingToolbar(),
+  ]);
 
-  void _insertDate() {
-    final now = DateTime.now();
-    final s = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    _qc.document.insert(_qc.selection.extentOffset, s);
-  }
+  // ── TOPBAR ────────────────────────────────────────────────────────────────
+  Widget _buildTopbar() => Container(
+    height: 52 + MediaQuery.of(context).padding.top,
+    padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+    decoration: const BoxDecoration(color: T.surface, border: Border(bottom: BorderSide(color: T.divider))),
+    child: SizedBox(
+      height: 52,
+      child: Stack(children: [
+        Positioned(left: 6, top: 4, child: _TbIconBtn(icon: LucideIcons.menu, onTap: _toggleDrawer)),
+        Positioned.fill(child: Center(child: IntrinsicWidth(child: TextField(
+          controller: _titleCtrl,
+          textAlign: TextAlign.center,
+          style: T.dmSans(size: 15, w: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: 'Sem título',
+            hintStyle: T.dmSans(size: 15, w: FontWeight.w600, color: T.muted),
+            border: InputBorder.none, isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          ),
+          maxLines: 1,
+        )))),
+        Positioned(right: 6, top: 4, child: Row(children: [
+          _TbIconBtn(icon: LucideIcons.undo2, onTap: () => _qc.undo()),
+          _TbIconBtn(icon: LucideIcons.redo2, onTap: () => _qc.redo()),
+        ])),
+      ]),
+    ),
+  );
 
-  void _insertCallout(String type) {
-    final labels = {'warning': '▲ Aviso', 'info': 'i Informação', 'success': '✓ Sucesso', 'error': '✕ Erro'};
-    _qc.document.insert(_qc.selection.extentOffset, '\n${labels[type] ?? 'Nota'}: Escreve aqui.\n');
-  }
-
-  void _openFontFullscreen() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _FontFullscreen(curFont: _curFont, onSelect: _setFont),
+  // ── CANVAS ────────────────────────────────────────────────────────────────
+  Widget _buildCanvas() => LayoutBuilder(builder: (ctx, constraints) {
+    final avail = constraints.maxWidth - 32;
+    final scale = avail < 794 ? avail / 794 : 1.0;
+    return SingleChildScrollView(
+      controller: _editorScroll,
+      padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+      child: Center(child: Transform.scale(
+        scale: scale, alignment: Alignment.topCenter,
+        child: SizedBox(width: 794, child: _a4Mode ? _buildA4Page() : _buildScrollPage()),
+      )),
     );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TOPBAR
-// ─────────────────────────────────────────────────────────────────────────────
-class _Topbar extends StatelessWidget {
-  final TextEditingController titleCtrl;
-  final VoidCallback onMenu, onUndo, onRedo;
-  const _Topbar({required this.titleCtrl, required this.onMenu, required this.onUndo, required this.onRedo});
-
-  @override
-  Widget build(BuildContext ctx) => Container(
-        height: 52,
-        decoration: const BoxDecoration(
-          color: kSurface,
-          border: Border(bottom: BorderSide(color: kBorder)),
-        ),
-        child: Stack(alignment: Alignment.center, children: [
-          Positioned(left: 6, child: _TbBtn(icon: LucideIcons.menu, onTap: onMenu)),
-          SizedBox(
-            width: MediaQuery.of(ctx).size.width - 160,
-            child: TextField(
-              controller: titleCtrl,
-              textAlign: TextAlign.center,
-              style: dmSans(size: 15, fw: FontWeight.w600),
-              decoration: InputDecoration(
-                hintText: 'Sem título',
-                hintStyle: dmSans(size: 15, fw: FontWeight.w600, color: kMuted),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                isDense: true,
-              ),
-            ),
-          ),
-          Positioned(
-            right: 6,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              _TbBtn(icon: LucideIcons.undo2, onTap: onUndo),
-              _TbBtn(icon: LucideIcons.redo2, onTap: onRedo),
-            ]),
-          ),
-        ]),
-      );
-}
-
-class _TbBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool active;
-  const _TbBtn({required this.icon, required this.onTap, this.active = false});
-
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: active ? kAccentBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 20, color: active ? kAccent : kSub),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DRAWER
-// ─────────────────────────────────────────────────────────────────────────────
-class _Drawer extends StatelessWidget {
-  final bool a4Mode, aiMode;
-  final VoidCallback onToggleAI, onToggleA4;
-  const _Drawer({required this.a4Mode, required this.aiMode, required this.onToggleAI, required this.onToggleA4});
-
-  @override
-  Widget build(BuildContext ctx) => Container(
-        width: 260,
-        height: double.infinity,
-        color: kSurface,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(height: MediaQuery.of(ctx).padding.top + 52 + 14),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            child: Text('Funcionalidades',
-                style: dmSans(size: 13, fw: FontWeight.w700, color: kMuted)),
-          ),
-          const Divider(height: 1, color: kBorder),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(children: [
-              _DrawerItem(
-                icon: aiMode ? LucideIcons.bot : LucideIcons.keyboard,
-                label: aiMode ? 'IA activa' : 'Toolbar / IA',
-                active: aiMode, onTap: onToggleAI,
-              ),
-              _DrawerItem(
-                icon: a4Mode ? LucideIcons.layout : LucideIcons.fileText,
-                label: a4Mode ? 'Formato: A4' : 'Formato: Scroll',
-                active: a4Mode, onTap: onToggleA4,
-              ),
-            ]),
-          ),
-        ]),
-      );
-}
-
-class _DrawerItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _DrawerItem({required this.icon, required this.label, required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: active ? kAccentBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(children: [
-            Icon(icon, size: 18, color: active ? kAccent : kSub),
-            const SizedBox(width: 12),
-            Text(label, style: dmSans(size: 14, fw: FontWeight.w500, color: active ? kAccent : kInk)),
-          ]),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FLOATING TOOLBAR
-// ─────────────────────────────────────────────────────────────────────────────
-class _FloatingToolbar extends StatelessWidget {
-  final bool aiMode, aiLoading;
-  final TextEditingController aiCtrl;
-  final bool isBold, isItalic, isUnderline, isStrike;
-  final String curFont, curAlign;
-  final int curSize;
-  final Color curColor;
-  final VoidCallback onBold, onItalic, onUnderline, onStrike;
-  final VoidCallback onAlignLeft, onAlignCenter, onAlignRight, onAlignJustify;
-  final VoidCallback onList, onListOrdered, onIndent, onOutdent;
-  final VoidCallback onAISubmit, onConfirm;
-  final void Function(BuildContext) onColorTap, onFontTap, onSizeTap, onStylesTap, onInsertTap, onFormatTap;
-
-  const _FloatingToolbar({
-    required this.aiMode, required this.aiLoading, required this.aiCtrl,
-    required this.isBold, required this.isItalic, required this.isUnderline, required this.isStrike,
-    required this.curFont, required this.curAlign, required this.curSize, required this.curColor,
-    required this.onBold, required this.onItalic, required this.onUnderline, required this.onStrike,
-    required this.onAlignLeft, required this.onAlignCenter, required this.onAlignRight, required this.onAlignJustify,
-    required this.onList, required this.onListOrdered, required this.onIndent, required this.onOutdent,
-    required this.onAISubmit, required this.onConfirm,
-    required this.onColorTap, required this.onFontTap, required this.onSizeTap,
-    required this.onStylesTap, required this.onInsertTap, required this.onFormatTap,
   });
 
-  @override
-  Widget build(BuildContext ctx) {
-    final maxW = math.min(MediaQuery.of(ctx).size.width * 0.96, 460.0);
-    return Center(
-      child: SizedBox(
-        width: maxW,
+  Widget _buildScrollPage() => Container(
+    width: 794,
+    constraints: const BoxConstraints(minHeight: 1123),
+    decoration: BoxDecoration(
+      color: T.surface, borderRadius: BorderRadius.circular(4),
+      boxShadow: const [
+        BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0,1)),
+        BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0,4)),
+      ],
+    ),
+    padding: const EdgeInsets.fromLTRB(88, 96, 88, 120),
+    child: _buildEditor(),
+  );
+
+  Widget _buildA4Page() => Container(
+    width: 794, height: 1123,
+    decoration: BoxDecoration(
+      color: T.surface, borderRadius: BorderRadius.circular(4),
+      boxShadow: const [
+        BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0,1)),
+        BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0,4)),
+      ],
+    ),
+    padding: const EdgeInsets.fromLTRB(88, 96, 88, 96),
+    child: _buildEditor(),
+  );
+
+  // ── EDITOR (API correta v9) ───────────────────────────────────────────────
+  Widget _buildEditor() => QuillEditor(
+    controller:       _qc,
+    focusNode:        _editorFocus,
+    scrollController: _editorScroll,
+    configurations: QuillEditorConfigurations(
+      placeholder: 'Começa a escrever…',
+      padding:     EdgeInsets.zero,
+      autoFocus:   false,
+      expands:     false,
+      scrollable:  false,
+      customStyles: DefaultStyles(
+        paragraph: DefaultTextBlockStyle(
+          GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.ink),
+          const HorizontalSpacing(0, 0), const VerticalSpacing(0, 0), null,
+        ),
+        h1: DefaultTextBlockStyle(
+          GoogleFonts.lora(fontSize: 28, fontWeight: FontWeight.w700, color: T.ink),
+          const HorizontalSpacing(0, 0), const VerticalSpacing(8, 4), null,
+        ),
+        h2: DefaultTextBlockStyle(
+          GoogleFonts.lora(fontSize: 22, fontWeight: FontWeight.w600, color: T.ink),
+          const HorizontalSpacing(0, 0), const VerticalSpacing(6, 3), null,
+        ),
+        h3: DefaultTextBlockStyle(
+          GoogleFonts.lora(fontSize: 18, fontWeight: FontWeight.w600, color: T.ink),
+          const HorizontalSpacing(0, 0), const VerticalSpacing(4, 2), null,
+        ),
+        bold:         const TextStyle(fontWeight: FontWeight.w700),
+        italic:       const TextStyle(fontStyle: FontStyle.italic),
+        underline:    const TextStyle(decoration: TextDecoration.underline),
+        strikeThrough:const TextStyle(decoration: TextDecoration.lineThrough),
+        placeHolder: DefaultTextBlockStyle(
+          GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.muted),
+          const HorizontalSpacing(0, 0), const VerticalSpacing(0, 0), null,
+        ),
+      ),
+      selectionColor: const Color(0xFFBFDBFE),
+    ),
+  );
+
+  // ── DRAWER ────────────────────────────────────────────────────────────────
+  Widget _buildDrawer() => Positioned(
+    left: 0, top: 0, bottom: 0,
+    child: Container(
+      width: 260,
+      decoration: const BoxDecoration(
+        color: T.surface,
+        boxShadow: [BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(2,0))],
+      ),
+      child: SafeArea(child: Column(children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
+          child: Text('Funcionalidades', style: T.dmSans(size: 13, w: FontWeight.w700, color: T.muted)),
+        ),
+        Expanded(child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
+              child: Padding(padding: const EdgeInsets.only(bottom: 8), child: Column(children: [
+                _DrawerItem(
+                  icon: _aiMode ? LucideIcons.bot : LucideIcons.keyboard,
+                  label: _aiMode ? 'IA activa' : 'Toolbar / IA',
+                  isActive: _aiMode,
+                  onTap: () { _closeDrawer(); setState(() => _aiMode = !_aiMode); },
+                ),
+                _DrawerItem(
+                  icon: _a4Mode ? LucideIcons.layoutGrid : LucideIcons.fileText,
+                  label: _a4Mode ? 'Formato: A4' : 'Formato: Scroll',
+                  isActive: _a4Mode,
+                  onTap: () { setState(() => _a4Mode = !_a4Mode); _closeDrawer(); },
+                ),
+              ])),
+            ),
+          ]),
+        )),
+      ])),
+    ),
+  );
+
+  // ── FLOATING TOOLBAR ──────────────────────────────────────────────────────
+  Widget _buildFloatingToolbar() => SafeArea(
+    top: false,
+    child: Padding(
+      padding: EdgeInsets.only(left: 8, right: 8, bottom: math.max(14, MediaQuery.of(context).padding.bottom + 4)),
+      child: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
         child: Container(
           height: 54,
           decoration: BoxDecoration(
             color: const Color(0xFAFFFFFF),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: kBorder),
+            border: Border.all(color: T.divider),
             boxShadow: const [
-              BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 4)),
-              BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 1)),
+              BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0,4)),
+              BoxShadow(color: Color(0x0D000000), blurRadius: 4,  offset: Offset(0,1)),
             ],
           ),
           child: Row(children: [
-            Expanded(child: aiMode ? _buildAIRow(ctx) : _buildToolsRow(ctx)),
+            Expanded(child: _aiMode ? _buildAIRow() : _buildTbTrack()),
             Padding(
               padding: const EdgeInsets.only(right: 6, left: 2),
               child: GestureDetector(
-                onTap: aiMode ? onAISubmit : onConfirm,
+                onTap: () => _aiMode ? _doAI() : _closePopup(),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: aiMode ? kAccent : kSurface,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: aiMode ? Colors.transparent : kBorder, width: 1.5),
+                    color: _aiMode ? T.accent : T.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: _aiMode ? Colors.transparent : T.divider),
                   ),
-                  child: Center(
-                    child: aiLoading
-                        ? const _AIDots()
-                        : Icon(
-                            aiMode ? LucideIcons.send : LucideIcons.check,
-                            size: 16,
-                            color: aiMode ? Colors.white : kSub,
-                          ),
-                  ),
+                  child: _aiLoading
+                    ? const Center(child: _AiDots())
+                    : Icon(_aiMode ? LucideIcons.send : LucideIcons.check,
+                        size: 16, color: _aiMode ? Colors.white : T.sub),
                 ),
               ),
             ),
           ]),
         ),
+      )),
+    ),
+  );
+
+  Widget _buildAIRow() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: TextField(
+      controller: _aiCtrl, focusNode: _aiFocus,
+      style: T.dmSans(size: 14),
+      decoration: InputDecoration(
+        hintText: 'Pergunta à IA…',
+        hintStyle: T.dmSans(size: 14, color: T.muted),
+        border: InputBorder.none, isDense: true,
       ),
-    );
-  }
+      onSubmitted: (_) => _doAI(),
+      textInputAction: TextInputAction.send,
+    ),
+  );
 
-  Widget _buildAIRow(BuildContext ctx) => Padding(
-        padding: const EdgeInsets.only(left: 16),
-        child: TextField(
-          controller: aiCtrl,
-          enabled: !aiLoading,
-          style: dmSans(size: 14),
-          decoration: InputDecoration(
-            hintText: 'Pergunta à IA…',
-            hintStyle: dmSans(size: 14, color: kMuted),
-            border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero,
-          ),
-          onSubmitted: (_) => onAISubmit(),
-        ),
-      );
-
-  Widget _buildToolsRow(BuildContext ctx) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Row(children: [
-          Builder(builder: (c) => GestureDetector(
-            onTap: () => onColorTap(c),
-            child: Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 7),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('A', style: dmSans(size: 16, fw: FontWeight.w900, color: kSub)),
-                const SizedBox(height: 2),
-                Container(width: 16, height: 3,
-                    decoration: BoxDecoration(color: curColor, borderRadius: BorderRadius.circular(2))),
-              ]),
-            ),
-          )),
-          _Divider(),
-          _FmtBtn(label: 'B', bold: true, active: isBold, onTap: onBold),
-          _FmtBtn(label: 'I', italic: true, active: isItalic, onTap: onItalic),
-          _FmtBtn(label: 'U', underline: true, active: isUnderline, onTap: onUnderline),
-          _FmtBtn(label: 'S', strike: true, active: isStrike, onTap: onStrike),
-          _Divider(),
-          Builder(builder: (c) => _Chip(label: curFont, onTap: () => onFontTap(c), icon: LucideIcons.chevronDown)),
-          const SizedBox(width: 3),
-          Builder(builder: (c) => _Chip(label: '$curSize', onTap: () => onSizeTap(c), icon: LucideIcons.chevronDown)),
-          _Divider(),
-          Builder(builder: (c) => _Chip(label: 'Estilos', onTap: () => onStylesTap(c), icon: LucideIcons.chevronDown)),
-          _Divider(),
-          _IconBtn(icon: LucideIcons.alignLeft, active: curAlign == 'left', onTap: onAlignLeft),
-          _IconBtn(icon: LucideIcons.alignCenter, active: curAlign == 'center', onTap: onAlignCenter),
-          _IconBtn(icon: LucideIcons.alignRight, active: curAlign == 'right', onTap: onAlignRight),
-          _IconBtn(icon: LucideIcons.alignJustify, active: curAlign == 'justify', onTap: onAlignJustify),
-          _Divider(),
-          _IconBtn(icon: LucideIcons.list, onTap: onList),
-          _IconBtn(icon: LucideIcons.listOrdered, onTap: onListOrdered),
-          _IconBtn(icon: LucideIcons.indent, onTap: onIndent),
-          _IconBtn(icon: LucideIcons.outdent, onTap: onOutdent),
-          _Divider(),
-          Builder(builder: (c) => _Chip(label: 'Inserir', onTap: () => onInsertTap(c), icon: LucideIcons.plus)),
-          _Divider(),
-          Builder(builder: (c) => _Chip(label: 'Formatar', onTap: () => onFormatTap(c), icon: LucideIcons.settings2)),
-        ]),
-      );
+  Widget _buildTbTrack() => Stack(children: [
+    // Left fade
+    Positioned(left: 0, top: 0, bottom: 0, child: IgnorePointer(child: Container(
+      width: 20,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(999), bottomLeft: Radius.circular(999)),
+        gradient: LinearGradient(colors: [Colors.white.withOpacity(0.97), Colors.transparent]),
+      ),
+    ))),
+    // Right fade
+    Positioned(right: 0, top: 0, bottom: 0, child: IgnorePointer(child: Container(
+      width: 14,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft,
+          colors: [Colors.white.withOpacity(0.97), Colors.transparent]),
+      ),
+    ))),
+    SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(children: [
+        // Color
+        Builder(builder: (ctx) => _TbColorBtn(color: _currentColor, onTap: () => _onTbBtn(ctx, 'color'))),
+        const _TbDiv(),
+        // B I U S
+        _TbFmtBtn(label: 'B', bold: true,      active: _isBold,      onTap: _toggleBold),
+        _TbFmtBtn(label: 'I', italic: true,    active: _isItalic,    onTap: _toggleItalic),
+        _TbFmtBtn(label: 'U', underline: true, active: _isUnderline, onTap: _toggleUnderline),
+        _TbFmtBtn(label: 'S', strike: true,    active: _isStrike,    onTap: _toggleStrike),
+        const _TbDiv(),
+        // Font / Size chips
+        Builder(builder: (ctx) => _TbChip(label: _currentFont, icon: LucideIcons.chevronDown, onTap: () => _onTbBtn(ctx, 'font'))),
+        Builder(builder: (ctx) => _TbChip(label: '$_currentSize', icon: LucideIcons.chevronDown, onTap: () => _onTbBtn(ctx, 'size'))),
+        const _TbDiv(),
+        Builder(builder: (ctx) => _TbChip(label: 'Estilos', icon: LucideIcons.chevronDown, onTap: () => _onTbBtn(ctx, 'styles'))),
+        const _TbDiv(),
+        // Align
+        _TbAlignBtn(icon: LucideIcons.alignLeft,    active: _currentAlign == 'left',    onTap: () => _setAlign('left')),
+        _TbAlignBtn(icon: LucideIcons.alignCenter,  active: _currentAlign == 'center',  onTap: () => _setAlign('center')),
+        _TbAlignBtn(icon: LucideIcons.alignRight,   active: _currentAlign == 'right',   onTap: () => _setAlign('right')),
+        _TbAlignBtn(icon: LucideIcons.alignJustify, active: _currentAlign == 'justify', onTap: () => _setAlign('justify')),
+        const _TbDiv(),
+        // Lists
+        _TbIconBtnSm(icon: LucideIcons.list,        onTap: () => _fmt(Attribute.ul)),
+        _TbIconBtnSm(icon: LucideIcons.listOrdered, onTap: () => _fmt(Attribute.ol)),
+        _TbIconBtnSm(icon: LucideIcons.indent,      onTap: () => _fmt(Attribute.indentL1)),
+        _TbIconBtnSm(icon: LucideIcons.outdent,     onTap: () => _fmt(Attribute.indentL1)),
+        const _TbDiv(),
+        Builder(builder: (ctx) => _TbChip(label: 'Inserir',  icon: LucideIcons.plus,     onTap: () => _onTbBtn(ctx, 'insert'))),
+        const _TbDiv(),
+        Builder(builder: (ctx) => _TbChip(label: 'Formatar', icon: LucideIcons.settings2, onTap: () => _onTbBtn(ctx, 'format'))),
+        const SizedBox(width: 8),
+      ]),
+    ),
+  ]);
 }
 
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext ctx) => Container(
-        width: 1, height: 20, color: kBorder,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-      );
-}
-
-class _FmtBtn extends StatelessWidget {
-  final String label;
-  final bool active, bold, italic, underline, strike;
-  final VoidCallback onTap;
-  const _FmtBtn({required this.label, required this.onTap, this.active = false,
-      this.bold = false, this.italic = false, this.underline = false, this.strike = false});
-
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 7),
-          decoration: BoxDecoration(
-            color: active ? kAccentBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Center(
-            child: Text(label, style: TextStyle(
-              fontSize: 16,
-              fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
-              fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-              decoration: underline ? TextDecoration.underline : strike ? TextDecoration.lineThrough : null,
-              color: active ? kAccent : kSub,
-              fontFamily: GoogleFonts.dmSans().fontFamily,
-              height: 1,
-            )),
-          ),
-        ),
-      );
-}
-
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-  const _IconBtn({required this.icon, required this.onTap, this.active = false});
-
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 7),
-          decoration: BoxDecoration(
-            color: active ? kAccentBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Center(child: Icon(icon, size: 17, color: active ? kAccent : kSub)),
-        ),
-      );
-}
-
-class _Chip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _Chip({required this.label, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 11),
-          decoration: BoxDecoration(
-            border: Border.all(color: kBorder, width: 1.5),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(label, style: dmSans(size: 12, fw: FontWeight.w600)),
-            const SizedBox(width: 4),
-            Icon(icon, size: 11, color: kInk),
-          ]),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AI DOTS
-// ─────────────────────────────────────────────────────────────────────────────
-class _AIDots extends StatefulWidget {
-  const _AIDots();
-  @override
-  State<_AIDots> createState() => _AIDotsState();
-}
-
-class _AIDotsState extends State<_AIDots> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
-  }
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext ctx) => AnimatedBuilder(
-        animation: _ctrl,
-        builder: (_, __) => Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (i) {
-            final t = (_ctrl.value - i * 0.22).clamp(0.0, 1.0);
-            final scale = 0.6 + 0.4 * math.sin(t * math.pi);
-            return Transform.scale(
-              scale: scale,
-              child: Container(
-                width: 5, height: 5,
-                margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                decoration: const BoxDecoration(color: kAccent, shape: BoxShape.circle),
-              ),
-            );
-          }),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POPUP CARD
-// ─────────────────────────────────────────────────────────────────────────────
-class _PopupCard extends StatefulWidget {
+// ─── POPUP OVERLAY ────────────────────────────────────────────────────────────
+class _PopupOverlay extends StatefulWidget {
+  final double left, bottom, width, arrowLeft, originX;
   final Widget child;
-  final double arrowLeft;
-  const _PopupCard({required this.child, required this.arrowLeft});
-  @override
-  State<_PopupCard> createState() => _PopupCardState();
+  final VoidCallback onDismiss;
+  const _PopupOverlay({required this.left, required this.bottom, required this.width,
+    required this.arrowLeft, required this.originX, required this.child, required this.onDismiss});
+  @override State<_PopupOverlay> createState() => _PopupOverlayState();
 }
 
-class _PopupCardState extends State<_PopupCard> with SingleTickerProviderStateMixin {
+class _PopupOverlayState extends State<_PopupOverlay> with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  late Animation<double> _scaleAnim, _opacAnim;
+  late Animation<double> _scale, _opacity;
+
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
-    _scaleAnim = Tween(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: const Cubic(0.34, 1.56, 0.64, 1)));
-    _opacAnim = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _scale   = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: const _SpringCurve()));
+    _opacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _ctrl.forward();
   }
+
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
+
   @override
-  Widget build(BuildContext ctx) => AnimatedBuilder(
-        animation: _ctrl,
-        builder: (_, child) => Opacity(
-          opacity: _opacAnim.value,
-          child: Transform.scale(scale: _scaleAnim.value, alignment: Alignment.bottomCenter, child: child),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget build(BuildContext ctx) => Stack(children: [
+    Positioned.fill(child: GestureDetector(onTap: widget.onDismiss, behavior: HitTestBehavior.opaque,
+      child: Container(color: Colors.transparent))),
+    Positioned(
+      left: widget.left, bottom: widget.bottom,
+      child: AnimatedBuilder(animation: _ctrl, builder: (_, child) =>
+        FadeTransition(opacity: _opacity, child: Transform.scale(
+          scale: _scale.value,
+          alignment: Alignment((widget.originX / widget.width) * 2 - 1, 1.0),
+          child: child,
+        )),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
+            width: widget.width,
             decoration: BoxDecoration(
-              color: kSurface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
+              color: T.surface, borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: T.divider),
               boxShadow: const [
-                BoxShadow(color: Color(0x21000000), blurRadius: 32, offset: Offset(0, 8)),
-                BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2)),
+                BoxShadow(color: Color(0x21000000), blurRadius: 32, offset: Offset(0,8)),
+                BoxShadow(color: Color(0x12000000), blurRadius: 8,  offset: Offset(0,2)),
               ],
             ),
             child: ClipRRect(borderRadius: BorderRadius.circular(14), child: widget.child),
           ),
-          SizedBox(height: 9, child: Stack(children: [
-            Positioned(
-              left: widget.arrowLeft, top: 0,
-              child: CustomPaint(size: const Size(18, 9), painter: _ArrowPainter()),
-            ),
-          ])),
+          Align(
+            alignment: Alignment(((widget.arrowLeft + 7) / widget.width) * 2 - 1, 0),
+            child: CustomPaint(size: const Size(18, 9), painter: _ArrowPainter()),
+          ),
         ]),
-      );
+      ),
+    ),
+  ]);
 }
 
 class _ArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final fill = Paint()..color = kSurface..style = PaintingStyle.fill;
-    final stroke = Paint()..color = kBorder..style = PaintingStyle.stroke..strokeWidth = 1;
-    final path = Path()..moveTo(0, 0)..lineTo(size.width / 2, size.height)..lineTo(size.width, 0)..close();
-    canvas.drawPath(path, stroke);
-    canvas.drawPath(path, fill);
+    final path = Path()
+      ..moveTo(size.width / 2 - 7, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width / 2 + 7, 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = Colors.white..style = PaintingStyle.fill);
+    canvas.drawPath(path, Paint()..color = const Color(0x14000000)..style = PaintingStyle.stroke..strokeWidth = 1);
   }
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
+  @override bool shouldRepaint(_) => false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COLOR POPUP
-// ─────────────────────────────────────────────────────────────────────────────
-class _ColorPopup extends StatefulWidget {
-  final Color curColor;
-  final void Function(Color) onPick;
-  const _ColorPopup({required this.curColor, required this.onPick});
+class _SpringCurve extends Curve {
+  const _SpringCurve();
   @override
-  State<_ColorPopup> createState() => _ColorPopupState();
+  double transform(double t) => 1.0 + (t - 1.0) * (t - 1.0) * (2.56 * (t - 1.0) + 1.56);
+}
+
+// ─── TOOLBAR ATOMS ────────────────────────────────────────────────────────────
+class _TbIconBtn extends StatelessWidget {
+  final IconData icon; final VoidCallback onTap;
+  const _TbIconBtn({required this.icon, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: Container(
+    width: 44, height: 44, alignment: Alignment.center,
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.transparent),
+    child: Icon(icon, size: 20, color: T.sub),
+  ));
+}
+
+class _TbColorBtn extends StatelessWidget {
+  final Color color; final VoidCallback onTap;
+  const _TbColorBtn({required this.color, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: Container(
+    height: 38, width: 38, margin: const EdgeInsets.symmetric(horizontal: 1),
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Text('A', style: T.dmSans(size: 16, w: FontWeight.w900, color: T.sub)),
+      const SizedBox(height: 2),
+      Container(width: 16, height: 3, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+    ]),
+  ));
+}
+
+class _TbDiv extends StatelessWidget {
+  const _TbDiv();
+  @override Widget build(BuildContext ctx) => Container(width: 1, height: 20, margin: const EdgeInsets.symmetric(horizontal: 4), color: T.divider);
+}
+
+class _TbFmtBtn extends StatelessWidget {
+  final String label;
+  final bool bold, italic, underline, strike, active;
+  final VoidCallback onTap;
+  const _TbFmtBtn({required this.label, this.bold=false, this.italic=false, this.underline=false, this.strike=false, required this.active, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: AnimatedContainer(
+    duration: const Duration(milliseconds: 150),
+    height: 38, width: 38, margin: const EdgeInsets.symmetric(horizontal: 1),
+    decoration: BoxDecoration(color: active ? T.accentBg : Colors.transparent, borderRadius: BorderRadius.circular(999)),
+    alignment: Alignment.center,
+    child: Text(label, style: TextStyle(
+      fontSize: 16,
+      fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+      decoration: underline ? TextDecoration.underline : strike ? TextDecoration.lineThrough : TextDecoration.none,
+      color: active ? T.accent : T.sub,
+    )),
+  ));
+}
+
+class _TbAlignBtn extends StatelessWidget {
+  final IconData icon; final bool active; final VoidCallback onTap;
+  const _TbAlignBtn({required this.icon, required this.active, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: AnimatedContainer(
+    duration: const Duration(milliseconds: 150),
+    width: 38, height: 38, margin: const EdgeInsets.symmetric(horizontal: 1),
+    decoration: BoxDecoration(color: active ? T.accentBg : Colors.transparent, borderRadius: BorderRadius.circular(999)),
+    child: Icon(icon, size: 17, color: active ? T.accent : T.sub),
+  ));
+}
+
+class _TbIconBtnSm extends StatelessWidget {
+  final IconData icon; final VoidCallback onTap;
+  const _TbIconBtnSm({required this.icon, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: Container(
+    width: 38, height: 38, margin: const EdgeInsets.symmetric(horizontal: 1),
+    alignment: Alignment.center,
+    child: Icon(icon, size: 17, color: T.sub),
+  ));
+}
+
+class _TbChip extends StatelessWidget {
+  final String label; final IconData? icon; final VoidCallback onTap;
+  const _TbChip({required this.label, this.icon, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: Container(
+    height: 32, margin: const EdgeInsets.symmetric(horizontal: 2),
+    padding: const EdgeInsets.symmetric(horizontal: 11),
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: T.divider, width: 1.5)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Text(label, style: T.dmSans(size: 12, w: FontWeight.w600, color: T.ink), overflow: TextOverflow.ellipsis, maxLines: 1),
+      if (icon != null) ...[const SizedBox(width: 4), Icon(icon!, size: 11, color: T.sub)],
+    ]),
+  ));
+}
+
+// ─── POPUP HEADER / ITEM ──────────────────────────────────────────────────────
+class _PopupHeader extends StatelessWidget {
+  final String title;
+  const _PopupHeader(this.title);
+  @override Widget build(BuildContext ctx) => Container(
+    padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
+    child: Text(title.toUpperCase(), style: T.dmSans(size: 10.5, w: FontWeight.w700, color: T.muted)),
+  );
+}
+
+class _PopupItemBtn extends StatelessWidget {
+  final IconData icon; final String label; final VoidCallback onTap; final Color? color;
+  const _PopupItemBtn({required this.icon, required this.label, required this.onTap, this.color});
+  @override Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: Container(
+    color: Colors.transparent,
+    padding: const EdgeInsets.fromLTRB(14, 9, 14, 9),
+    child: Row(children: [
+      Icon(icon, size: 15, color: color ?? T.muted),
+      const SizedBox(width: 10),
+      Text(label, style: T.dmSans(size: 13, w: FontWeight.w500, color: color ?? T.ink)),
+    ]),
+  ));
+}
+
+// ─── COLOR POPUP ──────────────────────────────────────────────────────────────
+class _ColorPopup extends StatefulWidget {
+  final Color currentColor; final ValueChanged<Color> onColor;
+  const _ColorPopup({required this.currentColor, required this.onColor});
+  @override State<_ColorPopup> createState() => _ColorPopupState();
 }
 
 class _ColorPopupState extends State<_ColorPopup> {
   late TextEditingController _hexCtrl;
-  Color _preview = kInk;
-  @override
-  void initState() {
-    super.initState();
-    _preview = widget.curColor;
-    _hexCtrl = TextEditingController(
-      text: '#${widget.curColor.value.toRadixString(16).substring(2).toUpperCase()}');
-  }
-  @override
-  void dispose() { _hexCtrl.dispose(); super.dispose(); }
+  late Color _preview;
 
-  @override
-  Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _PopupHeader('Cor do texto'),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-          child: Wrap(spacing: 5, runSpacing: 5, children: kColors.map((c) => GestureDetector(
-            onTap: () => widget.onPick(c),
-            child: Container(
-              width: 24, height: 24,
-              decoration: BoxDecoration(
-                color: c, borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: c == Colors.white ? const Color(0x26000000) : Colors.transparent,
-                  width: 1.5),
-              ),
-            ),
-          )).toList()),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          child: Row(children: [
-            Container(width: 26, height: 26,
-                decoration: BoxDecoration(color: _preview, borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0x1F000000), width: 1.5))),
-            const SizedBox(width: 6),
-            Expanded(child: TextField(
-              controller: _hexCtrl,
-              style: dmSans(size: 12, fw: FontWeight.w600),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: kBorder, width: 1.5)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: kAccent, width: 1.5)),
-              ),
-              onChanged: (v) {
-                if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(v)) {
-                  setState(() => _preview = Color(int.parse('FF${v.substring(1)}', radix: 16)));
-                }
-              },
-            )),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: () {
-                final v = _hexCtrl.text;
-                if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(v)) {
-                  widget.onPick(Color(int.parse('FF${v.substring(1)}', radix: 16)));
-                }
-              },
-              child: Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(color: _preview, borderRadius: BorderRadius.circular(8)),
-                child: const Center(child: Text('✓', style: TextStyle(color: Colors.white, fontSize: 14))),
-              ),
-            ),
-          ]),
-        ),
-      ]);
+  @override void initState() {
+    super.initState();
+    _preview = widget.currentColor;
+    final c = widget.currentColor;
+    _hexCtrl = TextEditingController(text: '#${c.red.toRadixString(16).padLeft(2,'0')}${c.green.toRadixString(16).padLeft(2,'0')}${c.blue.toRadixString(16).padLeft(2,'0')}');
+  }
+
+  @override Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+    _PopupHeader('Cor do texto'),
+    Padding(padding: const EdgeInsets.fromLTRB(10,10,10,6), child: Wrap(spacing: 5, runSpacing: 5,
+      children: kColors.map((c) => GestureDetector(onTap: () => widget.onColor(c), child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        width: 24, height: 24,
+        decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: c == Colors.white ? const Color(0x26000000) : Colors.transparent, width: 1.5)),
+      ))).toList(),
+    )),
+    Padding(padding: const EdgeInsets.fromLTRB(14,0,14,12), child: Row(children: [
+      Container(width: 26, height: 26, decoration: BoxDecoration(color: _preview, borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0x1F000000), width: 1.5))),
+      const SizedBox(width: 6),
+      Expanded(child: TextField(controller: _hexCtrl, style: T.dmSans(size: 12, w: FontWeight.w600),
+        decoration: InputDecoration(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: T.divider, width: 1.5)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: T.divider, width: 1.5))),
+        onChanged: (v) { if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(v)) setState(() => _preview = Color(int.parse('FF${v.substring(1)}', radix: 16))); },
+      )),
+      const SizedBox(width: 6),
+      GestureDetector(onTap: () { if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(_hexCtrl.text)) widget.onColor(Color(int.parse('FF${_hexCtrl.text.substring(1)}', radix: 16))); },
+        child: Container(width: 32, height: 32, decoration: BoxDecoration(color: _preview, borderRadius: BorderRadius.circular(8)),
+          child: Icon(LucideIcons.check, color: Colors.white, size: 16))),
+    ])),
+  ]);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FONT POPUP
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── FONT POPUP ───────────────────────────────────────────────────────────────
 class _FontPopup extends StatefulWidget {
-  final String curFont;
-  final void Function(String) onSelect;
-  final VoidCallback onExpand;
-  const _FontPopup({required this.curFont, required this.onSelect, required this.onExpand});
-  @override
-  State<_FontPopup> createState() => _FontPopupState();
+  final String currentFont; final ValueChanged<String> onFont; final VoidCallback onFullscreen;
+  const _FontPopup({required this.currentFont, required this.onFont, required this.onFullscreen});
+  @override State<_FontPopup> createState() => _FontPopupState();
 }
 
 class _FontPopupState extends State<_FontPopup> {
-  final _searchCtrl = TextEditingController();
-  FontEntry? _preview;
   String _q = '';
-  @override
-  void dispose() { _searchCtrl.dispose(); super.dispose(); }
-  List<FontEntry> get _filtered => kFonts.where((f) => f.label.toLowerCase().contains(_q.toLowerCase())).toList();
+  FontEntry? _preview;
 
-  @override
-  Widget build(BuildContext ctx) {
-    final fonts = _filtered;
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Row(children: [
-        Expanded(child: _PopupHeader('Tipo de letra')),
-        GestureDetector(
-          onTap: widget.onExpand,
-          child: Container(width: 32, height: 32, margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(7)),
-              child: const Icon(LucideIcons.maximize2, size: 14, color: kMuted)),
-        ),
-      ]),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
-        child: TextField(
-          controller: _searchCtrl,
-          style: dmSans(size: 12.5),
-          decoration: InputDecoration(
-            hintText: 'Pesquisar…', hintStyle: dmSans(size: 12.5, color: kMuted),
-            isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kBorder, width: 1.5)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kAccent, width: 1.5)),
-          ),
-          onChanged: (v) => setState(() => _q = v),
-        ),
-      ),
-      SizedBox(height: 190, child: SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: _buildFontList(fonts)),
-      )),
-      if (_preview != null) _buildPreview(),
-    ]);
-  }
+  List<FontEntry> get _filtered => _q.isEmpty ? kFonts : kFonts.where((f) => f.label.toLowerCase().contains(_q.toLowerCase())).toList();
 
-  List<Widget> _buildFontList(List<FontEntry> fonts) {
-    final items = <Widget>[];
-    String? lastGroup;
-    for (final f in fonts) {
-      if (_q.isEmpty && f.group != lastGroup) {
-        if (lastGroup != null) items.add(const Divider(height: 1, color: kBorder));
-        items.add(Padding(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 2),
-          child: Text(f.group, style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC))),
+  @override Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+    Container(padding: const EdgeInsets.fromLTRB(14,11,8,11), decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
+      child: Row(children: [
+        Expanded(child: Text('TIPO DE LETRA', style: T.dmSans(size: 10.5, w: FontWeight.w700, color: T.muted))),
+        GestureDetector(onTap: widget.onFullscreen, child: Container(width: 32, height: 32, alignment: Alignment.center,
+          child: Icon(LucideIcons.maximize2, size: 14, color: T.muted))),
+      ])),
+    Padding(padding: const EdgeInsets.fromLTRB(10,10,10,6), child: TextField(
+      onChanged: (v) => setState(() => _q = v),
+      style: T.dmSans(size: 12.5),
+      decoration: InputDecoration(hintText: 'Pesquisar…', hintStyle: T.dmSans(size: 12.5, color: T.muted),
+        isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: T.divider, width: 1.5)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: T.divider, width: 1.5))),
+    )),
+    SizedBox(height: 190, child: ListView.builder(
+      padding: EdgeInsets.zero, itemCount: _filtered.length,
+      itemBuilder: (ctx, i) {
+        final f = _filtered[i]; final active = f.family == widget.currentFont;
+        return GestureDetector(onTap: () => setState(() => _preview = f), child: Container(
+          color: Colors.transparent, padding: const EdgeInsets.fromLTRB(14,9,14,9),
+          child: Text(f.label, style: TextStyle(fontFamily: f.family, fontSize: 14,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400, color: active ? T.accent : T.ink)),
         ));
-        lastGroup = f.group;
-      }
-      final active = f.family == widget.curFont;
-      items.add(GestureDetector(
-        onTap: () => setState(() => _preview = f),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          color: Colors.transparent,
-          child: Text(f.label, style: GoogleFonts.getFont(f.family, fontSize: 14,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? kAccent : kInk)),
-        ),
-      ));
-    }
-    return items;
-  }
-
-  Widget _buildPreview() => Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: kBorder)), color: Color(0xFFFAFAFA)),
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(_preview!.label.toUpperCase(), style: dmSans(size: 10, fw: FontWeight.w700, color: kMuted)),
-          const SizedBox(height: 4),
-          Text('Aa Bb Cc', style: GoogleFonts.getFont(_preview!.family, fontSize: 26, color: kInk, height: 1.2)),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () => widget.onSelect(_preview!.family),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(color: kAccent, borderRadius: BorderRadius.circular(8)),
-              child: Center(child: Text('Aplicar', style: dmSans(size: 12.5, fw: FontWeight.w600, color: Colors.white))),
-            ),
-          ),
-        ]),
-      );
+      },
+    )),
+    if (_preview != null) Container(
+      decoration: const BoxDecoration(color: Color(0xFFF8F8F7), border: Border(top: BorderSide(color: T.divider))),
+      padding: const EdgeInsets.fromLTRB(14,10,14,12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(_preview!.group.toUpperCase(), style: T.dmSans(size: 10, w: FontWeight.w700, color: T.muted)),
+        const SizedBox(height: 4),
+        Text('Aa Bb Cc', style: TextStyle(fontFamily: _preview!.family, fontSize: 26, color: T.ink)),
+        const SizedBox(height: 8),
+        GestureDetector(onTap: () => widget.onFont(_preview!.family), child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(color: T.accent, borderRadius: BorderRadius.circular(8)),
+          alignment: Alignment.center,
+          child: Text('Aplicar', style: T.dmSans(size: 12.5, w: FontWeight.w600, color: Colors.white)),
+        )),
+      ]),
+    ),
+  ]);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SIZE POPUP
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── SIZE POPUP ───────────────────────────────────────────────────────────────
 class _SizePopup extends StatefulWidget {
-  final int curSize;
-  final void Function(int) onSize;
-  final VoidCallback onInc, onDec;
-  const _SizePopup({required this.curSize, required this.onSize, required this.onInc, required this.onDec});
-  @override
-  State<_SizePopup> createState() => _SizePopupState();
+  final int currentSize; final ValueChanged<int> onSize;
+  const _SizePopup({required this.currentSize, required this.onSize});
+  @override State<_SizePopup> createState() => _SizePopupState();
 }
 
 class _SizePopupState extends State<_SizePopup> {
   late int _sz;
-  @override
-  void initState() { super.initState(); _sz = widget.curSize; }
+  @override void initState() { super.initState(); _sz = widget.currentSize; }
 
-  @override
-  Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
-        _PopupHeader('Tamanho'),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(children: [
-            _StepBtn(label: '−', onTap: () { setState(() => _sz = math.max(6, _sz - 1)); widget.onSize(_sz); }),
-            Expanded(child: Center(child: Text('$_sz', style: dmSans(size: 20, fw: FontWeight.w700)))),
-            _StepBtn(label: '+', onTap: () { setState(() => _sz = math.min(200, _sz + 1)); widget.onSize(_sz); }),
-          ]),
-        ),
-        const Divider(height: 1, color: kBorder),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-          child: Wrap(spacing: 5, runSpacing: 5, children: kSizes.map((s) {
-            final active = s == _sz;
-            return GestureDetector(
-              onTap: () { setState(() => _sz = s); widget.onSize(s); },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  border: Border.all(color: active ? kAccent : kBorder, width: 1.5),
-                  borderRadius: BorderRadius.circular(999),
-                  color: active ? kAccentBg : Colors.transparent,
-                ),
-                child: Text('$s', style: dmSans(size: 12, fw: FontWeight.w600, color: active ? kAccent : kSub)),
-              ),
-            );
-          }).toList()),
-        ),
-      ]);
+  @override Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+    _PopupHeader('Tamanho'),
+    Padding(padding: const EdgeInsets.fromLTRB(14,12,14,12), child: Row(children: [
+      GestureDetector(onTap: () => setState(() => _sz = math.max(6, _sz - 1)), child: Container(
+        width: 36, height: 36, alignment: Alignment.center,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(9), border: Border.all(color: T.divider, width: 1.5)),
+        child: Text('−', style: T.dmSans(size: 18, color: T.sub)))),
+      Expanded(child: Center(child: Text('$_sz', style: T.dmSans(size: 20, w: FontWeight.w700)))),
+      GestureDetector(onTap: () => setState(() => _sz = math.min(200, _sz + 1)), child: Container(
+        width: 36, height: 36, alignment: Alignment.center,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(9), border: Border.all(color: T.divider, width: 1.5)),
+        child: Text('+', style: T.dmSans(size: 18, color: T.sub)))),
+    ])),
+    Container(decoration: const BoxDecoration(border: Border(top: BorderSide(color: T.divider))),
+      padding: const EdgeInsets.fromLTRB(14,10,14,14),
+      child: Wrap(spacing: 5, runSpacing: 5, children: kSizes.map((s) {
+        final active = s == _sz;
+        return GestureDetector(onTap: () { widget.onSize(s); setState(() => _sz = s); }, child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: active ? T.accent : T.divider, width: 1.5),
+            color: active ? T.accentBg : Colors.transparent),
+          child: Text('$s', style: T.dmSans(size: 12, w: FontWeight.w600, color: active ? T.accent : T.sub)),
+        ));
+      }).toList()),
+    ),
+  ]);
 }
 
-class _StepBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _StepBtn({required this.label, required this.onTap});
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(border: Border.all(color: kBorder, width: 1.5),
-              borderRadius: BorderRadius.circular(9), color: kSurface),
-          child: Center(child: Text(label, style: dmSans(size: 18, color: kSub))),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// STYLES POPUP
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── STYLES POPUP ─────────────────────────────────────────────────────────────
 class _StylesPopup extends StatelessWidget {
-  final void Function(quill.Attribute) onStyle;
+  final ValueChanged<String> onStyle;
   const _StylesPopup({required this.onStyle});
-
-  static final List<(String, IconData, quill.Attribute)> _items = [
-    ('Parágrafo',  LucideIcons.pilcrow,  quill.Attribute.fromKeyValue('header', null)),
-    ('Título 1',   LucideIcons.heading1, quill.HeaderAttribute(level: 1)),
-    ('Título 2',   LucideIcons.heading2, quill.HeaderAttribute(level: 2)),
-    ('Título 3',   LucideIcons.heading3, quill.HeaderAttribute(level: 3)),
-    ('Citação',    LucideIcons.quote,    quill.Attribute.blockQuote),
-    ('Código',     LucideIcons.code,     quill.Attribute.codeBlock),
-  ];
-
-  @override
-  Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
-        _PopupHeader('Estilo de parágrafo'),
-        ..._items.map((t) => _PopupItem(label: t.$1, icon: t.$2, onTap: () => onStyle(t.$3))),
-      ]);
+  @override Widget build(BuildContext ctx) {
+    final items = [
+      (LucideIcons.pilcrow,   'Parágrafo', 'p'),
+      (LucideIcons.heading1,  'Título 1',  'h1'),
+      (LucideIcons.heading2,  'Título 2',  'h2'),
+      (LucideIcons.heading3,  'Título 3',  'h3'),
+      (LucideIcons.heading4,  'Título 4',  'h4'),
+      (LucideIcons.quote,     'Citação',   'blockquote'),
+      (LucideIcons.code,      'Código',    'code'),
+    ];
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      _PopupHeader('Estilo de parágrafo'),
+      ...items.map((i) => _PopupItemBtn(icon: i.$1, label: i.$2, onTap: () => onStyle(i.$3))),
+      const SizedBox(height: 4),
+    ]);
+  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// INSERT POPUP
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── INSERT POPUP ─────────────────────────────────────────────────────────────
 class _InsertPopup extends StatelessWidget {
-  final VoidCallback onImage, onLink, onTable, onHr, onDate;
-  final void Function(String) onCallout;
-  const _InsertPopup({required this.onImage, required this.onLink, required this.onTable,
-      required this.onHr, required this.onDate, required this.onCallout});
-
-  @override
-  Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
-        _PopupHeader('Inserir'),
-        _PopupItem(label: 'Link', icon: LucideIcons.link, onTap: onLink),
-        _PopupItem(label: 'Imagem', icon: LucideIcons.image, onTap: onImage),
-        _PopupItem(label: 'Tabela 3×3', icon: LucideIcons.table, onTap: onTable),
-        const Divider(height: 1, color: kBorder),
-        _PopupItem(label: 'Linha divisória', icon: LucideIcons.minus, onTap: onHr),
-        _PopupItem(label: 'Data e hora', icon: LucideIcons.calendar, onTap: onDate),
-        const Divider(height: 1, color: kBorder),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
-          child: Text('CAIXAS DE DESTAQUE',
-              style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC))),
-        ),
-        _PopupItem(label: 'Aviso', icon: LucideIcons.alertTriangle, onTap: () => onCallout('warning')),
-        _PopupItem(label: 'Informação', icon: LucideIcons.info, onTap: () => onCallout('info')),
-        _PopupItem(label: 'Sucesso', icon: LucideIcons.checkCircle, onTap: () => onCallout('success')),
-        _PopupItem(label: 'Erro', icon: LucideIcons.xCircle, onTap: () => onCallout('error')),
-      ]);
+  final VoidCallback onLink, onImage, onTable, onHR, onDateTime;
+  final ValueChanged<String> onCallout;
+  const _InsertPopup({required this.onLink, required this.onImage, required this.onTable,
+    required this.onHR, required this.onDateTime, required this.onCallout});
+  @override Widget build(BuildContext ctx) => SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    _PopupHeader('Inserir'),
+    Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(children: [
+      _PopupItemBtn(icon: LucideIcons.link,  label: 'Link',      onTap: onLink),
+      _PopupItemBtn(icon: LucideIcons.image, label: 'Imagem',    onTap: onImage),
+      _PopupItemBtn(icon: LucideIcons.table, label: 'Tabela 3×3',onTap: onTable),
+    ])),
+    Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(children: [
+      _PopupItemBtn(icon: LucideIcons.minus,    label: 'Linha divisória', onTap: onHR),
+      _PopupItemBtn(icon: LucideIcons.calendar, label: 'Data e hora',     onTap: onDateTime),
+    ])),
+    Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4),
+      child: Align(alignment: Alignment.centerLeft,
+        child: Text('CAIXAS DE DESTAQUE', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC))))),
+    _PopupItemBtn(icon: LucideIcons.alertTriangle, label: 'Aviso',       onTap: () => onCallout('warn')),
+    _PopupItemBtn(icon: LucideIcons.info,          label: 'Informação',  onTap: () => onCallout('info')),
+    _PopupItemBtn(icon: LucideIcons.checkCircle,   label: 'Sucesso',     onTap: () => onCallout('success')),
+    _PopupItemBtn(icon: LucideIcons.xCircle,       label: 'Erro',        onTap: () => onCallout('error')),
+    const SizedBox(height: 4),
+  ]));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FORMAT POPUP
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── FORMAT POPUP ─────────────────────────────────────────────────────────────
 class _FormatPopup extends StatelessWidget {
-  final quill.QuillController qc;
-  final VoidCallback onDone;
-  const _FormatPopup({required this.qc, required this.onDone});
+  final ValueChanged<String> onCase;
+  final VoidCallback onSuperscript, onSubscript, onInlineCode, onClearFormat;
+  final ValueChanged<double> onLineHeight;
+  const _FormatPopup({required this.onCase, required this.onSuperscript, required this.onSubscript,
+    required this.onInlineCode, required this.onLineHeight, required this.onClearFormat});
 
-  String _getSelectedText() {
-    final sel = qc.selection;
-    if (sel.isCollapsed) return '';
-    return qc.document.toPlainText().substring(
-      sel.start.clamp(0, qc.document.length - 1),
-      sel.end.clamp(0, qc.document.length - 1),
-    );
-  }
-
-  void _replaceSelected(String newText) {
-    final sel = qc.selection;
-    if (sel.isCollapsed) return;
-    qc.document.replace(sel.start, sel.end - sel.start, newText);
-  }
-
-  void _clearFormatting() {
-    final attrs = qc.getSelectionStyle().attributes;
-    for (final attr in attrs.values) {
-      final cleared = quill.Attribute.clone(attr, null);
-      if (cleared != null) qc.formatSelection(cleared);
-    }
-  }
-
-  @override
-  Widget build(BuildContext ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
-        _PopupHeader('Formatar'),
-        Padding(padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
-            child: Text('MAIÚSCULAS', style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
-        _PopupItem(label: 'MAIÚSCULAS', icon: LucideIcons.caseUpper, onTap: () {
-          _replaceSelected(_getSelectedText().toUpperCase()); onDone();
-        }),
-        _PopupItem(label: 'minúsculas', icon: LucideIcons.caseLower, onTap: () {
-          _replaceSelected(_getSelectedText().toLowerCase()); onDone();
-        }),
-        _PopupItem(label: 'Primeira Maiúscula', icon: LucideIcons.caseSensitive, onTap: () {
-          final t = _getSelectedText().replaceAllMapped(RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase());
-          _replaceSelected(t); onDone();
-        }),
-        const Divider(height: 1, color: kBorder),
-        Padding(padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
-            child: Text('INLINE', style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
-        _PopupItem(label: 'Sobrescrito', icon: LucideIcons.superscript, onTap: () {
-          qc.formatSelection(quill.Attribute.superscript); onDone();
-        }),
-        _PopupItem(label: 'Subscrito', icon: LucideIcons.subscript, onTap: () {
-          qc.formatSelection(quill.Attribute.subscript); onDone();
-        }),
-        const Divider(height: 1, color: kBorder),
-        Padding(padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
-            child: Text('ESPAÇAMENTO', style: dmSans(size: 10, fw: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
-        _PopupItem(label: '1.0 — Compacto', icon: LucideIcons.alignVerticalJustifyStart, onTap: () {
-          qc.formatSelection(quill.Attribute.fromKeyValue('line-height', '1.0')); onDone();
-        }),
-        _PopupItem(label: '1.5 — Normal', icon: LucideIcons.alignVerticalJustifyStart, onTap: () {
-          qc.formatSelection(quill.Attribute.fromKeyValue('line-height', '1.5')); onDone();
-        }),
-        _PopupItem(label: '2.0 — Espaçado', icon: LucideIcons.alignVerticalJustifyStart, onTap: () {
-          qc.formatSelection(quill.Attribute.fromKeyValue('line-height', '2.0')); onDone();
-        }),
-        const Divider(height: 1, color: kBorder),
-        _PopupItem(label: 'Limpar formatação', icon: LucideIcons.trash2, danger: true,
-            onTap: () { _clearFormatting(); onDone(); }),
-      ]);
+  @override Widget build(BuildContext ctx) => SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    _PopupHeader('Formatar'),
+    Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4), child: Text('MAIÚSCULAS', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
+        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'MAIÚSCULAS',          onTap: () => onCase('upper')),
+        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'minúsculas',          onTap: () => onCase('lower')),
+        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'Primeira Maiúscula',  onTap: () => onCase('title')),
+      ])),
+    Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4), child: Text('INLINE', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
+        _PopupItemBtn(icon: LucideIcons.superscript, label: 'Sobrescrito',    onTap: onSuperscript),
+        _PopupItemBtn(icon: LucideIcons.subscript,   label: 'Subscrito',      onTap: onSubscript),
+        _PopupItemBtn(icon: LucideIcons.code,        label: 'Código inline',  onTap: onInlineCode),
+      ])),
+    Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4), child: Text('ESPAÇAMENTO', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
+        _PopupItemBtn(icon: LucideIcons.alignVerticalJustifyStart, label: '1.0 — Compacto', onTap: () => onLineHeight(1.0)),
+        _PopupItemBtn(icon: LucideIcons.alignVerticalJustifyStart, label: '1.5 — Normal',   onTap: () => onLineHeight(1.5)),
+        _PopupItemBtn(icon: LucideIcons.alignVerticalJustifyStart, label: '2.0 — Espaçado', onTap: () => onLineHeight(2.0)),
+      ])),
+    _PopupItemBtn(icon: LucideIcons.trash2, label: 'Limpar formatação', onTap: onClearFormat, color: Colors.red),
+    const SizedBox(height: 4),
+  ]));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SHARED POPUP WIDGETS
-// ─────────────────────────────────────────────────────────────────────────────
-class _PopupHeader extends StatelessWidget {
-  final String title;
-  const _PopupHeader(this.title);
-  @override
-  Widget build(BuildContext ctx) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: kBorder))),
-        child: Text(title.toUpperCase(), style: dmSans(size: 10.5, fw: FontWeight.w700, color: kMuted)),
-      );
-}
-
-class _PopupItem extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool danger;
-  const _PopupItem({required this.label, required this.icon, required this.onTap, this.danger = false});
-  @override
-  Widget build(BuildContext ctx) => GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          child: Row(children: [
-            Icon(icon, size: 15, color: danger ? Colors.red.shade400 : kMuted),
-            const SizedBox(width: 10),
-            Text(label, style: dmSans(size: 13, fw: FontWeight.w500, color: danger ? Colors.red.shade600 : kInk)),
-          ]),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FONT FULLSCREEN
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── FONT FULLSCREEN ──────────────────────────────────────────────────────────
 class _FontFullscreen extends StatefulWidget {
-  final String curFont;
-  final void Function(String) onSelect;
-  const _FontFullscreen({required this.curFont, required this.onSelect});
-  @override
-  State<_FontFullscreen> createState() => _FontFullscreenState();
+  final String currentFont; final ValueChanged<String> onFont;
+  const _FontFullscreen({required this.currentFont, required this.onFont});
+  @override State<_FontFullscreen> createState() => _FontFullscreenState();
 }
 
 class _FontFullscreenState extends State<_FontFullscreen> {
-  final _searchCtrl = TextEditingController();
   String _q = '', _cat = 'Todas';
   FontEntry? _selected;
-  @override
-  void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
-  List<FontEntry> get _fonts => kFonts.where((f) {
-    return f.label.toLowerCase().contains(_q.toLowerCase()) && (_cat == 'Todas' || f.group == _cat);
-  }).toList();
+  List<String> get _cats => ['Todas', ...kFonts.map((f) => f.group).toSet()];
+  List<FontEntry> get _filtered => kFonts.where((f) =>
+    (_cat == 'Todas' || f.group == _cat) && (_q.isEmpty || f.label.toLowerCase().contains(_q.toLowerCase()))).toList();
 
-  @override
-  Widget build(BuildContext ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.92,
-        decoration: const BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(children: [
-          Container(
-            height: 54,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: kBorder))),
-            child: Row(children: [
-              Text('Fontes', style: dmSans(size: 14, fw: FontWeight.w700)),
-              const SizedBox(width: 10),
-              Expanded(child: TextField(
-                controller: _searchCtrl,
-                style: dmSans(size: 13),
-                decoration: InputDecoration(
-                  hintText: 'Pesquisar fonte…', hintStyle: dmSans(size: 13, color: kMuted),
-                  isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(999),
-                      borderSide: const BorderSide(color: kBorder, width: 1.5)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999),
-                      borderSide: const BorderSide(color: kAccent, width: 1.5)),
-                ),
-                onChanged: (v) => setState(() => _q = v),
-              )),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => Navigator.pop(ctx),
-                child: Container(width: 36, height: 36,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(9)),
-                    child: const Icon(LucideIcons.x, size: 17, color: kSub)),
-              ),
+  @override Widget build(BuildContext ctx) => Container(
+    height: MediaQuery.of(ctx).size.height,
+    decoration: const BoxDecoration(color: T.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    child: Column(children: [
+      // Header
+      Container(height: 54, padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
+        child: Row(children: [
+          Text('Fontes', style: T.dmSans(size: 14, w: FontWeight.w700)),
+          const SizedBox(width: 10),
+          Expanded(child: TextField(onChanged: (v) => setState(() => _q = v), style: T.dmSans(size: 13),
+            decoration: InputDecoration(hintText: 'Pesquisar fonte…', hintStyle: T.dmSans(size: 13, color: T.muted),
+              isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: const BorderSide(color: T.divider, width: 1.5)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: const BorderSide(color: T.divider, width: 1.5))))),
+          const SizedBox(width: 8),
+          GestureDetector(onTap: () => Navigator.pop(ctx), child: Container(width: 36, height: 36, alignment: Alignment.center,
+            child: Icon(LucideIcons.x, size: 17, color: T.sub))),
+        ])),
+      // Categories
+      Container(height: 50, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
+        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          children: _cats.map((cat) {
+            final active = cat == _cat;
+            return GestureDetector(onTap: () => setState(() => _cat = cat), child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150), margin: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: active ? T.accent : T.divider, width: 1.5),
+                color: active ? T.accentBg : Colors.transparent),
+              child: Text(cat, style: T.dmSans(size: 12, w: FontWeight.w600, color: active ? T.accent : T.sub)),
+            ));
+          }).toList())),
+      // Grid
+      Expanded(child: GridView.builder(
+        padding: const EdgeInsets.all(14),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 1.6),
+        itemCount: _filtered.length,
+        itemBuilder: (ctx, i) {
+          final f = _filtered[i]; final sel = _selected?.family == f.family;
+          return GestureDetector(onTap: () => setState(() => _selected = f), child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150), padding: const EdgeInsets.fromLTRB(12,10,12,10),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: sel ? T.accent : T.divider, width: 1.5),
+              color: sel ? T.accentBg : Colors.transparent),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(f.group.toUpperCase(), style: T.dmSans(size: 10, w: FontWeight.w700, color: T.muted), overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Expanded(child: Text('Aa Bb', style: TextStyle(fontFamily: f.family, fontSize: 20, color: T.ink), overflow: TextOverflow.ellipsis)),
+              Text(f.label, style: T.dmSans(size: 10, color: T.sub), overflow: TextOverflow.ellipsis),
             ]),
+          ));
+        },
+      )),
+      // Apply
+      Container(padding: const EdgeInsets.fromLTRB(14,10,14,10), decoration: const BoxDecoration(border: Border(top: BorderSide(color: T.divider))),
+        child: SafeArea(top: false, child: GestureDetector(
+          onTap: _selected != null ? () => widget.onFont(_selected!.family) : null,
+          child: AnimatedContainer(duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: _selected != null ? T.accent : const Color(0x14000000), borderRadius: BorderRadius.circular(10)),
+            alignment: Alignment.center,
+            child: Text(_selected != null ? 'Aplicar "${_selected!.label}"' : 'Aplicar fonte',
+              style: T.dmSans(size: 13.5, w: FontWeight.w600, color: _selected != null ? Colors.white : T.muted)),
           ),
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              children: kFontGroups.map((g) {
-                final active = g == _cat;
-                return GestureDetector(
-                  onTap: () => setState(() => _cat = g),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: active ? kAccentBg : Colors.transparent,
-                      border: Border.all(color: active ? kAccent : kBorder, width: 1.5),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(g, style: dmSans(size: 12, fw: FontWeight.w600, color: active ? kAccent : kSub)),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const Divider(height: 1, color: kBorder),
-          Expanded(child: GridView.builder(
-            padding: const EdgeInsets.all(14),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 160, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 1.1),
-            itemCount: _fonts.length,
-            itemBuilder: (_, i) {
-              final f = _fonts[i];
-              final active = _selected?.family == f.family;
-              return GestureDetector(
-                onTap: () => setState(() => _selected = f),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: active ? kAccent : kBorder, width: 1.5),
-                    borderRadius: BorderRadius.circular(10),
-                    color: active ? kAccentBg : kSurface,
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(f.group, style: dmSans(size: 10, fw: FontWeight.w700, color: kMuted),
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Expanded(child: Text('Aa Bb',
-                        style: GoogleFonts.getFont(f.family, fontSize: 20, color: kInk, height: 1.2),
-                        overflow: TextOverflow.ellipsis)),
-                    Text(f.label, style: dmSans(size: 10, color: kSub), overflow: TextOverflow.ellipsis),
-                  ]),
-                ),
-              );
-            },
-          )),
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            decoration: const BoxDecoration(border: Border(top: BorderSide(color: kBorder))),
-            child: SafeArea(
-              top: false,
-              child: GestureDetector(
-                onTap: _selected != null ? () { widget.onSelect(_selected!.family); Navigator.pop(ctx); } : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selected != null ? kAccent : const Color(0x14000000),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(child: Text(
-                    _selected != null ? 'Aplicar "${_selected!.label}"' : 'Aplicar fonte',
-                    style: dmSans(size: 13.5, fw: FontWeight.w600,
-                        color: _selected != null ? Colors.white : kMuted),
-                  )),
-                ),
-              ),
-            ),
-          ),
-        ]),
-      );
+        ))),
+    ]),
+  );
+}
+
+// ─── DRAWER ITEM ──────────────────────────────────────────────────────────────
+class _DrawerItem extends StatelessWidget {
+  final IconData icon; final String label; final bool isActive; final VoidCallback onTap;
+  const _DrawerItem({required this.icon, required this.label, required this.isActive, required this.onTap});
+  @override Widget build(BuildContext ctx) => GestureDetector(onTap: onTap, child: AnimatedContainer(
+    duration: const Duration(milliseconds: 150),
+    padding: const EdgeInsets.fromLTRB(14,11,14,11),
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: isActive ? T.accentBg : Colors.transparent),
+    child: Row(children: [
+      Icon(icon, size: 18, color: isActive ? T.accent : T.sub),
+      const SizedBox(width: 12),
+      Text(label, style: T.dmSans(size: 14, w: FontWeight.w500, color: isActive ? T.accent : T.ink)),
+    ]),
+  ));
+}
+
+// ─── AI DOTS ──────────────────────────────────────────────────────────────────
+class _AiDots extends StatefulWidget {
+  const _AiDots();
+  @override State<_AiDots> createState() => _AiDotsState();
+}
+
+class _AiDotsState extends State<_AiDots> with TickerProviderStateMixin {
+  late List<AnimationController> _ctrls;
+  late List<Animation<double>>   _anims;
+
+  @override void initState() {
+    super.initState();
+    _ctrls = List.generate(3, (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 900)));
+    _anims = List.generate(3, (i) => TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.4, end: 1.0), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.4), weight: 60),
+    ]).animate(_ctrls[i]));
+    for (var i = 0; i < 3; i++) Future.delayed(Duration(milliseconds: i * 200), () { if (mounted) _ctrls[i].repeat(); });
+  }
+
+  @override void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
+
+  @override Widget build(BuildContext ctx) => Row(mainAxisSize: MainAxisSize.min, children: List.generate(3, (i) =>
+    AnimatedBuilder(animation: _anims[i], builder: (_, __) => Opacity(opacity: _anims[i].value,
+      child: Transform.scale(scale: _anims[i].value, child: Container(
+        width: 5, height: 5, margin: const EdgeInsets.symmetric(horizontal: 1.5),
+        decoration: const BoxDecoration(color: T.accent, shape: BoxShape.circle),
+      )),
+    )),
+  ));
 }
