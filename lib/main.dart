@@ -128,7 +128,7 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMixin {
   late QuillController _qc;
-  final FocusNode      _editorFocus   = FocusNode();
+  final FocusNode       _editorFocus  = FocusNode();
   final ScrollController _editorScroll = ScrollController();
   final TextEditingController _titleCtrl = TextEditingController();
 
@@ -158,7 +158,7 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     _qc = QuillController.basic();
     _qc.addListener(_onQcChange);
 
-    _drawerAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _drawerAnim    = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _drawerSlide   = Tween<double>(begin: -260, end: 0).animate(CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic));
     _appSlide      = Tween<double>(begin: 0, end: 110).animate(CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic));
     _overlayOpacity= Tween<double>(begin: 0, end: 0.18).animate(CurvedAnimation(parent: _drawerAnim, curve: Curves.easeOutCubic));
@@ -356,7 +356,7 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     final sz   = box.size;
     double left = off.dx + sz.width / 2 - width / 2;
     left = left.clamp(8.0, screenSize.width - width - 8);
-    final arrowL = (off.dx + sz.width / 2 - left - 7).clamp(12.0, width - 24.0);
+    final arrowL  = (off.dx + sz.width / 2 - left - 7).clamp(12.0, width - 24.0);
     final originX = (off.dx + sz.width / 2 - left).clamp(20.0, width - 20.0);
 
     _activePopup = OverlayEntry(builder: (ctx) => _PopupOverlay(
@@ -487,7 +487,7 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     decoration: BoxDecoration(
       color: T.surface, borderRadius: BorderRadius.circular(4),
       boxShadow: const [
-        BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0,1)),
+        BoxShadow(color: Color(0x0F000000), blurRadius: 3,  offset: Offset(0,1)),
         BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0,4)),
       ],
     ),
@@ -500,7 +500,7 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     decoration: BoxDecoration(
       color: T.surface, borderRadius: BorderRadius.circular(4),
       boxShadow: const [
-        BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0,1)),
+        BoxShadow(color: Color(0x0F000000), blurRadius: 3,  offset: Offset(0,1)),
         BoxShadow(color: Color(0x0F000000), blurRadius: 20, offset: Offset(0,4)),
       ],
     ),
@@ -508,12 +508,19 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     child: _buildEditor(),
   );
 
-  // ── EDITOR (API correta v9) ───────────────────────────────────────────────
+  // ── EDITOR — API v11 ──────────────────────────────────────────────────────
+  // Mudanças em relação ao código antigo:
+  //   • configurations: → config:
+  //   • QuillEditorConfigurations → QuillEditorConfig
+  //   • HorizontalSpacing(0,0) → HorizontalSpacing.zero  (sem const)
+  //   • VerticalSpacing(x,y)   → VerticalSpacing(x,y)    (sem const; 3 params agora)
+  //   • DefaultTextBlockStyle  agora aceita 5 args (+ VerticalSpacing p/ lineSpacing)
+  //   • selectionColor removido do QuillEditorConfig; usa Theme.of(ctx).textSelectionTheme
   Widget _buildEditor() => QuillEditor(
     controller:       _qc,
     focusNode:        _editorFocus,
     scrollController: _editorScroll,
-    configurations: QuillEditorConfigurations(
+    config: QuillEditorConfig(
       placeholder: 'Começa a escrever…',
       padding:     EdgeInsets.zero,
       autoFocus:   false,
@@ -522,30 +529,44 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
       customStyles: DefaultStyles(
         paragraph: DefaultTextBlockStyle(
           GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.ink),
-          const HorizontalSpacing(0, 0), const VerticalSpacing(0, 0), null,
+          HorizontalSpacing.zero,
+          VerticalSpacing.zero,
+          VerticalSpacing.zero,
+          null,
         ),
         h1: DefaultTextBlockStyle(
           GoogleFonts.lora(fontSize: 28, fontWeight: FontWeight.w700, color: T.ink),
-          const HorizontalSpacing(0, 0), const VerticalSpacing(8, 4), null,
+          HorizontalSpacing.zero,
+          const VerticalSpacing(8, 4),
+          VerticalSpacing.zero,
+          null,
         ),
         h2: DefaultTextBlockStyle(
           GoogleFonts.lora(fontSize: 22, fontWeight: FontWeight.w600, color: T.ink),
-          const HorizontalSpacing(0, 0), const VerticalSpacing(6, 3), null,
+          HorizontalSpacing.zero,
+          const VerticalSpacing(6, 3),
+          VerticalSpacing.zero,
+          null,
         ),
         h3: DefaultTextBlockStyle(
           GoogleFonts.lora(fontSize: 18, fontWeight: FontWeight.w600, color: T.ink),
-          const HorizontalSpacing(0, 0), const VerticalSpacing(4, 2), null,
+          HorizontalSpacing.zero,
+          const VerticalSpacing(4, 2),
+          VerticalSpacing.zero,
+          null,
         ),
-        bold:         const TextStyle(fontWeight: FontWeight.w700),
-        italic:       const TextStyle(fontStyle: FontStyle.italic),
-        underline:    const TextStyle(decoration: TextDecoration.underline),
-        strikeThrough:const TextStyle(decoration: TextDecoration.lineThrough),
+        bold:          const TextStyle(fontWeight: FontWeight.w700),
+        italic:        const TextStyle(fontStyle: FontStyle.italic),
+        underline:     const TextStyle(decoration: TextDecoration.underline),
+        strikeThrough: const TextStyle(decoration: TextDecoration.lineThrough),
         placeHolder: DefaultTextBlockStyle(
           GoogleFonts.lora(fontSize: 16, height: 1.85, color: T.muted),
-          const HorizontalSpacing(0, 0), const VerticalSpacing(0, 0), null,
+          HorizontalSpacing.zero,
+          VerticalSpacing.zero,
+          VerticalSpacing.zero,
+          null,
         ),
       ),
-      selectionColor: const Color(0xFFBFDBFE),
     ),
   );
 
@@ -651,56 +672,49 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
   );
 
   Widget _buildTbTrack() => Stack(children: [
-    // Left fade
     Positioned(left: 0, top: 0, bottom: 0, child: IgnorePointer(child: Container(
       width: 20,
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.only(topLeft: Radius.circular(999), bottomLeft: Radius.circular(999)),
-        gradient: LinearGradient(colors: [Colors.white.withOpacity(0.97), Colors.transparent]),
+        gradient: LinearGradient(colors: [Colors.white.withValues(alpha: 0.97), Colors.transparent]),
       ),
     ))),
-    // Right fade
     Positioned(right: 0, top: 0, bottom: 0, child: IgnorePointer(child: Container(
       width: 14,
       decoration: BoxDecoration(
         gradient: LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft,
-          colors: [Colors.white.withOpacity(0.97), Colors.transparent]),
+          colors: [Colors.white.withValues(alpha: 0.97), Colors.transparent]),
       ),
     ))),
     SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Row(children: [
-        // Color
         Builder(builder: (ctx) => _TbColorBtn(color: _currentColor, onTap: () => _onTbBtn(ctx, 'color'))),
         const _TbDiv(),
-        // B I U S
         _TbFmtBtn(label: 'B', bold: true,      active: _isBold,      onTap: _toggleBold),
         _TbFmtBtn(label: 'I', italic: true,    active: _isItalic,    onTap: _toggleItalic),
         _TbFmtBtn(label: 'U', underline: true, active: _isUnderline, onTap: _toggleUnderline),
         _TbFmtBtn(label: 'S', strike: true,    active: _isStrike,    onTap: _toggleStrike),
         const _TbDiv(),
-        // Font / Size chips
         Builder(builder: (ctx) => _TbChip(label: _currentFont, icon: LucideIcons.chevronDown, onTap: () => _onTbBtn(ctx, 'font'))),
         Builder(builder: (ctx) => _TbChip(label: '$_currentSize', icon: LucideIcons.chevronDown, onTap: () => _onTbBtn(ctx, 'size'))),
         const _TbDiv(),
         Builder(builder: (ctx) => _TbChip(label: 'Estilos', icon: LucideIcons.chevronDown, onTap: () => _onTbBtn(ctx, 'styles'))),
         const _TbDiv(),
-        // Align
         _TbAlignBtn(icon: LucideIcons.alignLeft,    active: _currentAlign == 'left',    onTap: () => _setAlign('left')),
         _TbAlignBtn(icon: LucideIcons.alignCenter,  active: _currentAlign == 'center',  onTap: () => _setAlign('center')),
         _TbAlignBtn(icon: LucideIcons.alignRight,   active: _currentAlign == 'right',   onTap: () => _setAlign('right')),
         _TbAlignBtn(icon: LucideIcons.alignJustify, active: _currentAlign == 'justify', onTap: () => _setAlign('justify')),
         const _TbDiv(),
-        // Lists
         _TbIconBtnSm(icon: LucideIcons.list,        onTap: () => _fmt(Attribute.ul)),
         _TbIconBtnSm(icon: LucideIcons.listOrdered, onTap: () => _fmt(Attribute.ol)),
         _TbIconBtnSm(icon: LucideIcons.indent,      onTap: () => _fmt(Attribute.indentL1)),
         _TbIconBtnSm(icon: LucideIcons.outdent,     onTap: () => _fmt(Attribute.indentL1)),
         const _TbDiv(),
-        Builder(builder: (ctx) => _TbChip(label: 'Inserir',  icon: LucideIcons.plus,     onTap: () => _onTbBtn(ctx, 'insert'))),
+        Builder(builder: (ctx) => _TbChip(label: 'Inserir',  icon: LucideIcons.plus,      onTap: () => _onTbBtn(ctx, 'insert'))),
         const _TbDiv(),
-        Builder(builder: (ctx) => _TbChip(label: 'Formatar', icon: LucideIcons.settings2, onTap: () => _onTbBtn(ctx, 'format'))),
+        Builder(builder: (ctx) => _TbChip(label: 'Formatar', icon: LucideIcons.settings2,  onTap: () => _onTbBtn(ctx, 'format'))),
         const SizedBox(width: 8),
       ]),
     ),
@@ -730,8 +744,7 @@ class _PopupOverlayState extends State<_PopupOverlay> with SingleTickerProviderS
     _ctrl.forward();
   }
 
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext ctx) => Stack(children: [
@@ -1078,9 +1091,9 @@ class _InsertPopup extends StatelessWidget {
   @override Widget build(BuildContext ctx) => SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
     _PopupHeader('Inserir'),
     Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(children: [
-      _PopupItemBtn(icon: LucideIcons.link,  label: 'Link',      onTap: onLink),
-      _PopupItemBtn(icon: LucideIcons.image, label: 'Imagem',    onTap: onImage),
-      _PopupItemBtn(icon: LucideIcons.table, label: 'Tabela 3×3',onTap: onTable),
+      _PopupItemBtn(icon: LucideIcons.link,  label: 'Link',       onTap: onLink),
+      _PopupItemBtn(icon: LucideIcons.image, label: 'Imagem',     onTap: onImage),
+      _PopupItemBtn(icon: LucideIcons.table, label: 'Tabela 3×3', onTap: onTable),
     ])),
     Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(children: [
       _PopupItemBtn(icon: LucideIcons.minus,    label: 'Linha divisória', onTap: onHR),
@@ -1089,10 +1102,10 @@ class _InsertPopup extends StatelessWidget {
     Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4),
       child: Align(alignment: Alignment.centerLeft,
         child: Text('CAIXAS DE DESTAQUE', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC))))),
-    _PopupItemBtn(icon: LucideIcons.alertTriangle, label: 'Aviso',       onTap: () => onCallout('warn')),
-    _PopupItemBtn(icon: LucideIcons.info,          label: 'Informação',  onTap: () => onCallout('info')),
-    _PopupItemBtn(icon: LucideIcons.checkCircle,   label: 'Sucesso',     onTap: () => onCallout('success')),
-    _PopupItemBtn(icon: LucideIcons.xCircle,       label: 'Erro',        onTap: () => onCallout('error')),
+    _PopupItemBtn(icon: LucideIcons.alertTriangle, label: 'Aviso',      onTap: () => onCallout('warn')),
+    _PopupItemBtn(icon: LucideIcons.info,          label: 'Informação', onTap: () => onCallout('info')),
+    _PopupItemBtn(icon: LucideIcons.checkCircle,   label: 'Sucesso',    onTap: () => onCallout('success')),
+    _PopupItemBtn(icon: LucideIcons.xCircle,       label: 'Erro',       onTap: () => onCallout('error')),
     const SizedBox(height: 4),
   ]));
 }
@@ -1110,16 +1123,16 @@ class _FormatPopup extends StatelessWidget {
     Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4), child: Text('MAIÚSCULAS', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
-        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'MAIÚSCULAS',          onTap: () => onCase('upper')),
-        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'minúsculas',          onTap: () => onCase('lower')),
-        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'Primeira Maiúscula',  onTap: () => onCase('title')),
+        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'MAIÚSCULAS',         onTap: () => onCase('upper')),
+        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'minúsculas',         onTap: () => onCase('lower')),
+        _PopupItemBtn(icon: LucideIcons.caseSensitive, label: 'Primeira Maiúscula', onTap: () => onCase('title')),
       ])),
     Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(padding: const EdgeInsets.fromLTRB(14,8,14,4), child: Text('INLINE', style: T.dmSans(size: 10, w: FontWeight.w700, color: const Color(0xFFCCCCCC)))),
-        _PopupItemBtn(icon: LucideIcons.superscript, label: 'Sobrescrito',    onTap: onSuperscript),
-        _PopupItemBtn(icon: LucideIcons.subscript,   label: 'Subscrito',      onTap: onSubscript),
-        _PopupItemBtn(icon: LucideIcons.code,        label: 'Código inline',  onTap: onInlineCode),
+        _PopupItemBtn(icon: LucideIcons.superscript, label: 'Sobrescrito',   onTap: onSuperscript),
+        _PopupItemBtn(icon: LucideIcons.subscript,   label: 'Subscrito',     onTap: onSubscript),
+        _PopupItemBtn(icon: LucideIcons.code,        label: 'Código inline', onTap: onInlineCode),
       ])),
     Container(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))), child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1152,7 +1165,6 @@ class _FontFullscreenState extends State<_FontFullscreen> {
     height: MediaQuery.of(ctx).size.height,
     decoration: const BoxDecoration(color: T.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     child: Column(children: [
-      // Header
       Container(height: 54, padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
         child: Row(children: [
@@ -1167,7 +1179,6 @@ class _FontFullscreenState extends State<_FontFullscreen> {
           GestureDetector(onTap: () => Navigator.pop(ctx), child: Container(width: 36, height: 36, alignment: Alignment.center,
             child: Icon(LucideIcons.x, size: 17, color: T.sub))),
         ])),
-      // Categories
       Container(height: 50, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: T.divider))),
         child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           children: _cats.map((cat) {
@@ -1181,7 +1192,6 @@ class _FontFullscreenState extends State<_FontFullscreen> {
               child: Text(cat, style: T.dmSans(size: 12, w: FontWeight.w600, color: active ? T.accent : T.sub)),
             ));
           }).toList())),
-      // Grid
       Expanded(child: GridView.builder(
         padding: const EdgeInsets.all(14),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 1.6),
@@ -1202,7 +1212,6 @@ class _FontFullscreenState extends State<_FontFullscreen> {
           ));
         },
       )),
-      // Apply
       Container(padding: const EdgeInsets.fromLTRB(14,10,14,10), decoration: const BoxDecoration(border: Border(top: BorderSide(color: T.divider))),
         child: SafeArea(top: false, child: GestureDetector(
           onTap: _selected != null ? () => widget.onFont(_selected!.family) : null,
