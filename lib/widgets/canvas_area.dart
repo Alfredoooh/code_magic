@@ -4,9 +4,6 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../editor_state.dart';
 
-const Color kCanvasBg = Color(0xFFF2F1EC);
-const Color kPageBorder = Color(0xFFCBC7BE);
-
 class CanvasArea extends StatefulWidget {
   const CanvasArea({super.key});
 
@@ -32,14 +29,12 @@ class _CanvasAreaState extends State<CanvasArea> {
   @override
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
-
-    return Container(
-      color: kCanvasBg,
-      child: LayoutBuilder(
-        builder: (ctx, constraints) {
-          _computeScale(constraints);
-
-          return SingleChildScrollView(
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        _computeScale(constraints);
+        return Container(
+          color: const Color(0xFFF2F1EC),
+          child: SingleChildScrollView(
             scrollDirection: Axis.vertical,
             physics: const ClampingScrollPhysics(),
             child: SingleChildScrollView(
@@ -67,13 +62,14 @@ class _CanvasAreaState extends State<CanvasArea> {
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
+// ── Configuração partilhada do QuillEditor ────────────────
 quill_lib.QuillEditorConfigurations _editorConfig() =>
     const quill_lib.QuillEditorConfigurations(
       scrollable: false,
@@ -97,6 +93,7 @@ quill_lib.QuillEditorConfigurations _editorConfig() =>
       ),
     );
 
+// ── SCROLL MODE ───────────────────────────────────────────
 class _ScrollPage extends StatefulWidget {
   final ValueChanged<bool> onFocusChange;
   const _ScrollPage({required this.onFocusChange});
@@ -108,33 +105,28 @@ class _ScrollPage extends StatefulWidget {
 class _ScrollPageState extends State<_ScrollPage> {
   bool _focused = false;
 
-  BoxDecoration _pageDecoration() {
-    return BoxDecoration(
-      color: kWhite,
-      borderRadius: BorderRadius.zero,
-      border: Border.all(
-        color: kPageBorder.withOpacity(0.95),
-        width: 1.25,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(_focused ? 0.10 : 0.06),
-          blurRadius: _focused ? 18 : 12,
-          offset: const Offset(0, 6),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       width: kPageWidth,
       constraints: const BoxConstraints(minHeight: kPageHeight),
-      decoration: _pageDecoration(),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.zero,
+        border: Border.all(
+          color: const Color(0xFFCBC7BE),
+          width: 1.35,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(_focused ? 0.10 : 0.07),
+            blurRadius: _focused ? 18 : 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(kPagePadH, kPagePadV, kPagePadH, 120),
         child: Focus(
@@ -154,6 +146,7 @@ class _ScrollPageState extends State<_ScrollPage> {
   }
 }
 
+// ── A4 MODE ───────────────────────────────────────────────
 class _A4Pages extends StatelessWidget {
   final ValueChanged<bool> onFocusChange;
   const _A4Pages({required this.onFocusChange});
@@ -191,33 +184,28 @@ class _A4Page extends StatefulWidget {
 class _A4PageState extends State<_A4Page> {
   bool _focused = false;
 
-  BoxDecoration _pageDecoration() {
-    return BoxDecoration(
-      color: kWhite,
-      borderRadius: BorderRadius.zero,
-      border: Border.all(
-        color: kPageBorder.withOpacity(0.98),
-        width: 1.35,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(_focused ? 0.10 : 0.07),
-          blurRadius: _focused ? 18 : 14,
-          offset: const Offset(0, 6),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
-
     return Container(
       width: kPageWidth,
       height: kPageHeight,
       margin: const EdgeInsets.only(bottom: 24),
-      decoration: _pageDecoration(),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.zero,
+        border: Border.all(
+          color: const Color(0xFFCBC7BE),
+          width: 1.35,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(_focused ? 0.10 : 0.07),
+            blurRadius: _focused ? 18 : 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Stack(
         children: [
           Padding(
