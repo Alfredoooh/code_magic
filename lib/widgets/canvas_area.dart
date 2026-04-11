@@ -151,8 +151,9 @@ class _CanvasAreaState extends State<CanvasArea> {
   // HTML: applyZoom — scale = avail < 794 ? avail/794 : 1
   //       focused   → scale *= 1.15  clamped to 1
   void _computeScale(double availW) {
-    final base = availW < kPageWidth ? availW / kPageWidth : 1.0;
-    final s = (_focused ? base * 1.15 : base).clamp(0.0, 1.0);
+    // Quando o ecrã é mais estreito que a página, escala para caber.
+    // availW já desconta os 32px de padding horizontal.
+    final s = (availW / kPageWidth).clamp(0.0, 1.0);
     if ((s - _scale).abs() > 0.001) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _scale = s);
