@@ -112,6 +112,11 @@ BoxDecoration _paperDecoration({bool focused = false}) => BoxDecoration(
     );
 
 // ── CanvasArea ────────────────────────────────────────────
+// Replica exactamente o applyZoom do HTML:
+//   baseScale = canvasWidth < 794 ? canvasWidth/794 : 1
+//   scale     = min(baseScale * (focused ? 1.15 : 1), 1)
+//   transform: scale(s); transform-origin: top center
+//   margin-bottom: (s - 1) * pageHeight   ← compensa espaço perdido
 class CanvasArea extends StatefulWidget {
   const CanvasArea({super.key});
   @override
@@ -119,7 +124,15 @@ class CanvasArea extends StatefulWidget {
 }
 
 class _CanvasAreaState extends State<CanvasArea> {
-  bool _focused = false;
+  double _scale = 1.0;
+  bool   _focused = false;
+
+  // Chamado sempre que a largura disponível ou o foco mudam
+  void _updateScale(double canvasW) {
+    final base = canvasW < kPageWidth ? canvasW / kPageWidth : 1.0;
+    final s    = math.min(base * (_focused ? 1.15 : 1.0), 1.0);
+    if ((s - _scale).abs() > 0.001) setState(() => _scale = s);
+  }
 
   void _onBgTap() {
     context.read<AppEditorState>().focusNode.unfocus();
@@ -130,29 +143,63 @@ class _CanvasAreaState extends State<CanvasArea> {
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
 
-    return GestureDetector(
-      onTap: _onBgTap,
-      behavior: HitTestBehavior.translucent,
-      child: Container(
-        color: const Color(0xFFF0F0EE),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          physics: const ClampingScrollPhysics(),
+    return LayoutBuilder(builder: (ctx, constraints) {
+      // largura disponível = canvasScroll.clientWidth - 32px padding
+      final canvasW = constraints.maxWidth - 32;
+      _updateScale(canvasW);
+
+      // margin-bottom replica o (s-1)*1123 do HTML para compensar o scale
+      final marginBottom = (_scale - 1.0) * kPageHeight;
+
+      return GestureDetector(
+        onTap: _onBgTap,
+        behavior: HitTestBehavior.translucent,
+        child: Container(
+          // bg-[#f8f8f7] — igual ao HTML
+          color: const Color(0xFFF8F8F7),
           child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+            scrollDirection: Axis.vertical,
             physics: const ClampingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-              child: st.a4Mode
-                  ? _A4Pages(
-                      onFocusChange: (f) => setState(() => _focused = f))
-                  : _ScrollPage(
-                      onFocusChange: (f) => setState(() => _focused = f)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
+              child: Padding(
+                // px-4 pt-7 pb-[200px] — igual ao HTML
+                padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+                child: SizedBox(
+                  // largura mínima = ecrã inteiro → page-wrapper fica centrado
+                  width: math.max(kPageWidth, canvasW),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // transform: scale(s); transform-origin: top center
+                      // margin-bottom: (s-1)*pageHeight
+                      Transform.scale(
+                        scale: _scale,
+                        alignment: Alignment.topCenter,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                              bottom: marginBottom < 0 ? marginBottom.abs() : 0),
+                          child: st.a4Mode
+                              ? _A4Pages(onFocusChange: (f) {
+                                  setState(() => _focused = f);
+                                  _updateScale(canvasW);
+                                })
+                              : _ScrollPage(onFocusChange: (f) {
+                                  setState(() => _focused = f);
+                                  _updateScale(canvasW);
+                                }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -210,15 +257,12 @@ class _A4Pages extends StatelessWidget {
     final count = _estimatePageCount(st.quill, fs);
 
     return Column(
-      children: List.generate(
-        count,
-        (i) => _A4Page(
-          pageNumber: i + 1,
-          pageIndex: i,
-          fontSize: fs,
-          onFocusChange: onFocusChange,
-        ),
-      ),
+      children: List.generate(count, (i) => _A4Page(
+        pageNumber: i + 1,
+        pageIndex: i,
+        fontSize: fs,
+        onFocusChange: onFocusChange,
+      )),
     );
   }
 }
@@ -246,8 +290,8 @@ class _A4PageState extends State<_A4Page> {
   quill_lib.QuillController _buildPageCtrl(AppEditorState st) {
     if (widget.pageIndex == 0) return st.quill;
 
-    final lpp = _linesPerPage(widget.fontSize);
-    final cpl = _charsPerLine(widget.fontSize);
+    final lpp  = _linesPerPage(widget.fontSize);
+    final cpl  = _charsPerLine(widget.fontSize);
     final text = st.quill.document.toPlainText();
     final lines = text.split('\n');
 
@@ -280,9 +324,9 @@ class _A4PageState extends State<_A4Page> {
 
   @override
   Widget build(BuildContext context) {
-    final st = context.watch<AppEditorState>();
+    final st      = context.watch<AppEditorState>();
     final isFirst = widget.pageIndex == 0;
-    final ctrl = _buildPageCtrl(st);
+    final ctrl    = _buildPageCtrl(st);
 
     return GestureDetector(
       onTap: () {},
@@ -323,18 +367,14 @@ class _A4PageState extends State<_A4Page> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.06),
-                  ],
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.06)],
                 ),
               ),
             ),
           ),
           Positioned(
             bottom: 14, right: 20,
-            child: Text(
-              '${widget.pageNumber}',
+            child: Text('${widget.pageNumber}',
               style: const TextStyle(
                 fontFamily: 'DMSans',
                 fontSize: 10,
