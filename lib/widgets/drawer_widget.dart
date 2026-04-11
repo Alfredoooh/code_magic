@@ -9,7 +9,7 @@ class DrawerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final st = context.watch<EditorState>();
+    final st = context.watch<AppEditorState>();
     return Container(
       width: 260,
       height: double.infinity,
@@ -97,7 +97,8 @@ class _DrawerBtn extends StatefulWidget {
     required this.active,
     required this.onTap,
   });
-  @override State<_DrawerBtn> createState() => _DrawerBtnState();
+  @override
+  State<_DrawerBtn> createState() => _DrawerBtnState();
 }
 
 class _DrawerBtnState extends State<_DrawerBtn> {
