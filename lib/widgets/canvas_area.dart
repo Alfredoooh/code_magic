@@ -33,18 +33,21 @@ class _CanvasAreaState extends State<CanvasArea> {
       builder: (ctx, constraints) {
         _computeScale(constraints);
         return Container(
-          color: const Color(0xFFF2F1EC),
+          // Fundo acinzentado suave — evita o contraste branco-sobre-branco
+          color: const Color(0xFFE8E8E8),
           child: SingleChildScrollView(
             scrollDirection: Axis.vertical,
             physics: const ClampingScrollPhysics(),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: constraints.maxWidth,
+              child: ConstrainedBox(
+                // Garante largura mínima igual à área disponível para centralizar
+                constraints: BoxConstraints(
+                  minWidth: constraints.maxWidth,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-                  child: Align(
-                    alignment: Alignment.topCenter,
+                  child: Center(
                     child: AnimatedScale(
                       scale: _scale,
                       duration: const Duration(milliseconds: 300),
@@ -114,18 +117,33 @@ class _ScrollPageState extends State<_ScrollPage> {
       constraints: const BoxConstraints(minHeight: kPageHeight),
       decoration: BoxDecoration(
         color: kWhite,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(
-          color: const Color(0xFFCBC7BE),
-          width: 1.35,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(_focused ? 0.10 : 0.07),
-            blurRadius: _focused ? 18 : 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        // Bordas retas — borderRadius removido
+        border: Border.all(color: Colors.black.withOpacity(0.18), width: 1.2),
+        boxShadow: _focused
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 36,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(kPagePadH, kPagePadV, kPagePadH, 120),
@@ -147,32 +165,70 @@ class _ScrollPageState extends State<_ScrollPage> {
 }
 
 // ── A4 MODE ───────────────────────────────────────────────
+
+/// Calcula quantas páginas são necessárias com base no conteúdo do documento.
+/// Cada página comporta [kPageContentHeight] de altura de texto.
+/// O mínimo é sempre 1 página.
+int _pageCount(quill_lib.QuillController ctrl) {
+  // Estimativa: linhas totais × altura de linha / área útil por página
+  final doc = ctrl.document;
+  final text = doc.toPlainText();
+  if (text.trim().isEmpty) return 1;
+
+  // Largura útil em pixels lógicos
+  const usableWidth = kPageWidth - kPagePadH * 2;
+  // Altura útil por página (altura A4 menos margens verticais)
+  const usableHeight = kPageHeight - kPagePadV * 2;
+
+  // Caracteres por linha aproximados (fonte Lora 16px, largura média ~8.5px/char)
+  const charsPerLine = usableWidth ~/ 8.5;
+  // Altura por linha (fontSize × lineHeight)
+  const lineH = 16.0 * 1.85;
+  // Linhas por página
+  const linesPerPage = usableHeight ~/ lineH;
+
+  final lines = text.split('\n');
+  int totalLines = 0;
+  for (final l in lines) {
+    final wrapped = (l.length / charsPerLine).ceil();
+    totalLines += wrapped < 1 ? 1 : wrapped;
+  }
+
+  final pages = (totalLines / linesPerPage).ceil();
+  return pages < 1 ? 1 : pages;
+}
+
 class _A4Pages extends StatelessWidget {
   final ValueChanged<bool> onFocusChange;
   const _A4Pages({required this.onFocusChange});
 
   @override
   Widget build(BuildContext context) {
+    final st = context.watch<AppEditorState>();
+    final count = _pageCount(st.quill);
+
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _A4Page(
-          pageNumber: 1,
-          isEditable: true,
+      children: List.generate(count, (i) {
+        return _A4Page(
+          pageNumber: i + 1,
+          totalPages: count,
+          isEditable: i == 0, // apenas a primeira página tem o editor
           onFocusChange: onFocusChange,
-        ),
-      ],
+        );
+      }),
     );
   }
 }
 
 class _A4Page extends StatefulWidget {
   final int pageNumber;
+  final int totalPages;
   final bool isEditable;
   final ValueChanged<bool> onFocusChange;
 
   const _A4Page({
     required this.pageNumber,
+    required this.totalPages,
     required this.isEditable,
     required this.onFocusChange,
   });
@@ -193,16 +249,18 @@ class _A4PageState extends State<_A4Page> {
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
         color: kWhite,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(
-          color: const Color(0xFFCBC7BE),
-          width: 1.35,
-        ),
+        // Bordas retas — borderRadius removido; borda sólida mais visível
+        border: Border.all(color: Colors.black.withOpacity(0.20), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(_focused ? 0.10 : 0.07),
-            blurRadius: _focused ? 18 : 14,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -230,6 +288,26 @@ class _A4PageState extends State<_A4Page> {
                   )
                 : const SizedBox.shrink(),
           ),
+          // Gradiente de separação na base da página
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 3,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.06),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Número de página
           Positioned(
             bottom: 14,
             right: 20,
