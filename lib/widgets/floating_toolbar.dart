@@ -3,13 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../editor_state.dart';
-import 'popups/popup_color.dart';
 import 'popups/all_popups.dart';
-/*import 'popups/popup_font.dart';
-import 'popups/popup_size.dart';
-import 'popups/popup_styles.dart';
-import 'popups/popup_insert.dart';
-import 'popups/popup_format.dart';*/
 
 class FloatingToolbar extends StatefulWidget {
   const FloatingToolbar({super.key});
@@ -61,7 +55,8 @@ class _FloatingToolbarState extends State<FloatingToolbar> {
 
   @override
   Widget build(BuildContext context) {
-    final st = context.watch<EditorState>();
+    // Usa AppEditorState para evitar conflito com EditorState do flutter_quill
+    final st = context.watch<AppEditorState>();
     final screenW = MediaQuery.of(context).size.width;
     final pillW = (screenW * 0.96).clamp(0.0, 460.0);
     final safeBot = MediaQuery.of(context).padding.bottom;
@@ -144,19 +139,20 @@ class _ToolbarTrack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final st = context.watch<EditorState>();
+    final st = context.watch<AppEditorState>();
 
-    final colorKey = GlobalKey();
-    final fontKey  = GlobalKey();
-    final sizeKey  = GlobalKey();
-    final stylesKey= GlobalKey();
-    final insertKey= GlobalKey();
-    final formatKey= GlobalKey();
+    final colorKey  = GlobalKey();
+    final fontKey   = GlobalKey();
+    final sizeKey   = GlobalKey();
+    final stylesKey = GlobalKey();
+    final insertKey = GlobalKey();
+    final formatKey = GlobalKey();
 
     return Stack(
       children: [
         // Left fade
-        Positioned(left: 0, top: 0, bottom: 0, width: 20,
+        Positioned(
+          left: 0, top: 0, bottom: 0, width: 20,
           child: IgnorePointer(
             child: Container(
               decoration: BoxDecoration(
@@ -172,7 +168,8 @@ class _ToolbarTrack extends StatelessWidget {
           ),
         ),
         // Right fade
-        Positioned(right: 52, top: 0, bottom: 0, width: 14,
+        Positioned(
+          right: 52, top: 0, bottom: 0, width: 14,
           child: IgnorePointer(
             child: Container(
               decoration: BoxDecoration(
@@ -192,35 +189,79 @@ class _ToolbarTrack extends StatelessWidget {
           child: Row(
             children: [
               // Color
-              _ColorBtn(key: colorKey, color: st.textColor,
-                onTap: () => onShowPopup(colorKey,
-                    PopupColor(onColor: (c) { context.read<EditorState>().applyColor(c); Navigator.pop(context); }), 254)),
+              _ColorBtn(
+                key: colorKey,
+                color: st.textColor,
+                onTap: () => onShowPopup(
+                  colorKey,
+                  PopupColor(onColor: (c) {
+                    context.read<AppEditorState>().applyColor(c);
+                    Navigator.pop(context);
+                  }),
+                  254,
+                ),
+              ),
               _Sep(),
               // Bold/Italic/Underline/Strike
               _FmtBtn(label: 'B', weight: FontWeight.w900, active: st.bold,
-                onTap: () => context.read<EditorState>().applyBold()),
+                  onTap: () => context.read<AppEditorState>().applyBold()),
               _FmtBtn(label: 'I', weight: FontWeight.w600, italic: true, active: st.italic,
-                onTap: () => context.read<EditorState>().applyItalic()),
+                  onTap: () => context.read<AppEditorState>().applyItalic()),
               _FmtBtn(label: 'U', weight: FontWeight.w600, underline: true, active: st.underline,
-                onTap: () => context.read<EditorState>().applyUnderline()),
+                  onTap: () => context.read<AppEditorState>().applyUnderline()),
               _FmtBtn(label: 'S', weight: FontWeight.w600, strike: true, active: st.strike,
-                onTap: () => context.read<EditorState>().applyStrike()),
+                  onTap: () => context.read<AppEditorState>().applyStrike()),
               _Sep(),
               // Font chip
-              _Chip(key: fontKey, label: st.fontLabel,
-                onTap: () => onShowPopup(fontKey,
-                    PopupFont(onFont: (f) { context.read<EditorState>().applyFont(f); Navigator.pop(context); },
-                      onExpand: () { Navigator.pop(context); /* open fullscreen font */ }), 240)),
+              _Chip(
+                key: fontKey,
+                label: st.fontLabel,
+                onTap: () => onShowPopup(
+                  fontKey,
+                  PopupFont(
+                    onFont: (f) {
+                      context.read<AppEditorState>().applyFont(f);
+                      Navigator.pop(context);
+                    },
+                    onExpand: () {
+                      Navigator.pop(context);
+                      // open fullscreen font picker
+                    },
+                  ),
+                  240,
+                ),
+              ),
               const SizedBox(width: 3),
               // Size chip
-              _Chip(key: sizeKey, label: '${st.fontSize}',
-                onTap: () => onShowPopup(sizeKey,
-                    PopupSize(current: st.fontSize, onSize: (s) { context.read<EditorState>().applyFontSize(s); Navigator.pop(context); }), 220)),
+              _Chip(
+                key: sizeKey,
+                label: '${st.fontSize}',
+                onTap: () => onShowPopup(
+                  sizeKey,
+                  PopupSize(
+                    current: st.fontSize,
+                    onSize: (s) {
+                      context.read<AppEditorState>().applyFontSize(s);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  220,
+                ),
+              ),
               _Sep(),
               // Styles chip
-              _Chip(key: stylesKey, label: 'Estilos',
-                onTap: () => onShowPopup(stylesKey,
-                    PopupStyles(onStyle: (b) { context.read<EditorState>().applyBlockStyle(b); Navigator.pop(context); }), 200)),
+              _Chip(
+                key: stylesKey,
+                label: 'Estilos',
+                onTap: () => onShowPopup(
+                  stylesKey,
+                  PopupStyles(onStyle: (b) {
+                    context.read<AppEditorState>().applyBlockStyle(b);
+                    Navigator.pop(context);
+                  }),
+                  200,
+                ),
+              ),
               _Sep(),
               // Align
               _AlignBtn(icon: Icons.format_align_left,    align: 'left',    current: st.align),
@@ -229,20 +270,34 @@ class _ToolbarTrack extends StatelessWidget {
               _AlignBtn(icon: Icons.format_align_justify, align: 'justify', current: st.align),
               _Sep(),
               // List/Indent
-              _TbBtn(icon: Icons.format_list_bulleted, onTap: () => context.read<EditorState>().insertUnorderedList()),
-              _TbBtn(icon: Icons.format_list_numbered, onTap: () => context.read<EditorState>().insertOrderedList()),
-              _TbBtn(icon: Icons.format_indent_increase, onTap: () => context.read<EditorState>().indent()),
-              _TbBtn(icon: Icons.format_indent_decrease, onTap: () => context.read<EditorState>().outdent()),
+              _TbBtn(icon: Icons.format_list_bulleted,   onTap: () => context.read<AppEditorState>().insertUnorderedList()),
+              _TbBtn(icon: Icons.format_list_numbered,   onTap: () => context.read<AppEditorState>().insertOrderedList()),
+              _TbBtn(icon: Icons.format_indent_increase, onTap: () => context.read<AppEditorState>().indent()),
+              _TbBtn(icon: Icons.format_indent_decrease, onTap: () => context.read<AppEditorState>().outdent()),
               _Sep(),
               // Insert chip
-              _Chip(key: insertKey, label: 'Inserir', useplus: true,
-                onTap: () => onShowPopup(insertKey,
-                    PopupInsert(onAction: (a) => _handleInsert(context, a)), 240)),
+              _Chip(
+                key: insertKey,
+                label: 'Inserir',
+                useplus: true,
+                onTap: () => onShowPopup(
+                  insertKey,
+                  PopupInsert(onAction: (a) => _handleInsert(context, a)),
+                  240,
+                ),
+              ),
               _Sep(),
               // Format chip
-              _Chip(key: formatKey, label: 'Formatar', usesettings: true,
-                onTap: () => onShowPopup(formatKey,
-                    PopupFormat(onAction: (a) => _handleFormat(context, a)), 240)),
+              _Chip(
+                key: formatKey,
+                label: 'Formatar',
+                usesettings: true,
+                onTap: () => onShowPopup(
+                  formatKey,
+                  PopupFormat(onAction: (a) => _handleFormat(context, a)),
+                  240,
+                ),
+              ),
             ],
           ),
         ),
@@ -252,26 +307,26 @@ class _ToolbarTrack extends StatelessWidget {
 
   void _handleInsert(BuildContext ctx, String action) {
     Navigator.pop(ctx);
-    final st = ctx.read<EditorState>();
+    final st = ctx.read<AppEditorState>();
     switch (action) {
-      case 'hr': st.insertText('---'); break;
+      case 'hr':   st.insertText('---'); break;
       case 'date': st.insertText(DateTime.now().toLocal().toString()); break;
     }
   }
 
   void _handleFormat(BuildContext ctx, String action) {
     Navigator.pop(ctx);
-    final st = ctx.read<EditorState>();
+    final st = ctx.read<AppEditorState>();
     switch (action) {
-      case 'upper': st.transformCase('upper'); break;
-      case 'lower': st.transformCase('lower'); break;
-      case 'title': st.transformCase('title'); break;
+      case 'upper':       st.transformCase('upper'); break;
+      case 'lower':       st.transformCase('lower'); break;
+      case 'title':       st.transformCase('title'); break;
       case 'superscript': st.applySuperscript(); break;
-      case 'subscript': st.applySubscript(); break;
-      case 'lh1': st.applyLineHeight(1.0); break;
-      case 'lh15': st.applyLineHeight(1.5); break;
-      case 'lh2': st.applyLineHeight(2.0); break;
-      case 'clear': st.clearFormat(); break;
+      case 'subscript':   st.applySubscript(); break;
+      case 'lh1':         st.applyLineHeight(1.0); break;
+      case 'lh15':        st.applyLineHeight(1.5); break;
+      case 'lh2':         st.applyLineHeight(2.0); break;
+      case 'clear':       st.clearFormat(); break;
     }
   }
 }
@@ -309,7 +364,7 @@ class _AITrack extends StatelessWidget {
     final prompt = controller.text.trim();
     if (prompt.isEmpty) return;
     controller.clear();
-    final st = ctx.read<EditorState>();
+    final st = ctx.read<AppEditorState>();
     st.setAILoading(true);
     try {
       final res = await _callClaude(prompt);
@@ -321,7 +376,6 @@ class _AITrack extends StatelessWidget {
   }
 
   Future<String> _callClaude(String prompt) async {
-    // Use Anthropic API via artifact's built-in fetch
     throw UnimplementedError('Implement Claude API call here');
   }
 }
@@ -340,7 +394,7 @@ class _ConfirmBtnState extends State<_ConfirmBtn> {
 
   @override
   Widget build(BuildContext context) {
-    final st = context.watch<EditorState>();
+    final st = context.watch<AppEditorState>();
     return Padding(
       padding: const EdgeInsets.only(right: 6, left: 2),
       child: GestureDetector(
@@ -456,10 +510,10 @@ class _AIDotsState extends State<_AIDots> with TickerProviderStateMixin {
 class _Sep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-    width: 1, height: 20,
-    margin: const EdgeInsets.symmetric(horizontal: 4),
-    color: kBorder,
-  );
+        width: 1, height: 20,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        color: kBorder,
+      );
 }
 
 class _TbBtn extends StatefulWidget {
@@ -467,31 +521,33 @@ class _TbBtn extends StatefulWidget {
   final VoidCallback onTap;
   final bool active;
   const _TbBtn({required this.icon, required this.onTap, this.active = false});
-  @override State<_TbBtn> createState() => _TbBtnState();
+  @override
+  State<_TbBtn> createState() => _TbBtnState();
 }
+
 class _TbBtnState extends State<_TbBtn> {
   bool _h = false;
   @override
   Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _h = true),
-    onExit: (_) => setState(() => _h = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        height: 38, width: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(
-          color: widget.active
-              ? kAccentBg
-              : _h ? Colors.black.withOpacity(0.06) : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+        onEnter: (_) => setState(() => _h = true),
+        onExit: (_) => setState(() => _h = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            height: 38, width: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            decoration: BoxDecoration(
+              color: widget.active
+                  ? kAccentBg
+                  : _h ? Colors.black.withOpacity(0.06) : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Icon(widget.icon, size: 17,
+                color: widget.active ? kAccent : kSub),
+          ),
         ),
-        child: Icon(widget.icon, size: 17,
-            color: widget.active ? kAccent : kSub),
-      ),
-    ),
-  );
+      );
 }
 
 class _FmtBtn extends StatefulWidget {
@@ -503,47 +559,49 @@ class _FmtBtn extends StatefulWidget {
     required this.label, required this.weight, required this.onTap,
     this.italic = false, this.underline = false, this.strike = false, this.active = false,
   });
-  @override State<_FmtBtn> createState() => _FmtBtnState();
+  @override
+  State<_FmtBtn> createState() => _FmtBtnState();
 }
+
 class _FmtBtnState extends State<_FmtBtn> {
   bool _h = false;
   @override
   Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _h = true),
-    onExit: (_) => setState(() => _h = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        height: 38,
-        constraints: const BoxConstraints(minWidth: 38),
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(
-          color: widget.active
-              ? kAccentBg
-              : _h ? Colors.black.withOpacity(0.06) : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Center(
-          child: Text(
-            widget.label,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: widget.weight,
-              fontStyle: widget.italic ? FontStyle.italic : FontStyle.normal,
-              decoration: widget.underline
-                  ? TextDecoration.underline
-                  : widget.strike
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-              color: widget.active ? kAccent : kSub,
-              height: 1,
+        onEnter: (_) => setState(() => _h = true),
+        onExit: (_) => setState(() => _h = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            height: 38,
+            constraints: const BoxConstraints(minWidth: 38),
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            decoration: BoxDecoration(
+              color: widget.active
+                  ? kAccentBg
+                  : _h ? Colors.black.withOpacity(0.06) : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Center(
+              child: Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: widget.weight,
+                  fontStyle: widget.italic ? FontStyle.italic : FontStyle.normal,
+                  decoration: widget.underline
+                      ? TextDecoration.underline
+                      : widget.strike
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                  color: widget.active ? kAccent : kSub,
+                  height: 1,
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _AlignBtn extends StatelessWidget {
@@ -556,7 +614,7 @@ class _AlignBtn extends StatelessWidget {
     return _TbBtn(
       icon: icon,
       active: active,
-      onTap: () => context.read<EditorState>().applyAlign(align),
+      onTap: () => context.read<AppEditorState>().applyAlign(align),
     );
   }
 }
@@ -566,90 +624,96 @@ class _Chip extends StatefulWidget {
   final VoidCallback onTap;
   final bool useplus, usesettings;
   const _Chip({super.key, required this.label, required this.onTap,
-    this.useplus = false, this.usesettings = false});
-  @override State<_Chip> createState() => _ChipState();
+      this.useplus = false, this.usesettings = false});
+  @override
+  State<_Chip> createState() => _ChipState();
 }
+
 class _ChipState extends State<_Chip> {
   bool _h = false;
   @override
   Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _h = true),
-    onExit: (_) => setState(() => _h = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 11),
-        decoration: BoxDecoration(
-          color: _h ? Colors.black.withOpacity(0.04) : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: kBorder, width: 1.5),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.label,
-                style: const TextStyle(
-                  fontFamily: 'DMSans', fontSize: 12,
-                  fontWeight: FontWeight.w600, color: kInk,
-                )),
-            const SizedBox(width: 4),
-            Icon(
-              widget.useplus ? Icons.add
-                  : widget.usesettings ? Icons.tune
-                  : Icons.keyboard_arrow_down,
-              size: 11, color: kInk,
+        onEnter: (_) => setState(() => _h = true),
+        onExit: (_) => setState(() => _h = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 11),
+            decoration: BoxDecoration(
+              color: _h ? Colors.black.withOpacity(0.04) : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: kBorder, width: 1.5),
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(widget.label,
+                    style: const TextStyle(
+                      fontFamily: 'DMSans', fontSize: 12,
+                      fontWeight: FontWeight.w600, color: kInk,
+                    )),
+                const SizedBox(width: 4),
+                Icon(
+                  widget.useplus
+                      ? Icons.add
+                      : widget.usesettings
+                          ? Icons.tune
+                          : Icons.keyboard_arrow_down,
+                  size: 11, color: kInk,
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _ColorBtn extends StatefulWidget {
   final Color color;
   final VoidCallback onTap;
   const _ColorBtn({super.key, required this.color, required this.onTap});
-  @override State<_ColorBtn> createState() => _ColorBtnState();
+  @override
+  State<_ColorBtn> createState() => _ColorBtnState();
 }
+
 class _ColorBtnState extends State<_ColorBtn> {
   bool _h = false;
   @override
   Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _h = true),
-    onExit: (_) => setState(() => _h = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        height: 38, width: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(
-          color: _h ? Colors.black.withOpacity(0.06) : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('A', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w900,
-              color: kSub, height: 1,
-            )),
-            const SizedBox(height: 2),
-            Container(
-              width: 16, height: 3,
-              decoration: BoxDecoration(
-                color: widget.color,
-                borderRadius: BorderRadius.circular(2),
-              ),
+        onEnter: (_) => setState(() => _h = true),
+        onExit: (_) => setState(() => _h = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            height: 38, width: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            decoration: BoxDecoration(
+              color: _h ? Colors.black.withOpacity(0.06) : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
             ),
-          ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('A', style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w900,
+                  color: kSub, height: 1,
+                )),
+                const SizedBox(height: 2),
+                Container(
+                  width: 16, height: 3,
+                  decoration: BoxDecoration(
+                    color: widget.color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 // ── POPUP CARD ────────────────────────────────────────────
@@ -658,8 +722,10 @@ class _PopupCard extends StatefulWidget {
   final double arrowLeft;
   final double originX;
   const _PopupCard({required this.child, required this.arrowLeft, required this.originX});
-  @override State<_PopupCard> createState() => _PopupCardState();
+  @override
+  State<_PopupCard> createState() => _PopupCardState();
 }
+
 class _PopupCardState extends State<_PopupCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
@@ -669,7 +735,8 @@ class _PopupCardState extends State<_PopupCard>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 220));
     _scale = CurvedAnimation(parent: _ctrl, curve: kPopIn)
         .drive(Tween(begin: 0.5, end: 1.0));
     _opacity = CurvedAnimation(parent: _ctrl, curve: kPopIn)
@@ -678,7 +745,10 @@ class _PopupCardState extends State<_PopupCard>
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
