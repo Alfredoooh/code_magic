@@ -40,7 +40,7 @@ class _EditorPageState extends State<EditorPage>
     super.dispose();
   }
 
-  void _handleDrawerToggle(EditorState st) {
+  void _handleDrawerToggle(AppEditorState st) {
     if (st.drawerOpen) {
       _drawerAnim.forward();
     } else {
@@ -51,15 +51,16 @@ class _EditorPageState extends State<EditorPage>
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => EditorState(),
-      child: Consumer<EditorState>(
+      create: (_) => AppEditorState(),
+      child: Consumer<AppEditorState>(
         builder: (ctx, st, _) {
-          // Sync animation with drawer state
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (st.drawerOpen && _drawerAnim.status != AnimationStatus.forward &&
+            if (st.drawerOpen &&
+                _drawerAnim.status != AnimationStatus.forward &&
                 _drawerAnim.status != AnimationStatus.completed) {
               _drawerAnim.forward();
-            } else if (!st.drawerOpen && _drawerAnim.status != AnimationStatus.reverse &&
+            } else if (!st.drawerOpen &&
+                _drawerAnim.status != AnimationStatus.reverse &&
                 _drawerAnim.status != AnimationStatus.dismissed) {
               _drawerAnim.reverse();
             }
