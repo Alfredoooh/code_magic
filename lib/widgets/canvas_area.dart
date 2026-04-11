@@ -6,6 +6,7 @@ import '../editor_state.dart';
 
 class CanvasArea extends StatefulWidget {
   const CanvasArea({super.key});
+
   @override
   State<CanvasArea> createState() => _CanvasAreaState();
 }
@@ -28,38 +29,43 @@ class _CanvasAreaState extends State<CanvasArea> {
   @override
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
-    return LayoutBuilder(builder: (ctx, constraints) {
-      _computeScale(constraints);
-      return SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        physics: const ClampingScrollPhysics(),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-            child: Center(
-              child: AnimatedScale(
-                scale: _scale,
-                duration: const Duration(milliseconds: 300),
-                curve: kCurve,
-                alignment: Alignment.topCenter,
-                child: st.a4Mode
-                    ? _A4Pages(
-                        onFocusChange: (f) => setState(() => _focused = f))
-                    : _ScrollPage(
-                        onFocusChange: (f) => setState(() => _focused = f)),
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        _computeScale(constraints);
+        return SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          physics: const ClampingScrollPhysics(),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+              child: Center(
+                child: AnimatedScale(
+                  scale: _scale,
+                  duration: const Duration(milliseconds: 300),
+                  curve: kCurve,
+                  alignment: Alignment.topCenter,
+                  child: st.a4Mode
+                      ? _A4Pages(
+                          onFocusChange: (f) => setState(() => _focused = f),
+                        )
+                      : _ScrollPage(
+                          onFocusChange: (f) => setState(() => _focused = f),
+                        ),
+                ),
               ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }
 
 // ── Configuração partilhada do QuillEditor ────────────────
-// Na v10.8.5 o parâmetro é `config: QuillEditorConfig(...)`.
-quill_lib.QuillEditorConfig _editorConfig() => quill_lib.QuillEditorConfig(
+// Na v10.8.5 o editor é configurado com `configurations: QuillEditorConfigurations(...)`.
+quill_lib.QuillEditorConfigurations _editorConfig() =>
+    const quill_lib.QuillEditorConfigurations(
       scrollable: false,
       autoFocus: false,
       expands: false,
@@ -67,15 +73,15 @@ quill_lib.QuillEditorConfig _editorConfig() => quill_lib.QuillEditorConfig(
       placeholder: 'Começa a escrever…',
       customStyles: quill_lib.DefaultStyles(
         paragraph: quill_lib.DefaultTextBlockStyle(
-          const TextStyle(
+          TextStyle(
             fontFamily: 'Lora',
             fontSize: 16,
             height: 1.85,
             color: kInk,
           ),
-          const quill_lib.HorizontalSpacing(0, 0),
-          const quill_lib.VerticalSpacing(0, 0),
-          const quill_lib.VerticalSpacing(0, 0),
+          quill_lib.HorizontalSpacing(0, 0),
+          quill_lib.VerticalSpacing(0, 0),
+          quill_lib.VerticalSpacing(0, 0),
           null,
         ),
       ),
@@ -85,6 +91,7 @@ quill_lib.QuillEditorConfig _editorConfig() => quill_lib.QuillEditorConfig(
 class _ScrollPage extends StatefulWidget {
   final ValueChanged<bool> onFocusChange;
   const _ScrollPage({required this.onFocusChange});
+
   @override
   State<_ScrollPage> createState() => _ScrollPageState();
 }
@@ -105,23 +112,27 @@ class _ScrollPageState extends State<_ScrollPage> {
         boxShadow: _focused
             ? [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2)),
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 36,
-                    offset: const Offset(0, 8)),
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 36,
+                  offset: const Offset(0, 8),
+                ),
               ]
             : [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 3,
-                    offset: const Offset(0, 1)),
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4)),
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
               ],
       ),
       child: Padding(
@@ -131,11 +142,11 @@ class _ScrollPageState extends State<_ScrollPage> {
             setState(() => _focused = f);
             widget.onFocusChange(f);
           },
-          child: quill_lib.QuillEditor(
+          child: quill_lib.QuillEditor.basic(
             controller: st.quill,
             focusNode: st.focusNode,
             scrollController: st.scrollController,
-            config: _editorConfig(),
+            configurations: _editorConfig(),
           ),
         ),
       ),
@@ -166,11 +177,13 @@ class _A4Page extends StatefulWidget {
   final int pageNumber;
   final bool isEditable;
   final ValueChanged<bool> onFocusChange;
+
   const _A4Page({
     required this.pageNumber,
     required this.isEditable,
     required this.onFocusChange,
   });
+
   @override
   State<_A4Page> createState() => _A4PageState();
 }
@@ -188,32 +201,39 @@ class _A4PageState extends State<_A4Page> {
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 3,
-              offset: const Offset(0, 1)),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 20,
-              offset: const Offset(0, 4)),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Stack(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                kPagePadH, kPagePadV, kPagePadH, kPagePadV),
+              kPagePadH,
+              kPagePadV,
+              kPagePadH,
+              kPagePadV,
+            ),
             child: widget.isEditable
-                ? quill_lib.QuillEditor(
+                ? quill_lib.QuillEditor.basic(
                     controller: st.quill,
                     focusNode: st.focusNode,
                     scrollController: st.scrollController,
-                    config: _editorConfig(),
+                    configurations: _editorConfig(),
                   )
                 : const SizedBox.shrink(),
           ),
-          // Bottom gradient
           Positioned(
-            left: 0, right: 0, bottom: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: Container(
               height: 3,
               decoration: BoxDecoration(
@@ -228,9 +248,9 @@ class _A4PageState extends State<_A4Page> {
               ),
             ),
           ),
-          // Page number
           Positioned(
-            bottom: 14, right: 20,
+            bottom: 14,
+            right: 20,
             child: Text(
               '${widget.pageNumber}',
               style: const TextStyle(
