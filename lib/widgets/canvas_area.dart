@@ -184,16 +184,20 @@ class _CanvasAreaState extends State<CanvasArea> {
             physics: const ClampingScrollPhysics(),
             // HTML: px-4 pt-7 pb-[200px]
             padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+            // Replica: transform:scale(s); transform-origin:top center;
+            // margin-bottom: (s-1)*pageHeight  (compensa o espaço perdido)
             child: Center(
-              // Center replica o  align-items:center  do flex canvasScroll
-              child: Transform.scale(
-                scale: _scale,
-                alignment: Alignment.topCenter,
-                child: st.a4Mode
-                    ? _A4Pages(
-                        onFocusChange: (f) => setState(() => _focused = f))
-                    : _ScrollPage(
-                        onFocusChange: (f) => setState(() => _focused = f)),
+              child: SizedBox(
+                width: kPageWidth * _scale,
+                child: Transform.scale(
+                  scale: _scale,
+                  alignment: Alignment.topCenter,
+                  child: st.a4Mode
+                      ? _A4Pages(
+                          onFocusChange: (f) => setState(() => _focused = f))
+                      : _ScrollPage(
+                          onFocusChange: (f) => setState(() => _focused = f)),
+                ),
               ),
             ),
           ),
