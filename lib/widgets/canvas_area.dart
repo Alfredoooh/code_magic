@@ -27,7 +27,6 @@ class _CanvasAreaState extends State<CanvasArea> {
 
   @override
   Widget build(BuildContext context) {
-    // Usa AppEditorState (nome renomeado para evitar conflito com flutter_quill)
     final st = context.watch<AppEditorState>();
     return LayoutBuilder(builder: (ctx, constraints) {
       _computeScale(constraints);
@@ -57,6 +56,30 @@ class _CanvasAreaState extends State<CanvasArea> {
     });
   }
 }
+
+// ── Configuração partilhada do QuillEditor ────────────────
+// Na v10.8.5 o parâmetro é `config: QuillEditorConfig(...)`.
+quill_lib.QuillEditorConfig _editorConfig() => quill_lib.QuillEditorConfig(
+      scrollable: false,
+      autoFocus: false,
+      expands: false,
+      padding: EdgeInsets.zero,
+      placeholder: 'Começa a escrever…',
+      customStyles: quill_lib.DefaultStyles(
+        paragraph: quill_lib.DefaultTextBlockStyle(
+          const TextStyle(
+            fontFamily: 'Lora',
+            fontSize: 16,
+            height: 1.85,
+            color: kInk,
+          ),
+          const quill_lib.HorizontalSpacing(0, 0),
+          const quill_lib.VerticalSpacing(0, 0),
+          const quill_lib.VerticalSpacing(0, 0),
+          null,
+        ),
+      ),
+    );
 
 // ── SCROLL MODE ───────────────────────────────────────────
 class _ScrollPage extends StatefulWidget {
@@ -108,33 +131,11 @@ class _ScrollPageState extends State<_ScrollPage> {
             setState(() => _focused = f);
             widget.onFocusChange(f);
           },
-          // Na v10.x do flutter_quill o QuillEditor não possui o parâmetro
-          // `config`. As propriedades são passadas diretamente no construtor.
           child: quill_lib.QuillEditor(
             controller: st.quill,
             focusNode: st.focusNode,
             scrollController: st.scrollController,
-            configurations: quill_lib.QuillEditorConfig(
-              scrollable: false,
-              autoFocus: false,
-              expands: false,
-              padding: EdgeInsets.zero,
-              placeholder: 'Começa a escrever…',
-              customStyles: quill_lib.DefaultStyles(
-                paragraph: quill_lib.DefaultTextBlockStyle(
-                  const TextStyle(
-                    fontFamily: 'Lora',
-                    fontSize: 16,
-                    height: 1.85,
-                    color: kInk,
-                  ),
-                  const quill_lib.HorizontalSpacing(0, 0),
-                  const quill_lib.VerticalSpacing(0, 0),
-                  const quill_lib.VerticalSpacing(0, 0),
-                  null,
-                ),
-              ),
-            ),
+            config: _editorConfig(),
           ),
         ),
       ),
@@ -206,35 +207,13 @@ class _A4PageState extends State<_A4Page> {
                     controller: st.quill,
                     focusNode: st.focusNode,
                     scrollController: st.scrollController,
-                    configurations: quill_lib.QuillEditorConfig(
-                      scrollable: false,
-                      autoFocus: false,
-                      expands: false,
-                      padding: EdgeInsets.zero,
-                      placeholder: 'Começa a escrever…',
-                      customStyles: quill_lib.DefaultStyles(
-                        paragraph: quill_lib.DefaultTextBlockStyle(
-                          const TextStyle(
-                            fontFamily: 'Lora',
-                            fontSize: 16,
-                            height: 1.85,
-                            color: kInk,
-                          ),
-                          const quill_lib.HorizontalSpacing(0, 0),
-                          const quill_lib.VerticalSpacing(0, 0),
-                          const quill_lib.VerticalSpacing(0, 0),
-                          null,
-                        ),
-                      ),
-                    ),
+                    config: _editorConfig(),
                   )
                 : const SizedBox.shrink(),
           ),
           // Bottom gradient
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+            left: 0, right: 0, bottom: 0,
             child: Container(
               height: 3,
               decoration: BoxDecoration(
@@ -251,8 +230,7 @@ class _A4PageState extends State<_A4Page> {
           ),
           // Page number
           Positioned(
-            bottom: 14,
-            right: 20,
+            bottom: 14, right: 20,
             child: Text(
               '${widget.pageNumber}',
               style: const TextStyle(
