@@ -114,23 +114,25 @@ class _ScrollPageState extends State<_ScrollPage> {
             controller: st.quill,
             focusNode: st.focusNode,
             scrollController: st.scrollController,
-            scrollable: false,
-            autoFocus: false,
-            expands: false,
-            padding: EdgeInsets.zero,
-            placeholder: 'Começa a escrever…',
-            customStyles: quill_lib.DefaultStyles(
-              paragraph: quill_lib.DefaultTextBlockStyle(
-                const TextStyle(
-                  fontFamily: 'Lora',
-                  fontSize: 16,
-                  height: 1.85,
-                  color: kInk,
+            configurations: quill_lib.QuillEditorConfig(
+              scrollable: false,
+              autoFocus: false,
+              expands: false,
+              padding: EdgeInsets.zero,
+              placeholder: 'Começa a escrever…',
+              customStyles: quill_lib.DefaultStyles(
+                paragraph: quill_lib.DefaultTextBlockStyle(
+                  const TextStyle(
+                    fontFamily: 'Lora',
+                    fontSize: 16,
+                    height: 1.85,
+                    color: kInk,
+                  ),
+                  const quill_lib.HorizontalSpacing(0, 0),
+                  const quill_lib.VerticalSpacing(0, 0),
+                  const quill_lib.VerticalSpacing(0, 0),
+                  null,
                 ),
-                const quill_lib.HorizontalSpacing(0, 0),
-                const quill_lib.VerticalSpacing(0, 0),
-                const quill_lib.VerticalSpacing(0, 0),
-                null,
               ),
             ),
           ),
@@ -204,23 +206,25 @@ class _A4PageState extends State<_A4Page> {
                     controller: st.quill,
                     focusNode: st.focusNode,
                     scrollController: st.scrollController,
-                    scrollable: false,
-                    autoFocus: false,
-                    expands: false,
-                    padding: EdgeInsets.zero,
-                    placeholder: 'Começa a escrever…',
-                    customStyles: quill_lib.DefaultStyles(
-                      paragraph: quill_lib.DefaultTextBlockStyle(
-                        const TextStyle(
-                          fontFamily: 'Lora',
-                          fontSize: 16,
-                          height: 1.85,
-                          color: kInk,
+                    configurations: quill_lib.QuillEditorConfig(
+                      scrollable: false,
+                      autoFocus: false,
+                      expands: false,
+                      padding: EdgeInsets.zero,
+                      placeholder: 'Começa a escrever…',
+                      customStyles: quill_lib.DefaultStyles(
+                        paragraph: quill_lib.DefaultTextBlockStyle(
+                          const TextStyle(
+                            fontFamily: 'Lora',
+                            fontSize: 16,
+                            height: 1.85,
+                            color: kInk,
+                          ),
+                          const quill_lib.HorizontalSpacing(0, 0),
+                          const quill_lib.VerticalSpacing(0, 0),
+                          const quill_lib.VerticalSpacing(0, 0),
+                          null,
                         ),
-                        const quill_lib.HorizontalSpacing(0, 0),
-                        const quill_lib.VerticalSpacing(0, 0),
-                        const quill_lib.VerticalSpacing(0, 0),
-                        null,
                       ),
                     ),
                   )
