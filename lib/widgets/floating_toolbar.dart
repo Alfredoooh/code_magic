@@ -4,11 +4,12 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../editor_state.dart';
 import 'popups/popup_color.dart';
-import 'popups/popup_font.dart';
+import 'popups/all_popups.dart';
+/*import 'popups/popup_font.dart';
 import 'popups/popup_size.dart';
 import 'popups/popup_styles.dart';
 import 'popups/popup_insert.dart';
-import 'popups/popup_format.dart';
+import 'popups/popup_format.dart';*/
 
 class FloatingToolbar extends StatefulWidget {
   const FloatingToolbar({super.key});
