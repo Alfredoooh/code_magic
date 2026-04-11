@@ -153,10 +153,10 @@ class AppEditorState extends ChangeNotifier {
   // ScriptAttribute em flutter_quill 10.x aceita a string diretamente
   // pois ScriptAttributes é um typedef de String, não um enum.
   void applySuperscript() =>
-      quill.formatSelection(const quill_lib.ScriptAttribute('super'));
+      quill.formatSelection(quill_lib.ScriptAttribute('super'));
 
   void applySubscript() =>
-      quill.formatSelection(const quill_lib.ScriptAttribute('sub'));
+      quill.formatSelection(quill_lib.ScriptAttribute('sub'));
 
   // ── Line height ────────────────────────────────────────
   // Na v10.x, LineHeightAttribute usa parâmetro nomeado {double? lineHeight}.
