@@ -5,15 +5,9 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../editor_state.dart';
 
-// ─────────────────────────────────────────────────────────
-// Constantes exactas do HTML
-//   width:794px  height:1123px  padding:96px 88px
-// Mapeados para kPageWidth / kPageHeight / kPagePadH / kPagePadV
-// ─────────────────────────────────────────────────────────
-
-// ── Métricas de paginação (lógica do splitA4 do HTML) ────
-const double _kUsableW = kPageWidth  - kPagePadH * 2; // 794 - 176 = 618
-const double _kUsableH = kPageHeight - kPagePadV * 2; // 1123 - 192 = 931
+// ── Métricas de paginação ─────────────────────────────────
+const double _kUsableW = kPageWidth  - kPagePadH * 2;
+const double _kUsableH = kPageHeight - kPagePadV * 2;
 
 int _charsPerLine(double fs) =>
     (_kUsableW / (fs * 0.52)).floor().clamp(1, 9999);
@@ -64,7 +58,7 @@ quill_lib.QuillEditorConfigurations _editorConfig(
               _SelectionMenu(controller: ctrl, rawEditor: rawEditor),
     );
 
-// ── Menu de selecção (igual ao selMenu do HTML) ───────────
+// ── Menu de selecção ──────────────────────────────────────
 class _SelectionMenu extends StatelessWidget {
   final quill_lib.QuillController controller;
   final dynamic rawEditor;
@@ -95,23 +89,9 @@ class _SelectionMenu extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// DECORAÇÃO DO PAPEL
-// HTML scroll-mode:
-//   border-radius:4px
-//   box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 20px rgba(0,0,0,.06)
-//   focused: 0 2px 8px rgba(0,0,0,.08), 0 8px 36px rgba(0,0,0,.12)
-// HTML a4-mode:
-//   border-radius:4px  (sem border explícita — sombra define o contorno)
-//   mesmas sombras do scroll-mode
-//
-// PEDIDO DO UTILIZADOR: bordas retas + borda sólida ligeiramente visível
-//   → borderRadius: zero  + Border.all
-// ─────────────────────────────────────────────────────────
-BoxDecoration _paperDecoration({bool focused = false, bool a4 = false}) =>
-    BoxDecoration(
+// ── Decoração do papel ────────────────────────────────────
+BoxDecoration _paperDecoration({bool focused = false}) => BoxDecoration(
       color: kWhite,
-      // Bordas retas (sem borderRadius) + linha sólida subtil
       border: Border.all(
         color: Colors.black.withOpacity(focused ? 0.20 : 0.13),
         width: 1.2,
@@ -131,13 +111,7 @@ BoxDecoration _paperDecoration({bool focused = false, bool a4 = false}) =>
             ],
     );
 
-// ─────────────────────────────────────────────────────────
-// CANVAS AREA
-// HTML: #canvasScroll  →  flex-col items-center  bg-[#f8f8f7]
-//       px-4 pt-7 pb-[200px]
-// A centralização vem do  display:flex + align-items:center  do canvasScroll,
-// não do page-wrapper. Replicamos com Center() dentro do scroll.
-// ─────────────────────────────────────────────────────────
+// ── CanvasArea ────────────────────────────────────────────
 class CanvasArea extends StatefulWidget {
   const CanvasArea({super.key});
   @override
@@ -148,7 +122,6 @@ class _CanvasAreaState extends State<CanvasArea> {
   bool _focused = false;
 
   void _onBgTap() {
-    // HTML: click fora do .page-content → remove focus
     context.read<AppEditorState>().focusNode.unfocus();
     setState(() => _focused = false);
   }
@@ -157,49 +130,33 @@ class _CanvasAreaState extends State<CanvasArea> {
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
 
-    return LayoutBuilder(builder: (ctx, constraints) {
-      // HTML usa padding px-4 (16px) em cada lado
-      _computeScale(constraints.maxWidth - 32);
-
-      return GestureDetector(
-        onTap: _onBgTap,
-        behavior: HitTestBehavior.translucent,
-        child: Container(
-          // HTML: bg-[#f8f8f7]  (fundo do canvasScroll)
-          color: const Color(0xFFF0F0EE),
+    return GestureDetector(
+      onTap: _onBgTap,
+      behavior: HitTestBehavior.translucent,
+      child: Container(
+        color: const Color(0xFFF0F0EE),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          physics: const ClampingScrollPhysics(),
           child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             physics: const ClampingScrollPhysics(),
-            // HTML: px-4 pt-7 pb-[200px]
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-            // Replica: transform:scale(s); transform-origin:top center;
-            // margin-bottom: (s-1)*pageHeight  (compensa o espaço perdido)
-            child: Center(
-              child: SizedBox(
-                width: kPageWidth * _scale,
-                child: Transform.scale(
-                  scale: _scale,
-                  alignment: Alignment.topCenter,
-                  child: st.a4Mode
-                      ? _A4Pages(
-                          onFocusChange: (f) => setState(() => _focused = f))
-                      : _ScrollPage(
-                          onFocusChange: (f) => setState(() => _focused = f)),
-                ),
-              ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+              child: st.a4Mode
+                  ? _A4Pages(
+                      onFocusChange: (f) => setState(() => _focused = f))
+                  : _ScrollPage(
+                      onFocusChange: (f) => setState(() => _focused = f)),
             ),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// SCROLL MODE
-// HTML .page:  width:794px  min-height:1123px
-//              padding: 96px 88px 120px  (bottom maior para espaço de escrita)
-//              border-radius:4px  → aqui: zero
-// ─────────────────────────────────────────────────────────
+// ── Scroll Mode ───────────────────────────────────────────
 class _ScrollPage extends StatefulWidget {
   final ValueChanged<bool> onFocusChange;
   const _ScrollPage({required this.onFocusChange});
@@ -215,16 +172,14 @@ class _ScrollPageState extends State<_ScrollPage> {
     final fs = (st.fontSize ?? 16).toDouble();
 
     return GestureDetector(
-      onTap: () {}, // absorve — não dispara _onBgTap
+      onTap: () {},
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         width: kPageWidth,
         constraints: const BoxConstraints(minHeight: kPageHeight),
         decoration: _paperDecoration(focused: _focused),
-        // padding: top 96, sides 88, bottom 120  (igual ao HTML)
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-              kPagePadH, kPagePadV, kPagePadH, 120),
+          padding: const EdgeInsets.fromLTRB(kPagePadH, kPagePadV, kPagePadH, 120),
           child: Focus(
             onFocusChange: (f) {
               setState(() => _focused = f);
@@ -243,17 +198,7 @@ class _ScrollPageState extends State<_ScrollPage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// A4 MODE
-// HTML .a4-page:  width:794px  height:1123px
-//                 padding: 96px 88px  (top e bottom iguais)
-//                 ::after gradient na base
-//                 número de página bottom-right
-//
-// Paginação: replica splitA4 do HTML —
-//   página 1 = editor real (editável)
-//   páginas 2..N = snapshot read-only do trecho correspondente
-// ─────────────────────────────────────────────────────────
+// ── A4 Mode ───────────────────────────────────────────────
 class _A4Pages extends StatelessWidget {
   final ValueChanged<bool> onFocusChange;
   const _A4Pages({required this.onFocusChange});
@@ -298,7 +243,6 @@ class _A4Page extends StatefulWidget {
 class _A4PageState extends State<_A4Page> {
   bool _focused = false;
 
-  // Replica a lógica de offset do splitA4 do HTML
   quill_lib.QuillController _buildPageCtrl(AppEditorState st) {
     if (widget.pageIndex == 0) return st.quill;
 
@@ -314,7 +258,7 @@ class _A4PageState extends State<_A4Page> {
       final wrapped = math.max(1, (line.length / cpl).ceil());
       if (linesAccum + wrapped > targetStart) break;
       linesAccum += wrapped;
-      charOffset += line.length + 1; // +1 para '\n'
+      charOffset += line.length + 1;
     }
 
     final end = math.min(
@@ -336,79 +280,70 @@ class _A4PageState extends State<_A4Page> {
 
   @override
   Widget build(BuildContext context) {
-    final st  = context.watch<AppEditorState>();
-    final ctrl = _buildPageCtrl(st);
+    final st = context.watch<AppEditorState>();
     final isFirst = widget.pageIndex == 0;
+    final ctrl = _buildPageCtrl(st);
 
     return GestureDetector(
       onTap: () {},
       child: Container(
         width: kPageWidth,
         height: kPageHeight,
-        // HTML: gap:24px entre páginas
         margin: const EdgeInsets.only(bottom: 24),
-        decoration: _paperDecoration(focused: _focused && isFirst, a4: true),
-        child: Stack(
-          children: [
-            // Conteúdo
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  kPagePadH, kPagePadV, kPagePadH, kPagePadV),
-              child: isFirst
-                  ? Focus(
-                      onFocusChange: (f) {
-                        setState(() => _focused = f);
-                        widget.onFocusChange(f);
-                      },
-                      child: quill_lib.QuillEditor.basic(
-                        controller: ctrl,
-                        focusNode: st.focusNode,
-                        scrollController: st.scrollController,
-                        configurations:
-                            _editorConfig(widget.fontSize, ctrl: ctrl),
-                      ),
-                    )
-                  : quill_lib.QuillEditor.basic(
+        decoration: _paperDecoration(focused: _focused && isFirst),
+        child: Stack(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                kPagePadH, kPagePadV, kPagePadH, kPagePadV),
+            child: isFirst
+                ? Focus(
+                    onFocusChange: (f) {
+                      setState(() => _focused = f);
+                      widget.onFocusChange(f);
+                    },
+                    child: quill_lib.QuillEditor.basic(
                       controller: ctrl,
-                      focusNode: FocusNode(canRequestFocus: false),
-                      scrollController: ScrollController(),
-                      configurations: _editorConfig(widget.fontSize),
+                      focusNode: st.focusNode,
+                      scrollController: st.scrollController,
+                      configurations: _editorConfig(widget.fontSize, ctrl: ctrl),
                     ),
-            ),
-
-            // HTML .a4-page::after — gradiente na base
-            Positioned(
-              left: 0, right: 0, bottom: 0,
-              child: Container(
-                height: 3,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.06),
-                    ],
+                  )
+                : quill_lib.QuillEditor.basic(
+                    controller: ctrl,
+                    focusNode: FocusNode(canRequestFocus: false),
+                    scrollController: ScrollController(),
+                    configurations: _editorConfig(widget.fontSize),
                   ),
+          ),
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            child: Container(
+              height: 3,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.06),
+                  ],
                 ),
               ),
             ),
-
-            // HTML .a4-page-num — número de página
-            Positioned(
-              bottom: 14, right: 20,
-              child: Text(
-                '${widget.pageNumber}',
-                style: const TextStyle(
-                  fontFamily: 'DMSans',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: kMuted,
-                ),
+          ),
+          Positioned(
+            bottom: 14, right: 20,
+            child: Text(
+              '${widget.pageNumber}',
+              style: const TextStyle(
+                fontFamily: 'DMSans',
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: kMuted,
               ),
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }
