@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
     # Editor de texto rico
-  flutter_quill: ^10.0.0
+  flutter_quill: 10.8.5
   flutter_quill_extensions: ^10.0.0
 
   # State management
