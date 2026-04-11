@@ -299,7 +299,7 @@ class _ScrollPageState extends State<_ScrollPage> {
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
     // Tamanho de fonte actual (pode vir do estado; fallback 16)
-    final fontSize = st.fontSize ?? 16.0;
+    final fontSize = (st.fontSize ?? 16).toDouble();
 
     return GestureDetector(
       // Absorve o toque dentro da página para não propagar ao fundo
@@ -338,7 +338,7 @@ class _A4Pages extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final st = context.watch<AppEditorState>();
-    final fontSize = st.fontSize ?? 16.0;
+    final fontSize = (st.fontSize ?? 16).toDouble();
     final count = _estimatePageCount(st.quill, fontSize);
 
     return Column(
@@ -359,8 +359,7 @@ class _A4Page extends StatefulWidget {
   final int pageNumber;
   final int pageIndex;
   final int totalPages;
-  final double fontSize;
-  final ValueChanged<bool> onFocusChange;
+      final double fontSize;  final ValueChanged<bool> onFocusChange;
 
   const _A4Page({
     required this.pageNumber,
