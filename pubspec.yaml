@@ -25,6 +25,7 @@ dependencies:
 
   # File picker (inserir imagens)
   file_picker: ^8.0.0+1
+  lucide_icons: any
 
   # URL launcher (links)
   url_launcher: ^6.3.0
