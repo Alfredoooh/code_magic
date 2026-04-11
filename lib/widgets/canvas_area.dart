@@ -127,11 +127,14 @@ class _CanvasAreaState extends State<CanvasArea> {
   double _scale = 1.0;
   bool   _focused = false;
 
-  // Chamado sempre que a largura disponível ou o foco mudam
   void _updateScale(double canvasW) {
     final base = canvasW < kPageWidth ? canvasW / kPageWidth : 1.0;
     final s    = math.min(base * (_focused ? 1.15 : 1.0), 1.0);
-    if ((s - _scale).abs() > 0.001) setState(() => _scale = s);
+    if ((s - _scale).abs() > 0.001) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _scale = s);
+      });
+    }
   }
 
   void _onBgTap() {
@@ -155,43 +158,30 @@ class _CanvasAreaState extends State<CanvasArea> {
         onTap: _onBgTap,
         behavior: HitTestBehavior.translucent,
         child: Container(
-          // bg-[#f8f8f7] — igual ao HTML
           color: const Color(0xFFF8F8F7),
+          width: constraints.maxWidth,
           child: SingleChildScrollView(
             scrollDirection: Axis.vertical,
             physics: const ClampingScrollPhysics(),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const ClampingScrollPhysics(),
-              child: Padding(
-                // px-4 pt-7 pb-[200px] — igual ao HTML
-                padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
-                child: SizedBox(
-                  // largura mínima = ecrã inteiro → page-wrapper fica centrado
-                  width: math.max(kPageWidth, canvasW),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // transform: scale(s); transform-origin: top center
-                      // margin-bottom: (s-1)*pageHeight
-                      Transform.scale(
-                        scale: _scale,
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                              bottom: marginBottom < 0 ? marginBottom.abs() : 0),
-                          child: st.a4Mode
-                              ? _A4Pages(onFocusChange: (f) {
-                                  setState(() => _focused = f);
-                                  _updateScale(canvasW);
-                                })
-                              : _ScrollPage(onFocusChange: (f) {
-                                  setState(() => _focused = f);
-                                  _updateScale(canvasW);
-                                }),
-                        ),
-                      ),
-                    ],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 200),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Transform.scale(
+                  scale: _scale,
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                        bottom: marginBottom < 0 ? marginBottom.abs() : 0),
+                    child: st.a4Mode
+                        ? _A4Pages(onFocusChange: (f) {
+                            setState(() => _focused = f);
+                            _updateScale(canvasW);
+                          })
+                        : _ScrollPage(onFocusChange: (f) {
+                            setState(() => _focused = f);
+                            _updateScale(canvasW);
+                          }),
                   ),
                 ),
               ),
