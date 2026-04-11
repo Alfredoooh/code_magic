@@ -88,26 +88,52 @@ class AppEditorState extends ChangeNotifier {
 
   void updateFormatFromSelection() {
     final style = quill.getSelectionStyle();
-    bold      = style.containsKey(quill_lib.Attribute.bold.key);
-    italic    = style.containsKey(quill_lib.Attribute.italic.key);
+    bold = style.containsKey(quill_lib.Attribute.bold.key);
+    italic = style.containsKey(quill_lib.Attribute.italic.key);
     underline = style.containsKey(quill_lib.Attribute.underline.key);
-    strike    = style.containsKey(quill_lib.Attribute.strikeThrough.key);
+    strike = style.containsKey(quill_lib.Attribute.strikeThrough.key);
     notifyListeners();
   }
 
-  void applyBold()      => quill.formatSelection(bold ? quill_lib.Attribute.clone(quill_lib.Attribute.bold, null) : quill_lib.Attribute.bold);
-  void applyItalic()    => quill.formatSelection(italic ? quill_lib.Attribute.clone(quill_lib.Attribute.italic, null) : quill_lib.Attribute.italic);
-  void applyUnderline() => quill.formatSelection(underline ? quill_lib.Attribute.clone(quill_lib.Attribute.underline, null) : quill_lib.Attribute.underline);
-  void applyStrike()    => quill.formatSelection(strike ? quill_lib.Attribute.clone(quill_lib.Attribute.strikeThrough, null) : quill_lib.Attribute.strikeThrough);
+  void applyBold() => quill.formatSelection(
+        bold
+            ? quill_lib.Attribute.clone(quill_lib.Attribute.bold, null)
+            : quill_lib.Attribute.bold,
+      );
+
+  void applyItalic() => quill.formatSelection(
+        italic
+            ? quill_lib.Attribute.clone(quill_lib.Attribute.italic, null)
+            : quill_lib.Attribute.italic,
+      );
+
+  void applyUnderline() => quill.formatSelection(
+        underline
+            ? quill_lib.Attribute.clone(quill_lib.Attribute.underline, null)
+            : quill_lib.Attribute.underline,
+      );
+
+  void applyStrike() => quill.formatSelection(
+        strike
+            ? quill_lib.Attribute.clone(quill_lib.Attribute.strikeThrough, null)
+            : quill_lib.Attribute.strikeThrough,
+      );
 
   void applyAlign(String a) {
     setAlign(a);
     quill_lib.Attribute attr;
     switch (a) {
-      case 'center':  attr = quill_lib.Attribute.centerAlignment; break;
-      case 'right':   attr = quill_lib.Attribute.rightAlignment; break;
-      case 'justify': attr = quill_lib.Attribute.justifyAlignment; break;
-      default:        attr = quill_lib.Attribute.leftAlignment;
+      case 'center':
+        attr = quill_lib.Attribute.centerAlignment;
+        break;
+      case 'right':
+        attr = quill_lib.Attribute.rightAlignment;
+        break;
+      case 'justify':
+        attr = quill_lib.Attribute.justifyAlignment;
+        break;
+      default:
+        attr = quill_lib.Attribute.leftAlignment;
     }
     quill.formatSelection(attr);
   }
@@ -131,35 +157,44 @@ class AppEditorState extends ChangeNotifier {
 
   void applyBlockStyle(String block) {
     switch (block) {
-      case 'h1':         quill.formatSelection(quill_lib.Attribute.h1); break;
-      case 'h2':         quill.formatSelection(quill_lib.Attribute.h2); break;
-      case 'h3':         quill.formatSelection(quill_lib.Attribute.h3); break;
-      case 'blockquote': quill.formatSelection(quill_lib.Attribute.blockQuote); break;
-      case 'pre':        quill.formatSelection(quill_lib.Attribute.codeBlock); break;
-      // 'p' e qualquer outro valor remove o bloco atual
-      default:           quill.formatSelection(quill_lib.Attribute.clone(quill_lib.Attribute.h1, null));
+      case 'h1':
+        quill.formatSelection(quill_lib.Attribute.h1);
+        break;
+      case 'h2':
+        quill.formatSelection(quill_lib.Attribute.h2);
+        break;
+      case 'h3':
+        quill.formatSelection(quill_lib.Attribute.h3);
+        break;
+      case 'blockquote':
+        quill.formatSelection(quill_lib.Attribute.blockQuote);
+        break;
+      case 'pre':
+        quill.formatSelection(quill_lib.Attribute.codeBlock);
+        break;
+      default:
+        quill.formatSelection(
+          quill_lib.Attribute.clone(quill_lib.Attribute.h1, null),
+        );
     }
   }
 
   void insertUnorderedList() => quill.formatSelection(quill_lib.Attribute.ul);
-  void insertOrderedList()   => quill.formatSelection(quill_lib.Attribute.ol);
-  void indent()              => quill.formatSelection(quill_lib.Attribute.indentL1);
-  void outdent()             => quill.formatSelection(quill_lib.Attribute.clone(quill_lib.Attribute.indentL1, null));
-  void undo()                => quill.undo();
-  void redo()                => quill.redo();
+  void insertOrderedList() => quill.formatSelection(quill_lib.Attribute.ol);
+  void indent() => quill.formatSelection(quill_lib.Attribute.indentL1);
+  void outdent() =>
+      quill.formatSelection(quill_lib.Attribute.clone(quill_lib.Attribute.indentL1, null));
+  void undo() => quill.undo();
+  void redo() => quill.redo();
 
   // ── Superscript / Subscript ────────────────────────────
-  // Na v10.x, ScriptAttribute recebe ScriptAttributes (enum), não String.
-  // ScriptAttribute em flutter_quill 10.x aceita a string diretamente
-  // pois ScriptAttributes é um typedef de String, não um enum.
   void applySuperscript() =>
-      quill.formatSelection(quill_lib.ScriptAttribute('super'));
+      quill.formatSelection(quill_lib.ScriptAttribute(quill_lib.ScriptAttributes.sup));
 
   void applySubscript() =>
-      quill.formatSelection(quill_lib.ScriptAttribute('sub'));
+      quill.formatSelection(quill_lib.ScriptAttribute(quill_lib.ScriptAttributes.sub));
 
   // ── Line height ────────────────────────────────────────
-  // Na v10.x, LineHeightAttribute usa parâmetro nomeado {double? lineHeight}.
   void applyLineHeight(double h) {
     quill.formatSelection(quill_lib.LineHeightAttribute(lineHeight: h));
   }
@@ -177,11 +212,20 @@ class AppEditorState extends ChangeNotifier {
     final text = quill.document.toPlainText().substring(sel.start, sel.end);
     String transformed;
     switch (mode) {
-      case 'upper': transformed = text.toUpperCase(); break;
-      case 'lower': transformed = text.toLowerCase(); break;
-      case 'title': transformed = text.replaceAllMapped(
-          RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase()); break;
-      default: transformed = text;
+      case 'upper':
+        transformed = text.toUpperCase();
+        break;
+      case 'lower':
+        transformed = text.toLowerCase();
+        break;
+      case 'title':
+        transformed = text.replaceAllMapped(
+          RegExp(r'\b\w'),
+          (m) => m.group(0)!.toUpperCase(),
+        );
+        break;
+      default:
+        transformed = text;
     }
     quill.replaceText(sel.start, sel.end - sel.start, transformed, sel);
   }
