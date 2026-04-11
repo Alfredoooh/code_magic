@@ -9,15 +9,16 @@ import 'widgets/floating_toolbar.dart';
 
 class EditorPage extends StatefulWidget {
   const EditorPage({super.key});
+
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
 
 class _EditorPageState extends State<EditorPage>
     with SingleTickerProviderStateMixin {
-  late AnimationController _drawerAnim;
-  late Animation<double> _appShift;
-  late Animation<double> _overlayOpacity;
+  late final AnimationController _drawerAnim;
+  late final Animation<double> _appShift;
+  late final Animation<double> _overlayOpacity;
 
   @override
   void initState() {
@@ -26,9 +27,11 @@ class _EditorPageState extends State<EditorPage>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
+
     _appShift = Tween<double>(begin: 0, end: 110).animate(
       CurvedAnimation(parent: _drawerAnim, curve: kCurve),
     );
+
     _overlayOpacity = Tween<double>(begin: 0, end: 0.18).animate(
       CurvedAnimation(parent: _drawerAnim, curve: kCurve),
     );
@@ -55,6 +58,8 @@ class _EditorPageState extends State<EditorPage>
       child: Consumer<AppEditorState>(
         builder: (ctx, st, _) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+
             if (st.drawerOpen &&
                 _drawerAnim.status != AnimationStatus.forward &&
                 _drawerAnim.status != AnimationStatus.completed) {
@@ -70,12 +75,30 @@ class _EditorPageState extends State<EditorPage>
             backgroundColor: kBg,
             body: Stack(
               children: [
-                // ── DRAWER ──────────────────────────────
+                // ── APP ─────────────────────────────────
                 AnimatedBuilder(
-                  animation: _drawerAnim,
-                  builder: (_, __) => Transform.translate(
-                    offset: Offset(-260 + 260 * _drawerAnim.value, 0),
-                    child: DrawerWidget(onClose: () => st.closeDrawer()),
+                  animation: _appShift,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(_appShift.value, 0),
+                    child: child,
+                  ),
+                  child: Column(
+                    children: [
+                      TopBar(onMenuTap: () => st.toggleDrawer()),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            const CanvasArea(),
+                            const Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: FloatingToolbar(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -93,28 +116,24 @@ class _EditorPageState extends State<EditorPage>
                   ),
                 ),
 
-                // ── APP ─────────────────────────────────
+                // ── DRAWER ──────────────────────────────
                 AnimatedBuilder(
-                  animation: _appShift,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(_appShift.value, 0),
-                    child: child,
-                  ),
-                  child: Column(
-                    children: [
-                      TopBar(onMenuTap: () => st.toggleDrawer()),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            const CanvasArea(),
-                            const Positioned(
-                              left: 0, right: 0, bottom: 0,
-                              child: FloatingToolbar(),
+                  animation: _drawerAnim,
+                  builder: (_, __) => Positioned.fill(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Transform.translate(
+                        offset: Offset(-260 + 260 * _drawerAnim.value, 0),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: SafeArea(
+                            child: DrawerWidget(
+                              onClose: () => st.closeDrawer(),
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
