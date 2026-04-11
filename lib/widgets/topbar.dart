@@ -34,7 +34,7 @@ class _TopBarState extends State<TopBar> {
 
   @override
   Widget build(BuildContext context) {
-    final st = context.watch<EditorState>();
+    final st = context.watch<AppEditorState>();
     return Container(
       height: 52,
       decoration: const BoxDecoration(
@@ -112,11 +112,11 @@ class _TopBarState extends State<TopBar> {
               children: [
                 _TbIconBtn(
                   icon: Icons.undo,
-                  onTap: () => context.read<EditorState>().undo(),
+                  onTap: () => context.read<AppEditorState>().undo(),
                 ),
                 _TbIconBtn(
                   icon: Icons.redo,
-                  onTap: () => context.read<EditorState>().redo(),
+                  onTap: () => context.read<AppEditorState>().redo(),
                 ),
               ],
             ),
@@ -143,11 +143,15 @@ class _TbIconBtnState extends State<_TbIconBtn> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 80),
-        width: 44, height: 44,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: _pressed ? Colors.black.withOpacity(0.06) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
