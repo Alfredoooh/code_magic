@@ -293,11 +293,11 @@ class _ToolbarTrack extends StatelessWidget {
                 onTap: () => context.read<AppEditorState>().insertOrderedList(),
               ),
               _TbBtn(
-                icon: LucideIcons.indentIncrease,
+                icon: LucideIcons.arrowRightToLine,
                 onTap: () => context.read<AppEditorState>().indent(),
               ),
               _TbBtn(
-                icon: LucideIcons.indentDecrease,
+                icon: LucideIcons.arrowLeftToLine,
                 onTap: () => context.read<AppEditorState>().outdent(),
               ),
               _Sep(),
@@ -638,9 +638,7 @@ class _TbBtnState extends State<_TbBtn> {
           width: 38,
           padding: const EdgeInsets.symmetric(horizontal: 7),
           decoration: BoxDecoration(
-            color: widget.active
-                ? kAccentBg
-                : Colors.transparent,
+            color: widget.active ? kAccentBg : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Icon(
@@ -697,9 +695,7 @@ class _FmtBtnState extends State<_FmtBtn> {
           constraints: const BoxConstraints(minWidth: 38),
           padding: const EdgeInsets.symmetric(horizontal: 7),
           decoration: BoxDecoration(
-            color: widget.active
-                ? kAccentBg
-                : Colors.transparent,
+            color: widget.active ? kAccentBg : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Center(
@@ -954,9 +950,7 @@ class _PopupCardState extends State<_PopupCard>
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.92),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.35),
-                ),
+                border: Border.all(color: Colors.white.withOpacity(0.35)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.white.withOpacity(0.10),
